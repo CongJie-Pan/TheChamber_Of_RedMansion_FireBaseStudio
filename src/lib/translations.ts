@@ -283,6 +283,7 @@ export const translations: Record<Language, Translations> = {
     sidebar: {
       home: '首頁',
       read: '閱讀',
+      dailyTasks: '每日修身',
       achievements: '成就與目標',
       community: '紅學社',
     },
@@ -845,6 +846,7 @@ export const translations: Record<Language, Translations> = {
     sidebar: {
       home: '首页',
       read: '阅读',
+      dailyTasks: '每日修身',
       achievements: '成就与目标',
       community: '红学社',
     },
@@ -1395,6 +1397,7 @@ export const translations: Record<Language, Translations> = {
     sidebar: {
       home: 'Home',
       read: 'Read',
+      dailyTasks: 'Daily Tasks',
       achievements: 'Achievements',
       community: 'Community',
     },

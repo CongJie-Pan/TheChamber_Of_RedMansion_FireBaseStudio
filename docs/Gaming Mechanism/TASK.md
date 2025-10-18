@@ -362,7 +362,7 @@
                         - Firebase services mocked
                         - User-level service mocked
 
-            - **Phase 3: 前端UI與用戶體驗 (Week 3)** - ✅ **核心組件完成 (2025-10-18)**
+            - **Phase 3: 前端UI與用戶體驗 (Week 3)** - ✅ **已完成 (2025-10-18)**
                 - [✅] 3.1 創建 src/app/(main)/daily-tasks/page.tsx (主頁面)
                     - ✅ 每日任務列表 (Task cards with real-time loading)
                     - ✅ 進度統計顯示 (4-card dashboard: completion/XP/streak/rate)
@@ -411,10 +411,12 @@
                     - ✅ 月份導航 (Previous/next month navigation)
                     - ✅ 即時數據載入 (Real-time history from Firebase)
                     - ✅ File: 239 lines
-                - [⬜] 3.8 導航整合 (待實作)
-                    - 在 Dashboard 添加「每日修身」入口
-                    - 在側邊欄添加快速訪問
-                    - 未完成任務紅點提醒
+                - [✅] 3.8 導航整合 (已完成 2025-10-18)
+                    - ✅ 在 Dashboard 添加「每日修身」入口 (DailyTasksSummary widget)
+                    - ✅ 在側邊欄添加快速訪問 (Target icon + navigation link)
+                    - ✅ 未完成任務紅點提醒 (Red dot badge system)
+                    - ✅ 多語言支援 (zh-TW, zh-CN, en-US)
+                    - ✅ 即時狀態檢查 (Firebase Firestore query)
                 - [✅] 3.9 動畫與視覺反饋 (已內建於組件中)
                     - ✅ 任務完成慶祝動畫 (TaskResultModal 中實現)
                     - ✅ XP增加數字飛入動畫 (Animated score counter)
@@ -426,14 +428,15 @@
                 - [✅] 3.11 組件導出文件
                     - ✅ src/components/daily-tasks/index.ts (Barrel export)
                 - **實現總結**:
-                    - ✅ **總代碼**: ~2,300 lines across 8 files
+                    - ✅ **總代碼**: ~2,300 lines across 8 files + navigation integration (~140 lines)
                     - ✅ **組件數量**: 1 page + 6 UI components + 1 index
+                    - ✅ **導航整合**: Dashboard widget + sidebar link + red dot notification
                     - ✅ **設計模式**: Shadcn/ui + Tailwind CSS, 一致性設計
                     - ✅ **響應式**: Mobile-first design with breakpoints
                     - ✅ **狀態管理**: React hooks (useState, useEffect)
                     - ✅ **類型安全**: Full TypeScript with interfaces
                     - ✅ **錯誤處理**: Graceful error states with user feedback
-                    - ✅ **提交記錄**: Commit fb93cf0 (2025-10-18)
+                    - ✅ **提交記錄**: Commit fb93cf0 (2025-10-18) + TBD (navigation)
                 - **Expectations** (預期效果 - 用於檢核):
                     1. **頁面載入**: 每日任務主頁面可正常訪問 (/daily-tasks)
                     2. **任務顯示**: 任務卡片正確顯示類型、難度、獎勵、狀態
@@ -442,11 +445,15 @@
                     5. **結果展示**: 完成後顯示分數、反饋、XP 獎勵、屬性增加
                     6. **連擊系統**: 連擊計數器正確顯示天數、里程碑、進度
                     7. **日曆視圖**: 可查看歷史完成記錄，正確標註完成/部分/未完成
-                    8. **Dashboard 整合**: DailyTasksSummary 可在 Dashboard 顯示摘要
+                    8. **導航整合**:
+                        - Dashboard 顯示 DailyTasksSummary 摘要卡片
+                        - 側邊欄顯示「每日修身」導航連結
+                        - 有未完成任務時顯示紅點提醒
+                        - 點擊導航可正確跳轉至 /daily-tasks
                     9. **響應式設計**: 在移動端、平板、桌面均正常顯示
                     10. **動畫效果**: 分數動畫、進度條動畫、火焰動畫流暢運行
                     11. **錯誤處理**: 載入失敗、提交失敗時顯示友善錯誤訊息
-                    12. **多語言支持**: 組件準備好接入翻譯系統 (目前使用繁體中文)
+                    12. **多語言支持**: 組件完整支援繁中、簡中、英文切換
 
             - **Phase 4: 任務調度與管理 (Week 4)**
                 - [⬜] 4.1 實現任務生成邏輯

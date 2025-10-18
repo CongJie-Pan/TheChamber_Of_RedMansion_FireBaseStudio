@@ -74,6 +74,9 @@ import { useLanguage } from '@/hooks/useLanguage';
 // Gamification components
 import { LevelDisplay } from '@/components/gamification';
 
+// Daily Tasks components
+import { DailyTasksSummary } from '@/components/daily-tasks';
+
 /**
  * Sample learning goals data generator
  * Creates localized example goals for dashboard display
@@ -228,11 +231,16 @@ export default function DashboardPage() {
       <LevelDisplay variant="summary" />
 
       {/*
-        Main Progress Overview Card
-        Features animated circular progress indicator and statistics grid
-        Uses split layout: progress circle on left, stats grid on right
+        Dashboard Widgets Grid
+        Split view with Main Progress Card and Daily Tasks Summary
       */}
-      <Card className="h-[300px] p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/*
+          Main Progress Overview Card
+          Features animated circular progress indicator and statistics grid
+          Uses split layout: progress circle on left, stats grid on right
+        */}
+        <Card className="h-[300px] p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
         <div className="flex h-full items-center">
           {/* Left Section: Animated Progress Circle */}
           <div className="w-1/2 flex flex-col items-center justify-center pr-6 border-r border-border/50">
@@ -285,7 +293,14 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* 
+        {/*
+          Daily Tasks Summary Card
+          Shows today's task completion, XP earned, and quick access to daily tasks
+        */}
+        <DailyTasksSummary />
+      </div>
+
+      {/*
         Recent Reading Activity Section
         Horizontal scrollable carousel of recently accessed books
         Shows progress indicators and navigation links
