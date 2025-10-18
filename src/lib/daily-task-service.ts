@@ -64,6 +64,13 @@ import {
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
 
+// Phase 2: AI Flow Integrations for Task Evaluation
+import { assessReadingComprehension } from '@/ai/flows/daily-reading-comprehension';
+import { assessPoetryQuality } from '@/ai/flows/poetry-quality-assessment';
+import { scoreCharacterAnalysis } from '@/ai/flows/character-analysis-scoring';
+import { gradeCulturalQuiz } from '@/ai/flows/cultural-quiz-grading';
+import { scoreCommentaryInterpretation } from '@/ai/flows/commentary-interpretation';
+
 /**
  * Streak milestone configuration
  * Defines bonus rewards for maintaining task completion streaks
@@ -425,43 +432,138 @@ export class DailyTaskService {
 
   /**
    * Evaluate task quality using AI
-   * Placeholder method - will be fully implemented in Phase 2
+   * Integrates with specialized AI flows for each task type
    *
-   * @param task - Task definition
-   * @param userResponse - User's answer
+   * @param task - Task definition with content and grading criteria
+   * @param userResponse - User's answer/submission
    * @returns Promise with score (0-100)
    */
   async evaluateTaskQuality(task: DailyTask, userResponse: string): Promise<number> {
     try {
-      // Phase 2 TODO: Integrate with AI flows
-      // For now, return a simulated score based on response length
-      const responseLength = userResponse.length;
-      const minLength = task.gradingCriteria?.minLength || 50;
+      // Route to appropriate AI flow based on task type
+      switch (task.type) {
+        case DailyTaskType.MORNING_READING: {
+          // Extract passage information
+          const passage = task.content.textPassage;
+          if (!passage) {
+            console.warn('Morning reading task missing text passage');
+            return 60;
+          }
 
-      if (responseLength < minLength) {
-        return 40; // Below minimum
-      } else if (responseLength < minLength * 2) {
-        return 70; // Adequate
-      } else {
-        return 85; // Good
+          const result = await assessReadingComprehension({
+            passage: passage.text,
+            question: passage.question,
+            userAnswer: userResponse,
+            expectedKeywords: passage.expectedKeywords || [],
+            difficulty: task.difficulty,
+          });
+
+          return result.score;
+        }
+
+        case DailyTaskType.POETRY: {
+          // Extract poem information
+          const poem = task.content.poem;
+          if (!poem) {
+            console.warn('Poetry task missing poem content');
+            return 60;
+          }
+
+          const result = await assessPoetryQuality({
+            poemTitle: poem.title,
+            originalPoem: poem.original,
+            userRecitation: userResponse,
+            author: poem.author,
+            difficulty: task.difficulty,
+          });
+
+          return result.overallScore;
+        }
+
+        case DailyTaskType.CHARACTER_INSIGHT: {
+          // Extract character information
+          const character = task.content.character;
+          if (!character) {
+            console.warn('Character task missing character content');
+            return 60;
+          }
+
+          const result = await scoreCharacterAnalysis({
+            characterName: character.name,
+            characterDescription: character.description,
+            analysisPrompt: task.description,
+            userAnalysis: userResponse,
+            expectedThemes: character.traits || [],
+            difficulty: task.difficulty,
+          });
+
+          return result.qualityScore;
+        }
+
+        case DailyTaskType.CULTURAL_EXPLORATION: {
+          // Extract cultural quiz information
+          const cultural = task.content.culturalKnowledge;
+          if (!cultural) {
+            console.warn('Cultural task missing cultural knowledge content');
+            return 60;
+          }
+
+          // For quiz-type tasks, we may need to parse multiple Q&A pairs
+          // For now, treat as single question-answer
+          const result = await gradeCulturalQuiz({
+            quizTitle: task.title,
+            quizQuestions: [
+              {
+                question: cultural.question,
+                correctAnswer: cultural.correctAnswer || '',
+                userAnswer: userResponse,
+                culturalContext: cultural.historicalContext || '',
+              },
+            ],
+            difficulty: task.difficulty,
+          });
+
+          return result.score;
+        }
+
+        case DailyTaskType.COMMENTARY_DECODE: {
+          // Extract commentary information
+          const commentary = task.content.commentary;
+          if (!commentary) {
+            console.warn('Commentary task missing commentary content');
+            return 60;
+          }
+
+          const result = await scoreCommentaryInterpretation({
+            commentaryText: commentary.text,
+            relatedPassage: commentary.relatedPassage || '',
+            chapterContext: `Chapter ${task.content.textPassage?.chapter || 'unknown'}`,
+            userInterpretation: userResponse,
+            interpretationHints: commentary.hints || [],
+            difficulty: task.difficulty,
+          });
+
+          return result.score;
+        }
+
+        default:
+          console.warn(`Unknown task type: ${task.type}`);
+          // Fallback to basic length-based scoring
+          const responseLength = userResponse.length;
+          const minLength = task.gradingCriteria?.minLength || 50;
+
+          if (responseLength < minLength) {
+            return 40;
+          } else if (responseLength < minLength * 2) {
+            return 70;
+          } else {
+            return 85;
+          }
       }
-
-      // Future implementation will call AI flows:
-      // switch (task.type) {
-      //   case DailyTaskType.MORNING_READING:
-      //     return await dailyReadingComprehension(...);
-      //   case DailyTaskType.POETRY:
-      //     return await poetryQualityAssessment(...);
-      //   case DailyTaskType.CHARACTER_INSIGHT:
-      //     return await characterAnalysisScoring(...);
-      //   case DailyTaskType.CULTURAL_EXPLORATION:
-      //     return await culturalQuizGrading(...);
-      //   case DailyTaskType.COMMENTARY_DECODE:
-      //     return await commentaryInterpretation(...);
-      // }
     } catch (error) {
       console.error('Error evaluating task quality:', error);
-      // Return a default score on error
+      // Return a reasonable default score on AI failure
+      // This ensures the user experience continues even if AI is unavailable
       return 60;
     }
   }
