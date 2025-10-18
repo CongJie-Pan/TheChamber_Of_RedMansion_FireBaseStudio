@@ -226,25 +226,206 @@
     - **Why**: 提供低門檻、高頻率的正向反饋，養成用戶每日學習習慣，增加用戶粘性
     - **How**: 整合現有AI flows，設計5種不同類型的微任務，建立任務完成獎勵機制
         - **Resources Required**: AI Flows integration, Task scheduler, Reward system
-    - **Materials**: 現有AI flows (src/ai/flows/), 積分系統設計
+    - **Materials**: 現有AI flows (src/ai/flows/), 積分系統設計, user-level-service.ts
     - **Personnel**:
-        - **Reference Codes**: src/ai/flows/explain-text-selection.ts, src/lib/firebase.ts
-        - **Primary**: AI整合工程師, 後端工程師
+        - **Reference Codes**: src/ai/flows/explain-text-selection.ts, src/lib/firebase.ts, src/lib/user-level-service.ts
+        - **Primary**: AI整合工程師, 後端工程師, 前端工程師
         - **Deliverables**:
-            - [⬜] 五種微任務類型設計與實現 (晨讀、詩詞、人物洞察、文化探秘、脂批解密)
-            - [⬜] 任務調度與重置系統
-            - [⬜] 即時獎勵反饋機制 (才情點、經驗值、屬性點)
-            - [⬜] AI評分與質量檢測算法
-            - [⬜] 任務完成UI與動畫效果
-    - **Dependencies**: AI flows正常運作，用戶等級系統已實現
-- **Constraints**: 單個任務耗時不超過5分鐘，AI響應時間不超過3秒
-    - **Completion Status**: ⬜ 待開始
-    - **Testing Protocol Completed**:
-        - [⬜] Unit tests: 任務邏輯與獎勵計算測試
-        - [⬜] Integration tests: AI flows整合測試
-        - [⬜] Performance tests: AI響應時間測試
-        - **Issues Resolved During Testing**:
-- **Notes**: 需要設計任務難度適應機制，避免用戶挫折感
+            - **Phase 1: 數據模型與服務層 (Week 1)**
+                - [⬜] 1.1 創建 src/lib/types/daily-task.ts (類型定義)
+                    - DailyTask interface (任務基礎結構)
+                    - DailyTaskProgress interface (用戶進度追蹤)
+                    - DailyTaskAssignment interface (任務分配記錄)
+                    - TaskReward interface (獎勵結構)
+                    - TaskCompletionResult interface (完成結果)
+                - [⬜] 1.2 實現 src/lib/daily-task-service.ts (核心服務)
+                    - generateDailyTasks() - 生成每日任務
+                    - getUserDailyProgress() - 獲取用戶進度
+                    - submitTaskCompletion() - 提交任務完成
+                    - evaluateTaskQuality() - 評估任務質量
+                    - awardTaskRewards() - 發放獎勵
+                    - resetDailyTasks() - 重置任務
+                    - getTaskStreak() - 獲取連擊天數
+                    - getTaskHistory() - 獲取歷史記錄
+                - [⬜] 1.3 設計 Firebase collections schema
+                    - dailyTasks collection 結構
+                    - dailyTaskProgress collection 結構
+                    - dailyTaskHistory collection 結構
+                - [⬜] 1.4 創建 src/lib/task-generator.ts (任務生成器)
+                    - DailyTaskGenerator class
+                    - generateTasksForUser() - 根據用戶資料生成任務
+                    - generateMorningReadingTask() - 晨讀任務生成
+                    - generatePoetryTask() - 詩詞任務生成
+                    - generateCharacterTask() - 人物任務生成
+                    - generateCulturalTask() - 文化任務生成
+                    - generateCommentaryTask() - 脂批任務生成
+                - [⬜] 1.5 創建 src/lib/task-difficulty-adapter.ts (難度適應器)
+                    - TaskDifficultyAdapter class
+                    - calculateOptimalDifficulty() - 計算最佳難度
+                    - analyzeUserPerformance() - 分析用戶表現
+                - [⬜] 1.6 Phase 1 單元測試
+                    - tests/lib/daily-task-service.test.ts
+                    - tests/lib/task-generator.test.ts
+                    - tests/lib/task-difficulty-adapter.test.ts
+
+            - **Phase 2: AI整合與評分系統 (Week 2)**
+                - [⬜] 2.1 創建 src/ai/flows/daily-reading-comprehension.ts
+                    - 晨讀理解度評估 flow
+                    - 輸入: passage, userAnswer, question
+                    - 輸出: score (0-100), feedback, keyPoints
+                - [⬜] 2.2 創建 src/ai/flows/poetry-quality-assessment.ts
+                    - 詩詞質量評分 flow
+                    - 輸入: poemTitle, originalPoem, userRecitation
+                    - 輸出: accuracy, completeness, overallScore, mistakes
+                - [⬜] 2.3 創建 src/ai/flows/character-analysis-scoring.ts
+                    - 人物分析評分 flow
+                    - 輸入: characterId, characterName, userAnalysis
+                    - 輸出: qualityScore, depth, insight, feedback
+                - [⬜] 2.4 創建 src/ai/flows/cultural-quiz-grading.ts
+                    - 文化知識測驗評分 flow
+                    - 輸入: quizQuestions, userAnswers
+                    - 輸出: score, correctCount, feedback
+                - [⬜] 2.5 創建 src/ai/flows/commentary-interpretation.ts
+                    - 脂批解讀評分 flow
+                    - 輸入: commentaryText, userInterpretation
+                    - 輸出: score, insightLevel, feedback
+                - [⬜] 2.6 整合 AI flows 到 daily-task-service
+                    - evaluateTaskQuality() 方法整合各 flow
+                    - 錯誤處理與降級方案
+                - [⬜] 2.7 Phase 2 整合測試
+                    - tests/integration/ai-task-evaluation.test.ts
+                    - AI 響應時間測試 (<3秒)
+                    - AI 評分準確度測試
+
+            - **Phase 3: 前端UI與用戶體驗 (Week 3)**
+                - [⬜] 3.1 創建 src/app/(main)/daily-tasks/page.tsx (主頁面)
+                    - 每日任務列表
+                    - 進度統計顯示
+                    - 連擊計數器
+                    - 任務日曆視圖
+                - [⬜] 3.2 創建 src/components/daily-tasks/TaskCard.tsx
+                    - 任務卡片組件
+                    - 顯示任務類型、難度、時間、獎勵
+                    - 狀態標識(未完成/進行中/已完成)
+                - [⬜] 3.3 創建 src/components/daily-tasks/TaskModal.tsx
+                    - 任務執行彈窗
+                    - 晨讀時光: 文章+問題+答案輸入
+                    - 詩詞韻律: 詩詞原文+默寫輸入
+                    - 人物洞察: 角色介紹+分析編輯器
+                    - 文化探秘: 知識卡片+選擇題
+                    - 脂批解密: 批語原文+解讀輸入
+                - [⬜] 3.4 創建 src/components/daily-tasks/TaskResultModal.tsx
+                    - 結果顯示彈窗
+                    - AI評分與反饋展示
+                    - XP/屬性增加動畫
+                    - 整合 LevelUpModal (如晉級)
+                - [⬜] 3.5 創建 src/components/daily-tasks/StreakCounter.tsx
+                    - 連擊計數器組件
+                    - 火焰圖示+連續天數
+                    - 里程碑提示(7天/30天/100天)
+                - [⬜] 3.6 創建 src/components/daily-tasks/DailyTasksSummary.tsx
+                    - Dashboard 摘要組件
+                    - 今日任務完成度
+                    - 快速訪問按鈕
+                - [⬜] 3.7 創建 src/components/daily-tasks/TaskCalendar.tsx
+                    - 任務日曆視圖
+                    - 歷史完成記錄可視化
+                - [⬜] 3.8 導航整合
+                    - 在 Dashboard 添加「每日修身」入口
+                    - 在側邊欄添加快速訪問
+                    - 未完成任務紅點提醒
+                - [⬜] 3.9 動畫與視覺反饋
+                    - 任務完成慶祝動畫 (confetti)
+                    - XP增加數字飛入動畫
+                    - 進度條填充動畫
+                - [⬜] 3.10 響應式設計優化
+                    - 移動端適配
+                    - 平板端適配
+
+            - **Phase 4: 任務調度與管理 (Week 4)**
+                - [⬜] 4.1 實現任務生成邏輯
+                    - 根據星期幾調整任務類型
+                    - 根據用戶等級調整難度
+                    - 根據歷史表現個性化推薦
+                - [⬜] 4.2 創建 src/app/api/cron/reset-daily-tasks/route.ts
+                    - 定時任務重置 API
+                    - 每日 UTC+8 00:00 執行
+                    - 批處理用戶任務生成
+                - [⬜] 4.3 配置 Vercel Cron Jobs
+                    - vercel.json 配置
+                    - Cron 表達式設定
+                    - 錯誤重試邏輯
+                - [⬜] 4.4 防刷機制實現
+                    - sourceId 去重檢查
+                    - 提交時間間隔限制 (5秒冷卻)
+                    - 異常行為檢測
+                - [⬜] 4.5 獎勵發放系統
+                    - 整合 user-level-service.awardXP()
+                    - 整合 user-level-service.updateAttributes()
+                    - 連擊獎勵加成計算
+                - [⬜] 4.6 多語言支援
+                    - 添加 dailyTasks 翻譯鍵值 (zh-TW, zh-CN, en-US)
+                    - 任務內容本地化
+                    - AI 反饋本地化
+                - [⬜] 4.7 整合測試
+                    - tests/integration/daily-tasks-full-flow.test.ts
+                    - 端到端測試(登入→獲取任務→完成→獲得獎勵)
+                    - 防刷機制測試
+                    - 連擊計算測試
+                - [⬜] 4.8 性能優化
+                    - AI 響應時間優化 (<3秒)
+                    - 任務列表載入優化 (<500ms)
+                    - 並發用戶提交測試 (1000+ users)
+                - [⬜] 4.9 文檔撰寫
+                    - API 文檔
+                    - 組件使用說明
+                    - 任務配置指南
+    - **Dependencies**:
+        - ✅ AI flows 正常運作
+        - ✅ 用戶等級系統已實現 (GAME-001)
+        - ✅ user-level-service.ts 可用
+        - ✅ Firebase Firestore 配置
+        - ✅ GenKit AI 配置
+- **Constraints**:
+    - 單個任務耗時不超過5分鐘
+    - AI響應時間不超過3秒
+    - 任務列表載入時間 <500ms
+    - 支持離線時優雅降級
+    - 必須通過內容過濾系統
+- **Completion Status**: ⬜ 進行中 (Starting Phase 1)
+- **Implementation Timeline**:
+    - **Week 1**: Phase 1 - 數據模型與服務層
+    - **Week 2**: Phase 2 - AI整合與評分系統
+    - **Week 3**: Phase 3 - 前端UI與用戶體驗
+    - **Week 4**: Phase 4 - 任務調度與管理系統
+- **Testing Protocol**:
+    - [⬜] Unit tests: 任務邏輯與獎勵計算測試
+        - daily-task-service 單元測試
+        - task-generator 單元測試
+        - task-difficulty-adapter 單元測試
+    - [⬜] Integration tests: AI flows整合測試
+        - AI 評分準確度測試
+        - AI 響應時間測試 (<3秒)
+        - 錯誤處理測試
+    - [⬜] E2E tests: 完整流程測試
+        - 用戶登入→獲取任務→完成任務→獲得獎勵
+        - 連擊計算正確性
+        - 防刷機制有效性
+    - [⬜] Performance tests: 性能測試
+        - 並發提交測試 (1000+ users)
+        - 載入時間測試 (<500ms)
+        - AI 響應時間測試 (<3秒)
+    - **Issues Resolved During Testing**: (待填寫)
+- **XP Economy Balance**:
+    - 每日任務總 XP: 28-45 XP (基礎) + 質量加成
+    - 配合現有閱讀 XP: 每日總獲取 50-80 XP
+    - 連擊獎勵: 7天+10%, 30天+20%, 100天+30%
+    - 屬性點數獎勵: 各任務類型對應不同屬性提升
+- **Notes**:
+    - 需要設計任務難度適應機制，避免用戶挫折感
+    - AI 評分需要持續優化，建立評分標準數據集
+    - 考慮添加跳過任務功能 (每日1次)
+    - 未來可擴展: 週任務、月度挑戰、特殊節日任務
 
 ### [GAME-003] **Task ID**: Progress Visualization System
 - **Task Name**: 可視化進度系統「大觀園地圖」開發
