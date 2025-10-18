@@ -231,42 +231,66 @@
         - **Reference Codes**: src/ai/flows/explain-text-selection.ts, src/lib/firebase.ts, src/lib/user-level-service.ts
         - **Primary**: AI整合工程師, 後端工程師, 前端工程師
         - **Deliverables**:
-            - **Phase 1: 數據模型與服務層 (Week 1)**
-                - [⬜] 1.1 創建 src/lib/types/daily-task.ts (類型定義)
-                    - DailyTask interface (任務基礎結構)
-                    - DailyTaskProgress interface (用戶進度追蹤)
-                    - DailyTaskAssignment interface (任務分配記錄)
-                    - TaskReward interface (獎勵結構)
-                    - TaskCompletionResult interface (完成結果)
-                - [⬜] 1.2 實現 src/lib/daily-task-service.ts (核心服務)
-                    - generateDailyTasks() - 生成每日任務
-                    - getUserDailyProgress() - 獲取用戶進度
-                    - submitTaskCompletion() - 提交任務完成
-                    - evaluateTaskQuality() - 評估任務質量
-                    - awardTaskRewards() - 發放獎勵
-                    - resetDailyTasks() - 重置任務
-                    - getTaskStreak() - 獲取連擊天數
-                    - getTaskHistory() - 獲取歷史記錄
-                - [⬜] 1.3 設計 Firebase collections schema
-                    - dailyTasks collection 結構
-                    - dailyTaskProgress collection 結構
-                    - dailyTaskHistory collection 結構
-                - [⬜] 1.4 創建 src/lib/task-generator.ts (任務生成器)
-                    - DailyTaskGenerator class
-                    - generateTasksForUser() - 根據用戶資料生成任務
-                    - generateMorningReadingTask() - 晨讀任務生成
-                    - generatePoetryTask() - 詩詞任務生成
-                    - generateCharacterTask() - 人物任務生成
-                    - generateCulturalTask() - 文化任務生成
-                    - generateCommentaryTask() - 脂批任務生成
-                - [⬜] 1.5 創建 src/lib/task-difficulty-adapter.ts (難度適應器)
-                    - TaskDifficultyAdapter class
-                    - calculateOptimalDifficulty() - 計算最佳難度
-                    - analyzeUserPerformance() - 分析用戶表現
-                - [⬜] 1.6 Phase 1 單元測試
-                    - tests/lib/daily-task-service.test.ts
-                    - tests/lib/task-generator.test.ts
-                    - tests/lib/task-difficulty-adapter.test.ts
+            - **Phase 1: 數據模型與服務層 (Week 1)** - ✅ **已完成 (2025-10-18)**
+                - [✅] 1.1 創建 src/lib/types/daily-task.ts (類型定義)
+                    - ✅ DailyTask interface (任務基礎結構)
+                    - ✅ DailyTaskProgress interface (用戶進度追蹤)
+                    - ✅ TaskAssignment interface (任務分配記錄)
+                    - ✅ TaskStatistics interface (統計結構)
+                    - ✅ TaskHistoryRecord interface (歷史記錄)
+                    - ✅ File: 440 lines, 定義 20+ interfaces/types/enums
+                - [✅] 1.2 實現 src/lib/daily-task-service.ts (核心服務)
+                    - ✅ generateDailyTasks() - 生成每日任務
+                    - ✅ getUserDailyProgress() - 獲取用戶進度
+                    - ✅ submitTaskCompletion() - 提交任務完成
+                    - ✅ calculateTaskScore() - 計算任務分數
+                    - ✅ updateStreak() - 更新連擊
+                    - ✅ getTaskHistory() - 獲取歷史記錄
+                    - ✅ getTaskStatistics() - 獲取統計數據
+                    - ✅ File: 760 lines, 20+ methods
+                - [✅] 1.3 設計 Firebase collections schema
+                    - ✅ dailyTasks collection 結構
+                    - ✅ dailyTaskProgress collection 結構
+                    - ✅ dailyTaskHistory collection 結構
+                    - ✅ File: src/lib/config/daily-task-schema.ts (418 lines)
+                    - ✅ 包含 validators, type guards, security rules
+                - [✅] 1.4 創建 src/lib/task-generator.ts (任務生成器)
+                    - ✅ TaskGenerator class
+                    - ✅ generateTasksForUser() - 根據用戶資料生成任務
+                    - ✅ generateMorningReadingTask() - 晨讀任務生成
+                    - ✅ generatePoetryTask() - 詩詞任務生成
+                    - ✅ generateCharacterTask() - 人物任務生成
+                    - ✅ generateCulturalTask() - 文化任務生成
+                    - ✅ generateCommentaryTask() - 脂批任務生成
+                    - ✅ File: 658 lines, 真實《紅樓夢》內容庫
+                - [✅] 1.5 創建 src/lib/task-difficulty-adapter.ts (難度適應器)
+                    - ✅ TaskDifficultyAdapter class
+                    - ✅ analyzePerformance() - 分析用戶表現
+                    - ✅ getDifficultyRecommendation() - 難度推薦
+                    - ✅ getAdaptiveDifficulty() - 自適應難度
+                    - ✅ calculateConfidenceLevel() - 信心指數計算
+                    - ✅ File: 494 lines, 智能難度調整系統
+                - [✅] 1.6 Phase 1 單元測試
+                    - ✅ tests/lib/daily-task-service.test.ts (17 tests, 846 lines)
+                    - ✅ tests/lib/task-generator.test.ts (15 tests, 540 lines)
+                    - ✅ tests/lib/task-difficulty-adapter.test.ts (13 tests, 553 lines)
+                    - ✅ tests/lib/config/daily-task-schema.test.ts (13 tests, 500 lines)
+                    - ✅ **總計**: 58 tests, 2,439 lines
+                - **Expectations** (預期效果 - 用於檢核):
+                    1. **數據模型完整性**: 所有類型定義清晰且無 TypeScript 錯誤
+                    2. **任務生成正確性**: 能根據用戶等級（0-7級）生成適配難度的 2 個每日任務
+                    3. **任務內容準確性**: 生成的《紅樓夢》內容（詩詞、人物、文化）真實且有教育價值
+                    4. **難度自適應**: 根據用戶歷史表現（平均分數 <60 降低難度，>85 提高難度）
+                    5. **進度追蹤**: 能準確記錄用戶每日完成狀態、連擊天數、總 XP
+                    6. **評分機制**: 任務完成後能計算 0-100 分，並根據質量給予 6-28 XP 獎勵
+                    7. **連擊系統**: 連續完成天數正確累計，中斷後歸零
+                    8. **統計數據**: 能正確計算各任務類型的平均分數、完成次數、趨勢方向
+                    9. **防刷機制**: 同一任務重複提交不會重複獲得獎勵
+                    10. **測試覆蓋**: 所有核心邏輯有對應測試，測試通過率 ≥90%
+                    11. **Schema 驗證**: Firebase collections 結構正確，包含所需索引和安全規則
+                    12. **類型安全**: 所有 validators 和 type guards 正確運作
+                    13. **文檔完整**: 每個函數有清晰的 JSDoc 註解，說明參數和返回值
+                    14. **性能要求**: 任務生成時間 <500ms，單次提交處理 <1s
 
             - **Phase 2: AI整合與評分系統 (Week 2)**
                 - [⬜] 2.1 創建 src/ai/flows/daily-reading-comprehension.ts
