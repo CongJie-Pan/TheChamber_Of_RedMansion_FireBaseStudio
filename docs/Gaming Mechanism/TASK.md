@@ -455,44 +455,70 @@
                     11. **錯誤處理**: 載入失敗、提交失敗時顯示友善錯誤訊息
                     12. **多語言支持**: 組件完整支援繁中、簡中、英文切換
 
-            - **Phase 4: 任務調度與管理 (Week 4)**
-                - [⬜] 4.1 實現任務生成邏輯
-                    - 根據星期幾調整任務類型
-                    - 根據用戶等級調整難度
-                    - 根據歷史表現個性化推薦
-                - [⬜] 4.2 創建 src/app/api/cron/reset-daily-tasks/route.ts
-                    - 定時任務重置 API
-                    - 每日 UTC+8 00:00 執行
-                    - 批處理用戶任務生成
-                - [⬜] 4.3 配置 Vercel Cron Jobs
-                    - vercel.json 配置
-                    - Cron 表達式設定
-                    - 錯誤重試邏輯
-                - [⬜] 4.4 防刷機制實現
-                    - sourceId 去重檢查
-                    - 提交時間間隔限制 (5秒冷卻)
-                    - 異常行為檢測
-                - [⬜] 4.5 獎勵發放系統
-                    - 整合 user-level-service.awardXP()
-                    - 整合 user-level-service.updateAttributes()
-                    - 連擊獎勵加成計算
-                - [⬜] 4.6 多語言支援
-                    - 添加 dailyTasks 翻譯鍵值 (zh-TW, zh-CN, en-US)
-                    - 任務內容本地化
-                    - AI 反饋本地化
-                - [⬜] 4.7 整合測試
-                    - tests/integration/daily-tasks-full-flow.test.ts
-                    - 端到端測試(登入→獲取任務→完成→獲得獎勵)
-                    - 防刷機制測試
-                    - 連擊計算測試
-                - [⬜] 4.8 性能優化
-                    - AI 響應時間優化 (<3秒)
-                    - 任務列表載入優化 (<500ms)
-                    - 並發用戶提交測試 (1000+ users)
-                - [⬜] 4.9 文檔撰寫
-                    - API 文檔
-                    - 組件使用說明
-                    - 任務配置指南
+            - **Phase 4: 任務調度與管理 (Week 4)** - 🔄 **部分完成 (60% - Stage 1 & 2 完成, 2025-10-18)**
+                - [✅] 4.1 實現任務生成邏輯 - **已完成 (2025-10-18)**
+                    - ✅ 4.1.1 根據星期幾調整任務類型 (Weekday-based rotation)
+                        - ✅ Monday: 1.5x boost to MORNING_READING (fresh start)
+                        - ✅ Wednesday: 1.5x boost to CHARACTER_INSIGHT (mid-week reflection)
+                        - ✅ Friday: 1.5x boost to POETRY (aesthetic appreciation)
+                        - ✅ Weekend: 1.5x boost to CULTURAL_EXPLORATION (deep learning)
+                        - ✅ File: src/lib/task-generator.ts (+61 lines)
+                    - ✅ 4.1.2 根據歷史表現個性化推薦 (Adaptive difficulty)
+                        - ✅ Integrated taskDifficultyAdapter with task generation
+                        - ✅ Per-task-type difficulty based on performance (last 30 tasks)
+                        - ✅ Performance trend analysis (improving/stable/declining)
+                        - ✅ Falls back to level-based for new users (<3 tasks)
+                        - ✅ Files: task-generator.ts (+33 lines), daily-task-service.ts (+6 lines)
+                - [✅] 4.2 創建 src/app/api/cron/reset-daily-tasks/route.ts - **已完成 (2025-10-18)**
+                    - ✅ 定時任務重置 API (secure cron endpoint)
+                    - ✅ 每日 UTC+8 00:00 執行 (Vercel cron trigger)
+                    - ✅ 批處理用戶任務生成 (1000 users max, batches of 10)
+                    - ✅ CRON_SECRET authentication
+                    - ✅ GET endpoint for health checks
+                    - ✅ Comprehensive error handling & execution reporting
+                    - ✅ File: 295 lines
+                - [✅] 4.3 配置 Vercel Cron Jobs - **已完成 (2025-10-18)**
+                    - ✅ vercel.json 配置 (cron schedule: "0 16 * * *")
+                    - ✅ Cron 表達式設定 (UTC 16:00 = UTC+8 00:00)
+                    - ✅ Environment variable documentation (.env.local.example)
+                    - ✅ File: vercel.json (8 lines)
+                - [⬜] 4.4 防刷機制實現 - **部分完成 (50%)**
+                    - ✅ 提交時間間隔限制 (5秒冷卻) - Already implemented in Phase 1
+                    - ⬜ sourceId 去重檢查 - Pending
+                    - ⬜ 異常行為檢測 - Pending
+                - [✅] 4.5 獎勵發放系統 - **已完成 (Phase 1)**
+                    - ✅ 整合 user-level-service.awardXP() (implemented in Phase 1)
+                    - ✅ 整合 user-level-service.updateAttributes() (implemented in Phase 1)
+                    - ✅ 連擊獎勵加成計算 (streak bonus system complete)
+                - [⬜] 4.6 多語言支援 - **部分完成 (20%)**
+                    - ✅ 添加 sidebar.dailyTasks 翻譯鍵值 (zh-TW, zh-CN, en-US) - Phase 3.8
+                    - ⬜ 任務內容本地化 (titles, descriptions hardcoded in Chinese)
+                    - ⬜ AI 反饋本地化 (feedback hardcoded in Chinese)
+                - [✅] 4.7 整合測試 - **已完成 (2025-10-18)**
+                    - ✅ tests/integration/daily-tasks-full-flow.test.ts (738 lines, 11 tests)
+                    - ✅ 端到端測試: Generate → Complete → Receive rewards
+                    - ✅ 防刷機制測試: Cooldown enforcement, duplicate prevention
+                    - ✅ 連擊計算測試: Milestone detection, streak tracking
+                    - ✅ AI evaluation integration tests
+                    - ✅ Level-up integration tests
+                    - ✅ Error handling tests (AI failure, missing tasks)
+                - [⬜] 4.8 性能優化 - **未開始 (0%)**
+                    - ⬜ AI 響應時間優化 (<3秒)
+                    - ⬜ 任務列表載入優化 (<500ms)
+                    - ⬜ 並發用戶提交測試 (1000+ users)
+                - [⬜] 4.9 文檔撰寫 - **未開始 (0%)**
+                    - ⬜ API 文檔 (cron endpoint documentation)
+                    - ⬜ 組件使用說明 (developer guide)
+                    - ⬜ 任務配置指南 (content creator guide)
+                - **實現總結 (Phase 4)**:
+                    - **完成度**: 60% (5/9 tasks completed, 2 partially done)
+                    - **Stage 1 (Core Infrastructure)**: ✅ 100% (Tasks 4.2, 4.3, 4.7)
+                    - **Stage 2 (Enhanced Features)**: ✅ 100% (Tasks 4.1.1, 4.1.2)
+                    - **Stage 3 (Polish & Scale)**: 20% (4.4: 50%, 4.6: 20%, 4.8: 0%, 4.9: 0%)
+                    - **提交記錄**:
+                        - Commit 3c26178: Phase 4.2 & 4.3 (Cron infrastructure)
+                        - Commit 94239f7: Phase 4.7 (Integration tests)
+                        - Commit 03bc46d: Phase 4.1 (Enhanced generation)
     - **Dependencies**:
         - ✅ AI flows 正常運作
         - ✅ 用戶等級系統已實現 (GAME-001)
