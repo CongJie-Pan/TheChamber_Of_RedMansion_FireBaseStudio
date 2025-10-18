@@ -340,6 +340,27 @@
                     13. **響應時間**: AI 評分完成時間 <5秒（合理範圍內）
                     14. **無錯誤運行**: evaluateTaskQuality() 調用不產生未捕獲異常
                     15. **類型安全**: 所有 AI flow 輸入輸出符合 Zod schema 定義
+                - [✅] 2.7 Phase 2 單元測試與集成測試
+                    - ✅ tests/ai/flows/daily-reading-comprehension.test.ts (12 tests, 333 lines)
+                    - ✅ tests/ai/flows/poetry-quality-assessment.test.ts (14 tests, 456 lines)
+                    - ✅ tests/ai/flows/character-analysis-scoring.test.ts (12 tests, 416 lines)
+                    - ✅ tests/ai/flows/cultural-quiz-grading.test.ts (13 tests, 564 lines)
+                    - ✅ tests/ai/flows/commentary-interpretation.test.ts (12 tests, 433 lines)
+                    - ✅ tests/lib/daily-task-service-ai-integration.test.ts (11 tests, 560 lines)
+                    - ✅ **總計**: 74 tests, 2,762 lines
+                    - ✅ **測試範圍**:
+                        - Input validation (Traditional Chinese content)
+                        - Output structure validation
+                        - Difficulty-aware scoring (easy/medium/hard)
+                        - Error handling with fallback mechanisms
+                        - Task type routing to appropriate AI flows
+                        - Content extraction from task objects
+                        - Score normalization (0-100 range)
+                    - ✅ **Mock 策略**:
+                        - All AI flows mocked to avoid API calls
+                        - Consistent with existing test patterns
+                        - Firebase services mocked
+                        - User-level service mocked
 
             - **Phase 3: 前端UI與用戶體驗 (Week 3)**
                 - [⬜] 3.1 創建 src/app/(main)/daily-tasks/page.tsx (主頁面)
