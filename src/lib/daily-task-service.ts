@@ -164,6 +164,8 @@ export class DailyTaskService {
    * Generate daily tasks for a user on a specific date
    * This method should be called once per day per user
    *
+   * Phase 4.1.2: Now includes adaptive difficulty based on historical performance
+   *
    * @param userId - User ID
    * @param date - Date in YYYY-MM-DD format (defaults to today)
    * @returns Promise with array of generated tasks
@@ -186,11 +188,16 @@ export class DailyTaskService {
         throw new Error('User profile not found');
       }
 
-      // Use TaskGenerator to generate personalized tasks
+      // Fetch task history for adaptive difficulty (Phase 4.1.2)
+      const taskHistory = await this.getTaskHistory(userId, 30);
+
+      // Use TaskGenerator to generate personalized tasks with adaptive difficulty
       const tasks = await taskGenerator.generateTasksForUser(
         userId,
         userProfile.currentLevel,
-        targetDate
+        targetDate,
+        undefined, // recentTaskIds - for future variety enhancement
+        taskHistory // Pass history for adaptive difficulty
       );
 
       // Store generated tasks in Firestore for later retrieval

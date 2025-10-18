@@ -23,8 +23,10 @@ import {
   CulturalElement,
   CommentaryContent,
   QuizQuestion,
+  TaskHistoryRecord,
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
+import { taskDifficultyAdapter } from './task-difficulty-adapter';
 
 /**
  * Task generation configuration
@@ -114,19 +116,44 @@ const ATTRIBUTE_REWARD_TABLE: Record<DailyTaskType, Partial<AttributePoints>> = 
 export class TaskGenerator {
   /**
    * Generate daily tasks for a user
+   *
+   * Phase 4.1.1: Includes weekday-based task type rotation
+   * Phase 4.1.2: Includes adaptive difficulty based on historical performance
+   *
+   * @param userId - User ID
+   * @param userLevel - User's current level
+   * @param date - Date string for task generation
+   * @param recentTaskIds - Recent task IDs (for variety)
+   * @param taskHistory - User's task history (for adaptive difficulty)
    */
   async generateTasksForUser(
     userId: string,
     userLevel: number,
     date: string,
-    recentTaskIds?: string[]
+    recentTaskIds?: string[],
+    taskHistory?: TaskHistoryRecord[]
   ): Promise<DailyTask[]> {
-    const difficulty = this.determineDifficulty(userLevel);
-    const taskTypes = this.selectTaskTypes(recentTaskIds);
+    // Select task types with weekday-based weighting
+    const taskTypes = this.selectTaskTypes(recentTaskIds, date);
 
     const tasks: DailyTask[] = [];
 
     for (const taskType of taskTypes) {
+      // Determine difficulty using adaptive system if history is available
+      let difficulty: TaskDifficulty;
+
+      if (taskHistory && taskHistory.length >= 3) {
+        // Use adaptive difficulty based on performance
+        difficulty = taskDifficultyAdapter.getAdaptiveDifficulty(
+          userLevel,
+          taskType,
+          taskHistory
+        );
+      } else {
+        // Fall back to level-based difficulty for new users
+        difficulty = this.determineDifficulty(userLevel);
+      }
+
       const task = await this.generateTask(taskType, difficulty, date);
       tasks.push(task);
     }
@@ -144,15 +171,29 @@ export class TaskGenerator {
   }
 
   /**
-   * Select task types ensuring variety
+   * Select task types ensuring variety with weekday-based rotation
+   *
+   * Weekday Strategy (Phase 4.1.1):
+   * - Monday: Boost MORNING_READING (fresh start, easier reentry)
+   * - Wednesday: Boost CHARACTER_INSIGHT (mid-week reflection)
+   * - Friday: Boost POETRY (aesthetic appreciation before weekend)
+   * - Weekend: Boost CULTURAL_EXPLORATION (deeper learning with more time)
+   * - Other days: Standard weight distribution
    */
-  private selectTaskTypes(recentTaskIds?: string[]): DailyTaskType[] {
+  private selectTaskTypes(recentTaskIds?: string[], date?: string): DailyTaskType[] {
     const availableTypes = Object.keys(DailyTaskType) as DailyTaskType[];
     const selectedTypes: DailyTaskType[] = [];
 
-    // Weighted random selection
+    // Get day of week from date (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dateObj = date ? new Date(date) : new Date();
+    const dayOfWeek = dateObj.getDay();
+
+    // Apply weekday-based weight adjustments
+    const adjustedWeights = this.getWeekdayAdjustedWeights(dayOfWeek);
+
+    // Weighted random selection with weekday adjustments
     for (let i = 0; i < TASK_GENERATION_CONFIG.tasksPerDay; i++) {
-      const type = this.weightedRandomType(selectedTypes);
+      const type = this.weightedRandomType(selectedTypes, adjustedWeights);
       selectedTypes.push(type);
     }
 
@@ -160,10 +201,45 @@ export class TaskGenerator {
   }
 
   /**
-   * Weighted random type selection
+   * Get weekday-adjusted task type weights
+   * Boosts specific task types based on the day of the week
    */
-  private weightedRandomType(excludeTypes: DailyTaskType[] = []): DailyTaskType {
-    const weights = TASK_GENERATION_CONFIG.typeWeights;
+  private getWeekdayAdjustedWeights(dayOfWeek: number): Record<DailyTaskType, number> {
+    // Clone base weights
+    const weights = { ...TASK_GENERATION_CONFIG.typeWeights };
+
+    // Apply weekday multipliers (1.5x boost for featured type)
+    switch (dayOfWeek) {
+      case 1: // Monday - Fresh start
+        weights[DailyTaskType.MORNING_READING] *= 1.5;
+        break;
+      case 3: // Wednesday - Mid-week reflection
+        weights[DailyTaskType.CHARACTER_INSIGHT] *= 1.5;
+        break;
+      case 5: // Friday - Aesthetic appreciation
+        weights[DailyTaskType.POETRY] *= 1.5;
+        break;
+      case 0: // Sunday - Deep learning
+      case 6: // Saturday - Deep learning
+        weights[DailyTaskType.CULTURAL_EXPLORATION] *= 1.5;
+        break;
+      // Tuesday (2) and Thursday (4) use standard weights
+    }
+
+    return weights;
+  }
+
+  /**
+   * Weighted random type selection
+   *
+   * @param excludeTypes - Task types to exclude from selection
+   * @param customWeights - Optional custom weights (used for weekday adjustments)
+   */
+  private weightedRandomType(
+    excludeTypes: DailyTaskType[] = [],
+    customWeights?: Record<DailyTaskType, number>
+  ): DailyTaskType {
+    const weights = customWeights || TASK_GENERATION_CONFIG.typeWeights;
     const availableTypes = Object.keys(weights).filter(
       (type) => !excludeTypes.includes(type as DailyTaskType)
     ) as DailyTaskType[];
