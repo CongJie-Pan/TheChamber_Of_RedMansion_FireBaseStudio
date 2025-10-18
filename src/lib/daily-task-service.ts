@@ -48,6 +48,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { userLevelService } from './user-level-service';
+import { taskGenerator } from './task-generator';
 import {
   DailyTask,
   DailyTaskProgress,
@@ -178,40 +179,16 @@ export class DailyTaskService {
         throw new Error('User profile not found');
       }
 
-      // Determine task difficulty based on user level
-      const difficulty = this.calculateTaskDifficulty(userProfile.currentLevel);
+      // Use TaskGenerator to generate personalized tasks
+      const tasks = await taskGenerator.generateTasksForUser(
+        userId,
+        userProfile.currentLevel,
+        targetDate
+      );
 
-      // Generate tasks based on day of week
-      const tasks: DailyTask[] = [];
-      const dayOfWeek = new Date(targetDate).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-      // Always include morning reading as first task
-      tasks.push(await this.generateMorningReadingTask(difficulty));
-
-      // Add second task based on day of week
-      if (isWeekend) {
-        // Weekend: Cultural exploration task
-        tasks.push(await this.generateCulturalExplorationTask(difficulty));
-      } else {
-        // Weekday: Rotate through other task types
-        switch (dayOfWeek) {
-          case 1: // Monday: Poetry
-            tasks.push(await this.generatePoetryTask(difficulty));
-            break;
-          case 2: // Tuesday: Character insight
-            tasks.push(await this.generateCharacterInsightTask(difficulty));
-            break;
-          case 3: // Wednesday: Commentary decode
-            tasks.push(await this.generateCommentaryDecodeTask(difficulty));
-            break;
-          case 4: // Thursday: Poetry
-            tasks.push(await this.generatePoetryTask(difficulty));
-            break;
-          case 5: // Friday: Character insight
-            tasks.push(await this.generateCharacterInsightTask(difficulty));
-            break;
-        }
+      // Store generated tasks in Firestore for later retrieval
+      for (const task of tasks) {
+        await setDoc(doc(this.dailyTasksCollection, task.id), task);
       }
 
       // Create task assignments
@@ -801,57 +778,6 @@ export class DailyTaskService {
     return tasks;
   }
 
-  // ========== Task Generation Methods (Placeholders for Phase 1.4) ==========
-
-  private async generateMorningReadingTask(difficulty: TaskDifficulty): Promise<DailyTask> {
-    // TODO: Implement in Phase 1.4 (task-generator.ts)
-    return this.createPlaceholderTask(DailyTaskType.MORNING_READING, difficulty);
-  }
-
-  private async generatePoetryTask(difficulty: TaskDifficulty): Promise<DailyTask> {
-    // TODO: Implement in Phase 1.4 (task-generator.ts)
-    return this.createPlaceholderTask(DailyTaskType.POETRY, difficulty);
-  }
-
-  private async generateCharacterInsightTask(difficulty: TaskDifficulty): Promise<DailyTask> {
-    // TODO: Implement in Phase 1.4 (task-generator.ts)
-    return this.createPlaceholderTask(DailyTaskType.CHARACTER_INSIGHT, difficulty);
-  }
-
-  private async generateCulturalExplorationTask(difficulty: TaskDifficulty): Promise<DailyTask> {
-    // TODO: Implement in Phase 1.4 (task-generator.ts)
-    return this.createPlaceholderTask(DailyTaskType.CULTURAL_EXPLORATION, difficulty);
-  }
-
-  private async generateCommentaryDecodeTask(difficulty: TaskDifficulty): Promise<DailyTask> {
-    // TODO: Implement in Phase 1.4 (task-generator.ts)
-    return this.createPlaceholderTask(DailyTaskType.COMMENTARY_DECODE, difficulty);
-  }
-
-  /**
-   * Create placeholder task for Phase 1 testing
-   * Will be replaced with actual task generation in Phase 1.4
-   */
-  private createPlaceholderTask(type: DailyTaskType, difficulty: TaskDifficulty): DailyTask {
-    const taskId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    return {
-      id: taskId,
-      type,
-      title: `${type} Task (${difficulty})`,
-      description: `Placeholder task for ${type}`,
-      difficulty,
-      timeEstimate: 5,
-      xpReward: BASE_XP_REWARDS[type],
-      attributeRewards: ATTRIBUTE_REWARDS[type],
-      content: {},
-      gradingCriteria: {
-        minLength: 50,
-      },
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    };
-  }
 }
 
 // Export singleton instance
