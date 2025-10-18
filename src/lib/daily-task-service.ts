@@ -1,0 +1,858 @@
+/**
+ * @fileOverview Daily Task Service for Gamification System
+ *
+ * This service manages the Daily Task System (每日修身) operations:
+ * - Task generation and assignment
+ * - User progress tracking
+ * - Task completion and evaluation
+ * - Reward distribution
+ * - Streak management
+ *
+ * Core responsibilities:
+ * - Generate personalized daily tasks based on user level and history
+ * - Track user progress and completion status
+ * - Integrate with AI flows for task evaluation
+ * - Award XP and attribute points through user-level-service
+ * - Maintain streak counters and milestones
+ * - Prevent task farming and duplicate rewards
+ *
+ * Database Collections:
+ * - dailyTasks: Task templates and definitions
+ * - dailyTaskProgress: User daily progress records
+ * - dailyTaskHistory: Long-term completion history
+ *
+ * Design Principles:
+ * - Atomic operations for data consistency
+ * - Real-time progress updates
+ * - Graceful degradation without Firebase
+ * - Type-safe operations
+ * - Comprehensive error handling
+ */
+
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  serverTimestamp,
+  Timestamp,
+  DocumentData,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { userLevelService } from './user-level-service';
+import {
+  DailyTask,
+  DailyTaskProgress,
+  DailyTaskAssignment,
+  TaskReward,
+  TaskCompletionResult,
+  TaskHistoryRecord,
+  TaskStatus,
+  DailyTaskType,
+  TaskDifficulty,
+  TaskStatistics,
+  StreakMilestone,
+} from './types/daily-task';
+import { AttributePoints } from './types/user-level';
+
+/**
+ * Streak milestone configuration
+ * Defines bonus rewards for maintaining task completion streaks
+ */
+const STREAK_MILESTONES: StreakMilestone[] = [
+  { days: 7, bonusMultiplier: 1.1, badge: 'streak-7-days', title: '七日連擊' },
+  { days: 30, bonusMultiplier: 1.2, badge: 'streak-30-days', title: '月度堅持' },
+  { days: 100, bonusMultiplier: 1.3, badge: 'streak-100-days', title: '百日修行' },
+  { days: 365, bonusMultiplier: 1.5, badge: 'streak-365-days', title: '年度大師' },
+];
+
+/**
+ * Base XP rewards for different task types
+ * Actual rewards include quality bonuses
+ */
+const BASE_XP_REWARDS = {
+  [DailyTaskType.MORNING_READING]: 10,        // 晨讀時光: 10 XP
+  [DailyTaskType.POETRY]: 8,                  // 詩詞韻律: 8 XP
+  [DailyTaskType.CHARACTER_INSIGHT]: 12,      // 人物洞察: 12 XP
+  [DailyTaskType.CULTURAL_EXPLORATION]: 15,   // 文化探秘: 15 XP
+  [DailyTaskType.COMMENTARY_DECODE]: 18,      // 脂批解密: 18 XP
+};
+
+/**
+ * Attribute rewards for different task types
+ */
+const ATTRIBUTE_REWARDS: Record<DailyTaskType, Partial<AttributePoints>> = {
+  [DailyTaskType.MORNING_READING]: {
+    analyticalThinking: 1,
+    culturalKnowledge: 1,
+  },
+  [DailyTaskType.POETRY]: {
+    poetrySkill: 2,
+    culturalKnowledge: 1,
+  },
+  [DailyTaskType.CHARACTER_INSIGHT]: {
+    analyticalThinking: 2,
+    socialInfluence: 1,
+  },
+  [DailyTaskType.CULTURAL_EXPLORATION]: {
+    culturalKnowledge: 3,
+  },
+  [DailyTaskType.COMMENTARY_DECODE]: {
+    analyticalThinking: 2,
+    culturalKnowledge: 2,
+  },
+};
+
+/**
+ * Task submission cooldown in milliseconds (5 seconds)
+ * Prevents spam submissions
+ */
+const SUBMISSION_COOLDOWN_MS = 5000;
+
+/**
+ * Helper function to get today's date string in YYYY-MM-DD format (UTC+8)
+ * Uses Taiwan/Taipei timezone
+ */
+function getTodayDateString(): string {
+  const now = new Date();
+  // Convert to UTC+8 (Taipei timezone)
+  const utc8Offset = 8 * 60 * 60 * 1000;
+  const localDate = new Date(now.getTime() + utc8Offset);
+  return localDate.toISOString().split('T')[0];
+}
+
+/**
+ * Helper function to check if two dates are consecutive
+ */
+function areConsecutiveDates(date1: string, date2: string): boolean {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  const diffTime = Math.abs(d2.getTime() - d1.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays === 1;
+}
+
+/**
+ * Daily Task Service Class
+ * Singleton service for managing daily tasks
+ */
+export class DailyTaskService {
+  private dailyTasksCollection = collection(db, 'dailyTasks');
+  private dailyTaskProgressCollection = collection(db, 'dailyTaskProgress');
+  private dailyTaskHistoryCollection = collection(db, 'dailyTaskHistory');
+
+  // Cache for last submission time (prevents spam)
+  private lastSubmissionTimes: Map<string, number> = new Map();
+
+  /**
+   * Generate daily tasks for a user on a specific date
+   * This method should be called once per day per user
+   *
+   * @param userId - User ID
+   * @param date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns Promise with array of generated tasks
+   */
+  async generateDailyTasks(userId: string, date?: string): Promise<DailyTask[]> {
+    try {
+      const targetDate = date || getTodayDateString();
+
+      // Check if tasks already generated for this date
+      const existingProgress = await this.getUserDailyProgress(userId, targetDate);
+      if (existingProgress && existingProgress.tasks.length > 0) {
+        console.log(`✅ Tasks already generated for user ${userId} on ${targetDate}`);
+        // Return the existing tasks
+        return this.getTasksFromAssignments(existingProgress.tasks);
+      }
+
+      // Get user profile to determine difficulty
+      const userProfile = await userLevelService.getUserProfile(userId);
+      if (!userProfile) {
+        throw new Error('User profile not found');
+      }
+
+      // Determine task difficulty based on user level
+      const difficulty = this.calculateTaskDifficulty(userProfile.currentLevel);
+
+      // Generate tasks based on day of week
+      const tasks: DailyTask[] = [];
+      const dayOfWeek = new Date(targetDate).getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      // Always include morning reading as first task
+      tasks.push(await this.generateMorningReadingTask(difficulty));
+
+      // Add second task based on day of week
+      if (isWeekend) {
+        // Weekend: Cultural exploration task
+        tasks.push(await this.generateCulturalExplorationTask(difficulty));
+      } else {
+        // Weekday: Rotate through other task types
+        switch (dayOfWeek) {
+          case 1: // Monday: Poetry
+            tasks.push(await this.generatePoetryTask(difficulty));
+            break;
+          case 2: // Tuesday: Character insight
+            tasks.push(await this.generateCharacterInsightTask(difficulty));
+            break;
+          case 3: // Wednesday: Commentary decode
+            tasks.push(await this.generateCommentaryDecodeTask(difficulty));
+            break;
+          case 4: // Thursday: Poetry
+            tasks.push(await this.generatePoetryTask(difficulty));
+            break;
+          case 5: // Friday: Character insight
+            tasks.push(await this.generateCharacterInsightTask(difficulty));
+            break;
+        }
+      }
+
+      // Create task assignments
+      const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
+        taskId: task.id,
+        assignedAt: Timestamp.now(),
+        status: TaskStatus.NOT_STARTED,
+      }));
+
+      // Create or update progress record
+      const progressId = `${userId}_${targetDate}`;
+      const progressData: Omit<DailyTaskProgress, 'id'> & { id: string } = {
+        id: progressId,
+        userId,
+        date: targetDate,
+        tasks: assignments,
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        streak: await this.calculateStreak(userId, targetDate),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      await setDoc(doc(this.dailyTaskProgressCollection, progressId), progressData);
+
+      console.log(`✅ Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
+      return tasks;
+    } catch (error) {
+      console.error('Error generating daily tasks:', error);
+      throw new Error('Failed to generate daily tasks. Please try again.');
+    }
+  }
+
+  /**
+   * Get user's daily progress for a specific date
+   *
+   * @param userId - User ID
+   * @param date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns Promise with daily progress or null if not found
+   */
+  async getUserDailyProgress(userId: string, date?: string): Promise<DailyTaskProgress | null> {
+    try {
+      const targetDate = date || getTodayDateString();
+      const progressId = `${userId}_${targetDate}`;
+
+      const progressDoc = await getDoc(doc(this.dailyTaskProgressCollection, progressId));
+
+      if (!progressDoc.exists()) {
+        return null;
+      }
+
+      const data = progressDoc.data() as DocumentData;
+      return {
+        id: progressDoc.id,
+        ...data,
+        createdAt: data.createdAt || Timestamp.now(),
+        updatedAt: data.updatedAt || Timestamp.now(),
+      } as DailyTaskProgress;
+    } catch (error) {
+      console.error('Error fetching daily progress:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Submit task completion
+   * Evaluates user response, awards rewards, updates streak
+   *
+   * @param userId - User ID
+   * @param taskId - Task ID
+   * @param userResponse - User's answer/response
+   * @returns Promise with completion result
+   */
+  async submitTaskCompletion(
+    userId: string,
+    taskId: string,
+    userResponse: string
+  ): Promise<TaskCompletionResult> {
+    try {
+      // 1. Check submission cooldown (anti-spam)
+      const lastSubmitTime = this.lastSubmissionTimes.get(userId) || 0;
+      const now = Date.now();
+      if (now - lastSubmitTime < SUBMISSION_COOLDOWN_MS) {
+        const waitTime = Math.ceil((SUBMISSION_COOLDOWN_MS - (now - lastSubmitTime)) / 1000);
+        throw new Error(`Please wait ${waitTime} seconds before submitting again.`);
+      }
+      this.lastSubmissionTimes.set(userId, now);
+
+      // 2. Get today's progress
+      const todayDate = getTodayDateString();
+      const progress = await this.getUserDailyProgress(userId, todayDate);
+      if (!progress) {
+        throw new Error('No tasks assigned for today. Please refresh the page.');
+      }
+
+      // 3. Find the task assignment
+      const assignment = progress.tasks.find((t) => t.taskId === taskId);
+      if (!assignment) {
+        throw new Error('Task not found in today\'s assignments.');
+      }
+
+      // 4. Check if already completed
+      if (assignment.status === TaskStatus.COMPLETED) {
+        throw new Error('This task has already been completed.');
+      }
+
+      // 5. Get task details (for evaluation)
+      const task = await this.getTaskById(taskId);
+      if (!task) {
+        throw new Error('Task details not found.');
+      }
+
+      // 6. Evaluate task quality using AI (placeholder - will be implemented in Phase 2)
+      const startTime = assignment.startedAt?.toMillis() || now;
+      const submissionTime = Math.floor((now - startTime) / 1000);
+      const score = await this.evaluateTaskQuality(task, userResponse);
+      const feedback = this.generateFeedback(task.type, score);
+
+      // 7. Calculate rewards
+      const baseXP = BASE_XP_REWARDS[task.type];
+      const qualityBonus = Math.floor((score / 100) * baseXP * 0.5); // Up to 50% bonus
+      const totalXP = baseXP + qualityBonus;
+
+      // 8. Apply streak bonus
+      const currentStreak = progress.streak;
+      const streakBonus = this.calculateStreakBonus(currentStreak, totalXP);
+      const finalXP = totalXP + streakBonus;
+
+      // 9. Award XP through user-level-service
+      const xpResult = await userLevelService.awardXP(
+        userId,
+        finalXP,
+        `Completed daily task: ${task.title}`,
+        'daily_task',
+        `daily-task-${taskId}-${todayDate}`
+      );
+
+      // 10. Award attribute points
+      const attributeGains = task.attributeRewards;
+      await userLevelService.updateAttributes(userId, attributeGains);
+
+      // 11. Update task assignment
+      const updatedAssignment: DailyTaskAssignment = {
+        ...assignment,
+        completedAt: Timestamp.now(),
+        userResponse,
+        submissionTime,
+        aiScore: score,
+        xpAwarded: finalXP,
+        attributeGains,
+        feedback,
+        status: TaskStatus.COMPLETED,
+      };
+
+      // 12. Update progress record
+      const updatedTasks = progress.tasks.map((t) =>
+        t.taskId === taskId ? updatedAssignment : t
+      );
+
+      const updatedProgress: Partial<DailyTaskProgress> = {
+        tasks: updatedTasks,
+        completedTaskIds: [...progress.completedTaskIds, taskId],
+        totalXPEarned: progress.totalXPEarned + finalXP,
+        totalAttributeGains: this.mergeAttributePoints(
+          progress.totalAttributeGains,
+          attributeGains
+        ),
+        lastCompletedAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      // 13. Update streak if all tasks completed
+      const allCompleted = updatedTasks.every(
+        (t) => t.status === TaskStatus.COMPLETED || t.status === TaskStatus.SKIPPED
+      );
+      if (allCompleted) {
+        updatedProgress.streak = await this.updateStreak(userId, todayDate);
+      }
+
+      await updateDoc(
+        doc(this.dailyTaskProgressCollection, `${userId}_${todayDate}`),
+        updatedProgress as any
+      );
+
+      // 14. Record in history
+      await this.recordTaskHistory(userId, taskId, task.type, score, finalXP, submissionTime);
+
+      // 15. Check for streak milestones
+      const newStreak = updatedProgress.streak || currentStreak;
+      const milestone = STREAK_MILESTONES.find((m) => m.days === newStreak);
+      const isStreakMilestone = !!milestone;
+
+      console.log(`✅ Task completed: ${task.title} | Score: ${score} | XP: ${finalXP}`);
+
+      // 16. Return completion result
+      return {
+        success: true,
+        taskId,
+        score,
+        feedback,
+        xpAwarded: finalXP,
+        attributeGains,
+        rewards: {
+          immediately: {
+            xp: finalXP,
+            attributePoints: attributeGains,
+          },
+          delayed: milestone
+            ? {
+                socialRecognition: {
+                  badge: milestone.badge,
+                  title: milestone.title,
+                },
+              }
+            : undefined,
+        },
+        leveledUp: xpResult.leveledUp,
+        newLevel: xpResult.newLevel,
+        fromLevel: xpResult.fromLevel,
+        newStreak,
+        isStreakMilestone,
+        streakBonus,
+      };
+    } catch (error) {
+      console.error('Error submitting task completion:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to submit task completion. Please try again.');
+    }
+  }
+
+  /**
+   * Evaluate task quality using AI
+   * Placeholder method - will be fully implemented in Phase 2
+   *
+   * @param task - Task definition
+   * @param userResponse - User's answer
+   * @returns Promise with score (0-100)
+   */
+  async evaluateTaskQuality(task: DailyTask, userResponse: string): Promise<number> {
+    try {
+      // Phase 2 TODO: Integrate with AI flows
+      // For now, return a simulated score based on response length
+      const responseLength = userResponse.length;
+      const minLength = task.gradingCriteria?.minLength || 50;
+
+      if (responseLength < minLength) {
+        return 40; // Below minimum
+      } else if (responseLength < minLength * 2) {
+        return 70; // Adequate
+      } else {
+        return 85; // Good
+      }
+
+      // Future implementation will call AI flows:
+      // switch (task.type) {
+      //   case DailyTaskType.MORNING_READING:
+      //     return await dailyReadingComprehension(...);
+      //   case DailyTaskType.POETRY:
+      //     return await poetryQualityAssessment(...);
+      //   case DailyTaskType.CHARACTER_INSIGHT:
+      //     return await characterAnalysisScoring(...);
+      //   case DailyTaskType.CULTURAL_EXPLORATION:
+      //     return await culturalQuizGrading(...);
+      //   case DailyTaskType.COMMENTARY_DECODE:
+      //     return await commentaryInterpretation(...);
+      // }
+    } catch (error) {
+      console.error('Error evaluating task quality:', error);
+      // Return a default score on error
+      return 60;
+    }
+  }
+
+  /**
+   * Generate personalized feedback based on score
+   *
+   * @param taskType - Type of task
+   * @param score - Score achieved (0-100)
+   * @returns Feedback message
+   */
+  private generateFeedback(taskType: DailyTaskType, score: number): string {
+    const feedbackTemplates = {
+      excellent: [
+        '太棒了！您的分析深入透徹，展現了對紅樓夢的深刻理解。',
+        '出色的表現！您的見解令人印象深刻，繼續保持！',
+        '精彩！您已經掌握了這部分內容的精髓。',
+      ],
+      good: [
+        '很好！您的理解基本正確，繼續努力會更好。',
+        '不錯的表現！多加練習會有更大進步。',
+        '良好！您已經掌握了大部分要點。',
+      ],
+      average: [
+        '還不錯，但還有進步空間。建議多閱讀相關章節。',
+        '基本達標，繼續加油！建議深入思考文本含義。',
+        '合格，但可以做得更好。試著從多角度分析。',
+      ],
+      needsWork: [
+        '需要更多努力。建議重新閱讀相關內容，仔細思考。',
+        '還需要加強。不要氣餒，學習需要時間和耐心。',
+        '繼續努力！建議先掌握基礎知識，再深入學習。',
+      ],
+    };
+
+    let category: keyof typeof feedbackTemplates;
+    if (score >= 85) {
+      category = 'excellent';
+    } else if (score >= 70) {
+      category = 'good';
+    } else if (score >= 60) {
+      category = 'average';
+    } else {
+      category = 'needsWork';
+    }
+
+    const templates = feedbackTemplates[category];
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+
+  /**
+   * Calculate streak bonus XP
+   *
+   * @param streak - Current streak days
+   * @param baseXP - Base XP before bonus
+   * @returns Bonus XP amount
+   */
+  private calculateStreakBonus(streak: number, baseXP: number): number {
+    const milestone = [...STREAK_MILESTONES]
+      .reverse()
+      .find((m) => streak >= m.days);
+
+    if (milestone) {
+      return Math.floor(baseXP * (milestone.bonusMultiplier - 1));
+    }
+    return 0;
+  }
+
+  /**
+   * Calculate user's current streak
+   *
+   * @param userId - User ID
+   * @param currentDate - Current date string
+   * @returns Promise with streak count
+   */
+  private async calculateStreak(userId: string, currentDate: string): Promise<number> {
+    try {
+      // Get yesterday's progress
+      const yesterday = new Date(currentDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      const yesterdayProgress = await this.getUserDailyProgress(userId, yesterdayStr);
+
+      if (!yesterdayProgress) {
+        // No history, start fresh
+        return 0;
+      }
+
+      // Check if yesterday's tasks were completed
+      const yesterdayCompleted = yesterdayProgress.tasks.every(
+        (t) => t.status === TaskStatus.COMPLETED || t.status === TaskStatus.SKIPPED
+      );
+
+      if (yesterdayCompleted) {
+        // Continue streak
+        return yesterdayProgress.streak + 1;
+      } else {
+        // Streak broken, start over
+        return 0;
+      }
+    } catch (error) {
+      console.error('Error calculating streak:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Update streak after completing all daily tasks
+   *
+   * @param userId - User ID
+   * @param currentDate - Current date string
+   * @returns Promise with updated streak count
+   */
+  private async updateStreak(userId: string, currentDate: string): Promise<number> {
+    const newStreak = await this.calculateStreak(userId, currentDate);
+    console.log(`🔥 Streak updated for user ${userId}: ${newStreak} days`);
+    return newStreak + 1; // +1 for today
+  }
+
+  /**
+   * Record task completion in history
+   *
+   * @param userId - User ID
+   * @param taskId - Task ID
+   * @param taskType - Task type
+   * @param score - Score achieved
+   * @param xpAwarded - XP awarded
+   * @param completionTime - Time taken in seconds
+   */
+  private async recordTaskHistory(
+    userId: string,
+    taskId: string,
+    taskType: DailyTaskType,
+    score: number,
+    xpAwarded: number,
+    completionTime: number
+  ): Promise<void> {
+    try {
+      const record: Omit<TaskHistoryRecord, 'id'> = {
+        userId,
+        taskId,
+        taskType,
+        date: getTodayDateString(),
+        score,
+        xpAwarded,
+        completionTime,
+        completedAt: Timestamp.now(),
+      };
+
+      await addDoc(this.dailyTaskHistoryCollection, record);
+    } catch (error) {
+      console.error('Error recording task history:', error);
+      // Don't throw - history recording is not critical
+    }
+  }
+
+  /**
+   * Get task history for a user
+   *
+   * @param userId - User ID
+   * @param limitCount - Number of records to fetch
+   * @returns Promise with task history
+   */
+  async getTaskHistory(userId: string, limitCount: number = 30): Promise<TaskHistoryRecord[]> {
+    try {
+      const historyQuery = query(
+        this.dailyTaskHistoryCollection,
+        where('userId', '==', userId),
+        orderBy('completedAt', 'desc'),
+        limit(limitCount)
+      );
+
+      const querySnapshot = await getDocs(historyQuery);
+      const history: TaskHistoryRecord[] = [];
+
+      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const data = doc.data();
+        history.push({
+          id: doc.id,
+          ...data,
+          completedAt: data.completedAt || Timestamp.now(),
+        } as TaskHistoryRecord);
+      });
+
+      return history;
+    } catch (error) {
+      console.error('Error fetching task history:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get task statistics for a user
+   *
+   * @param userId - User ID
+   * @returns Promise with task statistics
+   */
+  async getTaskStatistics(userId: string): Promise<TaskStatistics> {
+    try {
+      const history = await this.getTaskHistory(userId, 100);
+
+      if (history.length === 0) {
+        return {
+          totalCompleted: 0,
+          totalSkipped: 0,
+          averageScore: 0,
+          averageCompletionTime: 0,
+          completionRate: 0,
+          byType: {} as any,
+          longestStreak: 0,
+          currentStreak: 0,
+        };
+      }
+
+      const totalCompleted = history.length;
+      const averageScore = history.reduce((sum, h) => sum + h.score, 0) / totalCompleted;
+      const averageCompletionTime = history.reduce((sum, h) => sum + h.completionTime, 0) / totalCompleted;
+
+      // Calculate by-type stats
+      const byType: any = {};
+      Object.values(DailyTaskType).forEach((type) => {
+        const typeTasks = history.filter((h) => h.taskType === type);
+        if (typeTasks.length > 0) {
+          byType[type] = {
+            completed: typeTasks.length,
+            averageScore: typeTasks.reduce((sum, h) => sum + h.score, 0) / typeTasks.length,
+            averageTime: typeTasks.reduce((sum, h) => sum + h.completionTime, 0) / typeTasks.length,
+          };
+        }
+      });
+
+      // Get current streak
+      const todayProgress = await this.getUserDailyProgress(userId);
+      const currentStreak = todayProgress?.streak || 0;
+
+      return {
+        totalCompleted,
+        totalSkipped: 0, // TODO: Track skipped tasks
+        averageScore,
+        averageCompletionTime,
+        completionRate: 1.0, // TODO: Calculate actual rate
+        byType,
+        longestStreak: currentStreak, // TODO: Track longest streak
+        currentStreak,
+      };
+    } catch (error) {
+      console.error('Error calculating task statistics:', error);
+      return {
+        totalCompleted: 0,
+        totalSkipped: 0,
+        averageScore: 0,
+        averageCompletionTime: 0,
+        completionRate: 0,
+        byType: {} as any,
+        longestStreak: 0,
+        currentStreak: 0,
+      };
+    }
+  }
+
+  /**
+   * Helper: Calculate task difficulty based on user level
+   */
+  private calculateTaskDifficulty(userLevel: number): TaskDifficulty {
+    if (userLevel >= 5) return TaskDifficulty.HARD;
+    if (userLevel >= 2) return TaskDifficulty.MEDIUM;
+    return TaskDifficulty.EASY;
+  }
+
+  /**
+   * Helper: Merge attribute points
+   */
+  private mergeAttributePoints(
+    base: Partial<AttributePoints>,
+    add: Partial<AttributePoints>
+  ): Partial<AttributePoints> {
+    return {
+      poetrySkill: (base.poetrySkill || 0) + (add.poetrySkill || 0),
+      culturalKnowledge: (base.culturalKnowledge || 0) + (add.culturalKnowledge || 0),
+      analyticalThinking: (base.analyticalThinking || 0) + (add.analyticalThinking || 0),
+      socialInfluence: (base.socialInfluence || 0) + (add.socialInfluence || 0),
+      learningPersistence: (base.learningPersistence || 0) + (add.learningPersistence || 0),
+    };
+  }
+
+  /**
+   * Helper: Get task by ID (placeholder - will be implemented with task generator)
+   */
+  private async getTaskById(taskId: string): Promise<DailyTask | null> {
+    try {
+      const taskDoc = await getDoc(doc(this.dailyTasksCollection, taskId));
+      if (!taskDoc.exists()) {
+        return null;
+      }
+      return { id: taskDoc.id, ...taskDoc.data() } as DailyTask;
+    } catch (error) {
+      console.error('Error getting task by ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Helper: Get tasks from assignments (placeholder)
+   */
+  private async getTasksFromAssignments(assignments: DailyTaskAssignment[]): Promise<DailyTask[]> {
+    const tasks: DailyTask[] = [];
+    for (const assignment of assignments) {
+      const task = await this.getTaskById(assignment.taskId);
+      if (task) {
+        tasks.push(task);
+      }
+    }
+    return tasks;
+  }
+
+  // ========== Task Generation Methods (Placeholders for Phase 1.4) ==========
+
+  private async generateMorningReadingTask(difficulty: TaskDifficulty): Promise<DailyTask> {
+    // TODO: Implement in Phase 1.4 (task-generator.ts)
+    return this.createPlaceholderTask(DailyTaskType.MORNING_READING, difficulty);
+  }
+
+  private async generatePoetryTask(difficulty: TaskDifficulty): Promise<DailyTask> {
+    // TODO: Implement in Phase 1.4 (task-generator.ts)
+    return this.createPlaceholderTask(DailyTaskType.POETRY, difficulty);
+  }
+
+  private async generateCharacterInsightTask(difficulty: TaskDifficulty): Promise<DailyTask> {
+    // TODO: Implement in Phase 1.4 (task-generator.ts)
+    return this.createPlaceholderTask(DailyTaskType.CHARACTER_INSIGHT, difficulty);
+  }
+
+  private async generateCulturalExplorationTask(difficulty: TaskDifficulty): Promise<DailyTask> {
+    // TODO: Implement in Phase 1.4 (task-generator.ts)
+    return this.createPlaceholderTask(DailyTaskType.CULTURAL_EXPLORATION, difficulty);
+  }
+
+  private async generateCommentaryDecodeTask(difficulty: TaskDifficulty): Promise<DailyTask> {
+    // TODO: Implement in Phase 1.4 (task-generator.ts)
+    return this.createPlaceholderTask(DailyTaskType.COMMENTARY_DECODE, difficulty);
+  }
+
+  /**
+   * Create placeholder task for Phase 1 testing
+   * Will be replaced with actual task generation in Phase 1.4
+   */
+  private createPlaceholderTask(type: DailyTaskType, difficulty: TaskDifficulty): DailyTask {
+    const taskId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    return {
+      id: taskId,
+      type,
+      title: `${type} Task (${difficulty})`,
+      description: `Placeholder task for ${type}`,
+      difficulty,
+      timeEstimate: 5,
+      xpReward: BASE_XP_REWARDS[type],
+      attributeRewards: ATTRIBUTE_REWARDS[type],
+      content: {},
+      gradingCriteria: {
+        minLength: 50,
+      },
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+  }
+}
+
+// Export singleton instance
+export const dailyTaskService = new DailyTaskService();
