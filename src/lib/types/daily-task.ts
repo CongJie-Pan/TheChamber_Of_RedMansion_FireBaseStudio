@@ -152,6 +152,9 @@ export interface DailyTask {
   xpReward: number;          // Base XP reward
   attributeRewards: Partial<AttributePoints>; // Attribute points rewards
 
+  // Anti-farming: Source content identifier
+  sourceId: string;          // Unique identifier for content source (prevents duplicate rewards)
+
   // Task content (type-specific)
   content: {
     textPassage?: TextPassage;
@@ -211,6 +214,9 @@ export interface DailyTaskProgress {
   skippedTaskIds: string[];   // IDs of skipped tasks
   totalXPEarned: number;      // Total XP earned today
   totalAttributeGains: Partial<AttributePoints>; // Total attribute gains
+
+  // Anti-farming: Track used content sources (Phase 4.4)
+  usedSourceIds?: string[];   // Source IDs already rewarded (prevents duplicate XP for same content)
 
   // Streak tracking
   streak: number;             // Current consecutive completion streak

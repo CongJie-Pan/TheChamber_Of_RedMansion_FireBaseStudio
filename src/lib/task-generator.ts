@@ -269,6 +269,12 @@ export class TaskGenerator {
   ): Promise<DailyTask> {
     const taskId = this.generateTaskId(type, difficulty, date);
 
+    // Generate type-specific content
+    const content = await this.generateTaskContent(type, difficulty);
+
+    // Generate sourceId based on content (Phase 4.4: Anti-farming)
+    const sourceId = this.generateSourceId(type, content);
+
     const baseTask: Omit<DailyTask, 'content'> = {
       id: taskId,
       type,
@@ -278,11 +284,9 @@ export class TaskGenerator {
       timeEstimate: this.getTimeEstimate(type),
       xpReward: XP_REWARD_TABLE[type][difficulty],
       attributeRewards: ATTRIBUTE_REWARD_TABLE[type],
+      sourceId, // Phase 4.4: Unique content identifier
       gradingCriteria: this.getGradingCriteria(type, difficulty),
     };
-
-    // Generate type-specific content
-    const content = await this.generateTaskContent(type, difficulty);
 
     return { ...baseTask, content };
   }
@@ -298,6 +302,55 @@ export class TaskGenerator {
     const timestamp = new Date().getTime();
     const random = Math.random().toString(36).substring(2, 8);
     return `${type}_${difficulty}_${date}_${random}_${timestamp}`;
+  }
+
+  /**
+   * Generate source ID for anti-farming (Phase 4.4)
+   * Creates a unique identifier based on content source
+   *
+   * Purpose: Prevents users from completing the same content multiple times
+   * for duplicate XP rewards
+   *
+   * @param type - Task type
+   * @param content - Task content
+   * @returns Unique source identifier
+   */
+  private generateSourceId(type: DailyTaskType, content: DailyTask['content']): string {
+    switch (type) {
+      case DailyTaskType.MORNING_READING: {
+        const passage = content.textPassage;
+        if (!passage) return `unknown-passage-${Date.now()}`;
+        return `chapter-${passage.chapter}-passage-${passage.startLine}-${passage.endLine}`;
+      }
+
+      case DailyTaskType.POETRY: {
+        const poem = content.poem;
+        if (!poem) return `unknown-poem-${Date.now()}`;
+        return `poem-${poem.id}`;
+      }
+
+      case DailyTaskType.CHARACTER_INSIGHT: {
+        const character = content.character;
+        if (!character) return `unknown-character-${Date.now()}`;
+        const chapterStr = character.chapter ? `-chapter-${character.chapter}` : '-general';
+        return `character-${character.characterId}${chapterStr}`;
+      }
+
+      case DailyTaskType.CULTURAL_EXPLORATION: {
+        const cultural = content.culturalElement;
+        if (!cultural) return `unknown-cultural-${Date.now()}`;
+        return `culture-${cultural.id}`;
+      }
+
+      case DailyTaskType.COMMENTARY_DECODE: {
+        const commentary = content.commentary;
+        if (!commentary) return `unknown-commentary-${Date.now()}`;
+        return `commentary-${commentary.id}`;
+      }
+
+      default:
+        return `unknown-${type}-${Date.now()}`;
+    }
   }
 
   /**

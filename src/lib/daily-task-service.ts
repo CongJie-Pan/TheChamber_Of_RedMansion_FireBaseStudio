@@ -126,6 +126,18 @@ const ATTRIBUTE_REWARDS: Record<DailyTaskType, Partial<AttributePoints>> = {
 const SUBMISSION_COOLDOWN_MS = 5000;
 
 /**
+ * AI evaluation timeout in milliseconds (3 seconds)
+ * Phase 4.8: Performance optimization - prevent hanging AI calls
+ */
+const AI_EVALUATION_TIMEOUT_MS = 3000;
+
+/**
+ * Task cache TTL in milliseconds (5 minutes)
+ * Phase 4.8: Performance optimization - reduce Firestore reads
+ */
+const TASK_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
  * Helper function to get today's date string in YYYY-MM-DD format (UTC+8)
  * Uses Taiwan/Taipei timezone
  */
@@ -149,6 +161,26 @@ function areConsecutiveDates(date1: string, date2: string): boolean {
 }
 
 /**
+ * Timeout wrapper for async operations
+ * Phase 4.8: Performance optimization
+ *
+ * @param promise - Promise to execute
+ * @param timeoutMs - Timeout in milliseconds
+ * @param fallbackValue - Value to return on timeout
+ * @returns Promise that resolves with result or fallback value on timeout
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallbackValue: T
+): Promise<T> {
+  const timeoutPromise = new Promise<T>((resolve) => {
+    setTimeout(() => resolve(fallbackValue), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]);
+}
+
+/**
  * Daily Task Service Class
  * Singleton service for managing daily tasks
  */
@@ -159,6 +191,9 @@ export class DailyTaskService {
 
   // Cache for last submission time (prevents spam)
   private lastSubmissionTimes: Map<string, number> = new Map();
+
+  // Phase 4.8: Task cache for performance optimization
+  private taskCache: Map<string, { task: DailyTask; timestamp: number }> = new Map();
 
   /**
    * Generate daily tasks for a user on a specific date
@@ -223,6 +258,7 @@ export class DailyTaskService {
         skippedTaskIds: [],
         totalXPEarned: 0,
         totalAttributeGains: {},
+        usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
         streak: await this.calculateStreak(userId, targetDate),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -317,6 +353,12 @@ export class DailyTaskService {
         throw new Error('Task details not found.');
       }
 
+      // 5.5. Phase 4.4: Check sourceId deduplication (anti-farming)
+      const usedSourceIds = progress.usedSourceIds || [];
+      if (task.sourceId && usedSourceIds.includes(task.sourceId)) {
+        throw new Error('You have already completed this content today. Duplicate rewards are not allowed.');
+      }
+
       // 6. Evaluate task quality using AI (placeholder - will be implemented in Phase 2)
       const startTime = assignment.startedAt?.toMillis() || now;
       const submissionTime = Math.floor((now - startTime) / 1000);
@@ -372,6 +414,8 @@ export class DailyTaskService {
           progress.totalAttributeGains,
           attributeGains
         ),
+        // Phase 4.4: Add sourceId to prevent duplicate rewards
+        usedSourceIds: task.sourceId ? [...usedSourceIds, task.sourceId] : usedSourceIds,
         lastCompletedAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -440,12 +484,40 @@ export class DailyTaskService {
   /**
    * Evaluate task quality using AI
    * Integrates with specialized AI flows for each task type
+   * Phase 4.8: Added timeout wrapper for performance optimization
    *
    * @param task - Task definition with content and grading criteria
    * @param userResponse - User's answer/submission
    * @returns Promise with score (0-100)
    */
   async evaluateTaskQuality(task: DailyTask, userResponse: string): Promise<number> {
+    const startTime = Date.now();
+
+    try {
+      // Phase 4.8: Wrap AI evaluation with timeout to prevent hanging
+      const score = await withTimeout(
+        this.performAIEvaluation(task, userResponse),
+        AI_EVALUATION_TIMEOUT_MS,
+        60 // Fallback score if AI times out
+      );
+
+      // Log performance
+      const duration = Date.now() - startTime;
+      console.log(`✅ AI evaluation completed in ${duration}ms (target: <${AI_EVALUATION_TIMEOUT_MS}ms)`);
+
+      return score;
+    } catch (error) {
+      console.error('Error evaluating task quality:', error);
+      // Return a reasonable default score on AI failure
+      return 60;
+    }
+  }
+
+  /**
+   * Internal AI evaluation logic (separated for timeout wrapping)
+   * Phase 4.8: Performance optimization
+   */
+  private async performAIEvaluation(task: DailyTask, userResponse: string): Promise<number> {
     try {
       // Route to appropriate AI flow based on task type
       switch (task.type) {
@@ -858,15 +930,32 @@ export class DailyTaskService {
   }
 
   /**
-   * Helper: Get task by ID (placeholder - will be implemented with task generator)
+   * Helper: Get task by ID with caching
+   * Phase 4.8: Performance optimization - reduces Firestore reads
    */
   private async getTaskById(taskId: string): Promise<DailyTask | null> {
     try {
+      // Check cache first
+      const cached = this.taskCache.get(taskId);
+      const now = Date.now();
+
+      if (cached && (now - cached.timestamp) < TASK_CACHE_TTL_MS) {
+        // Cache hit - return cached task
+        return cached.task;
+      }
+
+      // Cache miss - fetch from Firestore
       const taskDoc = await getDoc(doc(this.dailyTasksCollection, taskId));
       if (!taskDoc.exists()) {
         return null;
       }
-      return { id: taskDoc.id, ...taskDoc.data() } as DailyTask;
+
+      const task = { id: taskDoc.id, ...taskDoc.data() } as DailyTask;
+
+      // Update cache
+      this.taskCache.set(taskId, { task, timestamp: now });
+
+      return task;
     } catch (error) {
       console.error('Error getting task by ID:', error);
       return null;
