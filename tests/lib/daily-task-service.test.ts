@@ -843,4 +843,336 @@ describe('DailyTaskService', () => {
       testLogger.log('Statistics calculation test completed', { stats });
     });
   });
+
+  /**
+   * Bug Fix #4: Guest User Daily Task Reset Functionality
+   *
+   * Tests verify that guest users can reset their daily tasks on each login
+   * while preserving previous days' history.
+   *
+   * Bug Description: Guest users (test accounts) need ability to reset today's
+   * tasks on each login for testing purposes, but previous days should be kept.
+   *
+   * Fix: Added deleteTodayProgress method to daily-task-service.ts
+   * Implementation in page.tsx detects user.isAnonymous and triggers reset
+   */
+  describe('Bug Fix #4: Guest User Task Reset', () => {
+    /**
+     * CRITICAL BUG FIX TEST:
+     * Verifies deleteTodayProgress method exists and works correctly
+     */
+    it('should delete todays progress for guest users', async () => {
+      testLogger.log('Testing deleteTodayProgress method (Bug Fix #4)');
+
+      // Arrange
+      const guestUserId = 'guest_user_test';
+      const date = '2025-01-20';
+      const progressId = `${guestUserId}_${date}`;
+
+      // Mock existing progress
+      const mockProgress: Partial<DailyTaskProgress> = {
+        id: progressId,
+        userId: guestUserId,
+        date,
+        tasks: [
+          {
+            taskId: 'task_123',
+            assignedAt: Timestamp.now(),
+            status: TaskStatus.COMPLETED,
+            completedAt: Timestamp.now(),
+          },
+        ],
+        completedTaskIds: ['task_123'],
+        skippedTaskIds: [],
+        totalXPEarned: 15,
+        totalAttributeGains: { poetrySkill: 2 },
+        streak: 3,
+      };
+
+      // Mock getDoc to return existing progress
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => mockProgress,
+      });
+
+      // Mock deleteDoc
+      const mockDeleteDoc = jest.fn().mockResolvedValue(undefined);
+      (require('firebase/firestore').deleteDoc as jest.Mock) = mockDeleteDoc;
+
+      // Act
+      const result = await dailyTaskService.deleteTodayProgress(guestUserId, date);
+
+      // Assert
+      expect(result).toBe(true); // Should return true when deleted
+      expect(getDoc).toHaveBeenCalled(); // Should check if progress exists
+
+      testLogger.log('deleteTodayProgress method verified', { result });
+    });
+
+    /**
+     * Test that deleteTodayProgress returns false when no progress exists
+     */
+    it('should return false when no progress exists to delete', async () => {
+      testLogger.log('Testing deleteTodayProgress with no existing progress');
+
+      const guestUserId = 'guest_no_progress';
+      const date = '2025-01-20';
+
+      // Mock getDoc to return no progress
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => false,
+      });
+
+      // Act
+      const result = await dailyTaskService.deleteTodayProgress(guestUserId, date);
+
+      // Assert
+      expect(result).toBe(false); // Should return false when nothing to delete
+
+      testLogger.log('No progress deletion handled correctly', { result });
+    });
+
+    /**
+     * Test that deleteTodayProgress defaults to today if no date provided
+     */
+    it('should default to today when no date is provided', async () => {
+      testLogger.log('Testing deleteTodayProgress default date');
+
+      const guestUserId = 'guest_default_date';
+
+      // Mock getDoc to return no progress
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => false,
+      });
+
+      // Act
+      const result = await dailyTaskService.deleteTodayProgress(guestUserId);
+
+      // Assert - Should not throw error
+      expect(result).toBe(false);
+
+      testLogger.log('Default date handling verified');
+    });
+
+    /**
+     * Test that deleteTodayProgress handles errors gracefully
+     */
+    it('should handle errors gracefully and return false', async () => {
+      testLogger.log('Testing deleteTodayProgress error handling');
+
+      const guestUserId = 'guest_error';
+      const date = '2025-01-20';
+
+      // Mock getDoc to throw error
+      (getDoc as jest.Mock).mockRejectedValueOnce(new Error('Firestore error'));
+
+      // Act
+      const result = await dailyTaskService.deleteTodayProgress(guestUserId, date);
+
+      // Assert
+      expect(result).toBe(false); // Should return false on error, not throw
+
+      testLogger.log('Error handling verified', { result });
+    });
+
+    /**
+     * Integration test: Reset and regenerate tasks workflow
+     *
+     * Simulates the full guest user login flow
+     */
+    it('should allow task regeneration after deletion', async () => {
+      testLogger.log('Testing reset and regenerate workflow');
+
+      const guestUserId = 'guest_regenerate';
+      const date = '2025-01-20';
+
+      // Step 1: Mock existing completed progress
+      const existingProgress: Partial<DailyTaskProgress> = {
+        id: `${guestUserId}_${date}`,
+        userId: guestUserId,
+        date,
+        tasks: [
+          {
+            taskId: 'old_task_1',
+            assignedAt: Timestamp.now(),
+            status: TaskStatus.COMPLETED,
+          },
+          {
+            taskId: 'old_task_2',
+            assignedAt: Timestamp.now(),
+            status: TaskStatus.COMPLETED,
+          },
+        ],
+        completedTaskIds: ['old_task_1', 'old_task_2'],
+        skippedTaskIds: [],
+        totalXPEarned: 30,
+        totalAttributeGains: {},
+        streak: 5,
+      };
+
+      // Mock getDoc for deletion check (progress exists)
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => existingProgress,
+      });
+
+      // Step 2: Delete today's progress
+      const deleted = await dailyTaskService.deleteTodayProgress(guestUserId, date);
+      expect(deleted).toBe(true);
+
+      // Step 3: Generate new tasks (simulate regeneration)
+      // Mock no progress exists after deletion
+      (getDoc as jest.Mock).mockResolvedValueOnce({ exists: () => false });
+
+      // Mock user profile for generation
+      (userLevelService.getUserProfile as jest.Mock).mockResolvedValue({
+        uid: guestUserId,
+        currentLevel: 0,
+        currentXP: 0,
+      });
+
+      // Mock new tasks generation
+      const newTasks = [
+        {
+          id: 'new_task_1',
+          type: DailyTaskType.MORNING_READING,
+          title: 'Fresh Task 1',
+          difficulty: TaskDifficulty.EASY,
+          xpReward: 10,
+          attributeRewards: {},
+          content: {},
+        },
+        {
+          id: 'new_task_2',
+          type: DailyTaskType.POETRY,
+          title: 'Fresh Task 2',
+          difficulty: TaskDifficulty.EASY,
+          xpReward: 8,
+          attributeRewards: {},
+          content: {},
+        },
+      ];
+
+      (taskGenerator.generateTasksForUser as jest.Mock).mockResolvedValue(newTasks);
+      (setDoc as jest.Mock).mockResolvedValue(undefined);
+
+      // Generate new tasks
+      const generatedTasks = await dailyTaskService.generateDailyTasks(guestUserId, date);
+
+      // Assert: Should have fresh tasks
+      expect(generatedTasks).toBeDefined();
+      expect(generatedTasks.length).toBe(2);
+      expect(generatedTasks[0].id).toBe('new_task_1');
+      expect(generatedTasks[1].id).toBe('new_task_2');
+
+      testLogger.log('Reset and regenerate workflow verified', {
+        deletedOldProgress: deleted,
+        newTaskCount: generatedTasks.length,
+      });
+    });
+
+    /**
+     * Test that only today's progress is deleted, not previous days
+     *
+     * This is critical for guest users - they should be able to see
+     * their history from previous days
+     */
+    it('should only delete specified date, not affect other dates', async () => {
+      testLogger.log('Testing selective date deletion');
+
+      const guestUserId = 'guest_selective';
+      const today = '2025-01-20';
+      const yesterday = '2025-01-19';
+
+      // Mock progress for today (will be deleted)
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: `${guestUserId}_${today}`,
+          userId: guestUserId,
+          date: today,
+          tasks: [],
+          completedTaskIds: [],
+        }),
+      });
+
+      // Delete today's progress
+      const deletedToday = await dailyTaskService.deleteTodayProgress(guestUserId, today);
+      expect(deletedToday).toBe(true);
+
+      // Verify yesterday's progress can still be retrieved
+      // Mock progress for yesterday (should not be affected)
+      const yesterdayProgress: Partial<DailyTaskProgress> = {
+        id: `${guestUserId}_${yesterday}`,
+        userId: guestUserId,
+        date: yesterday,
+        tasks: [
+          {
+            taskId: 'yesterday_task',
+            assignedAt: Timestamp.now(),
+            status: TaskStatus.COMPLETED,
+          },
+        ],
+        completedTaskIds: ['yesterday_task'],
+        skippedTaskIds: [],
+        totalXPEarned: 15,
+        totalAttributeGains: {},
+        streak: 4,
+      };
+
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => yesterdayProgress,
+      });
+
+      // Retrieve yesterday's progress
+      const retrievedYesterday = await dailyTaskService.getUserDailyProgress(guestUserId, yesterday);
+
+      // Assert: Yesterday's progress should still exist
+      expect(retrievedYesterday).toBeDefined();
+      expect(retrievedYesterday?.date).toBe(yesterday);
+      expect(retrievedYesterday?.completedTaskIds).toContain('yesterday_task');
+
+      testLogger.log('Selective deletion verified - yesterday untouched', {
+        todayDeleted: deletedToday,
+        yesterdayExists: !!retrievedYesterday,
+      });
+    });
+
+    /**
+     * Test console logging for guest reset
+     *
+     * Verifies that appropriate logging occurs for debugging
+     */
+    it('should log guest user reset actions', async () => {
+      testLogger.log('Testing guest reset logging');
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const guestUserId = 'guest_logging';
+      const date = '2025-01-20';
+
+      // Mock progress exists
+      (getDoc as jest.Mock).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: `${guestUserId}_${date}`,
+          userId: guestUserId,
+          date,
+        }),
+      });
+
+      // Delete progress
+      await dailyTaskService.deleteTodayProgress(guestUserId, date);
+
+      // Assert: Should have logged the deletion
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Guest user progress deleted')
+      );
+
+      consoleSpy.mockRestore();
+
+      testLogger.log('Logging verified');
+    });
+  });
 });

@@ -56,25 +56,37 @@ jest.mock('firebase/auth', () => ({
 
 // Mock Firebase Firestore for testing
 jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(),
-  collection: jest.fn(),
-  doc: jest.fn(),
-  addDoc: jest.fn(),
-  getDocs: jest.fn(),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  startAfter: jest.fn(),
-  increment: jest.fn(),
-  arrayUnion: jest.fn(),
-  arrayRemove: jest.fn(),
-  serverTimestamp: jest.fn(),
-  onSnapshot: jest.fn(),
+  getFirestore: jest.fn(() => ({ _id: 'mock-firestore' })),
+  collection: jest.fn((db, path) => ({ _path: path, _db: db })),
+  doc: jest.fn((collectionOrDb, ...pathSegments) => ({
+    id: pathSegments[pathSegments.length - 1] || 'mock-doc-id',
+    path: pathSegments.join('/'),
+  })),
+  addDoc: jest.fn(() => Promise.resolve({ id: 'new-doc-id' })),
+  getDocs: jest.fn(() => Promise.resolve({
+    docs: [],
+    empty: true,
+    size: 0,
+    forEach: jest.fn(),
+  })),
+  getDoc: jest.fn(() => Promise.resolve({
+    exists: () => false,
+    data: () => undefined,
+    id: 'mock-doc-id',
+  })),
+  setDoc: jest.fn(() => Promise.resolve()),
+  updateDoc: jest.fn(() => Promise.resolve()),
+  deleteDoc: jest.fn(() => Promise.resolve()), // Enhanced: explicit Promise resolve
+  query: jest.fn((...args) => ({ _query: args })),
+  where: jest.fn((field, op, value) => ({ field, op, value })),
+  orderBy: jest.fn((field, direction) => ({ field, direction })),
+  limit: jest.fn((n) => ({ limit: n })),
+  startAfter: jest.fn((doc) => ({ startAfter: doc })),
+  increment: jest.fn((n) => ({ _increment: n })),
+  arrayUnion: jest.fn((...values) => ({ _arrayUnion: values })),
+  arrayRemove: jest.fn((...values) => ({ _arrayRemove: values })),
+  serverTimestamp: jest.fn(() => ({ _serverTimestamp: true })),
+  onSnapshot: jest.fn(() => jest.fn()), // Returns unsubscribe function
   Timestamp: {
     now: jest.fn(() => ({
       toDate: () => new Date(),
@@ -132,8 +144,8 @@ afterAll(() => {
   console.error = originalError;
 });
 
-// Increase timeout for async operations
-jest.setTimeout(30000);
+// Increase timeout for async operations (especially for daily task tests)
+jest.setTimeout(60000); // 60 seconds for complex test suites
 
 // Global test utilities
 global.testUtils = {

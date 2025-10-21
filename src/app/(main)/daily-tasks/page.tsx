@@ -122,12 +122,62 @@ export default function DailyTasksPage() {
 
   /**
    * Load daily tasks and progress on component mount
+   * For guest users: Reset today's tasks ONLY on first login (not on page refresh)
    */
   useEffect(() => {
     if (user) {
-      loadDailyTasks();
+      // Check if user is a guest (anonymous user)
+      if (user.isAnonymous) {
+        // Check if we've already reset tasks in this session
+        const sessionKey = `guest-tasks-reset-${user.uid}`;
+        const hasResetInSession = sessionStorage.getItem(sessionKey);
+
+        if (!hasResetInSession) {
+          console.log('🧪 Guest user first login - resetting today\'s tasks...');
+          resetTodayTasksForGuest();
+          // Mark as reset in current session
+          sessionStorage.setItem(sessionKey, 'true');
+        } else {
+          console.log('🧪 Guest user session active - loading existing tasks...');
+          loadDailyTasks();
+        }
+      } else {
+        loadDailyTasks();
+      }
     }
   }, [user]);
+
+  /**
+   * Reset today's tasks for guest users
+   * Deletes today's progress and regenerates tasks for testing
+   */
+  const resetTodayTasksForGuest = async () => {
+    if (!user || !user.isAnonymous) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Delete today's progress
+      await dailyTaskService.deleteTodayProgress(user.uid);
+
+      // Load tasks (which will regenerate them)
+      await loadDailyTasks();
+
+      console.log('✅ Guest user tasks reset successfully');
+    } catch (error) {
+      console.error('Error resetting guest tasks:', error);
+      setError('無法重置每日任務，請稍後再試。');
+      toast({
+        title: '重置失敗',
+        description: '無法重置今日任務，請重新整理頁面。',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   /**
    * Load or generate daily tasks for the user

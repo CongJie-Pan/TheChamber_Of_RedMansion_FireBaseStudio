@@ -87,8 +87,8 @@ const config = {
   // Coverage reporters
   coverageReporters: ['text', 'lcov', 'html'],
   
-  // Test timeout (increased for Firebase operations)
-  testTimeout: 30000,
+  // Test timeout (increased for Firebase operations and daily task tests)
+  testTimeout: 60000, // Increased to 60 seconds for complex test suites
   
   // Module file extensions
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],

@@ -86,27 +86,27 @@ const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
 
 /**
  * Attribute rewards by task type
+ * Aligned with user-level.ts AttributePoints interface
  */
 const ATTRIBUTE_REWARD_TABLE: Record<DailyTaskType, Partial<AttributePoints>> = {
   [DailyTaskType.MORNING_READING]: {
-    literaryTalent: 2,
-    culturalInsight: 1,
+    analyticalThinking: 1,
+    culturalKnowledge: 1,
   },
   [DailyTaskType.POETRY]: {
-    literaryTalent: 3,
-    aestheticSense: 1,
+    poetrySkill: 2,
+    culturalKnowledge: 1,
   },
   [DailyTaskType.CHARACTER_INSIGHT]: {
-    socialAwareness: 2,
-    culturalInsight: 2,
+    analyticalThinking: 2,
+    socialInfluence: 1,
   },
   [DailyTaskType.CULTURAL_EXPLORATION]: {
-    culturalInsight: 3,
-    aestheticSense: 1,
+    culturalKnowledge: 3,
   },
   [DailyTaskType.COMMENTARY_DECODE]: {
-    literaryTalent: 2,
-    culturalInsight: 2,
+    analyticalThinking: 2,
+    culturalKnowledge: 2,
   },
 };
 

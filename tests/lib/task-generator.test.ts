@@ -605,4 +605,261 @@ describe('TaskGenerator', () => {
       testLogger.log('Task type de-duplication test completed');
     });
   });
+
+  /**
+   * Bug Fix #2: Attribute Reward Names Standardization
+   *
+   * Tests verify that attribute rewards use correct standardized names
+   * matching the AttributePoints interface defined in user-level.ts
+   *
+   * Bug Description: Attribute rewards used incorrect English names
+   * (literaryTalent, aestheticSense, culturalInsight, socialAwareness)
+   * that didn't match the AttributePoints interface
+   *
+   * Fix: Updated ATTRIBUTE_REWARD_TABLE in task-generator.ts to use:
+   * - poetrySkill (instead of literaryTalent/aestheticSense)
+   * - culturalKnowledge (instead of culturalInsight)
+   * - analyticalThinking (unchanged)
+   * - socialInfluence (instead of socialAwareness)
+   * - learningPersistence (unchanged)
+   */
+  describe('Bug Fix #2: Attribute Reward Names Standardization', () => {
+    /**
+     * CRITICAL BUG FIX TEST:
+     * Verifies that all generated tasks use correct attribute names
+     */
+    it('should use standardized attribute names matching AttributePoints interface', async () => {
+      testLogger.log('Testing attribute name standardization (Bug Fix #2)');
+
+      const userId = 'attr_bugfix_user';
+      const date = '2025-01-15';
+
+      // Valid attribute names from user-level.ts
+      const validAttributeNames = [
+        'poetrySkill',
+        'culturalKnowledge',
+        'analyticalThinking',
+        'socialInfluence',
+        'learningPersistence',
+      ];
+
+      // Invalid OLD attribute names that should NOT appear
+      const invalidAttributeNames = [
+        'literaryTalent',
+        'aestheticSense',
+        'culturalInsight',
+        'socialAwareness',
+      ];
+
+      // Generate many tasks to cover all types
+      const allTasks: DailyTask[] = [];
+      for (let level = 0; level <= 7; level++) {
+        const tasks = await generator.generateTasksForUser(userId, level, `2025-01-${15 + level}`);
+        allTasks.push(...tasks);
+      }
+
+      // Verify all tasks use valid attribute names
+      allTasks.forEach((task) => {
+        const attributeKeys = Object.keys(task.attributeRewards);
+
+        attributeKeys.forEach((attrName) => {
+          // CRITICAL: Attribute name MUST be in valid list
+          expect(validAttributeNames).toContain(attrName);
+
+          // CRITICAL: Attribute name MUST NOT be in invalid list
+          expect(invalidAttributeNames).not.toContain(attrName);
+        });
+
+        testLogger.log(`Task ${task.id} attributes verified`, {
+          taskType: task.type,
+          attributes: attributeKeys,
+        });
+      });
+
+      testLogger.log('Attribute name standardization verified for all tasks');
+    });
+
+    /**
+     * Test that MORNING_READING uses correct attributes
+     * Should give: analyticalThinking + culturalKnowledge
+     * NOT: literaryTalent + culturalInsight (old incorrect names)
+     */
+    it('should assign correct attributes for MORNING_READING tasks', async () => {
+      testLogger.log('Testing MORNING_READING attribute rewards');
+
+      const userId = 'morning_attr_user';
+      const date = '2025-01-15';
+
+      // Generate many tasks to ensure we get MORNING_READING
+      const allTasks: DailyTask[] = [];
+      for (let i = 0; i < 10; i++) {
+        const tasks = await generator.generateTasksForUser(userId, 0, `2025-01-${15 + i}`);
+        allTasks.push(...tasks);
+      }
+
+      const morningTasks = allTasks.filter(t => t.type === DailyTaskType.MORNING_READING);
+      expect(morningTasks.length).toBeGreaterThan(0);
+
+      morningTasks.forEach((task) => {
+        const attrKeys = Object.keys(task.attributeRewards);
+
+        // Should have analyticalThinking and/or culturalKnowledge
+        const hasValidAttrs = attrKeys.some(k =>
+          k === 'analyticalThinking' || k === 'culturalKnowledge'
+        );
+        expect(hasValidAttrs).toBe(true);
+
+        // Should NOT have old incorrect names
+        expect(attrKeys).not.toContain('literaryTalent');
+        expect(attrKeys).not.toContain('culturalInsight');
+
+        testLogger.log('MORNING_READING attributes correct', { attributes: attrKeys });
+      });
+    });
+
+    /**
+     * Test that POETRY uses correct attributes
+     * Should give: poetrySkill + culturalKnowledge
+     * NOT: literaryTalent + aestheticSense (old incorrect names)
+     */
+    it('should assign correct attributes for POETRY tasks', async () => {
+      testLogger.log('Testing POETRY attribute rewards');
+
+      const userId = 'poetry_attr_user';
+      const date = '2025-01-15';
+
+      // Generate many tasks to ensure we get POETRY
+      const allTasks: DailyTask[] = [];
+      for (let i = 0; i < 10; i++) {
+        const tasks = await generator.generateTasksForUser(userId, 3, `2025-01-${15 + i}`);
+        allTasks.push(...tasks);
+      }
+
+      const poetryTasks = allTasks.filter(t => t.type === DailyTaskType.POETRY);
+      expect(poetryTasks.length).toBeGreaterThan(0);
+
+      poetryTasks.forEach((task) => {
+        const attrKeys = Object.keys(task.attributeRewards);
+
+        // Should have poetrySkill and/or culturalKnowledge
+        const hasPoetrySkill = attrKeys.includes('poetrySkill');
+        const hasCulturalKnowledge = attrKeys.includes('culturalKnowledge');
+        expect(hasPoetrySkill || hasCulturalKnowledge).toBe(true);
+
+        // Should NOT have old incorrect names
+        expect(attrKeys).not.toContain('literaryTalent');
+        expect(attrKeys).not.toContain('aestheticSense');
+
+        testLogger.log('POETRY attributes correct', { attributes: attrKeys });
+      });
+    });
+
+    /**
+     * Test that CHARACTER_INSIGHT uses correct attributes
+     * Should give: analyticalThinking + socialInfluence
+     * NOT: socialAwareness (old incorrect name)
+     */
+    it('should assign correct attributes for CHARACTER_INSIGHT tasks', async () => {
+      testLogger.log('Testing CHARACTER_INSIGHT attribute rewards');
+
+      const userId = 'character_attr_user';
+      const date = '2025-01-15';
+
+      // Generate many tasks to ensure we get CHARACTER_INSIGHT
+      const allTasks: DailyTask[] = [];
+      for (let i = 0; i < 10; i++) {
+        const tasks = await generator.generateTasksForUser(userId, 6, `2025-01-${15 + i}`);
+        allTasks.push(...tasks);
+      }
+
+      const characterTasks = allTasks.filter(t => t.type === DailyTaskType.CHARACTER_INSIGHT);
+      expect(characterTasks.length).toBeGreaterThan(0);
+
+      characterTasks.forEach((task) => {
+        const attrKeys = Object.keys(task.attributeRewards);
+
+        // Should have analyticalThinking and/or socialInfluence
+        const hasValidAttrs = attrKeys.some(k =>
+          k === 'analyticalThinking' || k === 'socialInfluence'
+        );
+        expect(hasValidAttrs).toBe(true);
+
+        // Should NOT have old incorrect name
+        expect(attrKeys).not.toContain('socialAwareness');
+
+        testLogger.log('CHARACTER_INSIGHT attributes correct', { attributes: attrKeys });
+      });
+    });
+
+    /**
+     * Test that CULTURAL_EXPLORATION uses correct attributes
+     * Should give: culturalKnowledge
+     * NOT: culturalInsight (old incorrect name)
+     */
+    it('should assign correct attributes for CULTURAL_EXPLORATION tasks', async () => {
+      testLogger.log('Testing CULTURAL_EXPLORATION attribute rewards');
+
+      const userId = 'cultural_attr_user';
+      const date = '2025-01-15';
+
+      // Generate many tasks to ensure we get CULTURAL_EXPLORATION
+      const allTasks: DailyTask[] = [];
+      for (let i = 0; i < 10; i++) {
+        const tasks = await generator.generateTasksForUser(userId, 3, `2025-01-${15 + i}`);
+        allTasks.push(...tasks);
+      }
+
+      const culturalTasks = allTasks.filter(t => t.type === DailyTaskType.CULTURAL_EXPLORATION);
+      expect(culturalTasks.length).toBeGreaterThan(0);
+
+      culturalTasks.forEach((task) => {
+        const attrKeys = Object.keys(task.attributeRewards);
+
+        // Should have culturalKnowledge
+        expect(attrKeys).toContain('culturalKnowledge');
+
+        // Should NOT have old incorrect name
+        expect(attrKeys).not.toContain('culturalInsight');
+
+        testLogger.log('CULTURAL_EXPLORATION attributes correct', { attributes: attrKeys });
+      });
+    });
+
+    /**
+     * Test that COMMENTARY_DECODE uses correct attributes
+     * Should give: analyticalThinking + culturalKnowledge
+     * NOT: culturalInsight (old incorrect name)
+     */
+    it('should assign correct attributes for COMMENTARY_DECODE tasks', async () => {
+      testLogger.log('Testing COMMENTARY_DECODE attribute rewards');
+
+      const userId = 'commentary_attr_user';
+      const date = '2025-01-15';
+
+      // Generate many tasks to ensure we get COMMENTARY_DECODE
+      const allTasks: DailyTask[] = [];
+      for (let i = 0; i < 10; i++) {
+        const tasks = await generator.generateTasksForUser(userId, 6, `2025-01-${15 + i}`);
+        allTasks.push(...tasks);
+      }
+
+      const commentaryTasks = allTasks.filter(t => t.type === DailyTaskType.COMMENTARY_DECODE);
+      expect(commentaryTasks.length).toBeGreaterThan(0);
+
+      commentaryTasks.forEach((task) => {
+        const attrKeys = Object.keys(task.attributeRewards);
+
+        // Should have analyticalThinking and/or culturalKnowledge
+        const hasValidAttrs = attrKeys.some(k =>
+          k === 'analyticalThinking' || k === 'culturalKnowledge'
+        );
+        expect(hasValidAttrs).toBe(true);
+
+        // Should NOT have old incorrect name
+        expect(attrKeys).not.toContain('culturalInsight');
+
+        testLogger.log('COMMENTARY_DECODE attributes correct', { attributes: attrKeys });
+      });
+    });
+  });
 });

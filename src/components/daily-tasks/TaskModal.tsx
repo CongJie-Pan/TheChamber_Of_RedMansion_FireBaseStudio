@@ -192,15 +192,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <div className="space-y-4">
             {/* Character Info */}
             <div>
-              <Label className="text-sm font-semibold">👤 角色介紹</Label>
-              <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border">
-                <h4 className="font-semibold text-base mb-2">
-                  {task.content.character?.name}
-                </h4>
-                <p className="text-sm leading-relaxed whitespace-pre-line">
-                  {task.content.character?.description}
-                </p>
-              </div>
+              <Label className="text-sm font-semibold">👤 角色分析 - {task.content.character?.characterName}</Label>
+              {task.content.character?.context && (
+                <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border">
+                  <p className="text-sm text-muted-foreground">
+                    情境背景：{task.content.character.context}
+                  </p>
+                  {task.content.character.chapter && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      —— 第 {task.content.character.chapter} 回
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Analysis Prompts */}
@@ -239,16 +243,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <div className="space-y-4">
             {/* Cultural Element */}
             <div>
-              <Label className="text-sm font-semibold">🏛️ 文化知識</Label>
+              <Label className="text-sm font-semibold">🏛️ 文化知識 - {task.content.culturalElement?.category}</Label>
               <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border">
                 <h4 className="font-semibold text-base mb-2">
-                  {task.content.culturalKnowledge?.question}
+                  {task.content.culturalElement?.title}
                 </h4>
                 <p className="text-sm leading-relaxed whitespace-pre-line">
-                  {task.content.culturalKnowledge?.historicalContext}
+                  {task.content.culturalElement?.description}
                 </p>
               </div>
             </div>
+
+            {/* Quiz Question */}
+            {task.content.culturalElement?.questions && task.content.culturalElement.questions.length > 0 && (
+              <div>
+                <Label className="text-sm font-semibold">❓ 問題</Label>
+                <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm font-medium">
+                    {task.content.culturalElement.questions[0].question}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Answer Input */}
             <div>
@@ -270,39 +286,42 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       case DailyTaskType.COMMENTARY_DECODE:
         return (
           <div className="space-y-4">
-            {/* Commentary Text */}
-            <div>
-              <Label className="text-sm font-semibold">📖 脂硯齋批語</Label>
-              <div className="mt-2 p-4 bg-red-500/5 rounded-lg border border-red-500/20">
-                <p className="text-sm leading-relaxed italic">
-                  {task.content.commentary?.text}
-                </p>
-              </div>
-            </div>
-
-            {/* Related Passage */}
-            {task.content.commentary?.relatedPassage && (
+            {/* Original Text */}
+            {task.content.commentary?.originalText && (
               <div>
-                <Label className="text-sm font-semibold">📜 相關原文</Label>
+                <Label className="text-sm font-semibold">📜 原文</Label>
                 <div className="mt-2 p-3 bg-muted/20 rounded-lg border border-border/50">
-                  <p className="text-xs leading-relaxed">
-                    {task.content.commentary.relatedPassage}
+                  <p className="text-sm leading-relaxed">
+                    {task.content.commentary.originalText}
                   </p>
+                  {task.content.commentary.chapter && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      —— 第 {task.content.commentary.chapter} 回
+                    </p>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Interpretation Hints */}
-            {task.content.commentary?.hints && task.content.commentary.hints.length > 0 && (
+            {/* Commentary Text */}
+            <div>
+              <Label className="text-sm font-semibold">📖 {task.content.commentary?.author || '脂硯齋'}批語</Label>
+              <div className="mt-2 p-4 bg-red-500/5 rounded-lg border border-red-500/20">
+                <p className="text-sm leading-relaxed italic">
+                  {task.content.commentary?.commentaryText}
+                </p>
+              </div>
+            </div>
+
+            {/* Interpretation Hint */}
+            {task.content.commentary?.hint && (
               <div>
                 <Label className="text-sm font-semibold">💡 解讀提示</Label>
-                <ul className="mt-2 space-y-1">
-                  {task.content.commentary.hints.map((hint, idx) => (
-                    <li key={idx} className="text-sm text-muted-foreground">
-                      • {hint}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm text-muted-foreground">
+                    {task.content.commentary.hint}
+                  </p>
+                </div>
               </div>
             )}
 

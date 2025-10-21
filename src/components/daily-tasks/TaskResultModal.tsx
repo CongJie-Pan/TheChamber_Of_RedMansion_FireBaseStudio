@@ -152,7 +152,7 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-artistic text-center">
               🎉 任務完成！

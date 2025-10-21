@@ -32,6 +32,7 @@ import {
   setDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -276,11 +277,14 @@ export class UserLevelService {
    * Check if a reward with the same sourceId has already been granted
    * Prevents duplicate XP rewards for the same action
    *
+   * This method is now public to support cross-system deduplication checks
+   * (e.g., preventing daily tasks from awarding XP for content completed in reading page)
+   *
    * @param userId - User ID to check
    * @param sourceId - Source ID to check for duplicates
    * @returns Promise with boolean indicating if duplicate exists
    */
-  private async checkDuplicateReward(userId: string, sourceId: string): Promise<boolean> {
+  async checkDuplicateReward(userId: string, sourceId: string): Promise<boolean> {
     try {
       const xpQuery = query(
         this.xpTransactionsCollection,
@@ -903,6 +907,116 @@ export class UserLevelService {
     } catch (error) {
       console.error('Error fetching XP history:', error);
       return [];
+    }
+  }
+
+  /**
+   * Reset all data for a guest user (GUEST USERS ONLY)
+   *
+   * ⚠️ WARNING: This method permanently deletes all user data including:
+   * - User profile
+   * - Level-up history
+   * - XP transaction history
+   * - Daily task progress (all dates)
+   * - Daily task history
+   *
+   * This operation is irreversible and should only be used for guest/anonymous users.
+   *
+   * @param userId - User ID to reset (must be a guest user)
+   * @param displayName - Display name for reinitialized profile
+   * @param email - Email for reinitialized profile
+   * @returns Promise with success status and reinitialized profile
+   */
+  async resetGuestUserData(
+    userId: string,
+    displayName: string,
+    email: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    profile?: UserProfile;
+  }> {
+    try {
+      console.log(`🧹 Starting complete data reset for guest user ${userId}...`);
+
+      // Safety check: Verify user profile exists
+      const profile = await this.getUserProfile(userId);
+      if (!profile) {
+        return {
+          success: false,
+          message: 'User profile not found',
+        };
+      }
+
+      // Step 1: Delete all level-up records
+      console.log('🗑️ Deleting level-up records...');
+      const levelUpsQuery = query(
+        this.levelUpsCollection,
+        where('userId', '==', userId)
+      );
+      const levelUpsSnapshot = await getDocs(levelUpsQuery);
+      const levelUpDeletions = levelUpsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(levelUpDeletions);
+      console.log(`✅ Deleted ${levelUpsSnapshot.size} level-up records`);
+
+      // Step 2: Delete all XP transaction records
+      console.log('🗑️ Deleting XP transaction records...');
+      const xpQuery = query(
+        this.xpTransactionsCollection,
+        where('userId', '==', userId)
+      );
+      const xpSnapshot = await getDocs(xpQuery);
+      const xpDeletions = xpSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(xpDeletions);
+      console.log(`✅ Deleted ${xpSnapshot.size} XP transaction records`);
+
+      // Step 3: Delete all daily task progress records
+      console.log('🗑️ Deleting daily task progress records...');
+      const dailyTaskProgressCollection = collection(db, 'dailyTaskProgress');
+      const progressQuery = query(
+        dailyTaskProgressCollection,
+        where('userId', '==', userId)
+      );
+      const progressSnapshot = await getDocs(progressQuery);
+      const progressDeletions = progressSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(progressDeletions);
+      console.log(`✅ Deleted ${progressSnapshot.size} daily task progress records`);
+
+      // Step 4: Delete all daily task history records
+      console.log('🗑️ Deleting daily task history records...');
+      const dailyTaskHistoryCollection = collection(db, 'dailyTaskHistory');
+      const historyQuery = query(
+        dailyTaskHistoryCollection,
+        where('userId', '==', userId)
+      );
+      const historySnapshot = await getDocs(historyQuery);
+      const historyDeletions = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(historyDeletions);
+      console.log(`✅ Deleted ${historySnapshot.size} daily task history records`);
+
+      // Step 5: Delete the user profile document
+      console.log('🗑️ Deleting user profile...');
+      await deleteDoc(doc(this.usersCollection, userId));
+      console.log('✅ User profile deleted');
+
+      // Step 6: Reinitialize user profile with default values
+      console.log('🔄 Reinitializing user profile...');
+      const newProfile = await this.initializeUserProfile(userId, displayName, email);
+      console.log('✅ User profile reinitialized');
+
+      console.log(`🎉 Complete data reset successful for user ${userId}`);
+
+      return {
+        success: true,
+        message: 'Guest user data has been successfully reset',
+        profile: newProfile,
+      };
+    } catch (error) {
+      console.error('❌ Error resetting guest user data:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to reset guest user data',
+      };
     }
   }
 }

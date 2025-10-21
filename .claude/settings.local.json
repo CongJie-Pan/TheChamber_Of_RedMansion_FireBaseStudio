@@ -67,7 +67,9 @@
       "Bash(kill:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(xargs cat:*)",
+      "Bash(awk:*)"
     ]
   },
   "outputStyle": "default"

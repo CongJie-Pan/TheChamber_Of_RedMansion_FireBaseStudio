@@ -241,10 +241,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuLabel>{t('appShell.userAccount')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
-                {/* Settings option (currently disabled - feature coming soon) */}
-                <DropdownMenuItem disabled>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>{t('appShell.settings')}</span>
+                {/* Settings option */}
+                <DropdownMenuItem asChild>
+                  <Link href="/account-settings" className="flex items-center cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>{t('appShell.settings')}</span>
+                  </Link>
                 </DropdownMenuItem>
                 
                 {/* Logout option */}

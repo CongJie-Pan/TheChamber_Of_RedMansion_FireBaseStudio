@@ -36,6 +36,7 @@ import {
   setDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -359,6 +360,21 @@ export class DailyTaskService {
         throw new Error('You have already completed this content today. Duplicate rewards are not allowed.');
       }
 
+      // 5.6. Cross-system deduplication check (prevents duplicate rewards from reading page)
+      // If the task has a content sourceId, check if it's been used globally
+      // This prevents users from getting XP twice for the same content
+      // (e.g., completing Chapter 3 in reading page, then the same chapter in daily tasks)
+      if (task.sourceId) {
+        const globalDuplicate = await userLevelService.checkDuplicateReward(
+          userId,
+          task.sourceId
+        );
+        if (globalDuplicate) {
+          console.log(`⚠️ Cross-system duplicate detected: ${task.sourceId}`);
+          throw new Error('您已經在其他活動中完成了此內容。不允許重複獎勵。\n(You have already completed this content in another activity. Duplicate rewards are not allowed.)');
+        }
+      }
+
       // 6. Evaluate task quality using AI (placeholder - will be implemented in Phase 2)
       const startTime = assignment.startedAt?.toMillis() || now;
       const submissionTime = Math.floor((now - startTime) / 1000);
@@ -376,12 +392,18 @@ export class DailyTaskService {
       const finalXP = totalXP + streakBonus;
 
       // 9. Award XP through user-level-service
+      // Use content-based sourceId to prevent duplicate rewards across systems
+      // If the task has a content sourceId (e.g., "chapter-3-passage-1-10"),
+      // use that instead of the generic daily-task ID to ensure that
+      // completing the same content in reading page won't allow duplicate XP
+      const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
+
       const xpResult = await userLevelService.awardXP(
         userId,
         finalXP,
         `Completed daily task: ${task.title}`,
         'daily_task',
-        `daily-task-${taskId}-${todayDate}`
+        xpSourceId
       );
 
       // 10. Award attribute points
@@ -550,7 +572,7 @@ export class DailyTaskService {
 
           const result = await assessPoetryQuality({
             poemTitle: poem.title,
-            originalPoem: poem.original,
+            originalPoem: poem.content,
             userRecitation: userResponse,
             author: poem.author,
             difficulty: task.difficulty,
@@ -974,6 +996,41 @@ export class DailyTaskService {
       }
     }
     return tasks;
+  }
+
+  /**
+   * Delete today's task progress for guest/testing accounts
+   *
+   * This method is specifically for guest users to reset their daily tasks
+   * on each login, allowing them to test the task system repeatedly.
+   *
+   * ⚠️ WARNING: Only use this for guest/anonymous users!
+   *
+   * @param userId - User ID (should be anonymous/guest user)
+   * @param date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns Promise<boolean> - true if deleted, false if not found
+   */
+  async deleteTodayProgress(userId: string, date?: string): Promise<boolean> {
+    try {
+      const targetDate = date || getTodayDateString();
+      const progressId = `${userId}_${targetDate}`;
+
+      const progressDoc = await getDoc(doc(this.dailyTaskProgressCollection, progressId));
+
+      if (!progressDoc.exists()) {
+        console.log(`No progress found for user ${userId} on ${targetDate}`);
+        return false;
+      }
+
+      // Delete the progress document
+      await deleteDoc(doc(this.dailyTaskProgressCollection, progressId));
+
+      console.log(`🧪 Guest user progress deleted for ${userId} on ${targetDate}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting today progress:', error);
+      return false;
+    }
   }
 
 }
