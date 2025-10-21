@@ -125,6 +125,16 @@ export interface PostFilters {
   searchText?: string;
 }
 
+/**
+ * Result interface for content creation operations
+ * Returns both the created content ID and the moderation action taken
+ * This allows callers to make decisions based on content filtering results
+ */
+export interface CreateContentResult {
+  id: string;
+  moderationAction: ModerationAction;
+}
+
 // Community Service Class
 export class CommunityService {
   private postsCollection = collection(db, 'posts');
@@ -132,9 +142,9 @@ export class CommunityService {
   /**
    * Create a new forum post with automated content filtering
    * @param postData - Data for the new post
-   * @returns Promise with the created post ID
+   * @returns Promise with the created post ID and moderation action
    */
-  async createPost(postData: CreatePostData): Promise<string> {
+  async createPost(postData: CreatePostData): Promise<CreateContentResult> {
     try {
       // Apply content filtering to the post content
       const contentToFilter = `${postData.title || ''} ${postData.content}`.trim();
@@ -203,7 +213,10 @@ export class CommunityService {
       }
 
       console.log('Post created successfully with ID:', docRef.id);
-      return docRef.id;
+      return {
+        id: docRef.id,
+        moderationAction: filterResult.action
+      };
     } catch (error) {
       console.error('Error creating post:', error);
       // If error message is already user-friendly (from content filter), use it directly
@@ -359,9 +372,9 @@ export class CommunityService {
   /**
    * Add a comment to a post with automated content filtering
    * @param commentData - Data for the new comment
-   * @returns Promise with the created comment ID
+   * @returns Promise with the created comment ID and moderation action
    */
-  async addComment(commentData: CreateCommentData): Promise<string> {
+  async addComment(commentData: CreateCommentData): Promise<CreateContentResult> {
     try {
       // Apply content filtering to the comment content
       const filterResult = await contentFilterService.processContent(
@@ -423,7 +436,10 @@ export class CommunityService {
       });
 
       console.log('Comment added successfully with ID:', docRef.id);
-      return docRef.id;
+      return {
+        id: docRef.id,
+        moderationAction: filterResult.action
+      };
     } catch (error) {
       console.error('Error adding comment:', error);
       // If error message is already user-friendly (from content filter), use it directly

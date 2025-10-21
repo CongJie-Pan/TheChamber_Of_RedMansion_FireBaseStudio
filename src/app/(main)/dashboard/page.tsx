@@ -370,49 +370,32 @@ export default function DashboardPage() {
       */}
       <Card className="shadow-xl hover:shadow-primary/20 transition-shadow">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl font-artistic text-primary">{t('dashboard.myLearningGoals')}</CardTitle>
-              <CardDescription>{t('dashboard.myLearningGoalsDesc')}</CardDescription>
-            </div>
-            {/* Goal management navigation */}
-            <Link href="/goals">
-              <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                <ListChecks className="h-4 w-4" />
-                <span>{t('dashboard.manageAllGoals')}</span>
-              </Button>
-            </Link>
+          {/* Example learning goals - no interactive features for sample data */}
+          <div>
+            <CardTitle className="text-2xl font-artistic text-primary">{t('dashboard.myLearningGoals')}</CardTitle>
+            <CardDescription>{t('dashboard.myLearningGoalsDesc')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {exampleUserGoals.map((goal) => (
-              <div key={goal.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+              <div key={goal.id} className="flex items-center space-x-3 p-3 rounded-lg">
                 {/* Completion status indicator */}
                 {goal.isAchieved ? (
                   <CheckSquare className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
                 ) : (
                   <Square className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 )}
-                
-                {/* Goal text with completion styling */}
+
+                {/* Goal text with completion styling - read-only example */}
                 <span className={cn(
                   "flex-1 text-sm",
-                  goal.isAchieved 
-                    ? "text-muted-foreground line-through" 
+                  goal.isAchieved
+                    ? "text-muted-foreground line-through"
                     : "text-foreground"
                 )}>
                   {goal.text}
                 </span>
-                
-                {/* Goal action button */}
-                <Button 
-                  variant={goal.isAchieved ? "secondary" : "default"} 
-                  size="sm"
-                  className="text-xs px-3"
-                >
-                  {goal.isAchieved ? t('buttons.viewDetails') : t('buttons.continueEffort')}
-                </Button>
               </div>
             ))}
           </div>
