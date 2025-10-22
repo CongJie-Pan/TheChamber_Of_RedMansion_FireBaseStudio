@@ -1108,6 +1108,18 @@ export class UserLevelService {
       await Promise.all(lockDeletions);
       console.log(`✅ Deleted ${locksSnapshot.size} XP transaction locks`);
 
+      // Step 2.6: Delete all user notes
+      console.log('🗑️ Deleting user notes...');
+      const notesCollection = collection(db, 'notes');
+      const notesQuery = query(
+        notesCollection,
+        where('userId', '==', userId)
+      );
+      const notesSnapshot = await getDocs(notesQuery);
+      const noteDeletions = notesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(noteDeletions);
+      console.log(`✅ Deleted ${notesSnapshot.size} user notes`);
+
       // Step 3: Delete all daily task progress records
       console.log('🗑️ Deleting daily task progress records...');
       const dailyTaskProgressCollection = collection(db, 'dailyTaskProgress');
