@@ -47,6 +47,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData
 } from 'firebase/firestore';
+import { runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { contentFilterService, ModerationAction } from './content-filter-service';
 
@@ -327,22 +328,43 @@ export class CommunityService {
   async togglePostLike(postId: string, userId: string, isLiking: boolean): Promise<boolean> {
     try {
       const postRef = doc(this.postsCollection, postId);
-      
-      if (isLiking) {
-        await updateDoc(postRef, {
-          likes: increment(1),
-          likedBy: arrayUnion(userId),
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        await updateDoc(postRef, {
-          likes: increment(-1),
-          likedBy: arrayRemove(userId),
-          updatedAt: serverTimestamp()
-        });
-      }
 
-      return true;
+      const changed = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(postRef as any);
+        if (!snap.exists()) {
+          throw new Error('Post not found');
+        }
+
+        const data = snap.data() as any;
+        const likedBy: string[] = Array.isArray(data.likedBy) ? data.likedBy : [];
+        const isCurrentlyLiked = likedBy.includes(userId);
+
+        if (isLiking) {
+          // Only add like if not already liked by this user
+          if (!isCurrentlyLiked) {
+            tx.update(postRef as any, {
+              likes: increment(1),
+              likedBy: arrayUnion(userId),
+              updatedAt: serverTimestamp(),
+            });
+            return true;
+          }
+          return false;
+        } else {
+          // Only remove like if currently liked by this user
+          if (isCurrentlyLiked) {
+            tx.update(postRef as any, {
+              likes: increment(-1),
+              likedBy: arrayRemove(userId),
+              updatedAt: serverTimestamp(),
+            });
+            return true;
+          }
+          return false;
+        }
+      });
+
+      return changed;
     } catch (error) {
       console.error('Error toggling post like:', error);
       throw new Error('Failed to update like status. Please try again.');

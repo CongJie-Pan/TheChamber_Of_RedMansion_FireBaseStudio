@@ -242,7 +242,7 @@ function PostCard({
 }: { 
   post: LocalPost; 
   t: (key: string) => string;
-  onLike: (postId: string, isLiking: boolean) => Promise<void>;
+  onLike: (postId: string, isLiking: boolean) => Promise<boolean>;
   onComment: (postId: string, content: string) => Promise<void>;
   isLoading: boolean;
   onDelete: (postId: string) => Promise<void>;
@@ -300,7 +300,12 @@ function PostCard({
     setIsLiking(true);
 
     try {
-      await onLike(initialPost.id, newLikedState);
+      const changed = await onLike(initialPost.id, newLikedState);
+      // If the backend indicates no state change actually happened, revert optimistic update
+      if (!changed) {
+        setIsLiked(!newLikedState);
+        setCurrentLikes(prev => newLikedState ? prev - 1 : prev + 1);
+      }
     } catch (error) {
       // Revert optimistic update on error
       setIsLiked(!newLikedState);
@@ -731,17 +736,17 @@ export default function CommunityPage() {
     }
   };
 
-  const handleLike = async (postId: string, isLiking: boolean) => {
+  const handleLike = async (postId: string, isLiking: boolean): Promise<boolean> => {
     if (!user) {
       setError('請先登入才能按讚。');
-      return;
+      return false;
     }
 
     try {
-      await communityService.togglePostLike(postId, user.uid, isLiking);
+      const likeChanged = await communityService.togglePostLike(postId, user.uid, isLiking);
 
       // Award XP only when liking (not un-liking)
-      if (isLiking) {
+      if (isLiking && likeChanged) {
         try {
           // Generate unique sourceId based on user-post combination
           // This prevents duplicate XP for like/unlike/re-like on the same post
@@ -783,6 +788,7 @@ export default function CommunityPage() {
           // Don't fail the like if XP award fails
         }
       }
+      return likeChanged;
     } catch (error) {
       console.error('Error toggling like:', error);
       throw error; // Re-throw to allow component to handle optimistic update reversion

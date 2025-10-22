@@ -635,12 +635,13 @@ export class DailyTaskService {
             return 60;
           }
 
+          // Map to Genkit schema: commentaryText, relatedPassage, chapterContext, userInterpretation, interpretationHints, difficulty
           const result = await scoreCommentaryInterpretation({
-            commentaryText: commentary.text,
-            relatedPassage: commentary.relatedPassage || '',
+            commentaryText: commentary.commentaryText,
+            relatedPassage: commentary.originalText || '',
             chapterContext: `Chapter ${task.content.textPassage?.chapter || 'unknown'}`,
             userInterpretation: userResponse,
-            interpretationHints: commentary.hints || [],
+            interpretationHints: commentary.hint ? [commentary.hint] : [],
             difficulty: task.difficulty,
           });
 

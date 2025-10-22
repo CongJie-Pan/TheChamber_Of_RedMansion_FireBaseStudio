@@ -56,9 +56,7 @@ import {
   TrendingUp,      // Progress and improvement trends
   Target,          // Goals and objectives
   Edit3,           // Note-taking and writing activities
-  ListChecks,      // Goal management and checklists
-  CheckSquare,     // Completed tasks/goals
-  Square           // Incomplete tasks/goals
+  ListChecks       // Goal management and checklists
 } from "lucide-react";
 
 // Next.js navigation
@@ -77,19 +75,6 @@ import { LevelDisplay } from '@/components/gamification';
 // Daily Tasks components
 import { DailyTasksSummary } from '@/components/daily-tasks';
 
-/**
- * Sample learning goals data generator
- * Creates localized example goals for dashboard display
- * In production, this would be replaced with actual user data from database
- * 
- * @param t - Translation function for internationalization
- * @returns Array of learning goal objects with completion status
- */
-const getExampleUserGoals = (t: (key: string) => string) => [
-  { id: "d1", text: t('dashboard.myLearningGoalsDesc'), isAchieved: true },
-  { id: "d2", text: "理解主要人物（寶、黛、釵）的性格特點", isAchieved: false },
-  { id: "d3", text: "整理金陵十二釵判詞筆記", isAchieved: false },
-];
 
 /**
  * Props interface for statistical display cards
@@ -158,9 +143,6 @@ export default function DashboardPage() {
   
   // State for animated progress circle
   const [animatedProgress, setAnimatedProgress] = useState(0);
-
-  // Get localized example goals
-  const exampleUserGoals = getExampleUserGoals(t);
 
   /**
    * Progress Animation Effect
@@ -363,44 +345,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 
-        Learning Goals Section
-        Displays user's learning objectives with completion status
-        Provides goal management and progress tracking
-      */}
-      <Card className="shadow-xl hover:shadow-primary/20 transition-shadow">
-        <CardHeader>
-          {/* Example learning goals - no interactive features for sample data */}
-          <div>
-            <CardTitle className="text-2xl font-artistic text-primary">{t('dashboard.myLearningGoals')}</CardTitle>
-            <CardDescription>{t('dashboard.myLearningGoalsDesc')}</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {exampleUserGoals.map((goal) => (
-              <div key={goal.id} className="flex items-center space-x-3 p-3 rounded-lg">
-                {/* Completion status indicator */}
-                {goal.isAchieved ? (
-                  <CheckSquare className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                ) : (
-                  <Square className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-
-                {/* Goal text with completion styling - read-only example */}
-                <span className={cn(
-                  "flex-1 text-sm",
-                  goal.isAchieved
-                    ? "text-muted-foreground line-through"
-                    : "text-foreground"
-                )}>
-                  {goal.text}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

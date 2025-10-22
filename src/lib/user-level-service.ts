@@ -62,6 +62,7 @@ import {
   calculateXPProgress,
   MAX_LEVEL,
 } from './config/levels-config';
+import { runTransaction } from 'firebase/firestore';
 
 /**
  * XP reward amounts for different actions
@@ -340,49 +341,201 @@ export class UserLevelService {
       if (amount < 0) {
         throw new Error('XP amount cannot be negative');
       }
-
-      // Get current user profile
-      const profile = await this.getUserProfile(userId);
-      if (!profile) {
-        throw new Error('User profile not found');
-      }
-
-      // Universal duplicate reward prevention
-      // Reason: Prevents users from getting XP multiple times for the same action
+      
+      // If sourceId is provided, perform atomic idempotent award via transaction
       if (sourceId) {
-        const isDuplicate = await this.checkDuplicateReward(userId, sourceId);
-        if (isDuplicate) {
-          console.log(`⚠️ Duplicate reward prevented for ${source} (sourceId: ${sourceId}). User ${userId} has already received XP for this action.`);
-          return {
-            success: true,
-            newTotalXP: profile.totalXP,
-            newLevel: profile.currentLevel,
-            leveledUp: false,
-            isDuplicate: true,
-          };
-        }
-      }
+        const userRef = doc(this.usersCollection, userId);
+        const lockRef = doc(collection(db, 'xpTransactionLocks'), `${userId}__${sourceId}`);
 
-      // Additional check for chapter completion (maintain completedChapters array for backward compatibility)
-      // Reason: Keeps chapter completion data in user profile for easy access
-      if (source === 'chapter' && sourceId) {
-        // Extract chapter number from sourceId (format: 'chapter-{id}')
-        const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
-        if (chapterMatch) {
-          const chapterId = parseInt(chapterMatch[1], 10);
+        let txResult: {
+          success: boolean;
+          newTotalXP: number;
+          newLevel: number;
+          leveledUp: boolean;
+          isDuplicate?: boolean;
+          fromLevel?: number;
+          unlockedContent?: string[];
+          unlockedPermissions?: LevelPermission[];
+        } | null = null;
 
-          // Check if chapter already completed in profile (secondary check)
-          if (profile.completedChapters && profile.completedChapters.includes(chapterId)) {
-            console.log(`⚠️ Chapter ${chapterId} already in completedChapters for user ${userId}. Skipping duplicate reward.`);
-            return {
+        await runTransaction(db, async (transaction) => {
+          // Check lock to ensure idempotency
+          const lockDoc = await transaction.get(lockRef as any);
+          if (lockDoc.exists()) {
+            // Already processed
+            const existingProfileSnap = await transaction.get(userRef as any);
+            const existingProfile = existingProfileSnap.data() as any;
+            txResult = {
+              success: true,
+              newTotalXP: existingProfile?.totalXP ?? 0,
+              newLevel: existingProfile?.currentLevel ?? 0,
+              leveledUp: false,
+              isDuplicate: true,
+            };
+            return;
+          }
+
+          // Load current profile inside transaction
+          const userSnap = await transaction.get(userRef as any);
+          if (!userSnap.exists()) {
+            throw new Error('User profile not found');
+          }
+          const profile = userSnap.data() as any;
+
+          // Additional guard: if sourceId encodes a chapter (chapter-<n>), prevent duplicates based on profile
+          const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
+          if (chapterMatch) {
+            const chapterId = parseInt(chapterMatch[1], 10);
+            const completedChapters: number[] = Array.isArray(profile.completedChapters) ? profile.completedChapters : [];
+            if (completedChapters.includes(chapterId)) {
+              txResult = {
+                success: true,
+                newTotalXP: profile.totalXP,
+                newLevel: profile.currentLevel,
+                leveledUp: false,
+                isDuplicate: true,
+              };
+              return;
+            }
+          }
+
+          // Handle 0 XP awards
+          if (amount === 0) {
+            txResult = {
               success: true,
               newTotalXP: profile.totalXP,
               newLevel: profile.currentLevel,
               leveledUp: false,
-              isDuplicate: true,
             };
+            // Create lock so we don't process again even for 0 XP
+            transaction.set(lockRef as any, {
+              userId,
+              sourceId,
+              createdAt: serverTimestamp(),
+              reason,
+              source,
+              amount,
+            });
+            return;
+          }
+
+          // Compute new totals
+          const oldTotalXP = profile.totalXP || 0;
+          const newTotalXP = oldTotalXP + amount;
+          const oldLevel = profile.currentLevel || 0;
+          const newLevel = calculateLevelFromXP(newTotalXP);
+          const leveledUp = newLevel > oldLevel;
+          const xpProgress = calculateXPProgress(newTotalXP);
+
+          const updateData: any = {
+            totalXP: newTotalXP,
+            currentLevel: newLevel,
+            currentXP: xpProgress.currentXP,
+            nextLevelXP: xpProgress.nextLevelXP,
+            updatedAt: serverTimestamp(),
+            lastActivityAt: serverTimestamp(),
+          };
+
+          // Persist completed chapter if applicable (sourceId pattern)
+          const chapterMatch2 = sourceId.match(/^chapter-(\d+)$/);
+          if (chapterMatch2) {
+            const chapterId = parseInt(chapterMatch2[1], 10);
+            const currentCompleted: number[] = Array.isArray(profile.completedChapters) ? profile.completedChapters : [];
+            updateData.completedChapters = Array.from(new Set([...(currentCompleted || []), chapterId]));
+          }
+
+          // Apply profile update
+          transaction.update(userRef as any, updateData);
+
+          // Create lock doc to mark processed
+          transaction.set(lockRef as any, {
+            userId,
+            sourceId,
+            createdAt: serverTimestamp(),
+            reason,
+            source,
+            amount,
+          });
+
+          // Prepare result to return
+          txResult = {
+            success: true,
+            newTotalXP,
+            newLevel,
+            leveledUp,
+          };
+        });
+
+        // If duplicate, return early
+        if (txResult?.isDuplicate) {
+          return txResult;
+        }
+
+        if (!txResult) {
+          // Should not happen, but guard for types
+          const profile = await this.getUserProfile(userId);
+          return {
+            success: true,
+            newTotalXP: profile?.totalXP ?? 0,
+            newLevel: profile?.currentLevel ?? 0,
+            leveledUp: false,
+          };
+        }
+
+        // Log XP transaction (outside transaction; safe after lock)
+        await this.logXPTransaction({
+          userId,
+          amount,
+          reason,
+          source,
+          sourceId,
+          newTotalXP: txResult.newTotalXP,
+          newLevel: txResult.newLevel,
+          causedLevelUp: txResult.leveledUp,
+        });
+
+        // Handle level-up side effects (record + unlock content)
+        let unlockedContent: string[] = [];
+        let unlockedPermissions: LevelPermission[] = [];
+        if (txResult.leveledUp) {
+          const profile = await this.getUserProfile(userId);
+          const fromLevel = profile?.currentLevel ? Math.min(profile.currentLevel - 1, txResult.newLevel - 1) : txResult.newLevel - 1;
+          await this.recordLevelUp(userId, fromLevel, txResult.newLevel, txResult.newTotalXP, reason);
+
+          for (let level = fromLevel + 1; level <= txResult.newLevel; level++) {
+            const levelConfig = getLevelConfig(level);
+            if (levelConfig) {
+              unlockedContent.push(...levelConfig.exclusiveContent);
+              unlockedPermissions.push(...levelConfig.permissions);
+            }
+          }
+
+          // Merge unlocked content
+          if (unlockedContent.length > 0) {
+            const userRef2 = doc(this.usersCollection, userId);
+            const fresh = await this.getUserProfile(userId);
+            const currentContent = fresh?.unlockedContent || [];
+            const updatedContent = Array.from(new Set([...currentContent, ...unlockedContent]));
+            await updateDoc(userRef2, { unlockedContent: updatedContent });
           }
         }
+
+        console.log(`✅ Awarded ${amount} XP to user ${userId}: ${reason}`);
+        return {
+          ...txResult,
+          ...(txResult.leveledUp && {
+            fromLevel: txResult.newLevel - 1,
+            unlockedContent,
+            unlockedPermissions,
+          }),
+        };
+      }
+
+      // Fallback path for awards without sourceId (non-idempotent)
+      // Get current user profile
+      const profile = await this.getUserProfile(userId);
+      if (!profile) {
+        throw new Error('User profile not found');
       }
 
       // Handle 0 XP award (edge case)
@@ -395,41 +548,23 @@ export class UserLevelService {
         };
       }
 
-      // Calculate new XP totals
       const oldTotalXP = profile.totalXP;
       const newTotalXP = oldTotalXP + amount;
       const oldLevel = profile.currentLevel;
       const newLevel = calculateLevelFromXP(newTotalXP);
       const leveledUp = newLevel > oldLevel;
-
-      // Calculate XP progress
       const xpProgress = calculateXPProgress(newTotalXP);
 
-      // Update user profile
       const userRef = doc(this.usersCollection, userId);
-      const updateData: any = {
+      await updateDoc(userRef, {
         totalXP: newTotalXP,
         currentLevel: newLevel,
         currentXP: xpProgress.currentXP,
         nextLevelXP: xpProgress.nextLevelXP,
         updatedAt: serverTimestamp(),
         lastActivityAt: serverTimestamp(),
-      };
+      });
 
-      // Add chapter to completed chapters if this is a chapter reward
-      if (source === 'chapter' && sourceId) {
-        const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
-        if (chapterMatch) {
-          const chapterId = parseInt(chapterMatch[1], 10);
-          const currentCompletedChapters = profile.completedChapters || [];
-          updateData.completedChapters = [...currentCompletedChapters, chapterId];
-          console.log(`📚 Chapter ${chapterId} marked as completed for user ${userId}`);
-        }
-      }
-
-      await updateDoc(userRef, updateData);
-
-      // Log XP transaction
       await this.logXPTransaction({
         userId,
         amount,
@@ -443,15 +578,8 @@ export class UserLevelService {
 
       let unlockedContent: string[] = [];
       let unlockedPermissions: LevelPermission[] = [];
-
-      // Handle level-up
       if (leveledUp) {
-        console.log(`🎉 User ${userId} leveled up from ${oldLevel} to ${newLevel}!`);
-
-        // Record level-up
         await this.recordLevelUp(userId, oldLevel, newLevel, newTotalXP, reason);
-
-        // Get newly unlocked content and permissions
         for (let level = oldLevel + 1; level <= newLevel; level++) {
           const levelConfig = getLevelConfig(level);
           if (levelConfig) {
@@ -459,14 +587,10 @@ export class UserLevelService {
             unlockedPermissions.push(...levelConfig.permissions);
           }
         }
-
-        // Update user's unlocked content
         if (unlockedContent.length > 0) {
           const currentContent = profile.unlockedContent || [];
           const updatedContent = Array.from(new Set([...currentContent, ...unlockedContent]));
-          await updateDoc(userRef, {
-            unlockedContent: updatedContent,
-          });
+          await updateDoc(userRef, { unlockedContent: updatedContent });
         }
       }
 
@@ -969,6 +1093,20 @@ export class UserLevelService {
       const xpDeletions = xpSnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(xpDeletions);
       console.log(`✅ Deleted ${xpSnapshot.size} XP transaction records`);
+
+      // Step 2.5: Delete all XP transaction locks (idempotency locks)
+      // These locks prevent re-awarding one-time achievements (e.g., chapter-1, first AI question)
+      // After a full reset, user should be treated as new, so we must clear related locks.
+      console.log('🗑️ Deleting XP transaction locks...');
+      const xpLocksCollection = collection(db, 'xpTransactionLocks');
+      const locksQuery = query(
+        xpLocksCollection,
+        where('userId', '==', userId)
+      );
+      const locksSnapshot = await getDocs(locksQuery);
+      const lockDeletions = locksSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(lockDeletions);
+      console.log(`✅ Deleted ${locksSnapshot.size} XP transaction locks`);
 
       // Step 3: Delete all daily task progress records
       console.log('🗑️ Deleting daily task progress records...');

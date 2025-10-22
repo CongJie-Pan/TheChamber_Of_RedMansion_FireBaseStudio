@@ -35,6 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookOpen,
   Flame,
@@ -47,7 +48,8 @@ import {
   Trophy,
   Sparkles,
   TrendingUp,
-  Loader2
+  Loader2,
+  Zap
 } from "lucide-react";
 
 // Custom hooks
@@ -95,7 +97,7 @@ interface TaskStats {
  */
 export default function DailyTasksPage() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   // Loading and error states
@@ -119,6 +121,20 @@ export default function DailyTasksPage() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [taskResult, setTaskResult] = useState<TaskCompletionResult | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+
+  // Challenges data (placeholder - in production, this would come from Firebase)
+  const challengesData = {
+    daily: [
+      { id: "daily1", name: "今日閱讀挑戰", description: "今日閱讀《紅樓夢》30分鐘", reward: "20 XP", active: true },
+      { id: "daily2", name: "每日一問", description: "回答一個關於今日閱讀內容的問題", reward: "10 XP", active: false },
+    ],
+    weekly: [
+      { id: "weekly1", name: "本週章回衝刺", description: "本週完成3個章回的閱讀與筆記", reward: "100 XP", active: true },
+    ],
+    special: [
+      { id: "special1", name: "紅樓詩詞大賞", description: "參與《紅樓夢》詩詞賞析與創作活動", reward: "特殊徽章 + 200 XP", active: false },
+    ],
+  };
 
   /**
    * Load daily tasks and progress on component mount
@@ -288,6 +304,18 @@ export default function DailyTasksPage() {
       // Reload progress
       await loadDailyTasks();
 
+      // Refresh user profile so XP/等級在所有顯示處即時更新
+      await refreshUserProfile();
+
+      // Quick feedback toast for XP gain (ResultModal remains for detailed feedback)
+      if (result?.xpAwarded && result.xpAwarded > 0) {
+        toast({
+          title: '獲得經驗值',
+          description: `+${result.xpAwarded} XP`,
+          duration: 3000,
+        });
+      }
+
       console.log('✅ Task submitted successfully:', result);
     } catch (error) {
       console.error('Error submitting task:', error);
@@ -346,10 +374,10 @@ export default function DailyTasksPage() {
         <div>
           <h1 className="text-3xl font-artistic text-primary flex items-center gap-3">
             <Target className="h-8 w-8" />
-            每日修身
+            每日修身/挑戰賽
           </h1>
           <p className="text-muted-foreground mt-1">
-            持之以恆，日積月累。完成每日任務，提升紅樓學識！
+            持之以恆，日積月累。完成每日任務與挑戰賽，提升紅樓學識！
           </p>
         </div>
 
@@ -502,6 +530,114 @@ export default function DailyTasksPage() {
           onClose={handleResultClose}
         />
       )}
+
+      {/* 學習挑戰賽系統 */}
+      <Card className="shadow-xl">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Zap className="h-8 w-8 text-orange-400" />
+            <div>
+              <CardTitle className="text-2xl font-artistic text-primary">學習挑戰賽</CardTitle>
+              <CardDescription>
+                參與挑戰賽，獲得額外 XP 獎勵和榮譽徽章
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="daily" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="daily">每日挑戰</TabsTrigger>
+              <TabsTrigger value="weekly">每週挑戰</TabsTrigger>
+              <TabsTrigger value="special">特殊活動</TabsTrigger>
+            </TabsList>
+
+            {/* 每日挑戰 */}
+            <TabsContent value="daily">
+              {challengesData.daily.length > 0 ? (
+                <div className="space-y-3">
+                  {challengesData.daily.map(challenge => (
+                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
+                          <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={challenge.active ? "default" : "outline"}
+                          onClick={() => alert(`參與挑戰：${challenge.name}`)}
+                        >
+                          {challenge.active ? '進行中' : '開始挑戰'}
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">暫無每日挑戰</p>
+              )}
+            </TabsContent>
+
+            {/* 每週挑戰 */}
+            <TabsContent value="weekly">
+              {challengesData.weekly.length > 0 ? (
+                <div className="space-y-3">
+                  {challengesData.weekly.map(challenge => (
+                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
+                          <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={challenge.active ? "default" : "outline"}
+                          onClick={() => alert(`參與挑戰：${challenge.name}`)}
+                        >
+                          {challenge.active ? '進行中' : '開始挑戰'}
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">暫無每週挑戰</p>
+              )}
+            </TabsContent>
+
+            {/* 特殊活動 */}
+            <TabsContent value="special">
+              {challengesData.special.length > 0 ? (
+                <div className="space-y-3">
+                  {challengesData.special.map(challenge => (
+                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
+                          <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={challenge.active ? "default" : "outline"}
+                          onClick={() => alert(`${challenge.active ? '參與挑戰' : '查看活動'}：${challenge.name}`)}
+                        >
+                          {challenge.active ? '進行中' : '查看活動'}
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">暫無特殊活動</p>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

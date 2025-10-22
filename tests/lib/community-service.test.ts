@@ -44,6 +44,24 @@ import {
   collection,
 } from 'firebase/firestore';
 
+// Mock content filter service to return allow action by default
+jest.mock('@/lib/content-filter-service', () => ({
+  contentFilterService: {
+    processContent: jest.fn().mockImplementation((content: string) => Promise.resolve({
+      action: 'allow',
+      processedContent: content, // Return the original content unmodified
+      shouldBlock: false,
+      warningMessage: '',
+      originalContent: ''
+    }))
+  },
+  ModerationAction: {
+    ALLOW: 'allow',
+    WARN: 'warn',
+    BLOCK: 'block'
+  }
+}));
+
 describe('CommunityService', () => {
   let communityService: CommunityService;
   let testLogger: any;
@@ -118,8 +136,8 @@ describe('CommunityService', () => {
       // Act: Execute the function under test
       const result = await communityService.createPost(mockPostData);
 
-      // Assert: Verify expected behavior
-      expect(result).toBe('post_123456');
+      // Assert: Verify expected behavior - should return object with id and moderationAction
+      expect(result).toEqual({ id: 'post_123456', moderationAction: 'allow' });
       // Check that addDoc was called twice: once for moderation log, once for post creation
       expect(addDoc).toHaveBeenCalledTimes(2);
       // Check the second call (post creation) - this is the actual post
@@ -171,8 +189,8 @@ describe('CommunityService', () => {
       // Act
       const result = await communityService.createPost(minimalPostData);
 
-      // Assert: Verify defaults are applied
-      expect(result).toBe('minimal_post');
+      // Assert: Verify defaults are applied - should return object with id and moderationAction
+      expect(result).toEqual({ id: 'minimal_post', moderationAction: 'allow' });
       // Check that addDoc was called twice: once for moderation log, once for post creation
       expect(addDoc).toHaveBeenCalledTimes(2);
       // Check the second call (post creation)
@@ -306,8 +324,8 @@ describe('CommunityService', () => {
       // Act
       const result = await communityService.addComment(mockCommentData);
 
-      // Assert
-      expect(result).toBe('comment_001');
+      // Assert - should return object with id and moderationAction
+      expect(result).toEqual({ id: 'comment_001', moderationAction: 'allow' });
       // Check that addDoc was called twice: once for moderation log, once for comment creation
       expect(addDoc).toHaveBeenCalledTimes(2);
       // Check the second call (comment creation)
@@ -647,8 +665,8 @@ describe('CommunityService', () => {
       // Act
       const result = await communityService.createPost(longPostData);
 
-      // Assert
-      expect(result).toBe('long_post');
+      // Assert - should return object with id and moderationAction
+      expect(result).toEqual({ id: 'long_post', moderationAction: 'allow' });
       // Check that addDoc was called twice: once for moderation log, once for post creation
       expect(addDoc).toHaveBeenCalledTimes(2);
       // Check the second call (post creation)

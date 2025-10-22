@@ -52,6 +52,8 @@ const config = {
     '^@genkit-ai/(.*)$': '<rootDir>/tests/mocks/genkit.js',
     // Mock lucide-react icons to avoid ES module issues
     'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
+    // Mock all Radix UI React primitives to simple components
+    '^@radix-ui/react-.*$': '<rootDir>/tests/mocks/radix.js',
   },
   
   // Test file patterns
