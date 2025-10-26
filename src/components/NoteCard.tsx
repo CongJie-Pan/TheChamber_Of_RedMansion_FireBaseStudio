@@ -1,3 +1,46 @@
+/**
+ * @fileOverview Note Card Component - Interactive Reading Note Display
+ *
+ * This component provides a rich, interactive card interface for displaying and
+ * managing individual reading notes from Dream of the Red Chamber. It supports
+ * inline editing, tagging, visibility control, and deletion with optimistic UI updates.
+ *
+ * Key features:
+ * - Inline editing with edit/save/cancel controls
+ * - Tag management with add/remove capabilities
+ * - Public/private visibility toggle
+ * - Contextual display mode (owner vs public view)
+ * - Optimistic UI updates with callback pattern
+ * - Responsive design with mobile-first approach
+ *
+ * Architecture decisions:
+ * - Local state + callback pattern for optimistic updates
+ * - Separate edit states for content and tags (independent editing)
+ * - Conditional rendering based on showUserInfo prop (reusable for different contexts)
+ *
+ * Usage:
+ * ```typescript
+ * // Owner's notes dashboard
+ * <NoteCard
+ *   note={note}
+ *   onDelete={handleDelete}
+ *   onUpdate={handleUpdate}
+ *   onTogglePublic={handleTogglePublic}
+ *   onUpdateTags={handleUpdateTags}
+ * />
+ *
+ * // Public notes browsing (read-only)
+ * <NoteCard
+ *   note={note}
+ *   showUserInfo={true}
+ * />
+ * ```
+ *
+ * @see {@link ../lib/notes-service.ts} for backend operations
+ * @see {@link ../app/(main)/notes/page.tsx} for owner's usage
+ * @see {@link ./PublicNotesTab.tsx} for public browsing usage
+ */
+
 "use client";
 
 import { useState } from 'react';
@@ -17,7 +60,7 @@ interface NoteCardProps {
   onUpdate?: (noteId: string, content: string) => void;
   onTogglePublic?: (noteId: string, isPublic: boolean) => void;
   onUpdateTags?: (noteId: string, tags: string[]) => void;
-  showUserInfo?: boolean; // For public notes display
+  showUserInfo?: boolean; // For public notes display - disables edit/delete controls
 }
 
 export function NoteCard({
@@ -29,6 +72,23 @@ export function NoteCard({
   showUserInfo = false
 }: NoteCardProps) {
   const { t } = useLanguage();
+
+  /**
+   * Local state management for optimistic updates
+   *
+   * Reason for local state + callback pattern:
+   * - Provides instant UI feedback before Firestore write completes
+   * - Parent component maintains source of truth via callbacks
+   * - Allows independent editing of content and tags (better UX)
+   * - Rollback is handled by parent if Firestore write fails
+   *
+   * State variables:
+   * - isEditing: Content editing mode toggle
+   * - editedContent: Temporary buffer for content changes
+   * - isEditingTags: Tag editing mode toggle (independent from content)
+   * - tagInput: Input buffer for new tag entry
+   * - localTags: Optimistic tag state (synced with parent via callback)
+   */
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(note.note);
   const [isEditingTags, setIsEditingTags] = useState(false);
@@ -78,6 +138,16 @@ export function NoteCard({
     }
   };
 
+  /**
+   * Format date for display using native Intl API
+   *
+   * Reason for using Intl.DateTimeFormat instead of date library:
+   * - No external dependencies (smaller bundle size)
+   * - Native browser API with excellent i18n support
+   * - Automatically handles user's locale preferences
+   * - Follows locale-specific date formatting rules
+   * - t('lang') provides zh-TW, zh-CN, or en-US locale code
+   */
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat(t('lang'), {
       year: 'numeric',

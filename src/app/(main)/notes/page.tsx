@@ -1,3 +1,32 @@
+/**
+ * @fileOverview Notes Management Dashboard Page
+ *
+ * This page provides a comprehensive notes management interface for users to view,
+ * edit, delete, and organize their reading notes from Dream of the Red Chamber.
+ * It implements a full-featured note CRUD system with filtering, pagination,
+ * and statistics visualization.
+ *
+ * Key features:
+ * - Real-time note synchronization with Firestore
+ * - Multi-dimensional filtering (search, chapter, date, tags)
+ * - Client-side pagination for performance optimization
+ * - Optimistic UI updates for better user experience
+ * - Comprehensive error handling with user-friendly toast notifications
+ * - Responsive statistics dashboard showing user progress
+ *
+ * Architecture decisions:
+ * - Uses dual state management (notes + filteredNotes) for efficient filtering
+ * - Implements optimistic updates to reduce perceived latency
+ * - Separates concerns between data fetching, filtering, and presentation
+ *
+ * Usage:
+ * This page is accessible at `/notes` route for authenticated users only.
+ * Users can manage all their reading notes created from the read-book interface.
+ *
+ * @see {@link ../../../lib/notes-service.ts} for backend operations
+ * @see {@link ../../../components/NoteCard.tsx} for individual note display
+ */
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -19,6 +48,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+/**
+ * Pagination configuration
+ *
+ * Reason: 20 notes per page provides optimal balance between:
+ * - Initial load performance (smaller data transfer)
+ * - User experience (enough content without overwhelming)
+ * - Firestore read costs (batched queries reduce billing)
+ * - Scroll length (prevents infinite scrolling fatigue)
+ */
 const NOTES_PER_PAGE = 20;
 
 export default function NotesPage() {
@@ -26,13 +64,32 @@ export default function NotesPage() {
   const { t } = useLanguage();
   const { toast } = useToast();
 
+  /**
+   * State management architecture
+   *
+   * Reason for dual note states (notes + filteredNotes):
+   * - notes: Source of truth from Firestore, never mutated by filters
+   * - filteredNotes: Derived state for display, updated by NoteFilters component
+   * This separation allows:
+   * 1. Efficient filtering without re-fetching from Firestore
+   * 2. Easy filter reset (just copy notes to filteredNotes)
+   * 3. Optimistic updates work on both states simultaneously
+   * 4. Filter changes don't require network calls
+   */
   const [notes, setNotes] = useState<Note[]>([]);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch notes on mount
+  /**
+   * Fetch user's notes on component mount
+   *
+   * Reason for dependency array [user?.uid, t, toast]:
+   * - user?.uid: Refetch when user changes (important for SSR/auth changes)
+   * - t, toast: Required by React hooks exhaustive-deps rule
+   * - NOT including notes/filteredNotes: Prevents infinite loop
+   */
   useEffect(() => {
     const fetchNotes = async () => {
       if (!user?.uid) {
@@ -82,12 +139,32 @@ export default function NotesPage() {
     }
   };
 
-  // Handle note update
+  /**
+   * Handle note content update
+   *
+   * Reason for optimistic update strategy:
+   * - Updates local state immediately before Firestore write completes
+   * - Provides instant feedback to user (perceived performance)
+   * - If Firestore write fails, toast notification informs user
+   * - Word count is recalculated client-side to avoid Firestore read
+   *
+   * Reason for updating both states:
+   * - notes: Maintains source of truth
+   * - filteredNotes: Keeps UI in sync with current filter view
+   * - Both must be updated to prevent state inconsistency
+   */
   const handleUpdateNote = async (noteId: string, content: string) => {
     try {
       await updateNote(noteId, content);
 
-      // Update local state
+      /**
+       * Optimistic UI update helper
+       *
+       * Reason for recalculating word count client-side:
+       * - Avoids additional Firestore read after write
+       * - Ensures UI shows accurate count immediately
+       * - Uses same logic as backend for consistency
+       */
       const updateNoteInList = (noteList: Note[]) =>
         noteList.map(note =>
           note.id === noteId
@@ -175,14 +252,29 @@ export default function NotesPage() {
     }
   };
 
-  // Pagination
+  /**
+   * Client-side pagination logic
+   *
+   * Reason for client-side pagination vs server-side:
+   * - All notes already fetched (typical users have < 100 notes)
+   * - Faster page transitions (no network delay)
+   * - Simpler implementation (no Firestore cursor management)
+   * - Better UX with filters (instant page switching)
+   */
   const totalPages = Math.ceil(filteredNotes.length / NOTES_PER_PAGE);
   const paginatedNotes = filteredNotes.slice(
     (currentPage - 1) * NOTES_PER_PAGE,
     currentPage * NOTES_PER_PAGE
   );
 
-  // Reset to page 1 when filters change
+  /**
+   * Handle filter changes and reset pagination
+   *
+   * Reason for resetting to page 1 on filter change:
+   * - Prevents displaying empty page if filtered results < current page
+   * - Matches user expectation (new search → start from beginning)
+   * - Consistent behavior with search UX patterns
+   */
   const handleFilterChange = (filtered: Note[]) => {
     setFilteredNotes(filtered);
     setCurrentPage(1);

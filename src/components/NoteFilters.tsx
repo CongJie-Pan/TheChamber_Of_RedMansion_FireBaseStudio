@@ -1,3 +1,43 @@
+/**
+ * @fileOverview Note Filters Component - Multi-Dimensional Search and Filter
+ *
+ * This component provides comprehensive filtering capabilities for user notes,
+ * supporting search, chapter filtering, date range filtering, tag filtering,
+ * and sorting. It uses optimized React patterns for performance with large note sets.
+ *
+ * Key features:
+ * - Real-time full-text search across content and tags
+ * - Chapter-based filtering with dynamic chapter detection
+ * - Date range filtering (7/30/90 days, all time)
+ * - Multi-tag selection with AND logic
+ * - Multiple sorting options (newest, oldest, chapter, word count)
+ * - Automatic filter state management
+ *
+ * Performance optimizations:
+ * - useMemo for expensive chapter/tag extraction (O(n) → O(1) on re-renders)
+ * - useMemo for filter computation (only recomputes when dependencies change)
+ * - Direct callback invocation in useMemo (prevents double filtering)
+ *
+ * Architecture decisions:
+ * - Controlled component pattern (parent owns note list state)
+ * - Callback-based filter communication (onFilterChange)
+ * - Separation of filter state and filtered results
+ *
+ * Usage:
+ * ```typescript
+ * <NoteFilters
+ *   notes={allNotes}
+ *   onFilterChange={(filtered) => {
+ *     setFilteredNotes(filtered);
+ *     setCurrentPage(1); // Reset pagination
+ *   }}
+ * />
+ * ```
+ *
+ * @see {@link ../app/(main)/notes/page.tsx} for usage example
+ * @see {@link ./PublicNotesTab.tsx} for public notes usage
+ */
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -28,13 +68,29 @@ export function NoteFilters({ notes, onFilterChange }: NoteFiltersProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('newest');
 
-  // Get unique chapters from notes
+  /**
+   * Extract unique chapters from notes
+   *
+   * Reason for using useMemo:
+   * - Chapter extraction is O(n) operation on notes array
+   * - Notes array doesn't change on every render (only on fetch/update)
+   * - Prevents unnecessary recalculation during filter state changes
+   * - Memoized result enables efficient Select dropdown rendering
+   */
   const chapters = useMemo(() => {
     const chapterSet = new Set(notes.map(note => note.chapterId));
     return Array.from(chapterSet).sort((a, b) => a - b);
   }, [notes]);
 
-  // Get all unique tags from notes
+  /**
+   * Extract all unique tags from notes
+   *
+   * Reason for using useMemo:
+   * - Tag extraction requires iterating all notes and their tags (O(n*m))
+   * - Tags are frequently displayed but rarely change
+   * - Prevents expensive re-computation during filter interactions
+   * - Alphabetical sorting provides consistent UX
+   */
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     notes.forEach(note => {
@@ -43,7 +99,22 @@ export function NoteFilters({ notes, onFilterChange }: NoteFiltersProps) {
     return Array.from(tagSet).sort();
   }, [notes]);
 
-  // Filter and sort notes based on criteria
+  /**
+   * Perform filtering and sorting on notes
+   *
+   * Reason for calling onFilterChange inside useMemo:
+   * - Ensures parent receives filtered results immediately when dependencies change
+   * - Prevents double filtering (once in useMemo, once in useEffect)
+   * - Dependency array ensures filter only runs when necessary
+   * - More efficient than useEffect pattern for this use case
+   *
+   * Filter application order:
+   * 1. Search query (narrows result set first)
+   * 2. Chapter filter (fast integer comparison)
+   * 3. Date range filter (Date object comparison)
+   * 4. Tag filter (array intersection check)
+   * 5. Sort (applied last to minimize sorting operations)
+   */
   useMemo(() => {
     let filtered = [...notes];
 
@@ -84,7 +155,16 @@ export function NoteFilters({ notes, onFilterChange }: NoteFiltersProps) {
       }
     }
 
-    // Tags filter
+    /**
+     * Tags filter with AND logic
+     *
+     * Reason for using .every() instead of .some():
+     * - AND logic: Note must have ALL selected tags
+     * - More precise filtering for multi-tag scenarios
+     * - Example: User selects ["important", "review"]
+     *   → Only shows notes with both tags (not either tag)
+     * - Matches user's mental model when refining search
+     */
     if (selectedTags.length > 0) {
       filtered = filtered.filter(note =>
         selectedTags.every(tag => note.tags?.includes(tag))
