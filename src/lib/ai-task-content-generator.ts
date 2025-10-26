@@ -87,36 +87,36 @@ export async function generateTaskContent(
 ): Promise<GeneratedTaskContent> {
   const { userLevel, taskType, difficulty } = params;
 
-  // 🔍 診斷日誌：開始生成任務內容
+  // Diagnostic logging: Start task content generation
   console.log('\n' + '━'.repeat(80));
-  console.log('🔍 [AI Content Generator] 開始生成任務內容');
+  console.log('🔍 [AI Content Generator] Starting task content generation');
   console.log('━'.repeat(80));
-  console.log(`📋 參數: userLevel=${userLevel}, taskType=${taskType}, difficulty=${difficulty}`);
+  console.log(`📋 Parameters: userLevel=${userLevel}, taskType=${taskType}, difficulty=${difficulty}`);
 
   // Check cache first
   const cacheKey = `${userLevel}_${taskType}_${difficulty}`;
-  console.log(`🔍 [Cache] 檢查快取 key: ${cacheKey}`);
+  console.log(`🔍 [Cache] Checking cache key: ${cacheKey}`);
   const cachedContent = contentCache.get(cacheKey);
   if (cachedContent) {
-    console.log(`✅ [Cache] 使用快取內容 for ${cacheKey}`);
+    console.log(`✅ [Cache] Using cached content for ${cacheKey}`);
     console.log('━'.repeat(80) + '\n');
     return cachedContent;
   }
-  console.log(`📝 [Cache] 快取未命中，需要生成新內容`);
+  console.log(`📝 [Cache] Cache miss, need to generate new content`);
 
   // If OpenAI is not available, use hardcoded content
   const openAIAvailable = isOpenAIAvailable();
-  console.log(`🔍 [OpenAI] 可用性檢查: ${openAIAvailable ? '✅ 可用' : '❌ 不可用'}`);
-  console.log(`🔍 [OpenAI] 環境變數 OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✅ 已設定' : '❌ 未設定'}`);
-  console.log(`🔍 [OpenAI] 執行環境: ${typeof window === 'undefined' ? 'Server-side ✅' : 'Client-side ⚠️'}`);
+  console.log(`🔍 [OpenAI] Availability check: ${openAIAvailable ? '✅ Available' : '❌ Not available'}`);
+  console.log(`🔍 [OpenAI] Environment variable OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`🔍 [OpenAI] Execution environment: ${typeof window === 'undefined' ? 'Server-side ✅' : 'Client-side ⚠️'}`);
 
   if (!openAIAvailable) {
-    console.warn('⚠️ [Fallback] OpenAI 不可用，使用硬編碼內容');
+    console.warn('⚠️ [Fallback] OpenAI not available, using hardcoded content');
     console.log('━'.repeat(80) + '\n');
     return getHardcodedContent(taskType, difficulty);
   }
 
-  console.log('🚀 [AI] 準備呼叫 AI 生成內容...');
+  console.log('🚀 [AI] Preparing to call AI for content generation...');
   console.log('━'.repeat(80));
 
   // Build AI prompt based on task type
