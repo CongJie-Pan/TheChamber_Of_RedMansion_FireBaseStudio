@@ -35,8 +35,8 @@ const OPENAI_CONFIG = {
   timeout: 10000,
   // Maximum retries for failed requests
   maxRetries: 2,
-  // Default model for completions (GPT-5-Mini)
-  defaultModel: 'gpt-5-mini',
+  // Default model for completions, can be overridden via env OPENAI_MODEL
+  defaultModel: process.env.OPENAI_MODEL || 'gpt-5-mini',
 } as const;
 
 /**
@@ -66,6 +66,7 @@ try {
   console.log(`🔍 [Environment Check] Window type: ${typeof window === 'undefined' ? 'undefined (Server-side ✅)' : 'defined (Client-side ⚠️)'}`);
   console.log(`🔍 [Environment Variable] OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? `✅ Configured (length: ${process.env.OPENAI_API_KEY.length})` : '❌ Not configured'}`);
   console.log(`🔍 [Configuration] Timeout: ${OPENAI_CONFIG.timeout}ms, Max Retries: ${OPENAI_CONFIG.maxRetries}`);
+  console.log(`🔍 [Model] Default model: ${OPENAI_CONFIG.defaultModel}${process.env.OPENAI_MODEL ? ' (from env OPENAI_MODEL)' : ''}`);
 
   // Only initialize on server-side (API key should not be exposed to client)
   if (typeof window === 'undefined' && process.env.OPENAI_API_KEY) {

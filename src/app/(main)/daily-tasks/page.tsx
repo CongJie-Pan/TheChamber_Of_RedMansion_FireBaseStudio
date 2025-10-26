@@ -121,6 +121,7 @@ export default function DailyTasksPage() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [taskResult, setTaskResult] = useState<TaskCompletionResult | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [ephemeralMode, setEphemeralMode] = useState(false);
 
   // Challenges data (placeholder - in production, this would come from Firebase)
   const challengesData = {
@@ -208,14 +209,39 @@ export default function DailyTasksPage() {
       // Try to get existing progress first
       let dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
 
-      // If no progress exists, generate new tasks
+      // If no progress exists, generate new tasks (via server API)
       if (!dailyProgress) {
-        console.log('📝 No existing tasks found, generating new daily tasks...');
-        const generatedTasks = await dailyTaskService.generateDailyTasks(user.uid);
-        setTasks(generatedTasks);
+        console.log('📝 No existing tasks found, generating new daily tasks via API...');
+        try {
+          const resp = await fetch('/api/daily-tasks/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.uid }),
+          });
+          if (!resp.ok) {
+            const errJson = await resp.json().catch(() => ({}));
+            throw new Error(errJson?.error || `Failed to generate tasks: ${resp.status}`);
+          }
+          const data = await resp.json();
+          const generatedTasks = data?.tasks || [];
+          // Mark ephemeral mode if server could not persist
+          if (data?.ephemeral) {
+            setEphemeralMode(true);
+          } else {
+            setEphemeralMode(false);
+          }
+          setTasks(generatedTasks);
+        } catch (e) {
+          console.error('Error generating tasks via API:', e);
+          throw e;
+        }
 
-        // Fetch the newly created progress
-        dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+        // Fetch the newly created progress only if not in ephemeral mode
+        if (!ephemeralMode) {
+          dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+        } else {
+          dailyProgress = null;
+        }
       } else {
         // Load existing tasks from assignments
         const taskIds = dailyProgress.tasks.map(t => t.taskId);
@@ -286,12 +312,17 @@ export default function DailyTasksPage() {
     if (!user) return;
 
     try {
-      // Submit task completion
-      const result = await dailyTaskService.submitTaskCompletion(
-        user.uid,
-        taskId,
-        userResponse
-      );
+      // Submit task completion via server API to ensure GPT runs server-side
+      const resp = await fetch('/api/daily-tasks/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, taskId, userResponse, task: selectedTask }),
+      });
+      if (!resp.ok) {
+        const errJson = await resp.json().catch(() => ({}));
+        throw new Error(errJson?.error || `Failed to submit task: ${resp.status}`);
+      }
+      const { result } = await resp.json();
 
       // Close task modal
       setShowTaskModal(false);
@@ -301,11 +332,12 @@ export default function DailyTasksPage() {
       setTaskResult(result);
       setShowResultModal(true);
 
-      // Reload progress
-      await loadDailyTasks();
-
-      // Refresh user profile so XP/等級在所有顯示處即時更新
-      await refreshUserProfile();
+      // Reload progress only when not in ephemeral mode
+      if (!ephemeralMode) {
+        await loadDailyTasks();
+        // Refresh user profile so XP/等級在所有顯示處即時更新
+        await refreshUserProfile();
+      }
 
       // Quick feedback toast for XP gain (ResultModal remains for detailed feedback)
       if (result?.xpAwarded && result.xpAwarded > 0) {
