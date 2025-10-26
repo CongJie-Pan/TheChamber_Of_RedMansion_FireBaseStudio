@@ -852,6 +852,9 @@ describe('DailyTaskService', () => {
         forEach: (callback: Function) => mockHistory.forEach((h) => callback({ id: h.id, data: () => h })),
       });
 
+      // Reset getDoc mock to avoid queue pollution
+      (getDoc as jest.Mock).mockReset();
+
       // Mock getUserDailyProgress for current streak
       (getDoc as jest.Mock).mockResolvedValue({
         exists: () => true,
@@ -945,6 +948,9 @@ describe('DailyTaskService', () => {
       const guestUserId = 'guest_no_progress';
       const date = '2025-01-20';
 
+      // Reset getDoc mock to avoid queue pollution
+      (getDoc as jest.Mock).mockReset();
+
       // Mock getDoc to return no progress
       (getDoc as jest.Mock).mockResolvedValueOnce({
         exists: () => false,
@@ -1037,6 +1043,9 @@ describe('DailyTaskService', () => {
         streak: 5,
       };
 
+      // Reset getDoc mock to avoid queue pollution
+      (getDoc as jest.Mock).mockReset();
+
       // Mock getDoc for deletion check (progress exists)
       (getDoc as jest.Mock).mockResolvedValueOnce({
         exists: () => true,
@@ -1110,6 +1119,9 @@ describe('DailyTaskService', () => {
       const guestUserId = 'guest_selective';
       const today = '2025-01-20';
       const yesterday = '2025-01-19';
+
+      // Reset getDoc mock to avoid queue pollution
+      (getDoc as jest.Mock).mockReset();
 
       // Mock progress for today (will be deleted)
       (getDoc as jest.Mock).mockResolvedValueOnce({
