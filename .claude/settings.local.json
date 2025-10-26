@@ -69,7 +69,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(xargs cat:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(npm ls react react-dom)",
+      "Bash(test:*)",
+      "Bash(git stash:*)"
     ]
   },
   "outputStyle": "default"

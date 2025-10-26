@@ -29,7 +29,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 // Import React types and hooks for context management
 import type { ReactNode } from 'react';
-import { createContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 // Import configured Firebase auth instance
 import { auth, db } from '@/lib/firebase';
 // Import UI component for loading state display

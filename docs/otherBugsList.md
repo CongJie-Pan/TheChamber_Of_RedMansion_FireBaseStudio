@@ -7,4 +7,23 @@
 [x] 首頁頁面的 我的學習目標 (示例) 不用顯示其Panel 功能
 [x] 當評論是屬於敏感的信息被屏蔽掉的，就不能有經驗值。
 
+[] 當詩詞韻律的任務的答案送出時，可是返回的卻是程式硬寫好的內容，不是GPT-5-mini的回傳。並返回以下錯誤
+
+( GET /daily-tasks 200 in 2611ms
+ ⨯ [Error [GenkitError]: FAILED_PRECONDITION: Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.
+For more details see https://firebase.google.com/docs/genkit/plugins/google-genai] {
+  source: undefined,
+  status: 'FAILED_PRECONDITION',
+  detail: undefined,
+  code: 400,
+  originalMessage: 'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+    'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+  traceId: 'c6728b9ac6039519cc98bd99f5e64dfe',
+  digest: '4238146825'
+}
+ POST /daily-tasks 500 in 5518ms) 
+
+[] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
+[] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
+
 [] 目前各項系統功能至少都要有，實際實現。

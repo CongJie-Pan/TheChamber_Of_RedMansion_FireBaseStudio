@@ -60,3 +60,11 @@ run the repo, change to use : pnpm run dev
 ### 2025/10/16
 
 "GAME-001" complete. continue to the phase "GAME-002".
+
+---
+
+### 2025/10/22
+
+- 紅樓夢學習數據，可以經由賀嘉生老師的課程內容，可以思考看看如何做這類的數據分析。
+- [x] 請子傑再發一次git，我這邊核准之後，他就可以merge進來了(master)，merge到master分支。
+- 實際程式測試 每日修身 GPT-5-mini 嵌入功能。

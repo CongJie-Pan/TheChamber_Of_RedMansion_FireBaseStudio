@@ -9,8 +9,10 @@
  * - Difficulty adapts to user level
  * - Task types rotate to ensure variety
  * - Content sourced from Red Mansion chapters and cultural elements
+ * - Phase 2.9: Enhanced with AI-powered dynamic content generation
  *
  * @phase Phase 1.4 - Task Generation Logic
+ * @phase Phase 2.9.2 - AI Content Generation Integration
  */
 
 import {
@@ -27,6 +29,12 @@ import {
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
 import { taskDifficultyAdapter } from './task-difficulty-adapter';
+
+// Phase 2.9: AI-powered task content generation
+import {
+  generateTaskContent as generateAITaskContent,
+  type TaskContentGenerationParams,
+} from './ai-task-content-generator';
 
 /**
  * Task generation configuration
@@ -119,12 +127,13 @@ export class TaskGenerator {
    *
    * Phase 4.1.1: Includes weekday-based task type rotation
    * Phase 4.1.2: Includes adaptive difficulty based on historical performance
+   * Phase 2.9.2: Enhanced with AI-powered content generation
    *
    * @param userId - User ID
    * @param userLevel - User's current level
    * @param date - Date string for task generation
    * @param recentTaskIds - Recent task IDs (for variety)
-   * @param taskHistory - User's task history (for adaptive difficulty)
+   * @param taskHistory - User's task history (for adaptive difficulty and AI content)
    */
   async generateTasksForUser(
     userId: string,
@@ -154,7 +163,14 @@ export class TaskGenerator {
         difficulty = this.determineDifficulty(userLevel);
       }
 
-      const task = await this.generateTask(taskType, difficulty, date);
+      // Phase 2.9.2: Generate task with AI-powered content
+      const task = await this.generateTask(
+        taskType,
+        difficulty,
+        date,
+        userLevel,
+        taskHistory
+      );
       tasks.push(task);
     }
 
@@ -261,16 +277,24 @@ export class TaskGenerator {
 
   /**
    * Generate a single task
+   * Phase 2.9.2: Enhanced with AI-powered content generation
    */
   private async generateTask(
     type: DailyTaskType,
     difficulty: TaskDifficulty,
-    date: string
+    date: string,
+    userLevel?: number,
+    taskHistory?: TaskHistoryRecord[]
   ): Promise<DailyTask> {
     const taskId = this.generateTaskId(type, difficulty, date);
 
-    // Generate type-specific content
-    const content = await this.generateTaskContent(type, difficulty);
+    // Phase 2.9.2: Generate type-specific content with optional AI generation
+    const content = await this.generateTaskContent(
+      type,
+      difficulty,
+      userLevel,
+      taskHistory
+    );
 
     // Generate sourceId based on content (Phase 4.4: Anti-farming)
     const sourceId = this.generateSourceId(type, content);
@@ -496,11 +520,119 @@ export class TaskGenerator {
 
   /**
    * Generate task-specific content
+   * Phase 2.9.2: Enhanced with AI-powered content generation
    */
   private async generateTaskContent(
     type: DailyTaskType,
-    difficulty: TaskDifficulty
+    difficulty: TaskDifficulty,
+    userLevel?: number,
+    taskHistory?: TaskHistoryRecord[]
   ): Promise<DailyTask['content']> {
+    // Phase 2.9.2: Try AI-powered content generation first
+    if (userLevel !== undefined) {
+      try {
+        const aiContent = await this.tryGenerateAIContent(
+          type,
+          difficulty,
+          userLevel,
+          taskHistory
+        );
+
+        if (aiContent) {
+          console.log(`✅ Using AI-generated content for ${type}`);
+          return aiContent;
+        }
+      } catch (error) {
+        console.warn(`⚠️ AI content generation failed, using hardcoded content:`, error);
+      }
+    }
+
+    // Fallback to hardcoded content generation
+    return this.generateHardcodedContent(type, difficulty);
+  }
+
+  /**
+   * Try to generate content using AI
+   * Phase 2.9.2: AI-powered content generation
+   */
+  private async tryGenerateAIContent(
+    type: DailyTaskType,
+    difficulty: TaskDifficulty,
+    userLevel: number,
+    taskHistory?: TaskHistoryRecord[]
+  ): Promise<DailyTask['content'] | null> {
+    try {
+      // Extract recent chapters from task history
+      const recentChapters: number[] = [];
+      if (taskHistory) {
+        for (const record of taskHistory.slice(-5)) {
+          // Last 5 tasks
+          const sourceId = record.taskType === type ? record.sourceId : undefined;
+          if (sourceId && sourceId.includes('chapter-')) {
+            const match = sourceId.match(/chapter-(\d+)/);
+            if (match) {
+              recentChapters.push(parseInt(match[1]));
+            }
+          }
+        }
+      }
+
+      // Build AI content generation parameters
+      const params: TaskContentGenerationParams = {
+        userLevel,
+        taskType: type,
+        difficulty,
+        recentChapters: recentChapters.length > 0 ? recentChapters : undefined,
+        learningHistory: taskHistory
+          ? {
+              completedTaskTypes: taskHistory.map((t) => t.taskType),
+              averageScores: this.calculateAverageScores(taskHistory),
+            }
+          : undefined,
+      };
+
+      // Generate content using AI
+      const aiGeneratedContent = await generateAITaskContent(params);
+
+      return aiGeneratedContent;
+    } catch (error) {
+      console.error('❌ Failed to generate AI content:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate average scores by task type from history
+   */
+  private calculateAverageScores(
+    taskHistory: TaskHistoryRecord[]
+  ): Record<DailyTaskType, number> {
+    const scores: Record<string, number[]> = {};
+
+    for (const record of taskHistory) {
+      if (!scores[record.taskType]) {
+        scores[record.taskType] = [];
+      }
+      scores[record.taskType].push(record.score);
+    }
+
+    const averages: Partial<Record<DailyTaskType, number>> = {};
+    for (const [taskType, scoreArray] of Object.entries(scores)) {
+      const sum = scoreArray.reduce((a, b) => a + b, 0);
+      averages[taskType as DailyTaskType] = Math.round(sum / scoreArray.length);
+    }
+
+    return averages as Record<DailyTaskType, number>;
+  }
+
+  /**
+   * Generate hardcoded content (fallback)
+   * Phase 2.9.2: Extracted from original generateTaskContent
+   */
+  private generateHardcodedContent(
+    type: DailyTaskType,
+    difficulty: TaskDifficulty
+  ): DailyTask['content'] {
     switch (type) {
       case DailyTaskType.MORNING_READING:
         return { textPassage: this.generateMorningReadingContent(difficulty) };
