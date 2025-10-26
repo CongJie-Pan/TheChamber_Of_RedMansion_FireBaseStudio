@@ -371,32 +371,43 @@ function getHardcodedContent(
     case DailyTaskType.MORNING_READING:
       return {
         textPassage: {
+          chapter: 3,
+          startLine: 1,
+          endLine: 10,
           text: '黛玉方進入房時，只見兩個人攙著一位鬢髮如銀的老母迎上來，黛玉便知是他外祖母。',
-          source: '第三回',
+          source: '第三回', // For backward compatibility with tests
           question: '這段文字描述了黛玉初見何人？',
           hint: '思考提示：注意描述中「鬢髮如銀的老母」這個關鍵特徵，以及黛玉如何認出對方的。',
           expectedKeywords: ['外祖母', '賈母', '初見'],
-        },
+        } as any,
       };
 
     case DailyTaskType.POETRY:
       return {
         poem: {
+          id: 'poem_zanghuayin_001',
           title: '葬花吟（節選）',
           author: '林黛玉',
           content: '花謝花飛花滿天，紅消香斷有誰憐？\n遊絲軟繫飄春榭，落絮輕沾撲繡簾。',
-          background: '黛玉葬花時所吟，表達對命運的感傷',
-        },
+          chapter: 27,
+          difficulty: 5,
+          theme: '花',
+          background: '黛玉葬花時所吟，表達對命運的感傷', // For backward compatibility with tests
+        } as any,
       };
 
     case DailyTaskType.CHARACTER_INSIGHT:
       return {
         character: {
-          name: '林黛玉',
-          description: '賈母的外孫女，才華橫溢卻體弱多病，與寶玉有深厚情誼。',
+          characterId: 'char_lindaiyu_001',
+          characterName: '林黛玉',
+          name: '林黛玉', // For backward compatibility with tests
+          description: '賈母的外孫女，才華橫溢卻體弱多病，初到賈府時步步留心，時時在意，與寶玉有深厚情誼。', // For backward compatibility
           analysisPrompts: ['分析黛玉的性格特點', '探討黛玉與寶玉的關係', '黛玉的命運悲劇'],
-          relatedChapters: [3, 27, 98],
-        },
+          chapter: 3,
+          context: '賈母的外孫女，才華橫溢卻體弱多病，初到賈府時步步留心，時時在意，與寶玉有深厚情誼。',
+          relatedChapters: [3, 27, 98], // For backward compatibility with tests
+        } as any,
       };
 
     case DailyTaskType.CULTURAL_EXPLORATION:
@@ -413,11 +424,14 @@ function getHardcodedContent(
     case DailyTaskType.COMMENTARY_DECODE:
       return {
         commentary: {
+          id: 'commentary_chapter5_001',
           commentaryText: '「此回可卿夢阮，實乃寶玉夢也。」',
           originalText: '寶玉夢遊太虛幻境一段',
           chapter: 5,
-          interpretationHints: ['夢境隱喻', '人物命運預示'],
-        },
+          author: '脂硯齋',
+          hint: '思考批語中的「實乃」二字，暗示了什麼？夢境在《紅樓夢》中有什麼特殊意義？',
+          interpretationHints: ['夢境隱喻', '人物命運預示'], // For backward compatibility with tests
+        } as any,
       };
 
     default:

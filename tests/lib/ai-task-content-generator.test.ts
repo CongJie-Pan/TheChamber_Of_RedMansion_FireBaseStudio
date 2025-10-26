@@ -22,6 +22,98 @@
  * @phase Phase 2.10 - GPT-5-Mini Integration Testing
  */
 
+// Shared mock function for responses.create (tracked across all OpenAI instances)
+const mockResponsesCreate = jest.fn().mockImplementation(async (params) => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 150));
+
+  const input = params.input as string;
+
+  // Mock responses based on task type detected in prompt
+  if (input.includes('晨讀時光') || input.includes('MORNING_READING')) {
+    return {
+      output_text: JSON.stringify({
+        textPassage: {
+          text: '黛玉方進入房時，只見兩個人攙著一位鬢髮如銀的老母迎上來，黛玉便知是他外祖母。',
+          source: '第三回',
+          question: '這段文字描述了黛玉初見何人？',
+          expectedKeywords: ['外祖母', '賈母', '初見'],
+        },
+      }),
+      model: 'gpt-5-mini',
+      usage: { prompt_tokens: 200, completion_tokens: 100, total_tokens: 300 },
+    };
+  }
+
+  if (input.includes('詩詞韻律') || input.includes('POETRY')) {
+    return {
+      output_text: JSON.stringify({
+        poem: {
+          title: '葬花吟（節選）',
+          author: '林黛玉',
+          content: '花謝花飛花滿天，紅消香斷有誰憐？\n遊絲軟繫飄春榭，落絮輕沾撲繡簾。',
+          background: '黛玉葬花時所吟，表達對命運的感傷與無奈。',
+        },
+      }),
+      model: 'gpt-5-mini',
+      usage: { prompt_tokens: 180, completion_tokens: 90, total_tokens: 270 },
+    };
+  }
+
+  if (input.includes('人物洞察') || input.includes('CHARACTER_INSIGHT')) {
+    return {
+      output_text: JSON.stringify({
+        character: {
+          name: '林黛玉',
+          description: '賈母的外孫女，自幼父母雙亡，寄居賈府。才華橫溢，詩詞造詣極高，但性格敏感多疑，體弱多病。',
+          analysisPrompts: ['分析黛玉的性格特點', '探討黛玉與寶玉的關係', '黛玉的悲劇命運'],
+          relatedChapters: [3, 27, 98],
+        },
+      }),
+      model: 'gpt-5-mini',
+      usage: { prompt_tokens: 220, completion_tokens: 110, total_tokens: 330 },
+    };
+  }
+
+  if (input.includes('文化探秘') || input.includes('CULTURAL_EXPLORATION')) {
+    return {
+      output_text: JSON.stringify({
+        culturalKnowledge: {
+          topic: '清代服飾文化',
+          question: '《紅樓夢》中，貴族女性在正式場合常穿的外衣稱為什麼？',
+          options: ['襖', '褂', '裙', '袍'],
+          correctAnswer: 0,
+          historicalContext: '清代貴族女性服飾講究，襖為常見外衣，通常配有精美刺繡。',
+        },
+      }),
+      model: 'gpt-5-mini',
+      usage: { prompt_tokens: 190, completion_tokens: 95, total_tokens: 285 },
+    };
+  }
+
+  if (input.includes('脂批解密') || input.includes('COMMENTARY_DECODE')) {
+    return {
+      output_text: JSON.stringify({
+        commentary: {
+          commentaryText: '此回可卿夢阮，實乃寶玉夢也。作者狡猾之筆。',
+          originalText: '寶玉夢遊太虛幻境，警幻仙子演說紅樓夢曲。',
+          chapter: 5,
+          interpretationHints: ['夢境隱喻人物命運', '警幻仙子的預示作用'],
+        },
+      }),
+      model: 'gpt-5-mini',
+      usage: { prompt_tokens: 210, completion_tokens: 105, total_tokens: 315 },
+    };
+  }
+
+  // Default fallback
+  return {
+    output_text: '{}',
+    model: 'gpt-5-mini',
+    usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 },
+  };
+});
+
 // Mock OpenAI SDK before imports
 jest.mock('openai', () => {
   return {
@@ -32,96 +124,7 @@ jest.mock('openai', () => {
 
       return {
         responses: {
-          create: jest.fn().mockImplementation(async (params) => {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 150));
-
-            const input = params.input as string;
-
-            // Mock responses based on task type detected in prompt
-            if (input.includes('晨讀時光') || input.includes('MORNING_READING')) {
-              return {
-                output_text: JSON.stringify({
-                  textPassage: {
-                    text: '黛玉方進入房時，只見兩個人攙著一位鬢髮如銀的老母迎上來，黛玉便知是他外祖母。',
-                    source: '第三回',
-                    question: '這段文字描述了黛玉初見何人？',
-                    expectedKeywords: ['外祖母', '賈母', '初見'],
-                  },
-                }),
-                model: 'gpt-5-mini',
-                usage: { prompt_tokens: 200, completion_tokens: 100, total_tokens: 300 },
-              };
-            }
-
-            if (input.includes('詩詞韻律') || input.includes('POETRY')) {
-              return {
-                output_text: JSON.stringify({
-                  poem: {
-                    title: '葬花吟（節選）',
-                    author: '林黛玉',
-                    content: '花謝花飛花滿天，紅消香斷有誰憐？\n遊絲軟繫飄春榭，落絮輕沾撲繡簾。',
-                    background: '黛玉葬花時所吟，表達對命運的感傷與無奈。',
-                  },
-                }),
-                model: 'gpt-5-mini',
-                usage: { prompt_tokens: 180, completion_tokens: 90, total_tokens: 270 },
-              };
-            }
-
-            if (input.includes('人物洞察') || input.includes('CHARACTER_INSIGHT')) {
-              return {
-                output_text: JSON.stringify({
-                  character: {
-                    name: '林黛玉',
-                    description: '賈母的外孫女，自幼父母雙亡，寄居賈府。才華橫溢，詩詞造詣極高，但性格敏感多疑，體弱多病。',
-                    analysisPrompts: ['分析黛玉的性格特點', '探討黛玉與寶玉的關係', '黛玉的悲劇命運'],
-                    relatedChapters: [3, 27, 98],
-                  },
-                }),
-                model: 'gpt-5-mini',
-                usage: { prompt_tokens: 220, completion_tokens: 110, total_tokens: 330 },
-              };
-            }
-
-            if (input.includes('文化探秘') || input.includes('CULTURAL_EXPLORATION')) {
-              return {
-                output_text: JSON.stringify({
-                  culturalKnowledge: {
-                    topic: '清代服飾文化',
-                    question: '《紅樓夢》中，貴族女性在正式場合常穿的外衣稱為什麼？',
-                    options: ['襖', '褂', '裙', '袍'],
-                    correctAnswer: 0,
-                    historicalContext: '清代貴族女性服飾講究，襖為常見外衣，通常配有精美刺繡。',
-                  },
-                }),
-                model: 'gpt-5-mini',
-                usage: { prompt_tokens: 190, completion_tokens: 95, total_tokens: 285 },
-              };
-            }
-
-            if (input.includes('脂批解密') || input.includes('COMMENTARY_DECODE')) {
-              return {
-                output_text: JSON.stringify({
-                  commentary: {
-                    commentaryText: '此回可卿夢阮，實乃寶玉夢也。作者狡猾之筆。',
-                    originalText: '寶玉夢遊太虛幻境，警幻仙子演說紅樓夢曲。',
-                    chapter: 5,
-                    interpretationHints: ['夢境隱喻人物命運', '警幻仙子的預示作用'],
-                  },
-                }),
-                model: 'gpt-5-mini',
-                usage: { prompt_tokens: 210, completion_tokens: 105, total_tokens: 315 },
-              };
-            }
-
-            // Default fallback
-            return {
-              output_text: '{}',
-              model: 'gpt-5-mini',
-              usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 },
-            };
-          }),
+          create: mockResponsesCreate, // Use shared mock function
         },
       };
     }),
@@ -412,16 +415,13 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
         difficulty: TaskDifficulty.MEDIUM,
       };
 
-      const OpenAI = require('openai').default;
-      const mockCreate = OpenAI.mock.results[0].value.responses.create;
-
       // Act - First call
       const firstResult = await generateTaskContent(params);
-      const firstCallCount = mockCreate.mock.calls.length;
+      const firstCallCount = mockResponsesCreate.mock.calls.length;
 
       // Act - Second call with same parameters
       const secondResult = await generateTaskContent(params);
-      const secondCallCount = mockCreate.mock.calls.length;
+      const secondCallCount = mockResponsesCreate.mock.calls.length;
 
       // Assert
       expect(firstResult).toEqual(secondResult); // Same content returned
@@ -447,15 +447,12 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
         difficulty: TaskDifficulty.HARD,
       };
 
-      const OpenAI = require('openai').default;
-      const mockCreate = OpenAI.mock.results[0].value.responses.create;
-
       // Act
       await generateTaskContent(params1);
-      const callCountAfterFirst = mockCreate.mock.calls.length;
+      const callCountAfterFirst = mockResponsesCreate.mock.calls.length;
 
       await generateTaskContent(params2);
-      const callCountAfterSecond = mockCreate.mock.calls.length;
+      const callCountAfterSecond = mockResponsesCreate.mock.calls.length;
 
       // Assert
       expect(callCountAfterSecond).toBeGreaterThan(callCountAfterFirst); // API called again for different params
