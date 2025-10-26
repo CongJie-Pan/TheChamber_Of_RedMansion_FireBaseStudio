@@ -434,7 +434,7 @@ export class DailyTaskService {
         userId,
         finalXP,
         `Completed daily task: ${task.title}`,
-        'daily_task',
+        'task',
         xpSourceId
       );
 

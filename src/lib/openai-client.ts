@@ -59,6 +59,14 @@ function validateApiKey(): void {
 let openaiClient: OpenAI | null = null;
 
 try {
+  // 🔍 診斷日誌：OpenAI 客戶端初始化
+  console.log('\n' + '━'.repeat(80));
+  console.log('🔧 [OpenAI Client] 開始初始化');
+  console.log('━'.repeat(80));
+  console.log(`🔍 [環境檢查] Window type: ${typeof window === 'undefined' ? 'undefined (Server-side ✅)' : 'defined (Client-side ⚠️)'}`);
+  console.log(`🔍 [環境變數] OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? `✅ 已配置 (長度: ${process.env.OPENAI_API_KEY.length})` : '❌ 未配置'}`);
+  console.log(`🔍 [設定] Timeout: ${OPENAI_CONFIG.timeout}ms, Max Retries: ${OPENAI_CONFIG.maxRetries}`);
+
   // Only initialize on server-side (API key should not be exposed to client)
   if (typeof window === 'undefined' && process.env.OPENAI_API_KEY) {
     openaiClient = new OpenAI({
@@ -66,10 +74,22 @@ try {
       timeout: OPENAI_CONFIG.timeout,
       maxRetries: OPENAI_CONFIG.maxRetries,
     });
-    console.log('✅ OpenAI client initialized successfully');
+    console.log('✅ [成功] OpenAI client initialized successfully');
+    console.log('━'.repeat(80) + '\n');
+  } else {
+    if (typeof window !== 'undefined') {
+      console.warn('⚠️ [跳過] 客戶端環境，不初始化 OpenAI client');
+    } else if (!process.env.OPENAI_API_KEY) {
+      console.error('❌ [錯誤] OPENAI_API_KEY 環境變數未設定');
+    }
+    console.log('━'.repeat(80) + '\n');
   }
 } catch (error) {
-  console.error('❌ Failed to initialize OpenAI client:', error);
+  console.error('\n' + '━'.repeat(80));
+  console.error('❌ [失敗] Failed to initialize OpenAI client');
+  console.error('━'.repeat(80));
+  console.error('錯誤詳情:', error);
+  console.error('━'.repeat(80) + '\n');
 }
 
 /**

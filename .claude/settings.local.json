@@ -72,7 +72,10 @@
       "Bash(awk:*)",
       "Bash(npm ls react react-dom)",
       "Bash(test:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then grep -q \"OPENAI_API_KEY\" .env.local)",
+      "Bash(else echo \"❌ .env.local file does not exist\")"
     ]
   },
   "outputStyle": "default"

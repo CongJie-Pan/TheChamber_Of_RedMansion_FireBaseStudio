@@ -63,7 +63,7 @@ export type GeneratedTaskContent =
   | { textPassage: TextPassage }
   | { poem: PoemContent }
   | { character: CharacterPrompt }
-  | { culturalKnowledge: CulturalElement }
+  | { culturalElement: CulturalElement }
   | { commentary: CommentaryContent };
 
 /**
@@ -87,19 +87,37 @@ export async function generateTaskContent(
 ): Promise<GeneratedTaskContent> {
   const { userLevel, taskType, difficulty } = params;
 
+  // 🔍 診斷日誌：開始生成任務內容
+  console.log('\n' + '━'.repeat(80));
+  console.log('🔍 [AI Content Generator] 開始生成任務內容');
+  console.log('━'.repeat(80));
+  console.log(`📋 參數: userLevel=${userLevel}, taskType=${taskType}, difficulty=${difficulty}`);
+
   // Check cache first
   const cacheKey = `${userLevel}_${taskType}_${difficulty}`;
+  console.log(`🔍 [Cache] 檢查快取 key: ${cacheKey}`);
   const cachedContent = contentCache.get(cacheKey);
   if (cachedContent) {
-    console.log(`✅ Using cached task content for ${cacheKey}`);
+    console.log(`✅ [Cache] 使用快取內容 for ${cacheKey}`);
+    console.log('━'.repeat(80) + '\n');
     return cachedContent;
   }
+  console.log(`📝 [Cache] 快取未命中，需要生成新內容`);
 
   // If OpenAI is not available, use hardcoded content
-  if (!isOpenAIAvailable()) {
-    console.warn('⚠️ OpenAI not available, using hardcoded content');
+  const openAIAvailable = isOpenAIAvailable();
+  console.log(`🔍 [OpenAI] 可用性檢查: ${openAIAvailable ? '✅ 可用' : '❌ 不可用'}`);
+  console.log(`🔍 [OpenAI] 環境變數 OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '✅ 已設定' : '❌ 未設定'}`);
+  console.log(`🔍 [OpenAI] 執行環境: ${typeof window === 'undefined' ? 'Server-side ✅' : 'Client-side ⚠️'}`);
+
+  if (!openAIAvailable) {
+    console.warn('⚠️ [Fallback] OpenAI 不可用，使用硬編碼內容');
+    console.log('━'.repeat(80) + '\n');
     return getHardcodedContent(taskType, difficulty);
   }
+
+  console.log('🚀 [AI] 準備呼叫 AI 生成內容...');
+  console.log('━'.repeat(80));
 
   // Build AI prompt based on task type
   const prompt = buildContentGenerationPrompt(params);
@@ -339,8 +357,8 @@ function parseAndValidateContent(
         break;
 
       case DailyTaskType.CULTURAL_EXPLORATION:
-        if (parsed.culturalKnowledge && parsed.culturalKnowledge.question) {
-          return { culturalKnowledge: parsed.culturalKnowledge };
+        if (parsed.culturalElement && parsed.culturalElement.questions) {
+          return { culturalElement: parsed.culturalElement };
         }
         break;
 
@@ -375,11 +393,10 @@ function getHardcodedContent(
           startLine: 1,
           endLine: 10,
           text: '黛玉方進入房時，只見兩個人攙著一位鬢髮如銀的老母迎上來，黛玉便知是他外祖母。',
-          source: '第三回', // For backward compatibility with tests
           question: '這段文字描述了黛玉初見何人？',
           hint: '思考提示：注意描述中「鬢髮如銀的老母」這個關鍵特徵，以及黛玉如何認出對方的。',
           expectedKeywords: ['外祖母', '賈母', '初見'],
-        } as any,
+        },
       };
 
     case DailyTaskType.POETRY:
@@ -392,8 +409,7 @@ function getHardcodedContent(
           chapter: 27,
           difficulty: 5,
           theme: '花',
-          background: '黛玉葬花時所吟，表達對命運的感傷', // For backward compatibility with tests
-        } as any,
+        },
       };
 
     case DailyTaskType.CHARACTER_INSIGHT:
@@ -401,23 +417,28 @@ function getHardcodedContent(
         character: {
           characterId: 'char_lindaiyu_001',
           characterName: '林黛玉',
-          name: '林黛玉', // For backward compatibility with tests
-          description: '賈母的外孫女，才華橫溢卻體弱多病，初到賈府時步步留心，時時在意，與寶玉有深厚情誼。', // For backward compatibility
           analysisPrompts: ['分析黛玉的性格特點', '探討黛玉與寶玉的關係', '黛玉的命運悲劇'],
           chapter: 3,
           context: '賈母的外孫女，才華橫溢卻體弱多病，初到賈府時步步留心，時時在意，與寶玉有深厚情誼。',
-          relatedChapters: [3, 27, 98], // For backward compatibility with tests
-        } as any,
+        },
       };
 
     case DailyTaskType.CULTURAL_EXPLORATION:
       return {
-        culturalKnowledge: {
-          topic: '清代服飾',
-          question: '《紅樓夢》中，貴族女性常穿的外衣稱為什麼？',
-          options: ['襖', '褂', '裙', '袍'],
-          correctAnswer: 0,
-          historicalContext: '清代貴族女性服飾講究，襖為常見外衣',
+        culturalElement: {
+          id: 'cultural_clothing_001',
+          category: '服飾',
+          title: '清代服飾',
+          description: '探索《紅樓夢》中的清代貴族女性服飾文化',
+          relatedChapters: [3, 6],
+          questions: [{
+            id: 'q_clothing_001',
+            question: '《紅樓夢》中，貴族女性常穿的外衣稱為什麼？',
+            type: 'multiple_choice',
+            options: ['襖', '褂', '裙', '袍'],
+            correctAnswer: '襖',
+            explanation: '清代貴族女性服飾講究，襖為常見外衣',
+          }],
         },
       };
 
@@ -430,16 +451,17 @@ function getHardcodedContent(
           chapter: 5,
           author: '脂硯齋',
           hint: '思考批語中的「實乃」二字，暗示了什麼？夢境在《紅樓夢》中有什麼特殊意義？',
-          interpretationHints: ['夢境隱喻', '人物命運預示'], // For backward compatibility with tests
-        } as any,
+        },
       };
 
     default:
       // Default to reading passage
       return {
         textPassage: {
+          chapter: 1,
+          startLine: 1,
+          endLine: 5,
           text: '默認閱讀段落',
-          source: '第一回',
           question: '默認問題',
           expectedKeywords: ['關鍵詞'],
         },

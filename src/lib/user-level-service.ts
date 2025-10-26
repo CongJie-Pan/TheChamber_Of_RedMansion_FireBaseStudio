@@ -356,7 +356,12 @@ export class UserLevelService {
           fromLevel?: number;
           unlockedContent?: string[];
           unlockedPermissions?: LevelPermission[];
-        } | null = null;
+        } = {
+          success: false,
+          newTotalXP: 0,
+          newLevel: 0,
+          leveledUp: false,
+        };
 
         await runTransaction(db, async (transaction) => {
           // Check lock to ensure idempotency

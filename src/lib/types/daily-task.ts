@@ -300,6 +300,9 @@ export interface TaskHistoryRecord {
   taskType: DailyTaskType;   // Task type
   date: string;              // Completion date (YYYY-MM-DD)
 
+  // Anti-farming: Source content identifier (Phase 4.4)
+  sourceId?: string;         // Unique identifier for content source
+
   // Results
   score: number;             // Score achieved
   xpAwarded: number;         // XP awarded

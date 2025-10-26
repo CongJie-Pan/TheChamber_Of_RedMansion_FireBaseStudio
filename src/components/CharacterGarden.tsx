@@ -356,8 +356,8 @@ export const CharacterGarden: React.FC<CharacterGardenProps> = ({
             style={{
               left: `${character.position?.x}%`,
               top: `${character.position?.y}%`,
-              transform: 'translate(-50%, -50%)',
               ...getCharacterStyle(character),
+              transform: `translate(-50%, -50%) ${getCharacterStyle(character).transform || ''}`,
             }}
             onClick={() => handleCharacterClick(character)}
             onMouseEnter={() => handleCharacterHover(character)}

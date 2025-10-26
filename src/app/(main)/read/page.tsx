@@ -77,7 +77,7 @@ interface Book {
 }
 
 // Data uses keys now, actual text in translations.ts
-const originalTextBooksData: Omit<Book, 'titleKey'|'authorKey'|'descriptionKey'> & { id: string }[] = [
+const originalTextBooksData: Array<Omit<Book, 'titleKey'|'authorKey'|'descriptionKey'> & { id: string }> = [
   { id: 'hlm-times-edition', coverImage: 'https://placehold.co/150x220.png?tint=662929', aiHint: 'chinese novel set', readLink: '#', badgeTextKey: 'read.badgeEbook' },
   { id: 'hlm-v3', coverImage: 'https://placehold.co/150x220.png?tint=662929', aiHint: 'chinese novel', readLink: '/read-book', badgeTextKey: 'read.badgeEbook' },
   { id: 'hlm-chengjia', coverImage: 'https://placehold.co/150x220.png?tint=662929', aiHint: 'chinese antique', readLink: '#', badgeTextKey: 'read.badgeEbook' },
@@ -87,7 +87,7 @@ const originalTextBooksData: Omit<Book, 'titleKey'|'authorKey'|'descriptionKey'>
   { id: 'hlm-anniversary', coverImage: 'https://placehold.co/150x220.png?tint=662929', aiHint: 'chinese edition', readLink: '#', badgeTextKey: 'read.badgeEbook' },
 ];
 
-const expertInterpretationBooksData: Omit<Book, 'titleKey'|'authorKey'|'descriptionKey'> & { id: string }[] = [
+const expertInterpretationBooksData: Array<Omit<Book, 'titleKey'|'authorKey'|'descriptionKey'> & { id: string }> = [
   { id: 'jiangxun-youth', coverImage: 'https://placehold.co/150x220.png?tint=555555', aiHint: 'chinese literary criticism', readLink: '#', badgeTextKey: 'read.badgeExpert' },
   { id: 'jiangxun-dream', coverImage: 'https://placehold.co/150x220.png?tint=555555', aiHint: 'chinese literary introduction', readLink: '#', badgeTextKey: 'read.badgeExpert' },
   { id: 'jiangxun-microdust', coverImage: 'https://placehold.co/150x220.png?tint=555555', aiHint: 'chinese character analysis', readLink: '#', badgeTextKey: 'read.badgeExpert' },

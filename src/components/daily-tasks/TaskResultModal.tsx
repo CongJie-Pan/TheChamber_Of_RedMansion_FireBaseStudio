@@ -310,7 +310,7 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
 
           <DialogFooter>
             <Button onClick={onClose} className="w-full">
-              太棒了！繼續加油
+              確認
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -320,7 +320,7 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
       {result.leveledUp && result.fromLevel !== undefined && result.newLevel && (
         <LevelUpModal
           open={showLevelUp}
-          onClose={() => setShowLevelUp(false)}
+          onOpenChange={setShowLevelUp}
           fromLevel={result.fromLevel}
           toLevel={result.newLevel}
         />

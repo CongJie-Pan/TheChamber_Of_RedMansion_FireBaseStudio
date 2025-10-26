@@ -223,8 +223,8 @@ ${taskContent.poem.content}
 
     case DailyTaskType.CHARACTER_INSIGHT:
       if (taskContent.character) {
-        context += `**人物**: ${taskContent.character.name}
-**人物描述**: ${taskContent.character.description}
+        context += `**人物**: ${taskContent.character.characterName}
+**人物背景**: ${taskContent.character.context || ''}
 
 **分析要求**: 深入分析人物性格特點與命運
 
@@ -233,9 +233,10 @@ ${taskContent.poem.content}
       break;
 
     case DailyTaskType.CULTURAL_EXPLORATION:
-      if (taskContent.culturalKnowledge) {
-        context += `**文化問題**: ${taskContent.culturalKnowledge.question}
-**文化背景**: ${taskContent.culturalKnowledge.historicalContext || '清代貴族文化'}
+      if (taskContent.culturalElement) {
+        context += `**文化主題**: ${taskContent.culturalElement.title}
+**文化背景**: ${taskContent.culturalElement.description}
+**問題**: ${taskContent.culturalElement.questions && taskContent.culturalElement.questions.length > 0 ? taskContent.culturalElement.questions[0].question : ''}
 
 `;
       }
