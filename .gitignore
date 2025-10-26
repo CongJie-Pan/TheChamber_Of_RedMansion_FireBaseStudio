@@ -48,6 +48,8 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 
+test-output
+
 <<<<<<< HEAD
 .gemini
 GEMINI.md
