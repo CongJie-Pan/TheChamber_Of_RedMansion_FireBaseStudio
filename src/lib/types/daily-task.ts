@@ -60,6 +60,7 @@ export interface TextPassage {
   text: string;              // 文本內容
   question: string;          // 理解度問題
   expectedKeywords?: string[]; // 預期關鍵詞 (用於AI評分)
+  hint?: string;             // 思考提示 (引導用戶思考方向)
 }
 
 /**

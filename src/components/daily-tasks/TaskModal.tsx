@@ -40,7 +40,8 @@ import {
   BookMarked,
   Loader2,
   AlertCircle,
-  Send
+  Send,
+  Lightbulb
 } from "lucide-react";
 
 import { DailyTask, DailyTaskType } from '@/lib/types/daily-task';
@@ -64,6 +65,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [userResponse, setUserResponse] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
   const wordCount = userResponse.trim().length;
 
@@ -104,28 +106,49 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       case DailyTaskType.MORNING_READING:
         return (
           <div className="space-y-4">
-            {/* Passage */}
+            {/* Combined Question Section with Reading Passage */}
             <div>
-              <Label className="text-sm font-semibold">📖 閱讀段落</Label>
-              <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border">
-                <p className="text-sm leading-relaxed whitespace-pre-line">
-                  {task.content.textPassage?.text}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  —— 第{task.content.textPassage?.chapter}回
-                </p>
-              </div>
-            </div>
-
-            {/* Question */}
-            <div>
-              <Label className="text-sm font-semibold">❓ 理解問題</Label>
-              <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+              <Label className="text-sm font-semibold">❓ 問題</Label>
+              <div className="mt-2 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                {/* Reading passage embedded in question */}
+                <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border/50">
+                  <p className="text-sm leading-relaxed whitespace-pre-line">
+                    {task.content.textPassage?.text}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    —— 第{task.content.textPassage?.chapter}回
+                  </p>
+                </div>
+                {/* Question text */}
                 <p className="text-sm font-medium">
                   {task.content.textPassage?.question}
                 </p>
               </div>
             </div>
+
+            {/* Hint Section with Toggle Button */}
+            {task.content.textPassage?.hint && (
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowHint(!showHint)}
+                  className="mb-2"
+                  type="button"
+                >
+                  <Lightbulb className="h-4 w-4 mr-2" />
+                  {showHint ? '隱藏提示' : '查看提示'}
+                </Button>
+                {showHint && (
+                  <Alert className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+                    <Lightbulb className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                      {task.content.textPassage.hint}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
 
             {/* Answer Input */}
             <div>
