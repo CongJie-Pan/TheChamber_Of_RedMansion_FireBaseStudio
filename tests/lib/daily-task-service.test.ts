@@ -133,7 +133,7 @@ describe('DailyTaskService', () => {
       // Assert
       expect(generatedTasks).toBeDefined();
       expect(generatedTasks.length).toBe(2);
-      expect(taskGenerator.generateTasksForUser).toHaveBeenCalledWith(userId, 0, date);
+      expect(taskGenerator.generateTasksForUser).toHaveBeenCalledWith(userId, 0, date, undefined, []);
       expect(setDoc).toHaveBeenCalled(); // Tasks and progress stored
 
       testLogger.log('First-time task generation test completed', { generatedTasks });
@@ -234,7 +234,7 @@ describe('DailyTaskService', () => {
 
         await dailyTaskService.generateDailyTasks(userId, date);
 
-        expect(taskGenerator.generateTasksForUser).toHaveBeenCalledWith(userId, level, date);
+        expect(taskGenerator.generateTasksForUser).toHaveBeenCalledWith(userId, level, date, undefined, []);
       }
 
       testLogger.log('Difficulty adaptation test completed');
@@ -258,7 +258,7 @@ describe('DailyTaskService', () => {
 
       // Act & Assert
       await expect(dailyTaskService.generateDailyTasks(userId, date)).rejects.toThrow(
-        'User profile not found'
+        'Failed to generate daily tasks'
       );
 
       testLogger.log('Non-existent user test completed');
@@ -695,12 +695,13 @@ describe('DailyTaskService', () => {
         content: {},
       };
 
+      // Setup mocks for first submission
       (getDoc as jest.Mock)
-        .mockResolvedValue({
+        .mockResolvedValueOnce({
           exists: () => true,
           data: () => mockProgress,
         })
-        .mockResolvedValue({
+        .mockResolvedValueOnce({
           exists: () => true,
           data: () => mockTask,
         });
@@ -718,11 +719,37 @@ describe('DailyTaskService', () => {
       // Act: First submission should succeed
       await dailyTaskService.submitTaskCompletion(userId, taskId, 'Response 1');
 
+      // Create updated progress for second submission (task now completed)
+      const updatedProgress: Partial<DailyTaskProgress> = {
+        id: `${userId}_2025-01-15`,
+        userId,
+        date: '2025-01-15',
+        tasks: [
+          {
+            taskId,
+            assignedAt: Timestamp.now(),
+            status: TaskStatus.COMPLETED,  // Task is now completed
+            completedAt: Timestamp.now(),
+            score: 80,
+            xpAwarded: 10,
+          },
+        ],
+        completedTaskIds: [taskId],
+        skippedTaskIds: [],
+        totalXPEarned: 10,
+        totalAttributeGains: {},
+        streak: 0,
+      };
+
       // Reset mocks for second submission
       (getDoc as jest.Mock)
         .mockResolvedValueOnce({
           exists: () => true,
-          data: () => mockProgress,
+          data: () => updatedProgress,
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => mockTask,
         });
 
       // Act & Assert: Second submission within cooldown should fail
