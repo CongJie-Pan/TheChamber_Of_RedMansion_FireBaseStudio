@@ -1202,4 +1202,238 @@ describe('DailyTaskService', () => {
       testLogger.log('Logging verified');
     });
   });
+
+  /**
+   * Phase 2.10: Three-Tier Scoring System Tests
+   *
+   * Comprehensive test suite for the three-tier scoring system:
+   * - 20 points (0x XP): Meaningless content (empty, repeated chars, numbers only)
+   * - 80 points (1x XP): Valid answers (30-199 chars)
+   * - 100 points (1.5x XP): Excellent answers (200+ chars with good structure)
+   */
+  describe('Phase 2.10: Three-Tier Scoring System', () => {
+    /**
+     * Tier 1: 20 points with 0x XP multiplier
+     * Tests for meaningless/low-effort content
+     */
+    it('should score 20 points and award 0 XP for empty answer', async () => {
+      const userId = 'tier1_empty_user';
+      const taskId = 'tier1_empty_task';
+      const emptyAnswer = '';
+
+      const mockProgress: Partial<DailyTaskProgress> = {
+        id: `${userId}_2025-01-15`,
+        userId,
+        date: '2025-01-15',
+        tasks: [{ taskId, assignedAt: Timestamp.now(), status: TaskStatus.NOT_STARTED }],
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        streak: 0,
+      };
+
+      const mockTask: DailyTask = {
+        id: taskId,
+        type: DailyTaskType.MORNING_READING,
+        title: 'Test Task',
+        description: 'Test',
+        difficulty: TaskDifficulty.EASY,
+        timeEstimate: 5,
+        xpReward: 10,
+        attributeRewards: {},
+        content: {},
+        gradingCriteria: { minLength: 30 },
+      };
+
+      // Reset and setup getDoc mock
+      (getDoc as jest.Mock).mockReset();
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockProgress })
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockTask });
+      (userLevelService.awardXP as jest.Mock).mockResolvedValue({
+        success: true,
+        newTotalXP: 0,
+        newLevel: 0,
+        leveledUp: false,
+      });
+      (userLevelService.updateAttributes as jest.Mock).mockResolvedValue(undefined);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      (addDoc as jest.Mock).mockResolvedValue({ id: 'history_empty' });
+
+      const result = await dailyTaskService.submitTaskCompletion(userId, taskId, emptyAnswer);
+
+      expect(result.success).toBe(true);
+      expect(result.score).toBe(20);
+      expect(result.xpAwarded).toBe(0); // 0x multiplier
+    });
+
+    it('should score 20 points and award 0 XP for repeated characters', async () => {
+      const userId = 'tier1_repeat_user';
+      const taskId = 'tier1_repeat_task';
+      const repeatedAnswer = '0000000000000000000000';
+
+      const mockProgress: Partial<DailyTaskProgress> = {
+        id: `${userId}_2025-01-15`,
+        userId,
+        date: '2025-01-15',
+        tasks: [{ taskId, assignedAt: Timestamp.now(), status: TaskStatus.NOT_STARTED }],
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        streak: 0,
+      };
+
+      const mockTask: DailyTask = {
+        id: taskId,
+        type: DailyTaskType.POETRY,
+        title: 'Test',
+        description: 'Test',
+        difficulty: TaskDifficulty.MEDIUM,
+        timeEstimate: 3,
+        xpReward: 10,
+        attributeRewards: {},
+        content: {},
+        gradingCriteria: { minLength: 30 },
+      };
+
+      // Reset and setup getDoc mock
+      (getDoc as jest.Mock).mockReset();
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockProgress })
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockTask });
+      (userLevelService.awardXP as jest.Mock).mockResolvedValue({
+        success: true,
+        newTotalXP: 0,
+        newLevel: 0,
+        leveledUp: false,
+      });
+      (userLevelService.updateAttributes as jest.Mock).mockResolvedValue(undefined);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      (addDoc as jest.Mock).mockResolvedValue({ id: 'history_repeat' });
+
+      const result = await dailyTaskService.submitTaskCompletion(userId, taskId, repeatedAnswer);
+
+      expect(result.success).toBe(true);
+      expect(result.score).toBe(20);
+      expect(result.xpAwarded).toBe(0);
+    });
+
+    /**
+     * Tier 2: 80 points with 1x XP multiplier
+     * Tests for valid answers of moderate length
+     */
+    it('should score 80 points and award 1x XP for 50-char valid answer', async () => {
+      const userId = 'tier2_user';
+      const taskId = 'tier2_task';
+      const validAnswer = 'This is a valid answer with adequate length for scoring 80 points';
+
+      const mockProgress: Partial<DailyTaskProgress> = {
+        id: `${userId}_2025-01-15`,
+        userId,
+        date: '2025-01-15',
+        tasks: [{ taskId, assignedAt: Timestamp.now(), status: TaskStatus.NOT_STARTED }],
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        streak: 0,
+      };
+
+      const mockTask: DailyTask = {
+        id: taskId,
+        type: DailyTaskType.MORNING_READING,
+        title: 'Test',
+        description: 'Test',
+        difficulty: TaskDifficulty.MEDIUM,
+        timeEstimate: 8,
+        xpReward: 20,
+        attributeRewards: {},
+        content: {},
+        gradingCriteria: { minLength: 30 },
+      };
+
+      // Reset and setup getDoc mock
+      (getDoc as jest.Mock).mockReset();
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockProgress })
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockTask });
+      (userLevelService.awardXP as jest.Mock).mockResolvedValue({
+        success: true,
+        newTotalXP: 20,
+        newLevel: 0,
+        leveledUp: false,
+      });
+      (userLevelService.updateAttributes as jest.Mock).mockResolvedValue(undefined);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      (addDoc as jest.Mock).mockResolvedValue({ id: 'history_tier2' });
+
+      const result = await dailyTaskService.submitTaskCompletion(userId, taskId, validAnswer);
+
+      expect(result.success).toBe(true);
+      expect(result.score).toBe(80);
+      expect(result.xpAwarded).toBe(10); // 1x MORNING_READING base XP (10)
+    });
+
+    /**
+     * Tier 3: 100 points with 1.5x XP multiplier
+     * Tests for excellent, detailed answers
+     */
+    it('should score 100 points and award 1.5x XP for well-organized 200+ char answer', async () => {
+      const userId = 'tier3_user';
+      const taskId = 'tier3_task';
+      const excellentAnswer =
+        '這是一個非常詳細且組織良好的答案。第一，我深入理解了文本的核心主題，包括作者想要傳達的深層含義和隱喻手法。' +
+        '第二，我仔細分析了主要人物的性格特徵和心理動機，特別是他們在不同情境下的行為表現和內心世界。' +
+        '第三，我探討了清代文化背景對故事情節的重要影響，以及當時的社會制度如何塑造人物命運和悲劇結局。' +
+        '第四，我注意到了作者精妙的寫作技巧和豐富的象徵手法。總結來說，通過這個任務，我深入理解了紅樓夢的多重文學價值和藝術魅力。';
+
+      const mockProgress: Partial<DailyTaskProgress> = {
+        id: `${userId}_2025-01-15`,
+        userId,
+        date: '2025-01-15',
+        tasks: [{ taskId, assignedAt: Timestamp.now(), status: TaskStatus.NOT_STARTED }],
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        streak: 0,
+      };
+
+      const mockTask: DailyTask = {
+        id: taskId,
+        type: DailyTaskType.CHARACTER_INSIGHT,
+        title: 'Character Analysis',
+        description: 'Detailed character study',
+        difficulty: TaskDifficulty.HARD,
+        timeEstimate: 15,
+        xpReward: 20,
+        attributeRewards: {},
+        content: {},
+        gradingCriteria: { minLength: 100 },
+      };
+
+      // Reset and setup getDoc mock
+      (getDoc as jest.Mock).mockReset();
+      (getDoc as jest.Mock)
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockProgress })
+        .mockResolvedValueOnce({ exists: () => true, data: () => mockTask });
+      (userLevelService.awardXP as jest.Mock).mockResolvedValue({
+        success: true,
+        newTotalXP: 30,
+        newLevel: 0,
+        leveledUp: false,
+      });
+      (userLevelService.updateAttributes as jest.Mock).mockResolvedValue(undefined);
+      (updateDoc as jest.Mock).mockResolvedValue(undefined);
+      (addDoc as jest.Mock).mockResolvedValue({ id: 'history_tier3' });
+
+      const result = await dailyTaskService.submitTaskCompletion(userId, taskId, excellentAnswer);
+
+      expect(result.success).toBe(true);
+      expect(result.score).toBe(100);
+      expect(result.xpAwarded).toBe(18); // 1.5x CHARACTER_INSIGHT base XP (12 * 1.5 = 18)
+    });
+  });
 });
