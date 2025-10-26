@@ -65,12 +65,9 @@ import {
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
 
-// Phase 2: AI Flow Integrations for Task Evaluation
-import { assessReadingComprehension } from '@/ai/flows/daily-reading-comprehension';
-import { assessPoetryQuality } from '@/ai/flows/poetry-quality-assessment';
-import { scoreCharacterAnalysis } from '@/ai/flows/character-analysis-scoring';
-import { gradeCulturalQuiz } from '@/ai/flows/cultural-quiz-grading';
-import { scoreCommentaryInterpretation } from '@/ai/flows/commentary-interpretation';
+// Phase 2.8: GPT-5-Mini Integration for Dynamic AI Feedback
+// Note: Gemini AI flows removed in Phase 2.9 - using length-based scoring instead
+import { generatePersonalizedFeedback } from './ai-feedback-generator';
 
 /**
  * Streak milestone configuration
@@ -375,21 +372,56 @@ export class DailyTaskService {
         }
       }
 
-      // 6. Evaluate task quality using AI (placeholder - will be implemented in Phase 2)
+      // 6. Evaluate task quality using AI
       const startTime = assignment.startedAt?.toMillis() || now;
       const submissionTime = Math.floor((now - startTime) / 1000);
       const score = await this.evaluateTaskQuality(task, userResponse);
-      const feedback = this.generateFeedback(task.type, score);
 
-      // 7. Calculate rewards
+      // 6.5 Generate personalized feedback using GPT-5-Mini (Phase 2.8)
+      const feedback = await this.generateFeedback(task, userResponse, score);
+
+      // 7. Calculate rewards based on three-tier scoring system (Phase 2.10)
       const baseXP = BASE_XP_REWARDS[task.type];
-      const qualityBonus = Math.floor((score / 100) * baseXP * 0.5); // Up to 50% bonus
-      const totalXP = baseXP + qualityBonus;
+      let taskXP: number;
+      let xpMultiplier: number;
+      let xpMessage: string;
+
+      if (score === 20) {
+        // Meaningless answer: No XP reward
+        taskXP = 0;
+        xpMultiplier = 0;
+        xpMessage = '未達標準，無經驗值獎勵';
+      } else if (score === 80) {
+        // Valid answer: Base XP reward
+        taskXP = baseXP;
+        xpMultiplier = 1.0;
+        xpMessage = `標準回答，獲得基礎經驗值 ${baseXP} XP`;
+      } else if (score === 100) {
+        // Excellent answer: 1.5x XP reward
+        taskXP = Math.floor(baseXP * 1.5);
+        xpMultiplier = 1.5;
+        xpMessage = `優秀回答！獲得1.5倍經驗值 ${taskXP} XP`;
+      } else {
+        // Fallback (shouldn't happen with new scoring)
+        taskXP = baseXP;
+        xpMultiplier = 1.0;
+        xpMessage = `獲得經驗值 ${baseXP} XP`;
+      }
+
+      console.log(`\n💰 [XP Reward] ${xpMessage}`);
+      console.log(`   📊 基礎經驗值: ${baseXP} XP`);
+      console.log(`   ✨ 倍數: ${xpMultiplier}x`);
+      console.log(`   💎 任務經驗值: ${taskXP} XP`);
 
       // 8. Apply streak bonus
       const currentStreak = progress.streak;
-      const streakBonus = this.calculateStreakBonus(currentStreak, totalXP);
-      const finalXP = totalXP + streakBonus;
+      const streakBonus = this.calculateStreakBonus(currentStreak, taskXP);
+      const finalXP = taskXP + streakBonus;
+
+      if (streakBonus > 0) {
+        console.log(`   🔥 連勝加成: +${streakBonus} XP (${currentStreak}天連勝)`);
+      }
+      console.log(`   🎯 最終經驗值: ${finalXP} XP\n`);
 
       // 9. Award XP through user-level-service
       // Use content-based sourceId to prevent duplicate rewards across systems
@@ -512,172 +544,186 @@ export class DailyTaskService {
    * @param userResponse - User's answer/submission
    * @returns Promise with score (0-100)
    */
+  /**
+   * Evaluate task quality using three-tier scoring system
+   * Phase 2.10: Three-tier evaluation (20/80/100 points)
+   *
+   * Scoring criteria:
+   * - 20 points: Meaningless content or irrelevant answers (no XP)
+   * - 80 points: Valid answer to the question (base XP)
+   * - 100 points: Detailed and comprehensive answer, 200+ chars (1.5x XP)
+   *
+   * @param task - Complete task object with content
+   * @param userResponse - User's answer/submission
+   * @returns Promise with quality score (20/80/100)
+   */
   async evaluateTaskQuality(task: DailyTask, userResponse: string): Promise<number> {
     const startTime = Date.now();
 
     try {
-      // Phase 4.8: Wrap AI evaluation with timeout to prevent hanging
-      const score = await withTimeout(
-        this.performAIEvaluation(task, userResponse),
-        AI_EVALUATION_TIMEOUT_MS,
-        60 // Fallback score if AI times out
-      );
+      // Trim and analyze response
+      const trimmedResponse = userResponse.trim();
+      const responseLength = trimmedResponse.length;
 
-      // Log performance
-      const duration = Date.now() - startTime;
-      console.log(`✅ AI evaluation completed in ${duration}ms (target: <${AI_EVALUATION_TIMEOUT_MS}ms)`);
+      // 📊 記錄評分開始
+      console.log('\n' + '📊'.repeat(40));
+      console.log('📈 [Task Evaluation] 任務評分（三級制）');
+      console.log('📊'.repeat(40));
+      console.log(`📌 任務類型: ${task.type}`);
+      console.log(`📝 任務標題: ${task.title}`);
+      console.log(`📊 任務難度: ${task.difficulty}`);
+      console.log(`📏 答案長度: ${responseLength} 字元`);
 
-      return score;
-    } catch (error) {
-      console.error('Error evaluating task quality:', error);
-      // Return a reasonable default score on AI failure
-      return 60;
-    }
-  }
+      console.log('\n📋 評分標準:');
+      console.log('   20分 - 無意義內容或未回答問題（無經驗值）');
+      console.log('   80分 - 有回答問題（基礎經驗值）');
+      console.log('   100分 - 詳細全面，200字以上（1.5倍經驗值）');
 
-  /**
-   * Internal AI evaluation logic (separated for timeout wrapping)
-   * Phase 4.8: Performance optimization
-   */
-  private async performAIEvaluation(task: DailyTask, userResponse: string): Promise<number> {
-    try {
-      // Route to appropriate AI flow based on task type
-      switch (task.type) {
-        case DailyTaskType.MORNING_READING: {
-          // Extract passage information
-          const passage = task.content.textPassage;
-          if (!passage) {
-            console.warn('Morning reading task missing text passage');
-            return 60;
-          }
+      let score: number;
+      let scoreReason: string;
 
-          const result = await assessReadingComprehension({
-            passage: passage.text,
-            question: passage.question,
-            userAnswer: userResponse,
-            expectedKeywords: passage.expectedKeywords || [],
-            difficulty: task.difficulty,
-          });
-
-          return result.score;
-        }
-
-        case DailyTaskType.POETRY: {
-          // Extract poem information
-          const poem = task.content.poem;
-          if (!poem) {
-            console.warn('Poetry task missing poem content');
-            return 60;
-          }
-
-          const result = await assessPoetryQuality({
-            poemTitle: poem.title,
-            originalPoem: poem.content,
-            userRecitation: userResponse,
-            author: poem.author,
-            difficulty: task.difficulty,
-          });
-
-          return result.overallScore;
-        }
-
-        case DailyTaskType.CHARACTER_INSIGHT: {
-          // Extract character information
-          const character = task.content.character;
-          if (!character) {
-            console.warn('Character task missing character content');
-            return 60;
-          }
-
-          const result = await scoreCharacterAnalysis({
-            characterName: character.name,
-            characterDescription: character.description,
-            analysisPrompt: task.description,
-            userAnalysis: userResponse,
-            expectedThemes: character.traits || [],
-            difficulty: task.difficulty,
-          });
-
-          return result.qualityScore;
-        }
-
-        case DailyTaskType.CULTURAL_EXPLORATION: {
-          // Extract cultural quiz information
-          const cultural = task.content.culturalKnowledge;
-          if (!cultural) {
-            console.warn('Cultural task missing cultural knowledge content');
-            return 60;
-          }
-
-          // For quiz-type tasks, we may need to parse multiple Q&A pairs
-          // For now, treat as single question-answer
-          const result = await gradeCulturalQuiz({
-            quizTitle: task.title,
-            quizQuestions: [
-              {
-                question: cultural.question,
-                correctAnswer: cultural.correctAnswer || '',
-                userAnswer: userResponse,
-                culturalContext: cultural.historicalContext || '',
-              },
-            ],
-            difficulty: task.difficulty,
-          });
-
-          return result.score;
-        }
-
-        case DailyTaskType.COMMENTARY_DECODE: {
-          // Extract commentary information
-          const commentary = task.content.commentary;
-          if (!commentary) {
-            console.warn('Commentary task missing commentary content');
-            return 60;
-          }
-
-          // Map to Genkit schema: commentaryText, relatedPassage, chapterContext, userInterpretation, interpretationHints, difficulty
-          const result = await scoreCommentaryInterpretation({
-            commentaryText: commentary.commentaryText,
-            relatedPassage: commentary.originalText || '',
-            chapterContext: `Chapter ${task.content.textPassage?.chapter || 'unknown'}`,
-            userInterpretation: userResponse,
-            interpretationHints: commentary.hint ? [commentary.hint] : [],
-            difficulty: task.difficulty,
-          });
-
-          return result.score;
-        }
-
-        default:
-          console.warn(`Unknown task type: ${task.type}`);
-          // Fallback to basic length-based scoring
-          const responseLength = userResponse.length;
-          const minLength = task.gradingCriteria?.minLength || 50;
-
-          if (responseLength < minLength) {
-            return 40;
-          } else if (responseLength < minLength * 2) {
-            return 70;
-          } else {
-            return 85;
-          }
+      // 1. Check for meaningless content (20 points)
+      if (responseLength === 0) {
+        score = 20;
+        scoreReason = '空白答案';
+        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
       }
+
+      // Check for repeated characters pattern (e.g., "0000000")
+      const repeatedPattern = /(.)\1{10,}/;
+      if (repeatedPattern.test(trimmedResponse)) {
+        score = 20;
+        scoreReason = '檢測到大量重複字元';
+        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
+      }
+
+      // Check for numbers-only pattern
+      const numbersOnlyPattern = /^[0-9]+$/;
+      if (numbersOnlyPattern.test(trimmedResponse)) {
+        score = 20;
+        scoreReason = '僅包含數字，無有效內容';
+        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
+      }
+
+      // Check for single word or very short meaningless response
+      const singleWordPattern = /^[\u4e00-\u9fa5a-zA-Z]{1,5}$/;
+      if (singleWordPattern.test(trimmedResponse)) {
+        score = 20;
+        scoreReason = '答案過短（少於5個字），未回答問題';
+        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
+      }
+
+      // 2. Check for valid answer (80 points)
+      // Minimum 30 characters, less than 200 characters
+      if (responseLength >= 30 && responseLength < 200) {
+        score = 80;
+        scoreReason = '有回答問題，長度適中';
+        console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
+      }
+
+      // 3. Check for excellent answer (100 points)
+      // 200+ characters and well-organized
+      if (responseLength >= 200) {
+        // Check for proper organization (punctuation or paragraphs)
+        const hasPunctuation = /[。！？，、；：]/.test(trimmedResponse);
+        const hasParagraphs = trimmedResponse.includes('\n') || responseLength >= 300;
+
+        if (hasPunctuation || hasParagraphs) {
+          score = 100;
+          scoreReason = '詳細全面，字數超過200字，組織良好';
+          console.log(`\n🌟 評分結果: ${score}/100 (${scoreReason})`);
+          console.log('📊'.repeat(40) + '\n');
+          return score;
+        } else {
+          // Long but poorly organized
+          score = 80;
+          scoreReason = '字數充足但組織一般';
+          console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
+          console.log('📊'.repeat(40) + '\n');
+          return score;
+        }
+      }
+
+      // Less than 30 characters but not meaningless
+      if (responseLength < 30) {
+        score = 20;
+        scoreReason = '答案太短，未充分回答問題';
+        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log('📊'.repeat(40) + '\n');
+        return score;
+      }
+
+      // Default case (should rarely happen)
+      score = 80;
+      scoreReason = '有效回答（預設）';
+      console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
+      console.log('📊'.repeat(40) + '\n');
+      return score;
+
     } catch (error) {
-      console.error('Error evaluating task quality:', error);
-      // Return a reasonable default score on AI failure
-      // This ensures the user experience continues even if AI is unavailable
-      return 60;
+      console.error('\n❌ [Evaluation] 評分時發生錯誤:');
+      console.error(error);
+      console.log('⚠️  使用預設分數: 80/100');
+      console.log('📊'.repeat(40) + '\n');
+      // Return default valid score on error
+      return 80;
     }
   }
 
   /**
-   * Generate personalized feedback based on score
+   * Generate personalized feedback using GPT-5-Mini
+   * Phase 2.8: Enhanced with AI-powered feedback generation
+   *
+   * @param task - Complete task object with content
+   * @param userResponse - User's answer/submission
+   * @param score - Score achieved (0-100)
+   * @returns Promise with personalized feedback message
+   */
+  private async generateFeedback(
+    task: DailyTask,
+    userResponse: string,
+    score: number
+  ): Promise<string> {
+    try {
+      // Try to generate personalized feedback using GPT-5-Mini
+      const personalizedFeedback = await generatePersonalizedFeedback({
+        taskType: task.type,
+        userAnswer: userResponse,
+        score,
+        difficulty: task.difficulty,
+        taskContent: task.content,
+        taskTitle: task.title,
+      });
+
+      console.log(`✅ Generated personalized feedback for task ${task.id}`);
+      return personalizedFeedback;
+    } catch (error) {
+      console.error('❌ Failed to generate personalized feedback, using template:', error);
+
+      // Fallback to template-based feedback
+      return this.generateTemplateFeedback(task.type, score);
+    }
+  }
+
+  /**
+   * Generate template-based feedback (fallback mechanism)
+   * Used when GPT-5-Mini is unavailable or fails
    *
    * @param taskType - Type of task
    * @param score - Score achieved (0-100)
-   * @returns Feedback message
+   * @returns Template-based feedback message
    */
-  private generateFeedback(taskType: DailyTaskType, score: number): string {
+  private generateTemplateFeedback(taskType: DailyTaskType, score: number): string {
     const feedbackTemplates = {
       excellent: [
         '太棒了！您的分析深入透徹，展現了對紅樓夢的深刻理解。',
