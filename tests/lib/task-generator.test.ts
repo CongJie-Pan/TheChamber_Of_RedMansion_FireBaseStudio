@@ -726,12 +726,14 @@ describe('TaskGenerator', () => {
       testLogger.log('Testing POETRY attribute rewards');
 
       const userId = 'poetry_attr_user';
-      const date = '2025-01-15';
+      const userLevel = 3;
 
       // Generate many tasks to ensure we get POETRY
+      // Note: Each call generates 2 tasks (from config), so 50 iterations = 100 tasks
+      // With 20% weight, we expect ~20 POETRY tasks
       const allTasks: DailyTask[] = [];
-      for (let i = 0; i < 10; i++) {
-        const tasks = await generator.generateTasksForUser(userId, 3, `2025-01-${15 + i}`);
+      for (let i = 0; i < 50; i++) {
+        const tasks = await generator.generateTasksForUser(userId, userLevel, `2025-01-${15 + Math.floor(i / 3)}`);
         allTasks.push(...tasks);
       }
 
@@ -834,12 +836,14 @@ describe('TaskGenerator', () => {
       testLogger.log('Testing COMMENTARY_DECODE attribute rewards');
 
       const userId = 'commentary_attr_user';
-      const date = '2025-01-15';
+      const userLevel = 6;
 
       // Generate many tasks to ensure we get COMMENTARY_DECODE
+      // Note: Each call generates 2 tasks (from config), so 50 iterations = 100 tasks
+      // With 15% weight (lowest), we expect ~15 COMMENTARY_DECODE tasks
       const allTasks: DailyTask[] = [];
-      for (let i = 0; i < 10; i++) {
-        const tasks = await generator.generateTasksForUser(userId, 6, `2025-01-${15 + i}`);
+      for (let i = 0; i < 50; i++) {
+        const tasks = await generator.generateTasksForUser(userId, userLevel, `2025-01-${15 + Math.floor(i / 3)}`);
         allTasks.push(...tasks);
       }
 
