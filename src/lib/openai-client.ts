@@ -126,6 +126,127 @@ export interface CompletionParams {
   input: string;
   temperature?: number;
   max_tokens?: number;
+  // GPT-5-mini specific parameters
+  verbosity?: 'low' | 'medium' | 'high';
+  reasoning_effort?: 'minimal' | 'low' | 'medium' | 'high';
+}
+
+const OPTIONAL_SAMPLING_KEYS = [
+  'temperature',
+  'top_p',
+  'presence_penalty',
+  'frequency_penalty',
+  'reasoning_effort',
+  'verbosity',
+] as const;
+
+interface BuildChatParamsOptions {
+  stripOptionalParams?: boolean;
+}
+
+function usesResponsesAPI(model: string): boolean {
+  const normalized = model.toLowerCase();
+  return (
+    normalized.startsWith('gpt-5') ||
+    normalized.startsWith('o4') ||
+    normalized.startsWith('o3')
+  );
+}
+
+function requiresMaxCompletionTokens(model: string): boolean {
+  const normalized = model.toLowerCase();
+  return (
+    normalized.startsWith('gpt-5') ||
+    normalized.startsWith('gpt-4o') ||
+    normalized.startsWith('gpt-4.1') ||
+    normalized.startsWith('o3') ||
+    normalized.startsWith('o4') ||
+    normalized.includes('omni')
+  );
+}
+
+function enforcesDefaultTemperature(model: string): boolean {
+  const normalized = model.toLowerCase();
+  return (
+    normalized.startsWith('gpt-5') ||
+    normalized.startsWith('gpt-4.1') ||
+    normalized.startsWith('gpt-4o') ||
+    normalized.startsWith('o3') ||
+    normalized.startsWith('o4') ||
+    normalized.includes('omni')
+  );
+}
+
+function buildChatCompletionParams(
+  params: CompletionParams,
+  model: string,
+  options: BuildChatParamsOptions = {}
+): OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming {
+  const payload: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: params.input,
+      },
+    ],
+  };
+
+  const allowCustomTemperature =
+    params.temperature !== undefined &&
+    !options.stripOptionalParams &&
+    !enforcesDefaultTemperature(model);
+
+  if (allowCustomTemperature) {
+    payload.temperature = params.temperature;
+  }
+
+  if (params.max_tokens !== undefined) {
+    if (requiresMaxCompletionTokens(model)) {
+      payload.max_completion_tokens = params.max_tokens;
+    } else {
+      payload.max_tokens = params.max_tokens;
+    }
+  }
+
+  // Add GPT-5-mini specific parameters if not stripping optional params
+  if (!options.stripOptionalParams) {
+    if (params.verbosity !== undefined) {
+      (payload as any).verbosity = params.verbosity;
+    }
+    if (params.reasoning_effort !== undefined) {
+      (payload as any).reasoning_effort = params.reasoning_effort;
+    }
+  }
+
+  if (options.stripOptionalParams) {
+    OPTIONAL_SAMPLING_KEYS.forEach((key) => {
+      if (key in payload) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete (payload as Record<string, unknown>)[key];
+      }
+    });
+  }
+
+  return payload;
+}
+
+function isParameterCompatibilityError(error: unknown): boolean {
+  const err = error as {
+    status?: number;
+    error?: { type?: string; code?: string; message?: string; param?: string };
+    message?: string;
+  };
+
+  if (err?.status === 400 && err.error?.type === 'invalid_request_error') {
+    const code = err.error.code || '';
+    if (code === 'unsupported_parameter' || code === 'unsupported_value') {
+      return true;
+    }
+  }
+
+  const message = err?.message || err?.error?.message || '';
+  return /Unsupported (parameter|value)/i.test(message);
 }
 
 /**
@@ -140,14 +261,76 @@ export async function generateCompletion(
 ): Promise<GPT5MiniResponse> {
   const client = getOpenAIClient();
   const startTime = Date.now();
+  const model = (params.model || OPENAI_CONFIG.defaultModel).trim();
+  const responsesApi = usesResponsesAPI(model);
+  const defaultTemperatureRequired = enforcesDefaultTemperature(model);
+  if (params.temperature !== undefined && defaultTemperatureRequired) {
+    console.warn(
+      `⚠️ [OpenAI Client] Model ${model} enforces default temperature. Ignoring custom value ${params.temperature}.`
+    );
+  }
+
+  const basePayload = responsesApi
+    ? null
+    : buildChatCompletionParams(params, model);
+  const displayTemperature = (() => {
+    if (params.temperature === undefined) {
+      return 'default (1.0)';
+    }
+    return defaultTemperatureRequired
+      ? `${params.temperature} (ignored → default 1.0)`
+      : params.temperature;
+  })();
+
+  const executeChatCompletion = async (
+    payload: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> => {
+    return client.chat.completions.create(payload);
+  };
+  const executeResponsesCompletion = async (): Promise<any> => {
+    const responsePayload: Parameters<typeof client.responses.create>[0] = {
+      model,
+      input: [
+        {
+          role: 'user',
+          content: params.input,
+        },
+      ],
+      max_output_tokens: params.max_tokens ?? 600,
+    };
+
+    const allowCustomTemperature =
+      params.temperature !== undefined && !defaultTemperatureRequired;
+
+    if (allowCustomTemperature) {
+      (responsePayload as any).temperature = params.temperature;
+    }
+
+    return client.responses.create(responsePayload);
+  };
+
+  const performChatCompletion = async (): Promise<OpenAI.Chat.Completions.ChatCompletion> => {
+    try {
+      return await executeChatCompletion(basePayload!);
+    } catch (error) {
+      if (isParameterCompatibilityError(error)) {
+        console.warn('⚠️ [OpenAI Client] Retrying without optional sampling parameters...');
+        const strippedPayload = buildChatCompletionParams(params, model, {
+          stripOptionalParams: true,
+        });
+        return await executeChatCompletion(strippedPayload);
+      }
+      throw error;
+    }
+  };
 
   try {
     // 📤 記錄請求詳情
     console.log('\n' + '='.repeat(80));
     console.log('🤖 [GPT-5-Mini] 發送請求');
     console.log('='.repeat(80));
-    console.log(`📋 模型: ${params.model || OPENAI_CONFIG.defaultModel}`);
-    console.log(`🌡️  溫度: ${params.temperature ?? 'default (1.0)'}`);
+    console.log(`📋 模型: ${model}`);
+    console.log(`🌡️  溫度: ${displayTemperature}`);
     console.log(`📏 最大 Tokens: ${params.max_tokens ?? 'default'}`);
     console.log(`⏰ 請求時間: ${new Date().toLocaleString('zh-TW')}`);
     console.log('\n📝 輸入 Prompt (前500字):');
@@ -157,37 +340,63 @@ export async function generateCompletion(
       console.log(`\n... (還有 ${params.input.length - 500} 個字元，總長度: ${params.input.length})`);
     }
     console.log('-'.repeat(80));
-
-    // Use the correct OpenAI Chat Completions API
-    const response = await client.chat.completions.create({
-      model: params.model || OPENAI_CONFIG.defaultModel, // Use gpt-5-mini as default
-      messages: [
-        {
-          role: 'user',
-          content: params.input,
-        },
-      ],
-      // Optional parameters
-      ...(params.temperature !== undefined && { temperature: params.temperature }),
-      ...(params.max_tokens !== undefined && { max_tokens: params.max_tokens }),
-    });
-
-    // Extract response content from the correct structure
-    const content = response.choices[0]?.message?.content || '';
+    let content = '';
+    let responseModel = model;
+    let usage: GPT5MiniResponse['usage'] | undefined;
     const duration = Date.now() - startTime;
 
-    // 📥 記錄回應詳情
+    if (responsesApi) {
+      const response = await executeResponsesCompletion();
+      responseModel = response?.model || model;
+      content = extractResponsesContent(response);
+      usage = normalizeResponsesUsage(response?.usage);
+
+      if (process.env.DEBUG_OPENAI === 'true') {
+        console.log('🔍 [DEBUG] Full Response Structure:', JSON.stringify(response, null, 2));
+      }
+    } else {
+      const response = await performChatCompletion();
+      const choice = response.choices[0];
+
+      if (choice?.message?.refusal) {
+        console.warn('⚠️ [GPT-5-mini] Model refused to respond:', choice.message.refusal);
+        return {
+          output_text: "感謝您的作答。請提供更具體的內容，以便獲得詳細的評價。",
+          model: response.model,
+          usage: response.usage,
+        };
+      }
+
+      content =
+        choice?.message?.content ||
+        choice?.text ||
+        choice?.message?.text ||
+        '';
+      usage = response.usage;
+      responseModel = response.model;
+
+      if (process.env.DEBUG_OPENAI === 'true') {
+        console.log('🔍 [DEBUG] Full Response Structure:', JSON.stringify(response, null, 2));
+        console.log('🔍 [DEBUG] Choice Details:', {
+          finishReason: choice?.finish_reason,
+          hasContent: !!content,
+          contentLength: content?.length || 0,
+          messageKeys: Object.keys(choice?.message || {}),
+        });
+      }
+    }
+
     console.log('\n✅ [GPT-5-Mini] 收到回應');
     console.log('='.repeat(80));
     console.log(`⏱️  執行時間: ${duration}ms`);
-    console.log(`🎯 實際模型: ${response.model}`);
+    console.log(`🎯 實際模型: ${responseModel}`);
     console.log(`⏰ 完成時間: ${new Date().toLocaleString('zh-TW')}`);
 
-    if (response.usage) {
+    if (usage) {
       console.log('\n📊 Token 使用量:');
-      console.log(`   • 輸入 Tokens: ${response.usage.prompt_tokens}`);
-      console.log(`   • 輸出 Tokens: ${response.usage.completion_tokens}`);
-      console.log(`   • 總計 Tokens: ${response.usage.total_tokens}`);
+      console.log(`   • 輸入 Tokens: ${usage.prompt_tokens}`);
+      console.log(`   • 輸出 Tokens: ${usage.completion_tokens}`);
+      console.log(`   • 總計 Tokens: ${usage.total_tokens}`);
     }
 
     console.log('\n💬 GPT-5-Mini 完整回應內容:');
@@ -196,10 +405,14 @@ export async function generateCompletion(
     console.log('-'.repeat(80));
     console.log('='.repeat(80) + '\n');
 
+    if (!content && usage?.completion_tokens && usage.completion_tokens > 0) {
+      console.warn('⚠️ [GPT-5-mini] Empty content despite', usage.completion_tokens, 'completion tokens used');
+    }
+
     return {
       output_text: content,
-      model: response.model,
-      usage: response.usage,
+      model: responseModel,
+      usage,
     };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -275,3 +488,49 @@ export const OPENAI_CONSTANTS = {
 
 // Export the client instance (for advanced use cases)
 export { openaiClient };
+
+function extractResponsesContent(response: any): string {
+  if (!response) {
+    return '';
+  }
+
+  if (Array.isArray((response as any).output_text) && (response as any).output_text.length > 0) {
+    return (response as any).output_text.join('\n');
+  }
+
+  const segments = (response as any).output;
+  if (!Array.isArray(segments)) {
+    return '';
+  }
+
+  const texts: string[] = [];
+  for (const segment of segments) {
+    const contents = segment?.content;
+    if (!Array.isArray(contents)) continue;
+    for (const chunk of contents) {
+      if (typeof chunk?.text === 'string') {
+        texts.push(chunk.text);
+      } else if (Array.isArray(chunk?.content)) {
+        chunk.content.forEach((nested: any) => {
+          if (typeof nested?.text === 'string') {
+            texts.push(nested.text);
+          }
+        });
+      }
+    }
+  }
+
+  return texts.join('\n').trim();
+}
+
+function normalizeResponsesUsage(usage: any): GPT5MiniResponse['usage'] | undefined {
+  if (!usage) return undefined;
+  const promptTokens = usage.input_tokens ?? usage.prompt_tokens;
+  const completionTokens = usage.output_tokens ?? usage.completion_tokens;
+  const totalTokens = usage.total_tokens ?? (promptTokens || 0) + (completionTokens || 0);
+  return {
+    prompt_tokens: promptTokens ?? 0,
+    completion_tokens: completionTokens ?? 0,
+    total_tokens: totalTokens ?? 0,
+  };
+}

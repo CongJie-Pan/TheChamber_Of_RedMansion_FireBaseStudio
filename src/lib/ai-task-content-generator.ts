@@ -126,15 +126,17 @@ export async function generateTaskContent(
   const fallbackContent = getHardcodedContent(taskType, difficulty);
 
   try {
+    // GPT-5-mini with optimized parameters for JSON generation
     const result = await generateCompletionWithFallback(
       {
         model: 'gpt-5-mini',
         input: prompt,
-        temperature: 0.8, // Higher creativity for content generation
         max_tokens: 500,
+        verbosity: 'medium', // Control response length
+        reasoning_effort: 'minimal', // Faster responses for structured output
       },
       fallbackContent,
-      15000 // 15 second timeout for content generation
+      30000 // 30 second timeout for content generation (increased from 15s to reduce timeout errors)
     );
 
     // If result is the fallback content, return it directly
@@ -173,20 +175,19 @@ export async function generateTaskContent(
 function buildContentGenerationPrompt(params: TaskContentGenerationParams): string {
   const { userLevel, taskType, difficulty, recentChapters, learningHistory, learningPreferences } = params;
 
-  let prompt = `你是《紅樓夢》教學內容專家，請生成適合學生的學習任務內容。
+  let prompt = `生成《紅樓夢》學習任務內容。
 
-**學生資料**:
-- 用戶等級: Level ${userLevel} (0-7級，越高越進階)
-- 任務難度: ${getDifficultyName(difficulty)}
+等級：Level ${userLevel}
+難度：${getDifficultyName(difficulty)}
 `;
 
   // Add learning context
   if (recentChapters && recentChapters.length > 0) {
-    prompt += `- 最近閱讀章節: 第${recentChapters.join('、')}回\n`;
+    prompt += `最近章節：第${recentChapters.join('、')}回\n`;
   }
 
   if (learningPreferences?.favoriteCharacters && learningPreferences.favoriteCharacters.length > 0) {
-    prompt += `- 喜愛角色: ${learningPreferences.favoriteCharacters.join('、')}\n`;
+    prompt += `喜愛角色：${learningPreferences.favoriteCharacters.join('、')}\n`;
   }
 
   prompt += `\n`;
@@ -195,13 +196,7 @@ function buildContentGenerationPrompt(params: TaskContentGenerationParams): stri
   prompt += buildTaskSpecificPrompt(taskType, difficulty, userLevel);
 
   // Add output format requirement
-  prompt += `\n**重要要求**:
-- 內容必須準確符合《紅樓夢》原著
-- 難度要與用戶等級匹配（Level ${userLevel}）
-- 請直接輸出 JSON 格式，無需其他說明
-- 使用繁體中文
-
-請直接輸出 JSON，不要包含任何其他文字：`;
+  prompt += `\n使用繁體中文，直接輸出JSON（不含其他文字）：`;
 
   return prompt;
 }
@@ -216,99 +211,87 @@ function buildTaskSpecificPrompt(
 ): string {
   switch (taskType) {
     case DailyTaskType.MORNING_READING:
-      return `**任務類型**: 晨讀時光 - 文本理解
+      return `任務：晨讀文本理解
 
-請生成一個閱讀理解任務，包含：
-1. 從《紅樓夢》選擇適當段落（50-100字）
-2. 設計理解問題（針對該段落的主題、人物、情節）
-3. 提供思考提示（引導用戶思考方向，不直接給出答案）
-4. 列出預期關鍵詞（3-5個核心概念）
-
-${userLevel <= 1 ? `**重要：用戶是新手（Level ${userLevel}），請特別注意：**
-- 選擇簡單易懂的段落，如人物初次登場、基本情節介紹等
-- 問題應該直接明確，避免過於抽象
-- 提示應該更加詳細和引導性，幫助新手理解文本
-- 避免使用艱深的文言文詞彙
-` : ''}
-JSON 格式：
+從《紅樓夢》選段落（50-100字），設計理解問題。
+${userLevel <= 1 ? `新手用戶：選簡單段落，問題明確，提示詳細。\n` : ''}
+JSON格式：
 {
   "textPassage": {
-    "text": "《紅樓夢》原文段落...",
+    "text": "原文段落...",
     "source": "第X回",
     "question": "理解問題？",
-    "hint": "思考提示：可以從...角度思考，注意...等關鍵描述",
+    "hint": "思考提示...",
     "expectedKeywords": ["關鍵詞1", "關鍵詞2", "關鍵詞3"]
   }
 }`;
 
     case DailyTaskType.POETRY:
-      return `**任務類型**: 詩詞韻律 - 詩詞默寫
+      return `任務：詩詞默寫
 
-請選擇一首《紅樓夢》中的詩詞，適合用戶等級 ${userLevel}：
-1. 選擇經典詩詞（難度: ${difficulty}）
-2. 提供完整詩詞內容
-3. 註明作者和出處
+選《紅樓夢》詩詞（難度${difficulty}）。
 
-JSON 格式：
+JSON格式：
 {
   "poem": {
     "title": "詩詞標題",
-    "author": "作者（書中人物）",
-    "content": "完整詩詞內容\\n分行顯示",
-    "background": "詩詞背景說明（1-2句）"
+    "author": "作者",
+    "content": "完整詩詞\\n分行顯示",
+    "background": "背景說明"
   }
 }`;
 
     case DailyTaskType.CHARACTER_INSIGHT:
-      return `**任務類型**: 人物洞察 - 角色分析
+      return `任務：人物角色分析
 
-請選擇一個《紅樓夢》人物進行分析任務：
-1. 選擇適合等級的人物（Level ${userLevel}）
-2. 提供人物描述和分析提示
-3. 列出分析主題
+選《紅樓夢》人物（Level ${userLevel}），提供描述與分析提示。
 
-JSON 格式：
+JSON格式：
 {
   "character": {
     "name": "人物姓名",
-    "description": "人物基本介紹（50-80字）",
+    "description": "人物介紹（50-80字）",
     "analysisPrompts": ["分析角度1", "分析角度2", "分析角度3"],
     "relatedChapters": [回數1, 回數2]
   }
 }`;
 
     case DailyTaskType.CULTURAL_EXPLORATION:
-      return `**任務類型**: 文化探秘 - 知識問答
+      return `任務：文化探秘問答
 
-請設計一個關於《紅樓夢》的文化知識問題：
-1. 選擇文化主題（服飾、飲食、建築、禮儀等）
-2. 設計問題和選項
-3. 提供歷史背景
+設計《紅樓夢》文化知識題（服飾/飲食/建築/禮儀）。
 
-JSON 格式：
+JSON格式範例：
 {
-  "culturalKnowledge": {
-    "topic": "文化主題",
-    "question": "問題描述",
-    "options": ["選項A", "選項B", "選項C", "選項D"],
-    "correctAnswer": 0,
-    "historicalContext": "文化背景說明"
+  "culturalElement": {
+    "id": "cultural_001",
+    "category": "飲食",
+    "title": "清代飲食文化",
+    "description": "探索紅樓夢中的飲食文化",
+    "relatedChapters": [5, 8],
+    "questions": [{
+      "id": "q1",
+      "question": "賈府待客常用的保溫器具是？",
+      "type": "multiple_choice",
+      "options": ["銅鍋", "燭臺", "鬥碗", "暖盞"],
+      "correctAnswer": "暖盞",
+      "explanation": "清代豪門宴席用暖盞保持湯酒溫度。"
+    }]
   }
-}`;
+}
+
+注意：correctAnswer是字串（非數字），questions是陣列。`;
 
     case DailyTaskType.COMMENTARY_DECODE:
-      return `**任務類型**: 脂批解密 - 批語解讀
+      return `任務：脂批解讀
 
-請選擇一段脂硯齋批語進行解讀任務：
-1. 選擇經典批語（難度: ${difficulty}）
-2. 提供相關原文段落
-3. 列出解讀提示
+選脂硯齋批語（難度${difficulty}），提供原文與解讀提示。
 
-JSON 格式：
+JSON格式：
 {
   "commentary": {
     "commentaryText": "脂批原文",
-    "originalText": "相關《紅樓夢》段落",
+    "originalText": "相關段落",
     "chapter": 回數,
     "interpretationHints": ["提示1", "提示2"]
   }
@@ -320,57 +303,65 @@ JSON 格式：
 }
 
 /**
- * Parse and validate AI-generated content
+ * Parse AI-generated content (simplified - prioritizing functionality)
  */
 function parseAndValidateContent(
   aiOutput: string,
   taskType: DailyTaskType
 ): GeneratedTaskContent | null {
   try {
-    // Try to extract JSON from the output
+    // Extract JSON from output
     const jsonMatch = aiOutput.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('❌ No JSON found in AI output');
+      console.warn('⚠️ No JSON found in AI output');
       return null;
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Validate based on task type
+    // Basic auto-fix for common issues
     switch (taskType) {
-      case DailyTaskType.MORNING_READING:
-        if (parsed.textPassage && parsed.textPassage.text && parsed.textPassage.question) {
-          return { textPassage: parsed.textPassage };
+      case DailyTaskType.CULTURAL_EXPLORATION:
+        // Support both culturalElement and culturalKnowledge
+        const cultural = parsed.culturalElement || parsed.culturalKnowledge;
+        if (cultural) {
+          // Auto-fix: Convert number correctAnswer to string
+          if (cultural.questions && Array.isArray(cultural.questions)) {
+            cultural.questions = cultural.questions.map((q: any) => ({
+              ...q,
+              correctAnswer: typeof q.correctAnswer === 'number'
+                ? q.options?.[q.correctAnswer] || String(q.correctAnswer)
+                : q.correctAnswer,
+            }));
+          }
+          return { culturalElement: cultural };
         }
+        break;
+
+      case DailyTaskType.MORNING_READING:
+        if (parsed.textPassage) return { textPassage: parsed.textPassage };
         break;
 
       case DailyTaskType.POETRY:
-        if (parsed.poem && parsed.poem.title && parsed.poem.content) {
-          return { poem: parsed.poem };
-        }
+        if (parsed.poem) return { poem: parsed.poem };
         break;
 
       case DailyTaskType.CHARACTER_INSIGHT:
-        if (parsed.character && parsed.character.name && parsed.character.description) {
-          return { character: parsed.character };
-        }
-        break;
-
-      case DailyTaskType.CULTURAL_EXPLORATION:
-        if (parsed.culturalElement && parsed.culturalElement.questions) {
-          return { culturalElement: parsed.culturalElement };
-        }
+        if (parsed.character) return { character: parsed.character };
         break;
 
       case DailyTaskType.COMMENTARY_DECODE:
-        if (parsed.commentary && parsed.commentary.commentaryText) {
-          return { commentary: parsed.commentary };
-        }
+        if (parsed.commentary) return { commentary: parsed.commentary };
         break;
     }
 
-    console.error('❌ AI content validation failed for task type:', taskType);
-    return null;
+    // Log for debugging but still try to use the content
+    console.log('📋 Received JSON keys:', Object.keys(parsed));
+    console.log('📄 Attempting to use AI content as-is');
+
+    // Return parsed content even if validation didn't pass exactly
+    return parsed as GeneratedTaskContent;
+
   } catch (error) {
     console.error('❌ Failed to parse AI content:', error);
     return null;

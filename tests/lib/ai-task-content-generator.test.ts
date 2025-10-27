@@ -22,8 +22,8 @@
  * @phase Phase 2.10 - GPT-5-Mini Integration Testing
  */
 
-// Shared mock function for responses.create (tracked across all OpenAI instances)
-const mockResponsesCreate = jest.fn().mockImplementation(async (params) => {
+// Shared mock function for chat.completions.create (tracked across all OpenAI instances)
+const mockChatCompletionsCreate = jest.fn().mockImplementation(async (params) => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 150));
 
@@ -123,8 +123,10 @@ jest.mock('openai', () => {
       }
 
       return {
-        responses: {
-          create: mockResponsesCreate, // Use shared mock function
+        chat: {
+          completions: {
+            create: mockChatCompletionsCreate, // Use shared mock function
+          },
         },
       };
     }),
@@ -148,6 +150,7 @@ import {
   clearContentCache,
 } from '@/lib/ai-task-content-generator';
 import { DailyTaskType, TaskDifficulty } from '@/lib/types/daily-task';
+import * as openaiClientModule from '@/lib/openai-client';
 
 describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -426,11 +429,11 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
 
       // Act - First call
       const firstResult = await generateTaskContent(params);
-      const firstCallCount = mockResponsesCreate.mock.calls.length;
+      const firstCallCount = mockChatCompletionsCreate.mock.calls.length;
 
       // Act - Second call with same parameters
       const secondResult = await generateTaskContent(params);
-      const secondCallCount = mockResponsesCreate.mock.calls.length;
+      const secondCallCount = mockChatCompletionsCreate.mock.calls.length;
 
       // Assert
       expect(firstResult).toEqual(secondResult); // Same content returned
@@ -515,11 +518,17 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
       // Arrange - Mock invalid JSON response
       const OpenAI = require('openai').default;
       OpenAI.mockImplementationOnce(() => ({
-        responses: {
-          create: jest.fn().mockResolvedValue({
-            output_text: 'Invalid JSON: { broken }',
-            model: 'gpt-5-mini',
-          }),
+        chat: {
+          completions: {
+            create: jest.fn().mockResolvedValue({
+              id: 'cmpl_invalid_json',
+              model: 'gpt-5-mini',
+              choices: [
+                { index: 0, message: { role: 'assistant', content: 'Invalid JSON: { broken }' } },
+              ],
+              usage: undefined,
+            }),
+          },
         },
       }));
 
@@ -551,15 +560,21 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
       // Arrange - Mock slow API response
       const OpenAI = require('openai').default;
       OpenAI.mockImplementationOnce(() => ({
-        responses: {
-          create: jest.fn().mockImplementation(() =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({
-                output_text: JSON.stringify({ textPassage: { text: 'Too slow' } }),
-                model: 'gpt-5-mini',
-              }), 16000) // 16 seconds (exceeds 15s timeout)
-            )
-          ),
+        chat: {
+          completions: {
+            create: jest.fn().mockImplementation(() =>
+              new Promise((resolve) =>
+                setTimeout(() => resolve({
+                  id: 'slow_call',
+                  model: 'gpt-5-mini',
+                  choices: [
+                    { index: 0, message: { role: 'assistant', content: JSON.stringify({ textPassage: { text: 'Too slow' } }) } },
+                  ],
+                  usage: undefined,
+                }), 16000) // 16 seconds (exceeds 15s timeout)
+              )
+            ),
+          },
         },
       }));
 
@@ -657,6 +672,43 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
             break;
         }
       }
+    });
+  });
+
+  describe('Parameter Safety Guards', () => {
+    it('should avoid overriding GPT-5 temperature when generating content', async () => {
+      // Arrange
+      const spy = jest.spyOn(openaiClientModule, 'generateCompletionWithFallback').mockResolvedValue({
+        output_text: JSON.stringify({
+          textPassage: {
+            text: 'Mock passage',
+            source: '第一回',
+            question: 'Mock question?',
+            hint: 'Think about characters',
+            expectedKeywords: ['賈母'],
+          },
+        }),
+        model: 'gpt-5-mini',
+      } as any);
+
+      const params: TaskContentGenerationParams = {
+        userLevel: 2,
+        taskType: DailyTaskType.MORNING_READING,
+        difficulty: TaskDifficulty.EASY,
+      };
+
+      // Act
+      const result = await generateTaskContent(params);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(spy).toHaveBeenCalled();
+      const callArgs = spy.mock.calls[0][0];
+      expect(callArgs.model).toBe('gpt-5-mini');
+      expect(callArgs.temperature).toBeUndefined();
+      expect(callArgs.max_tokens).toBe(500);
+
+      spy.mockRestore();
     });
   });
 });

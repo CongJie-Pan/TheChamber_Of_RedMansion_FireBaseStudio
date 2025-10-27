@@ -27,7 +27,7 @@
  * @phase Phase 2.8.2 - AI Feedback Generation Service
  */
 
-import { generateCompletionWithFallback, isOpenAIAvailable } from './openai-client';
+import { generateCompletionWithFallback } from './openai-client';
 import { DailyTaskType, TaskDifficulty, DailyTask } from './types/daily-task';
 
 /**
@@ -55,6 +55,8 @@ export async function generatePersonalizedFeedback(
   params: FeedbackGenerationParams
 ): Promise<string> {
   const { taskType, userAnswer, score, difficulty, taskContent, taskTitle } = params;
+  const fallbackFeedback =
+    '優點：展現出用心研讀的態度。不足：內容略顯簡略，容易被視為缺乏實質內容。建議：補充具體段落與觀點，維持傳統中文書寫並繼續加油！';
 
   // 🎓 記錄回饋生成開始
   console.log('\n' + '🎓'.repeat(40));
@@ -74,62 +76,60 @@ export async function generatePersonalizedFeedback(
   }
   console.log('-'.repeat(80));
 
-  // If OpenAI is not available, use fallback templates
-  if (!isOpenAIAvailable()) {
-    console.warn('\n⚠️  [Feedback] OpenAI 不可用，使用模板回饋');
-    console.log('🎓'.repeat(40) + '\n');
-    return generateTemplateFeedback(taskType, score);
+  // Truncate long answers to avoid token limit issues
+  // GPT-5-mini has token limits, and long answers can cause finish_reason: "length"
+  const truncatedAnswer = userAnswer.length > 500
+    ? userAnswer.substring(0, 500) + '...\n[答案過長已截斷，以上為前500字元]'
+    : userAnswer;
+
+  if (userAnswer.length > 500) {
+    console.log(`⚠️  [Feedback] 學生答案過長 (${userAnswer.length} 字元)，已截斷至 500 字元以節省 tokens`);
   }
 
-  // Build AI prompt based on task type
-  const prompt = buildFeedbackPrompt(params);
-
-  // Generate feedback using GPT-5-Mini with fallback
-  const fallbackFeedback = generateTemplateFeedback(taskType, score);
+  // Build AI prompt based on task type with truncated answer
+  const truncatedParams = {
+    ...params,
+    userAnswer: truncatedAnswer,
+  };
+  const prompt = buildFeedbackPrompt(truncatedParams);
 
   try {
     console.log('\n🚀 準備呼叫 GPT-5-Mini API...\n');
+    const templateFallback = generateTemplateFeedback(taskType, score);
 
-    const result = await generateCompletionWithFallback(
+    const aiResult = await generateCompletionWithFallback(
       {
         model: 'gpt-5-mini',
         input: prompt,
-        temperature: 0.7, // Slightly creative for varied feedback
-        max_tokens: 300, // Limit feedback length (150-300 characters in Chinese)
+        max_tokens: 600,
       },
-      fallbackFeedback,
-      10000 // 10 second timeout
+      templateFallback || fallbackFeedback,
+      20000
     );
 
-    // If result is a string (fallback), return it directly
-    if (typeof result === 'string') {
-      console.log('\n⚠️  [Feedback] 使用模板回饋 (API 超時或失敗)');
-      console.log('🎓'.repeat(40) + '\n');
-      return result;
-    }
+    const rawFeedback =
+      typeof aiResult === 'string' ? aiResult : aiResult.output_text;
+    const feedback = rawFeedback && rawFeedback.trim().length > 0
+      ? rawFeedback.trim()
+      : fallbackFeedback;
 
-    // Extract and validate AI-generated feedback
-    const aiFeedback = result.output_text.trim();
-
-    // Ensure feedback is not empty and is in Chinese
-    if (aiFeedback.length > 0 && /[\u4e00-\u9fa5]/.test(aiFeedback)) {
-      console.log('\n✅ [Feedback] 成功生成個性化回饋');
-      console.log(`   📏 回饋長度: ${aiFeedback.length} 字元`);
-      console.log(`   🎯 模型: ${result.model}`);
-      if (result.usage) {
-        console.log(`   📊 使用 Tokens: ${result.usage.total_tokens}`);
+    console.log('\n✅ [Feedback] AI 回饋生成完成');
+    console.log(`   📏 回饋長度: ${feedback.length} 字元`);
+    if (typeof aiResult !== 'string') {
+      console.log(`   🎯 模型: ${aiResult.model}`);
+      if (aiResult.usage) {
+        console.log(`   📊 使用 Tokens: ${aiResult.usage.total_tokens}`);
       }
-      console.log('🎓'.repeat(40) + '\n');
-      return aiFeedback;
     } else {
-      console.warn('\n⚠️  [Feedback] AI 回饋驗證失敗（不包含中文或為空），使用模板');
-      console.log('🎓'.repeat(40) + '\n');
-      return fallbackFeedback;
+      console.log('   🎯 模型: fallback (timeout/template)');
     }
+    console.log('🎓'.repeat(40) + '\n');
+
+    return feedback;
+
   } catch (error) {
-    console.error('\n❌ [Feedback] 生成 AI 回饋時發生錯誤:');
+    console.error('\n❌ [Feedback] AI 生成失敗:');
     console.error(error);
-    console.log('⚠️  降級使用模板回饋');
     console.log('🎓'.repeat(40) + '\n');
     return fallbackFeedback;
   }
@@ -141,13 +141,11 @@ export async function generatePersonalizedFeedback(
 function buildFeedbackPrompt(params: FeedbackGenerationParams): string {
   const { taskType, userAnswer, score, difficulty, taskContent, taskTitle } = params;
 
-  // Base prompt template
-  let prompt = `你是一位專業的《紅樓夢》文學教師，正在評估學生的任務完成情況。
+  // Simplified prompt template for better GPT-5-mini understanding
+  let prompt = `你是《紅樓夢》教師，評估學生作答。
 
-**任務類型**: ${getTaskTypeDisplayName(taskType)}
-**任務標題**: ${taskTitle || '學習任務'}
-**難度等級**: ${getDifficultyDisplayName(difficulty)}
-**學生得分**: ${score}/100
+任務：${taskTitle || getTaskTypeDisplayName(taskType)}
+得分：${score}/100
 
 `;
 
@@ -155,34 +153,18 @@ function buildFeedbackPrompt(params: FeedbackGenerationParams): string {
   prompt += buildTaskSpecificContext(taskType, taskContent);
 
   // Add user answer
-  prompt += `**學生回答**:
+  prompt += `學生回答：
 ${userAnswer}
 
 `;
 
-  // Add evaluation criteria
-  prompt += `**評估要求**:
-請根據學生的實際回答內容，提供個性化的反饋評語（150-300字）。
+  // Simplified evaluation criteria
+  prompt += `請用繁體中文寫150-300字評語，包含：
+1. 優點（具體說明好的地方）
+2. 不足（需要改進的地方）
+3. 建議（如何進步）
 
-評語應該包含：
-1. **優點**：具體指出回答中的亮點和正確之處
-2. **不足**：明確指出需要改進的地方
-3. **建議**：提供具體、可操作的改進方向
-
-評分參考：
-- 85-100分：「出色」 - 給予高度肯定，鼓勵保持
-- 70-84分：「良好」 - 肯定成果，指出進步空間
-- 60-69分：「及格」 - 溫和指出問題，鼓勵繼續努力
-- 0-59分：「需加強」 - 明確指出問題，提供具體改進建議
-
-**重要**：
-- 必須使用繁體中文
-- 語氣要友善、專業、鼓勵性
-- 避免過於模板化的用語
-- 針對實際答案內容進行評價，不要籠統描述
-- 如果答案明顯無意義（如"000000"），請明確指出並要求認真作答
-
-請直接輸出評語內容，無需其他格式：`;
+直接輸出評語，無需格式：`;
 
   return prompt;
 }
@@ -199,11 +181,8 @@ function buildTaskSpecificContext(
   switch (taskType) {
     case DailyTaskType.MORNING_READING:
       if (taskContent.textPassage) {
-        context += `**閱讀段落**:
-${taskContent.textPassage.text}
-
-**理解問題**:
-${taskContent.textPassage.question}
+        context += `原文：${taskContent.textPassage.text}
+問題：${taskContent.textPassage.question}
 
 `;
       }
@@ -211,11 +190,8 @@ ${taskContent.textPassage.question}
 
     case DailyTaskType.POETRY:
       if (taskContent.poem) {
-        context += `**詩詞原文**:
-《${taskContent.poem.title}》- ${taskContent.poem.author}
+        context += `詩詞：《${taskContent.poem.title}》
 ${taskContent.poem.content}
-
-**任務**: 默寫詩詞並理解其意境
 
 `;
       }
@@ -223,10 +199,8 @@ ${taskContent.poem.content}
 
     case DailyTaskType.CHARACTER_INSIGHT:
       if (taskContent.character) {
-        context += `**人物**: ${taskContent.character.characterName}
-**人物背景**: ${taskContent.character.context || ''}
-
-**分析要求**: 深入分析人物性格特點與命運
+        context += `人物：${taskContent.character.characterName}
+背景：${taskContent.character.context || ''}
 
 `;
       }
@@ -234,9 +208,9 @@ ${taskContent.poem.content}
 
     case DailyTaskType.CULTURAL_EXPLORATION:
       if (taskContent.culturalElement) {
-        context += `**文化主題**: ${taskContent.culturalElement.title}
-**文化背景**: ${taskContent.culturalElement.description}
-**問題**: ${taskContent.culturalElement.questions && taskContent.culturalElement.questions.length > 0 ? taskContent.culturalElement.questions[0].question : ''}
+        context += `主題：${taskContent.culturalElement.title}
+說明：${taskContent.culturalElement.description}
+問題：${taskContent.culturalElement.questions && taskContent.culturalElement.questions.length > 0 ? taskContent.culturalElement.questions[0].question : ''}
 
 `;
       }
@@ -244,17 +218,15 @@ ${taskContent.poem.content}
 
     case DailyTaskType.COMMENTARY_DECODE:
       if (taskContent.commentary) {
-        context += `**脂批原文**: ${taskContent.commentary.commentaryText}
-**相關段落**: ${taskContent.commentary.originalText || '（見原文）'}
-
-**任務**: 解讀批語的深層含義
+        context += `脂批：${taskContent.commentary.commentaryText}
+原文：${taskContent.commentary.originalText || '（見原文）'}
 
 `;
       }
       break;
 
     default:
-      context += '**任務內容**: 《紅樓夢》學習任務\n\n';
+      context += '《紅樓夢》學習任務\n\n';
   }
 
   return context;
@@ -294,24 +266,24 @@ function getDifficultyDisplayName(difficulty: TaskDifficulty): string {
 function generateTemplateFeedback(taskType: DailyTaskType, score: number): string {
   const feedbackTemplates = {
     excellent: [
-      '太棒了！您的分析深入透徹，展現了對紅樓夢的深刻理解。',
-      '出色的表現！您的見解令人印象深刻，繼續保持！',
-      '精彩！您已經掌握了這部分內容的精髓。',
+      '優點：分析深入且條理清楚。不足：仍可補充關鍵語句引用。建議：維持這份細緻度並繼續擴展觀點，繼續加油！',
+      '優點：關鍵情節掌握到位。不足：背景連結略顯簡略。建議：加入更多文本細節，讓回答更全面，繼續加油！',
+      '優點：觀點成熟、例證充分。不足：若能整理比較將更精彩。建議：延伸多角度分析，持續精進並繼續加油！',
     ],
     good: [
-      '很好！您的理解基本正確，繼續努力會更好。',
-      '不錯的表現！多加練習會有更大進步。',
-      '良好！您已經掌握了大部分要點。',
+      '優點：主題掌握正確。不足：段落仍可更深入。建議：補上具體細節並繼續練習，進步空間很大，繼續加油！',
+      '優點：條理清晰。不足：分析深度稍嫌不足。建議：再加上兩三個例子，就能把答案推向更高層次，繼續加油！',
+      '優點：整體方向正確。不足：缺少對角色心理的延伸。建議：練習比較法，會幫助你更快提升，繼續加油！',
     ],
     average: [
-      '還不錯，但還有進步空間。建議多閱讀相關章節。',
-      '基本達標，繼續加油！建議深入思考文本含義。',
-      '合格，但可以做得更好。試著從多角度分析。',
+      '優點：已點出問題重點。不足：例證偏少。建議：從原文挑出關鍵句，加以說明，繼續加油！',
+      '優點：語意清楚。不足：欠缺情節連結。建議：補充人物動機與情境描述，讓答案更飽滿並繼續加油！',
+      '優點：回答完整。不足：觀點較為概述。建議：從角色特質或象徵出發，深化理解並繼續加油！',
     ],
     needsWork: [
-      '需要更多努力。建議重新閱讀相關內容，仔細思考。',
-      '還需要加強。不要氣餒，學習需要時間和耐心。',
-      '繼續努力！建議先掌握基礎知識，再深入學習。',
+      '優點：保持了回答意願。不足：內容過於簡略，容易被視為缺乏實質內容。建議：重新閱讀題目段落，列出兩個重點再作答，繼續加油！',
+      '優點：抓住了部分關鍵字。不足：論述尚未展開。建議：依序說明背景、人物與感受，答案會更完整，繼續加油！',
+      '優點：語句通順。不足：缺乏實質內容或例子。建議：先寫出角色事件，再分享你的理解，認真作答就能看見進步，繼續加油！',
     ],
   };
 

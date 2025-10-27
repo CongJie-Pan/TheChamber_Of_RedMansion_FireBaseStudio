@@ -270,6 +270,13 @@ export class UserLevelService {
       } as UserProfile;
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // Preserve FirebaseError code for upstream handling (e.g., permission-denied)
+      const e: any = error;
+      if (e && typeof e.code === 'string') {
+        const enriched = new Error(e.message || 'Failed to fetch user profile.') as any;
+        enriched.code = e.code;
+        throw enriched;
+      }
       throw new Error('Failed to fetch user profile. Please try again.');
     }
   }

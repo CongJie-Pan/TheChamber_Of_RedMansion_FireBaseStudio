@@ -19,6 +19,8 @@
  * @phase Phase 2.10 - GPT-5-Mini Integration Testing
  */
 
+const mockChatCompletionCreate = jest.fn();
+
 // Mock OpenAI SDK to avoid real API calls
 jest.mock('openai', () => {
   return {
@@ -30,23 +32,7 @@ jest.mock('openai', () => {
       return {
         chat: {
           completions: {
-            create: jest.fn().mockImplementation(async (params) => {
-              // Simulate API delay
-              await new Promise(resolve => setTimeout(resolve, 50));
-
-              return {
-                id: 'cmpl_mock_123',
-                model: params.model || 'gpt-5-mini',
-                choices: [
-                  { index: 0, message: { role: 'assistant', content: 'Mock AI response from GPT-5-Mini' } },
-                ],
-                usage: {
-                  prompt_tokens: 10,
-                  completion_tokens: 20,
-                  total_tokens: 30,
-                },
-              } as any;
-            }),
+            create: mockChatCompletionCreate,
           },
         },
       } as any;
@@ -85,11 +71,29 @@ describe('OpenAI Client Tests (GPT-5-Mini Integration)', () => {
     jest.clearAllMocks();
     jest.resetModules(); // Reset module cache to reinitialize client
 
+    mockChatCompletionCreate.mockReset();
+    mockChatCompletionCreate.mockImplementation(async (params) => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      return {
+        id: 'cmpl_mock_123',
+        model: params.model || 'gpt-5-mini',
+        choices: [
+          { index: 0, message: { role: 'assistant', content: 'Mock AI response from GPT-5-Mini' } },
+        ],
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 20,
+          total_tokens: 30,
+        },
+      } as any;
+    });
+
     // Set mock API key for tests
     process.env.OPENAI_API_KEY = 'mock-test-api-key';
 
     // Force server-like environment so client initializes on module load
-    ;(global as any).window = undefined;
+    delete (global as any).window;
 
     // Load client after env set
     loadClient();
@@ -190,6 +194,63 @@ describe('OpenAI Client Tests (GPT-5-Mini Integration)', () => {
       })).rejects.toThrow();
     });
 
+    it('should convert GPT-5 parameters to supported keys automatically', async () => {
+      // Act
+      const response = await generateCompletion({
+        model: 'gpt-5-mini',
+        input: 'Convert parameters',
+        temperature: 0.8,
+        max_tokens: 256,
+      });
+
+      // Assert
+      expect(response.output_text).toBeDefined();
+      const callArgs = mockChatCompletionCreate.mock.calls[0][0];
+      expect(callArgs.temperature).toBeUndefined();
+      expect(callArgs.max_completion_tokens).toBe(256);
+      expect(callArgs).not.toHaveProperty('max_tokens');
+    });
+
+    it('should retry once without unsupported parameters when API rejects them', async () => {
+      // Arrange
+      const unsupportedError: any = new Error('Unsupported parameter: temperature');
+      unsupportedError.status = 400;
+      unsupportedError.error = {
+        type: 'invalid_request_error',
+        code: 'unsupported_value',
+        param: 'temperature',
+      };
+
+      mockChatCompletionCreate
+        .mockRejectedValueOnce(unsupportedError)
+        .mockResolvedValueOnce({
+          id: 'cmpl_retry',
+          model: 'gpt-5-mini',
+          choices: [
+            { index: 0, message: { role: 'assistant', content: 'Recovered after retry' } },
+          ],
+          usage: {
+            prompt_tokens: 12,
+            completion_tokens: 6,
+            total_tokens: 18,
+          },
+        });
+
+      // Act
+      const result = await generateCompletion({
+        input: 'Trigger retry',
+        temperature: 0.7,
+        max_tokens: 128,
+      });
+
+      // Assert
+      expect(result.output_text).toBe('Recovered after retry');
+      expect(mockChatCompletionCreate).toHaveBeenCalledTimes(2);
+      const secondCallArgs = mockChatCompletionCreate.mock.calls[1][0];
+      expect(secondCallArgs.temperature).toBeUndefined();
+      expect(secondCallArgs.max_completion_tokens).toBe(128);
+    });
+
     /**
      * Test Case 6: Should retry on transient failures
      *
@@ -230,15 +291,21 @@ describe('OpenAI Client Tests (GPT-5-Mini Integration)', () => {
       const OpenAI = require('openai').default;
 
       OpenAI.mockImplementationOnce(() => ({
-        responses: {
-          create: jest.fn().mockImplementation(() =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({
-                output_text: 'Too slow',
-                model: 'gpt-5-mini',
-              }), 2000) // 2 second delay
-            )
-          ),
+        chat: {
+          completions: {
+            create: jest.fn().mockImplementation(() =>
+              new Promise((resolve) =>
+                setTimeout(() => resolve({
+                  id: 'cmpl_timeout',
+                  model: 'gpt-5-mini',
+                  choices: [
+                    { index: 0, message: { role: 'assistant', content: 'Too slow' } },
+                  ],
+                  usage: undefined,
+                }), 2000) // 2 second delay
+              )
+            ),
+          },
         },
       }));
 

@@ -75,7 +75,8 @@
       "Bash(git stash:*)",
       "Bash(if [ -f .env.local ])",
       "Bash(then grep -q \"OPENAI_API_KEY\" .env.local)",
-      "Bash(else echo \"❌ .env.local file does not exist\")"
+      "Bash(else echo \"❌ .env.local file does not exist\")",
+      "Bash(cat:*)"
     ]
   },
   "outputStyle": "default"

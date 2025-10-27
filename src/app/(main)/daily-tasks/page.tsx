@@ -60,6 +60,7 @@ import { useToast } from '@/hooks/use-toast';
 // Services
 import { dailyTaskService } from '@/lib/daily-task-service';
 import { userLevelService } from '@/lib/user-level-service';
+import { auth } from '@/lib/firebase';
 
 // Types
 import {
@@ -99,6 +100,7 @@ export default function DailyTasksPage() {
   const { t } = useLanguage();
   const { user, refreshUserProfile } = useAuth();
   const { toast } = useToast();
+  const llmOnly = process.env.NEXT_PUBLIC_LLM_ONLY_MODE === 'true';
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
@@ -144,7 +146,7 @@ export default function DailyTasksPage() {
   useEffect(() => {
     if (user) {
       // Check if user is a guest (anonymous user)
-      if (user.isAnonymous) {
+      if (!llmOnly && user.isAnonymous) {
         // Check if we've already reset tasks in this session
         const sessionKey = `guest-tasks-reset-${user.uid}`;
         const hasResetInSession = sessionStorage.getItem(sessionKey);
@@ -169,7 +171,7 @@ export default function DailyTasksPage() {
    * Deletes today's progress and regenerates tasks for testing
    */
   const resetTodayTasksForGuest = async () => {
-    if (!user || !user.isAnonymous) return;
+    if (!user || !user.isAnonymous || llmOnly) return;
 
     setIsLoading(true);
     setError(null);
@@ -206,6 +208,29 @@ export default function DailyTasksPage() {
     setError(null);
 
     try {
+      // LLM-only mode: skip Firestore and always fetch tasks via API
+      if (llmOnly) {
+        const token = await auth.currentUser?.getIdToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch('/api/daily-tasks/generate', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ userId: user.uid, userLevel: 2 }),
+        });
+        if (!resp.ok) {
+          const errJson = await resp.json().catch(() => ({}));
+          throw new Error(errJson?.error || `Failed to generate tasks: ${resp.status}`);
+        }
+        const data = await resp.json();
+        setTasks(data?.tasks || []);
+        setProgress(null);
+        setEphemeralMode(true);
+        setStats({ totalTasks: (data?.tasks || []).length, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
+        setIsLoading(false);
+        return;
+      }
+
       // Try to get existing progress first
       let dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
 
@@ -213,9 +238,12 @@ export default function DailyTasksPage() {
       if (!dailyProgress) {
         console.log('📝 No existing tasks found, generating new daily tasks via API...');
         try {
+          const token = await auth.currentUser?.getIdToken();
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
           const resp = await fetch('/api/daily-tasks/generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ userId: user.uid }),
           });
           if (!resp.ok) {
@@ -313,9 +341,12 @@ export default function DailyTasksPage() {
 
     try {
       // Submit task completion via server API to ensure GPT runs server-side
+      const token = await auth.currentUser?.getIdToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch('/api/daily-tasks/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ userId: user.uid, taskId, userResponse, task: selectedTask }),
       });
       if (!resp.ok) {
@@ -333,7 +364,7 @@ export default function DailyTasksPage() {
       setShowResultModal(true);
 
       // Reload progress only when not in ephemeral mode
-      if (!ephemeralMode) {
+      if (!ephemeralMode && !llmOnly) {
         await loadDailyTasks();
         // Refresh user profile so XP/等級在所有顯示處即時更新
         await refreshUserProfile();

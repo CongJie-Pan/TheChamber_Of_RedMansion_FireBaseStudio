@@ -21,6 +21,43 @@
  * @phase Phase 2.10 - GPT-5-Mini Integration Testing
  */
 
+const mockChatCompletionCreate = jest.fn().mockImplementation(async (params) => {
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const input = params.messages?.[0]?.content as string;
+
+  if (input.includes('0000000000')) {
+    return {
+      id: 'cmpl_nonsense',
+      model: params.model || 'gpt-5-mini',
+      choices: [
+        { index: 0, message: { role: 'assistant', content: '您提交的答案似乎缺乏實質內容（僅包含數字），請認真閱讀題目並提供有意義的回答。建議重新思考問題的核心要求。' } },
+      ],
+      usage: { prompt_tokens: 50, completion_tokens: 30, total_tokens: 80 },
+    };
+  }
+
+  if (input.includes('優秀') || input.includes('score: 95')) {
+    return {
+      id: 'cmpl_high_score',
+      model: params.model || 'gpt-5-mini',
+      choices: [
+        { index: 0, message: { role: 'assistant', content: '優點：您的回答準確抓住了《紅樓夢》中的核心概念，分析深入且富有洞察力。\n不足：可以進一步探討文化背景。\n建議：嘗試將文本與現代社會聯繫，加深理解。' } },
+      ],
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    };
+  }
+
+  return {
+    id: 'cmpl_default_feedback',
+    model: params.model || 'gpt-5-mini',
+    choices: [
+      { index: 0, message: { role: 'assistant', content: '基本達標，繼續加油！建議深入思考文本含義，並關注細節描寫。' } },
+    ],
+    usage: { prompt_tokens: 80, completion_tokens: 25, total_tokens: 105 },
+  };
+});
+
 // Mock OpenAI SDK before imports
 jest.mock('openai', () => {
   return {
@@ -30,39 +67,10 @@ jest.mock('openai', () => {
       }
 
       return {
-        responses: {
-          create: jest.fn().mockImplementation(async (params) => {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Mock different responses based on input
-            const input = params.input as string;
-
-            // Detect nonsense inputs
-            if (input.includes('0000000000')) {
-              return {
-                output_text: '您提交的答案似乎缺乏實質內容（僅包含數字），請認真閱讀題目並提供有意義的回答。建議重新思考問題的核心要求。',
-                model: params.model || 'gpt-5-mini',
-                usage: { prompt_tokens: 50, completion_tokens: 30, total_tokens: 80 },
-              };
-            }
-
-            // Detect high-quality answers
-            if (input.includes('優秀') || params.input.toString().includes('score: 95')) {
-              return {
-                output_text: '優點：您的回答準確抓住了《紅樓夢》中的核心概念，分析深入且富有洞察力。\n不足：可以進一步探討文化背景。\n建議：嘗試將文本與現代社會聯繫，加深理解。',
-                model: params.model || 'gpt-5-mini',
-                usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
-              };
-            }
-
-            // Default mock response
-            return {
-              output_text: '基本達標，繼續加油！建議深入思考文本含義，並關注細節描寫。',
-              model: params.model || 'gpt-5-mini',
-              usage: { prompt_tokens: 80, completion_tokens: 25, total_tokens: 105 },
-            };
-          }),
+        chat: {
+          completions: {
+            create: mockChatCompletionCreate,
+          },
         },
       };
     }),
@@ -75,6 +83,7 @@ import {
   FeedbackGenerationParams,
 } from '@/lib/ai-feedback-generator';
 import { DailyTaskType, TaskDifficulty } from '@/lib/types/daily-task';
+import * as openaiClientModule from '@/lib/openai-client';
 
 describe('AI Feedback Generator Tests (GPT-5-Mini Integration)', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -342,15 +351,21 @@ describe('AI Feedback Generator Tests (GPT-5-Mini Integration)', () => {
       // Arrange - Mock slow API response
       const OpenAI = require('openai').default;
       OpenAI.mockImplementationOnce(() => ({
-        responses: {
-          create: jest.fn().mockImplementation(() =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({
-                output_text: 'Delayed response',
-                model: 'gpt-5-mini',
-              }), 12000) // 12 seconds (exceeds 10s timeout)
-            )
-          ),
+        chat: {
+          completions: {
+            create: jest.fn().mockImplementation(() =>
+              new Promise((resolve) =>
+                setTimeout(() => resolve({
+                  id: 'cmpl_feedback_timeout',
+                  model: 'gpt-5-mini',
+                  choices: [
+                    { index: 0, message: { role: 'assistant', content: 'Delayed response' } },
+                  ],
+                  usage: undefined,
+                }), 12000) // 12 seconds (exceeds 10s timeout)
+              )
+            ),
+          },
         },
       }));
 
@@ -388,8 +403,10 @@ describe('AI Feedback Generator Tests (GPT-5-Mini Integration)', () => {
       // Arrange - Mock API error
       const OpenAI = require('openai').default;
       OpenAI.mockImplementationOnce(() => ({
-        responses: {
-          create: jest.fn().mockRejectedValue(new Error('API Error: Rate limit exceeded')),
+        chat: {
+          completions: {
+            create: jest.fn().mockRejectedValue(new Error('API Error: Rate limit exceeded')),
+          },
         },
       }));
 
@@ -512,6 +529,36 @@ describe('AI Feedback Generator Tests (GPT-5-Mini Integration)', () => {
       // Assert
       expect(feedback).toBeDefined();
       expect(feedback.length).toBeGreaterThan(10);
+    });
+  });
+
+  describe('Parameter Safety Guards', () => {
+    it('should avoid overriding GPT-5 temperature when requesting feedback', async () => {
+      const spy = jest.spyOn(openaiClientModule, 'generateCompletionWithFallback').mockResolvedValue('AI feedback');
+
+      const params: FeedbackGenerationParams = {
+        taskType: DailyTaskType.MORNING_READING,
+        userAnswer: '黛玉初見賈母，心情緊張。',
+        score: 88,
+        difficulty: TaskDifficulty.MEDIUM,
+        taskContent: {
+          textPassage: {
+            text: '賈母迎接黛玉',
+            source: '第三回',
+            question: '黛玉遇見誰？',
+            expectedKeywords: ['賈母'],
+          },
+        },
+      };
+
+      await generatePersonalizedFeedback(params);
+
+      expect(spy).toHaveBeenCalled();
+      const callArgs = spy.mock.calls[0][0];
+      expect(callArgs.model).toBe('gpt-5-mini');
+      expect(callArgs.temperature).toBeUndefined();
+
+      spy.mockRestore();
     });
   });
 });

@@ -19,6 +19,13 @@
 
 ---
 
+## Discovered During Work
+
+- **[2025-10-27] DAILY-TASK-AI-AND-XP-STABILITY**
+  - **Issue**: 每日任務提交流程中，GPT-5-mini 回饋常出現空白/逾時，且 Firestore `permission-denied` 導致 XP 無法寫入、任務無法標記完成。
+  - **Scope**: `src/lib/openai-client.ts`, `src/lib/ai-feedback-generator.ts`, `src/lib/daily-task-service.ts`, `src/app/api/daily-tasks/submit/route.ts`, `src/lib/user-level-service.ts`
+  - **Status**: ⏳ In Progress（需完成 AI 呼叫調整、Admin fallback、權限檢查、測試驗證）
+
 ## Phase 1: Core Module Extraction (核心激勵循環建立)
 
 ### [GAME-001] **Task ID**: User Level System Implementation
