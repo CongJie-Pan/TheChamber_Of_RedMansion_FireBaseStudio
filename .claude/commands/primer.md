@@ -2,16 +2,9 @@
 
 ## Step 1: Understand Project Structure
 
-Use the `find` command to get an understanding of the current root project folder structure (since `tree` may not be available in WSL):
-```bash
-find . -maxdepth 3 -type d -not -path "*/node_modules/*" -not -path "*/.next/*" -not -path "*/.git/*" | head -50
-```
-
 Start with reading the `CLAUDE.md` file if it exists to get an understanding of the project.
 
-Read the current root project folder README.md file to get an understanding of the project.
-
-Read key files in root project directory (package.json, tsconfig.json, next.config.ts, etc.).
+And Read the current root project "docs\structure_module_infoMD\project_structure.md" file to get an understanding of the project.
 
 ## Step 2: Setup Serena MCP Server in WSL
 

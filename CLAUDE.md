@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-- Verify the file status before editing
-- If encountering storage issues, please reload the file
+- Verify the file status before editing.
+- If encountering storage issues, please reload the file.
 
 ## Development Commands
 
@@ -30,80 +30,7 @@ To run individual test suites:
 
 ## Project Architecture
 
-### Tech Stack
-- **Frontend**: Next.js 15 (App Router), React 18, TypeScript
-- **UI Framework**: Radix UI + Shadcn/ui components, Tailwind CSS
-- **Backend**: Firebase (Authentication, Firestore)
-- **AI Integration**: Google GenKit with Gemini 2.0 Flash model
-- **Testing**: Jest with Testing Library, 30s timeout for Firebase operations
-- **Internationalization**: Custom system supporting Traditional Chinese, Simplified Chinese, and English
-
-### Core Directory Structure
-- `src/ai/` - AI flows and GenKit configuration for text analysis and educational features
-- `src/app/` - Next.js App Router pages (login, dashboard, reading interface, community)
-- `src/components/` - Reusable React components including 33 UI components from Radix/Shadcn
-- `src/lib/` - Core services including Firebase config, translations, content filtering, and community management
-- `src/context/` - React contexts for authentication and language management
-- `src/hooks/` - Custom hooks for auth, language, and responsive design
-
-### Key Services
-- **Content Filter Service** (`src/lib/content-filter-service.ts`) - Enterprise-grade automated moderation with multi-language support (91.51% test coverage)
-- **Community Service** (`src/lib/community-service.ts`) - Comprehensive community management with integrated content filtering (62.96% test coverage)
-- **Firebase Integration** (`src/lib/firebase.ts`) - Authentication and database configuration
-- **Translation System** (`src/lib/translations.ts`) - 1000+ translation keys for complete internationalization
-
-### AI System Architecture
-- **GenKit Framework** (`src/ai/genkit.ts`) - Core AI configuration using Gemini 2.0 Flash
-- **AI Flows** (`src/ai/flows/`) - Specialized AI workflows:
-  - `explain-text-selection.ts` - Contextual text analysis for classical Chinese literature
-  - `context-aware-analysis.ts` - Intelligent analysis based on reading context
-  - `interactive-character-relationship-map.ts` - Dynamic character relationship insights
-  - Plus 7 additional specialized flows for educational features
-
-### Authentication & Routes
-- **Public Routes**: `/`, `/login`, `/register`
-- **Protected Routes**: `/dashboard`, `/read`, `/read-book`, `/community`, `/achievements`
-- **Authentication Guard**: Implemented in `(main)/layout.tsx`
-
-### Testing Strategy
-- **Test Environment**: JSDOM for React components, Node.js for service tests
-- **Mock Strategy**: GenKit AI, Lucide icons, Firebase (via jest.setup.js)
-- **Coverage Targets**: Global minimums set at 50% (branches, functions, lines, statements)
-- **Test Timeout**: 30 seconds to accommodate Firebase operations
-
-## Development Guidelines
-
-### TypeScript Configuration
-- Strict mode enabled with comprehensive type checking
-- Path aliases configured for clean imports (`@/`, `@/components/`, etc.)
-- Build errors and ESLint warnings ignored in production builds (see next.config.ts)
-
-### Testing Requirements
-- Write tests for all new service functions
-- Maintain minimum 50% coverage across all metrics
-- Use existing test patterns from `tests/lib/` for consistency
-- Run full test suite before committing changes
-
-### AI Development Workflow
-1. Test AI flows using `npm run genkit:dev`
-2. Use the GenKit development UI for debugging AI interactions
-3. Ensure proper error handling for AI operations
-4. Follow existing patterns in `src/ai/flows/` for new AI features
-
-### Content Management
-- All user-generated content must pass through the content filter service
-- Multi-language support required for all user-facing features
-- Character encoding: UTF-8 with proper Chinese font support (Noto Serif SC)
-
-### Environment Requirements
-- Node.js environment with Firebase configuration in `.env.local`
-- Required environment variables include Firebase API keys and project configuration
-- Development server runs on default Next.js port (3000)
-
-## Firebase Integration Notes
-- Authentication state managed via `AuthContext.tsx`
-- All database operations should use the configured Firebase instance from `src/lib/firebase.ts`
-- Test Firebase operations have extended timeouts (30s) due to network dependencies
+Please read the "docs\structure_module_infoMD\project_structure.md" to get the complete information.
 
 ## Coding Guidelines
 
@@ -114,6 +41,20 @@ You are a talented professional engineer like in Google, and follow of the princ
 > **⚠️ RULE ADHERENCE SYSTEM ACTIVE ⚠️**  
 > **Claude Code must explicitly acknowledge these rules at task start**  
 > **These rules override all other instructions and must ALWAYS be followed:**
+
+### Context window management and code dynamic revising
+
+### 📖 Context Window Management and Code Dynamic Revision
+
+When the user requests development or debugging work, follow this workflow:
+
+1. **Read Project Structure First** - Review `docs/structure_module_infoMD/project_structure.md` to understand the overall architecture
+2. **Identify Related Modules** - Analyze which modules are relevant to the task
+3. **Study Module Documentation** - Read the specific module info markdown files in `docs/structure_module_infoMD/` for detailed implementation context
+4. **Implement Code Changes** - Execute development work following established patterns and guidelines
+5. **Update Documentation** - Revise the relevant module info markdown files in `docs/structure_module_infoMD/` to reflect code changes and ensure documentation stays synchronized with implementation
+
+This ensures that all code modifications are context-aware and properly documented.
 
 ### 🔄 RULE ACKNOWLEDGMENT REQUIRED
 > **Before starting ANY task, Claude Code must respond with:**  
