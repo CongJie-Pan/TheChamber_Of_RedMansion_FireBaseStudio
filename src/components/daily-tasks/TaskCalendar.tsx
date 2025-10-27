@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, XCircle } from "lucide-react";
 import { cn } from '@/lib/utils';
-import { dailyTaskService } from '@/lib/daily-task-service';
+import { dailyTaskClientService } from '@/lib/daily-task-client-service';
 import { TaskHistoryRecord } from '@/lib/types/daily-task';
 
 interface TaskCalendarProps {
@@ -111,7 +111,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({ userId }) => {
       const monthDays = getMonthDays(year, month);
 
       // Get task history for this period
-      const history = await dailyTaskService.getTaskHistory(userId, 100);
+      const history = await dailyTaskClientService.getTaskHistory(userId, 100);
 
       // Group history by date
       const historyByDate = new Map<string, TaskHistoryRecord[]>();

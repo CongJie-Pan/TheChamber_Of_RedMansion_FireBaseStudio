@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from 'next/link';
 
-import { dailyTaskService } from '@/lib/daily-task-service';
+import { dailyTaskClientService } from '@/lib/daily-task-client-service';
 import { DailyTaskProgress, TaskStatus } from '@/lib/types/daily-task';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -57,7 +57,7 @@ export const DailyTasksSummary: React.FC = () => {
     setError(null);
 
     try {
-      const todayProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+      const todayProgress = await dailyTaskClientService.getUserDailyProgress(user.uid);
       setProgress(todayProgress);
     } catch (error) {
       console.error('Error loading daily tasks progress:', error);

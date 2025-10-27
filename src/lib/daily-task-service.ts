@@ -52,13 +52,23 @@ import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
 
 // Phase 2.9: SQLite Database Integration
-import * as userRepository from './repositories/user-repository';
-import * as taskRepository from './repositories/task-repository';
-import * as progressRepository from './repositories/progress-repository';
-import { fromUnixTimestamp } from './sqlite-db';
+// 條件導入：只在伺服器端載入 SQLite 相關模組
+// 避免在客戶端（瀏覽器）載入 better-sqlite3 原生模組
+let userRepository: any;
+let taskRepository: any;
+let progressRepository: any;
+let fromUnixTimestamp: any;
 
-// Use SQLite instead of Firebase (temporary flag for migration)
-const USE_SQLITE = true;
+if (typeof window === 'undefined') {
+  // 伺服器端：載入 SQLite repositories
+  userRepository = require('./repositories/user-repository');
+  taskRepository = require('./repositories/task-repository');
+  progressRepository = require('./repositories/progress-repository');
+  ({ fromUnixTimestamp } = require('./sqlite-db'));
+}
+
+// Use SQLite instead of Firebase (只在伺服器端啟用)
+const USE_SQLITE = typeof window === 'undefined';
 import {
   DailyTask,
   DailyTaskProgress,

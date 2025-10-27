@@ -67,7 +67,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/useLanguage";
 import { LANGUAGES } from "@/lib/translations";
 import type { Language } from "@/lib/translations";
-import { dailyTaskService } from "@/lib/daily-task-service";
+import { dailyTaskClientService } from "@/lib/daily-task-client-service";
 
 /**
  * AppShell Component Props Interface
@@ -96,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (!user) return;
 
       try {
-        const progress = await dailyTaskService.getUserDailyProgress(user.uid);
+        const progress = await dailyTaskClientService.getUserDailyProgress(user.uid);
         if (progress) {
           const totalTasks = progress.tasks.length;
           const completedTasks = progress.completedTaskIds.length;
