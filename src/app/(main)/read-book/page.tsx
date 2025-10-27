@@ -1106,6 +1106,12 @@ export default function ReadBookPage() {
                 }
               } else {
                 console.log(`ℹ️ User has already unlocked this achievement, no XP awarded`);
+                // Inform user achievement already unlocked, no duplicate XP
+                toast({
+                  title: t('成就已解鎖') ?? '成就已解鎖',
+                  description: `${t('achievements.firstAIQuestion.name')} 已獲得過，未重複加分`,
+                  duration: 4000,
+                });
               }
             } catch (xpError) {
               console.error('Error awarding AI interaction XP:', xpError);
@@ -1997,6 +2003,12 @@ export default function ReadBookPage() {
         // Skip notifications if this is a duplicate reward
         if (result.isDuplicate) {
           console.log(`⚠️ Skipping duplicate achievement notification for chapter ${currentChapter.id}`);
+          // Inform user that XP for this chapter was already claimed previously
+          toast({
+            title: t('已領取過') ?? '已領取過',
+            description: `此章回的 XP 先前已領取，不重複加分`,
+            duration: 3000,
+          });
           return;
         }
 

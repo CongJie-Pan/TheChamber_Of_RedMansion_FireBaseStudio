@@ -88,6 +88,9 @@ import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
 // Toast notifications for XP feedback
 import { useToast } from '@/hooks/use-toast';
 
+// Level up modal for celebrating achievements
+import { LevelUpModal } from '@/components/gamification/LevelUpModal';
+
 // Type definitions for local component state
 type LocalPost = {
   id: string;
@@ -239,7 +242,7 @@ function PostCard({
 }: { 
   post: LocalPost; 
   t: (key: string) => string;
-  onLike: (postId: string, isLiking: boolean) => Promise<void>;
+  onLike: (postId: string, isLiking: boolean) => Promise<boolean>;
   onComment: (postId: string, content: string) => Promise<void>;
   isLoading: boolean;
   onDelete: (postId: string) => Promise<void>;
@@ -297,7 +300,12 @@ function PostCard({
     setIsLiking(true);
 
     try {
-      await onLike(initialPost.id, newLikedState);
+      const changed = await onLike(initialPost.id, newLikedState);
+      // If the backend indicates no state change actually happened, revert optimistic update
+      if (!changed) {
+        setIsLiked(!newLikedState);
+        setCurrentLikes(prev => newLikedState ? prev - 1 : prev + 1);
+      }
     } catch (error) {
       // Revert optimistic update on error
       setIsLiked(!newLikedState);
@@ -612,6 +620,10 @@ export default function CommunityPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPostingNew, setIsPostingNew] = useState(false);
 
+  // State for level up modal
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [levelUpInfo, setLevelUpInfo] = useState<{from: number, to: number} | null>(null);
+
   // Load posts from Firebase on component mount
   useEffect(() => {
     loadPosts();
@@ -651,35 +663,54 @@ export default function CommunityPage() {
         category: 'discussion'
       };
 
-      const newPostId = await communityService.createPost(postData);
+      const result = await communityService.createPost(postData);
 
-      // Award XP for post creation
-      try {
-        const xpResult = await userLevelService.awardXP(
-          user.uid,
-          XP_REWARDS.POST_CREATED,
-          'Created community post',
-          'community',
-          newPostId
-        );
+      // Award XP for post creation only if content was not filtered or warned
+      if (result.moderationAction === 'allow') {
+        try {
+          const xpResult = await userLevelService.awardXP(
+            user.uid,
+            XP_REWARDS.POST_CREATED,
+            'Created community post',
+            'community',
+            result.id
+          );
 
-        // Show toast notification with XP award
+          // Show toast notification with XP award
+          toast({
+            title: `+${XP_REWARDS.POST_CREATED} XP`,
+            description: '感謝分享！你的貢獻讓社群更精彩！',
+            duration: 3000,
+          });
+
+          // Refresh user profile to update level display
+          await refreshUserProfile();
+
+          // Show level up modal if user leveled up
+          if (xpResult.leveledUp && xpResult.fromLevel !== undefined && xpResult.newLevel) {
+            setLevelUpInfo({
+              from: xpResult.fromLevel,
+              to: xpResult.newLevel
+            });
+            setShowLevelUpModal(true);
+          }
+        } catch (error) {
+          console.error('Error awarding XP for post creation:', error);
+          // Don't fail the post creation if XP award fails
+        }
+      } else if (result.moderationAction === 'warn' || result.moderationAction === 'filter') {
+        // Content was moderated - show warning toast, no XP awarded
         toast({
-          title: `+${XP_REWARDS.POST_CREATED} XP`,
-          description: '感謝分享！你的貢獻讓社群更精彩！',
-          duration: 3000,
+          title: '貼文已發布',
+          description: '因包含敏感內容，內容已被處理且未獲得經驗值獎勵',
+          variant: 'default',
+          duration: 4000,
         });
-
-        // Refresh user profile to update level display
-        await refreshUserProfile();
-      } catch (error) {
-        console.error('Error awarding XP for post creation:', error);
-        // Don't fail the post creation if XP award fails
       }
 
       // Add new post optimistically to local state
       const newPost: LocalPost = {
-        id: newPostId,
+        id: result.id,
         authorId: user.uid,
         authorName: user.displayName || '匿名用戶',
         timestamp: '剛剛',
@@ -705,17 +736,17 @@ export default function CommunityPage() {
     }
   };
 
-  const handleLike = async (postId: string, isLiking: boolean) => {
+  const handleLike = async (postId: string, isLiking: boolean): Promise<boolean> => {
     if (!user) {
       setError('請先登入才能按讚。');
-      return;
+      return false;
     }
 
     try {
-      await communityService.togglePostLike(postId, user.uid, isLiking);
+      const likeChanged = await communityService.togglePostLike(postId, user.uid, isLiking);
 
       // Award XP only when liking (not un-liking)
-      if (isLiking) {
+      if (isLiking && likeChanged) {
         try {
           // Generate unique sourceId based on user-post combination
           // This prevents duplicate XP for like/unlike/re-like on the same post
@@ -740,6 +771,15 @@ export default function CommunityPage() {
 
             // Refresh user profile to update level display
             await refreshUserProfile();
+
+            // Show level up modal if user leveled up
+            if (result.leveledUp && result.fromLevel !== undefined && result.newLevel) {
+              setLevelUpInfo({
+                from: result.fromLevel,
+                to: result.newLevel
+              });
+              setShowLevelUpModal(true);
+            }
           } else {
             console.log(`⚠️ Duplicate like reward prevented for post ${postId}`);
           }
@@ -748,6 +788,7 @@ export default function CommunityPage() {
           // Don't fail the like if XP award fails
         }
       }
+      return likeChanged;
     } catch (error) {
       console.error('Error toggling like:', error);
       throw error; // Re-throw to allow component to handle optimistic update reversion
@@ -768,30 +809,49 @@ export default function CommunityPage() {
         content: content
       };
 
-      const commentId = await communityService.addComment(commentData);
+      const result = await communityService.addComment(commentData);
 
-      // Award XP for comment creation
-      try {
-        await userLevelService.awardXP(
-          user.uid,
-          XP_REWARDS.COMMENT_CREATED,
-          'Created community comment',
-          'community',
-          `${postId}-${commentId}`
-        );
+      // Award XP for comment creation only if content was not filtered or warned
+      if (result.moderationAction === 'allow') {
+        try {
+          const xpResult = await userLevelService.awardXP(
+            user.uid,
+            XP_REWARDS.COMMENT_CREATED,
+            'Created community comment',
+            'community',
+            `${postId}-${result.id}`
+          );
 
-        // Show toast notification with XP award
+          // Show toast notification with XP award
+          toast({
+            title: `+${XP_REWARDS.COMMENT_CREATED} XP`,
+            description: '謝謝參與討論！',
+            duration: 2000,
+          });
+
+          // Refresh user profile to update level display
+          await refreshUserProfile();
+
+          // Show level up modal if user leveled up
+          if (xpResult.leveledUp && xpResult.fromLevel !== undefined && xpResult.newLevel) {
+            setLevelUpInfo({
+              from: xpResult.fromLevel,
+              to: xpResult.newLevel
+            });
+            setShowLevelUpModal(true);
+          }
+        } catch (error) {
+          console.error('Error awarding XP for comment:', error);
+          // Don't fail the comment if XP award fails
+        }
+      } else if (result.moderationAction === 'warn' || result.moderationAction === 'filter') {
+        // Content was moderated - show warning toast, no XP awarded
         toast({
-          title: `+${XP_REWARDS.COMMENT_CREATED} XP`,
-          description: '謝謝參與討論！',
-          duration: 2000,
+          title: '評論已發布',
+          description: '因包含敏感內容，內容已被處理且未獲得經驗值獎勵',
+          variant: 'default',
+          duration: 3000,
         });
-
-        // Refresh user profile to update level display
-        await refreshUserProfile();
-      } catch (error) {
-        console.error('Error awarding XP for comment:', error);
-        // Don't fail the comment if XP award fails
       }
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -816,11 +876,46 @@ export default function CommunityPage() {
   };
 
   // Filter posts based on search term
-  const filteredPosts = posts.filter(post => 
-    post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.authorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Enhanced to support searching within shared note posts
+  const filteredPosts = posts.filter(post => {
+    const searchLower = searchTerm.toLowerCase();
+
+    // Basic search: content, author name, tags
+    if (post.content.toLowerCase().includes(searchLower) ||
+        post.authorName.toLowerCase().includes(searchLower) ||
+        post.tags.some(tag => tag.toLowerCase().includes(searchLower))) {
+      return true;
+    }
+
+    // Special search for note posts (shared from reading page)
+    // Note posts have special format: "我的閱讀筆記\n...\n---\n...\n來源："
+    const isNotePost = post.content.includes('我的閱讀筆記') && post.content.includes('來源：');
+    if (isNotePost) {
+      const parts = post.content.split('---');
+      if (parts.length >= 2) {
+        // Extract note content (before ---)
+        const noteContent = parts[0].replace('我的閱讀筆記', '').trim();
+
+        // Search in note content
+        if (noteContent.toLowerCase().includes(searchLower)) return true;
+
+        // Extract and search in selected text
+        const bottomPart = parts[1];
+        const selectedTextMatch = bottomPart.match(/(?:選取文字：)?\s*\n?([\s\S]+?)\n\n來源：/);
+        if (selectedTextMatch && selectedTextMatch[1].toLowerCase().includes(searchLower)) {
+          return true;
+        }
+
+        // Extract and search in source
+        const sourceMatch = bottomPart.match(/來源：([\s\S]+)$/);
+        if (sourceMatch && sourceMatch[1].toLowerCase().includes(searchLower)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  });
 
   return (
     <div className="space-y-6">
@@ -935,6 +1030,16 @@ export default function CommunityPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Level Up Modal - Show when user levels up after gaining XP */}
+      {showLevelUpModal && levelUpInfo && (
+        <LevelUpModal
+          open={showLevelUpModal}
+          onOpenChange={setShowLevelUpModal}
+          fromLevel={levelUpInfo.from}
+          toLevel={levelUpInfo.to}
+        />
+      )}
     </div>
   );
 }

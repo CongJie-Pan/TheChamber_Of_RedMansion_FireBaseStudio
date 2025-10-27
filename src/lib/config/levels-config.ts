@@ -23,15 +23,15 @@ import { UserLevel, LevelPermission } from '../types/user-level';
  * Complete level configuration array
  * 8 levels from visitor (0) to grand master (7)
  *
- * XP Progression Formula:
+ * XP Progression Formula (90 per level):
  * - Level 0: 0 XP (starting point)
- * - Level 1: 100 XP (1 week of casual engagement)
- * - Level 2: 300 XP (2-3 weeks of regular engagement)
- * - Level 3: 600 XP (1-2 months of consistent use)
- * - Level 4: 1000 XP (2-3 months of dedicated learning)
- * - Level 5: 1500 XP (3-4 months of active participation)
- * - Level 6: 2200 XP (5-6 months of expert-level engagement)
- * - Level 7: 3000 XP (6+ months of mastery)
+ * - Level 1: 90 XP
+ * - Level 2: 180 XP
+ * - Level 3: 270 XP
+ * - Level 4: 360 XP
+ * - Level 5: 450 XP
+ * - Level 6: 540 XP
+ * - Level 7: 630 XP
  *
  * Estimated XP earning rate: 20-30 XP per day with normal engagement
  */
@@ -49,13 +49,13 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.SIMPLE_AI_QA,
     ],
     exclusiveContent: [
-      'intro_guide',            // Introduction guide
-      'character_intro_basic',  // Basic character introductions
+      '入門指南',              // Introduction guide
+      '基礎人物介紹',          // Basic character introductions
     ],
     visualRewards: {
-      avatarFrame: 'frame-visitor',           // Simple wooden frame
+      avatarFrame: '訪客木框',                // Simple wooden frame
       titleColor: '#9CA3AF',                  // Gray-400
-      exclusiveBadges: ['badge-newcomer'],    // Newcomer badge
+      exclusiveBadges: ['新來者徽章'],        // Newcomer badge
       profileEffects: [],
     },
     virtualResidence: '榮府外院',  // Outer courtyard of Rongguo Mansion
@@ -67,8 +67,9 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '陪讀書僮',
     titleEn: 'Reading Companion',
     description: '熟悉了賈府的日常,開始跟隨主人公們的腳步。您已成為大觀園的一員,每日陪伴著寶玉等人學習成長。',
-    requiredXP: 100,
-    xpFromPrevious: 100,
+    // Adjusted per requirement: Level 1 threshold reduced to 90 XP
+    requiredXP: 90,
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -76,18 +77,18 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.BASIC_ACHIEVEMENTS,
     ],
     exclusiveContent: [
-      'daily_tasks_unlock',     // Daily task system
-      'achievement_system',     // Achievement collection
-      'character_profiles_basic', // Basic character profiles
+      '每日任務系統',          // Daily task system
+      '成就收集系統',          // Achievement collection
+      '基礎人物檔案',          // Basic character profiles
     ],
     visualRewards: {
-      avatarFrame: 'frame-companion',         // Blue wooden frame
+      avatarFrame: '書僮藍框',                // Blue wooden frame
       titleColor: '#3B82F6',                  // Blue-500
       exclusiveBadges: [
-        'badge-first-week',                   // First week completion
-        'badge-daily-reader',                 // Daily reading habit
+        '首週完成徽章',                       // First week completion
+        '每日閱讀徽章',                       // Daily reading habit
       ],
-      profileEffects: ['sparkle-light'],      // Light sparkle effect
+      profileEffects: ['淡雅光芒'],          // Light sparkle effect
     },
     specialRequirements: [
       {
@@ -110,8 +111,9 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '門第清客',
     titleEn: 'Guest Scholar',
     description: '受邀參與詩社雅集,開始品味紅樓詩詞之美。您不再是門外漢,已能與府中文人雅士共賞詩文。',
-    requiredXP: 300,
-    xpFromPrevious: 200,
+    requiredXP: 180,
+    // With 90-per-level progression, each step is 90 XP
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -122,19 +124,19 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.GARDEN_3D_VIEW,
     ],
     exclusiveContent: [
-      'poetry_collection',      // Poetry anthology
-      'expert_commentary_basic', // Basic expert readings
-      'garden_3d_tour',         // 3D Grand View Garden
-      'character_relationships_basic', // Basic relationship map
+      '詩詞選集',              // Poetry anthology
+      '專家導讀（基礎）',      // Basic expert readings
+      '大觀園3D巡覽',         // 3D Grand View Garden
+      '人物關係圖（基礎）',    // Basic relationship map
     ],
     visualRewards: {
-      avatarFrame: 'frame-scholar',           // Elegant jade frame
+      avatarFrame: '雅士玉框',                // Elegant jade frame
       titleColor: '#10B981',                  // Green-500
       exclusiveBadges: [
-        'badge-poetry-apprentice',            // Poetry learner
-        'badge-garden-explorer',              // Garden explorer
+        '詩詞學徒徽章',                       // Poetry learner
+        '大觀園探索者徽章',                   // Garden explorer
       ],
-      profileEffects: ['sparkle-medium', 'jade-glow'],
+      profileEffects: ['中等光芒', '玉色光輝'],
     },
     specialRequirements: [
       {
@@ -162,8 +164,8 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '庶務管事',
     titleEn: 'Estate Manager',
     description: '深入理解賈府興衰,開始參與社群管理。您已洞察紅樓世態,能夠幫助引導其他學習者。',
-    requiredXP: 600,
-    xpFromPrevious: 300,
+    requiredXP: 270,
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -176,19 +178,19 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.CHARACTER_RELATIONSHIP_MAP,
     ],
     exclusiveContent: [
-      'advanced_analysis_tools', // Advanced AI analysis
-      'character_psychology',   // Character psychological analysis
-      'historical_context',     // Historical and cultural context
-      'interactive_relationship_map', // Interactive character map
+      '進階分析工具',          // Advanced AI analysis
+      '人物心理分析',          // Character psychological analysis
+      '歷史文化背景',          // Historical and cultural context
+      '互動式人物關係圖',      // Interactive character map
     ],
     visualRewards: {
-      avatarFrame: 'frame-manager',           // Gold-trimmed frame
+      avatarFrame: '管事金框',                // Gold-trimmed frame
       titleColor: '#F59E0B',                  // Amber-500
       exclusiveBadges: [
-        'badge-community-helper',             // Community contributor
-        'badge-analysis-expert',              // Analysis specialist
+        '社群貢獻者徽章',                     // Community contributor
+        '分析專家徽章',                       // Analysis specialist
       ],
-      profileEffects: ['sparkle-strong', 'gold-shimmer'],
+      profileEffects: ['強烈光芒', '金色微光'],
     },
     specialRequirements: [
       {
@@ -211,8 +213,8 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '詩社雅士',
     titleEn: 'Poetry Society Scholar',
     description: '詩詞造詣日深,常與眾人切磋文墨。您已是海棠詩社的重要成員,詩文為眾人所稱道。',
-    requiredXP: 1000,
-    xpFromPrevious: 400,
+    requiredXP: 360,
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -227,20 +229,20 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.STUDY_GROUP_CREATE,
     ],
     exclusiveContent: [
-      'poetry_competitions',    // Poetry competition system
-      'study_groups',           // Create and join study groups
-      'advanced_poetry_tools',  // Advanced poetry analysis
-      'cultural_deep_dive',     // Deep cultural exploration
+      '詩詞競賽系統',          // Poetry competition system
+      '學習小組',              // Create and join study groups
+      '進階詩詞工具',          // Advanced poetry analysis
+      '文化深度探索',          // Deep cultural exploration
     ],
     visualRewards: {
-      avatarFrame: 'frame-poet',              // Artistic calligraphy frame
+      avatarFrame: '詩社雅框',                // Artistic calligraphy frame
       titleColor: '#8B5CF6',                  // Violet-500
       exclusiveBadges: [
-        'badge-poetry-master',                // Poetry mastery
-        'badge-study-group-leader',           // Study group creator
-        'badge-cultural-scholar',             // Cultural expert
+        '詩詞大師徽章',                       // Poetry mastery
+        '學習小組組長徽章',                   // Study group creator
+        '文化學者徽章',                       // Cultural expert
       ],
-      profileEffects: ['sparkle-brilliant', 'ink-wash-effect', 'floating-petals'],
+      profileEffects: ['璀璨光芒', '水墨特效', '飄落花瓣'],
     },
     specialRequirements: [
       {
@@ -263,8 +265,8 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '府中幕賓',
     titleEn: 'Mansion Counselor',
     description: '學識淵博,為眾人所敬重。您已成為大觀園的文化導師,引領著眾多後來學習者。',
-    requiredXP: 1500,
-    xpFromPrevious: 500,
+    requiredXP: 450,
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -281,20 +283,20 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.SPECIAL_TOPICS,
     ],
     exclusiveContent: [
-      'expert_commentary_full', // Full expert commentary
-      'special_topics',         // Special topic discussions
-      'mentor_system',          // Mentor new users
-      'exclusive_webinars',     // Expert webinar access
+      '專家導讀（完整版）',    // Full expert commentary
+      '專題討論',              // Special topic discussions
+      '導師系統',              // Mentor new users
+      '專家講座',              // Expert webinar access
     ],
     visualRewards: {
-      avatarFrame: 'frame-counselor',         // Imperial purple frame
+      avatarFrame: '幕賓紫框',                // Imperial purple frame
       titleColor: '#EC4899',                  // Pink-500
       exclusiveBadges: [
-        'badge-mentor',                       // Mentor badge
-        'badge-expert-scholar',               // Expert scholar
-        'badge-special-contributor',          // Special contributor
+        '導師徽章',                           // Mentor badge
+        '專家學者徽章',                       // Expert scholar
+        '特殊貢獻者徽章',                     // Special contributor
       ],
-      profileEffects: ['sparkle-radiant', 'ink-wash-effect', 'flowing-silk', 'lantern-glow'],
+      profileEffects: ['耀眼光芒', '水墨特效', '流動綢緞', '燈籠輝光'],
     },
     specialRequirements: [
       {
@@ -317,8 +319,8 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '紅學通儒',
     titleEn: 'Red Chamber Scholar',
     description: '融會貫通紅樓精義,已成一家之言。您對紅樓夢的理解已臻化境,能夠發表獨到見解。',
-    requiredXP: 2200,
-    xpFromPrevious: 700,
+    requiredXP: 540,
+    xpFromPrevious: 90,
     permissions: [
       LevelPermission.BASIC_READING,
       LevelPermission.SIMPLE_AI_QA,
@@ -338,21 +340,21 @@ export const LEVELS_CONFIG: UserLevel[] = [
       LevelPermission.ANNOTATION_PUBLISH,
     ],
     exclusiveContent: [
-      'research_tools',         // Advanced research tools
-      'annotation_system',      // Publish scholarly annotations
-      'exclusive_archives',     // Historical archives
-      'expert_dialogue',        // Direct dialogue with experts
+      '研究工具',              // Advanced research tools
+      '註解發表系統',          // Publish scholarly annotations
+      '專屬典藏',              // Historical archives
+      '專家對話',              // Direct dialogue with experts
     ],
     visualRewards: {
-      avatarFrame: 'frame-scholar-master',    // Scholarly jade seal frame
+      avatarFrame: '通儒玉印框',              // Scholarly jade seal frame
       titleColor: '#DC2626',                  // Red-600
       exclusiveBadges: [
-        'badge-red-chamber-scholar',          // Official scholar badge
-        'badge-research-master',              // Research master
-        'badge-annotation-expert',            // Annotation expert
-        'badge-cultural-ambassador',          // Cultural ambassador
+        '紅學學者徽章',                       // Official scholar badge
+        '研究大師徽章',                       // Research master
+        '註解專家徽章',                       // Annotation expert
+        '文化大使徽章',                       // Cultural ambassador
       ],
-      profileEffects: ['sparkle-magnificent', 'ink-wash-effect', 'flowing-silk', 'jade-aura', 'scroll-unfurl'],
+      profileEffects: ['壯麗光芒', '水墨特效', '流動綢緞', '玉色靈氣', '卷軸展開'],
     },
     specialRequirements: [
       {
@@ -375,29 +377,29 @@ export const LEVELS_CONFIG: UserLevel[] = [
     title: '一代宗師',
     titleEn: 'Grand Master',
     description: '紅學造詣登峰造極,為後學楷模。您已成為紅樓文化的傳承者,引領著整個學習社群的發展。',
-    requiredXP: 3000,
-    xpFromPrevious: 800,
+    requiredXP: 630,
+    xpFromPrevious: 90,
     permissions: [
       // Inherits all previous permissions
       ...Object.values(LevelPermission),
       LevelPermission.EXCLUSIVE_EVENTS,
     ],
     exclusiveContent: [
-      'master_archives',        // Master-only archives
-      'exclusive_events',       // VIP cultural events
-      'platform_governance',    // Platform governance participation
-      'legacy_content',         // Create legacy content
+      '宗師典藏',              // Master-only archives
+      '專屬活動',              // VIP cultural events
+      '平台治理',              // Platform governance participation
+      '傳世內容創作',          // Create legacy content
     ],
     visualRewards: {
-      avatarFrame: 'frame-grand-master',      // Imperial golden dragon frame
+      avatarFrame: '宗師金龍框',              // Imperial golden dragon frame
       titleColor: '#B45309',                  // Amber-700 (gold)
       exclusiveBadges: [
-        'badge-grand-master',                 // Grand Master badge
-        'badge-platform-legend',              // Platform legend
-        'badge-cultural-guardian',            // Cultural guardian
-        'badge-lifetime-achievement',         // Lifetime achievement
+        '一代宗師徽章',                       // Grand Master badge
+        '平台傳奇徽章',                       // Platform legend
+        '文化守護者徽章',                     // Cultural guardian
+        '終身成就徽章',                       // Lifetime achievement
       ],
-      profileEffects: ['sparkle-divine', 'ink-wash-effect', 'flowing-silk', 'jade-aura', 'scroll-unfurl', 'phoenix-feather', 'golden-light'],
+      profileEffects: ['神聖光芒', '水墨特效', '流動綢緞', '玉色靈氣', '卷軸展開', '鳳凰羽翼', '金色聖光'],
     },
     specialRequirements: [
       {

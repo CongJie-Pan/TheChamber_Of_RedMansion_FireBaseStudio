@@ -25,11 +25,13 @@
 // Import Firebase authentication types and functions
 import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
+// Firestore real-time updates
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 // Import React types and hooks for context management
 import type { ReactNode } from 'react';
-import { createContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 // Import configured Firebase auth instance
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 // Import UI component for loading state display
 import { Skeleton } from '@/components/ui/skeleton';
 // Import level system types and service
@@ -169,6 +171,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Cleanup function: unsubscribe from listener when component unmounts
     return () => unsubscribe();
   }, [loadUserProfile]); // Depend on loadUserProfile callback
+
+  /**
+   * Real-time user profile subscription
+   *
+   * Subscribes to Firestore users/{uid} document updates so XP/level changes
+   * are reflected immediately across the app without manual refresh.
+   */
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribeProfile = onSnapshot(userRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setUserProfile(null);
+        return;
+      }
+
+      const data = snapshot.data() as any;
+      // Lightweight normalization for safety and backward-compatibility
+      setUserProfile({
+        uid: snapshot.id,
+        ...data,
+        completedChapters: Array.isArray(data.completedChapters) ? data.completedChapters : [],
+        hasReceivedWelcomeBonus: data.hasReceivedWelcomeBonus ?? false,
+        createdAt: data.createdAt || Timestamp.now(),
+        updatedAt: data.updatedAt || Timestamp.now(),
+        lastActivityAt: data.lastActivityAt || Timestamp.now(),
+      });
+    });
+
+    return () => unsubscribeProfile();
+  }, [user]);
 
   /**
    * Loading state UI

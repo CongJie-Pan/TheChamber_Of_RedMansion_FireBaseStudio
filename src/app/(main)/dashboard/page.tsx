@@ -56,9 +56,7 @@ import {
   TrendingUp,      // Progress and improvement trends
   Target,          // Goals and objectives
   Edit3,           // Note-taking and writing activities
-  ListChecks,      // Goal management and checklists
-  CheckSquare,     // Completed tasks/goals
-  Square           // Incomplete tasks/goals
+  ListChecks       // Goal management and checklists
 } from "lucide-react";
 
 // Next.js navigation
@@ -74,19 +72,9 @@ import { useLanguage } from '@/hooks/useLanguage';
 // Gamification components
 import { LevelDisplay } from '@/components/gamification';
 
-/**
- * Sample learning goals data generator
- * Creates localized example goals for dashboard display
- * In production, this would be replaced with actual user data from database
- * 
- * @param t - Translation function for internationalization
- * @returns Array of learning goal objects with completion status
- */
-const getExampleUserGoals = (t: (key: string) => string) => [
-  { id: "d1", text: t('dashboard.myLearningGoalsDesc'), isAchieved: true },
-  { id: "d2", text: "理解主要人物（寶、黛、釵）的性格特點", isAchieved: false },
-  { id: "d3", text: "整理金陵十二釵判詞筆記", isAchieved: false },
-];
+// Daily Tasks components
+import { DailyTasksSummary } from '@/components/daily-tasks';
+
 
 /**
  * Props interface for statistical display cards
@@ -155,9 +143,6 @@ export default function DashboardPage() {
   
   // State for animated progress circle
   const [animatedProgress, setAnimatedProgress] = useState(0);
-
-  // Get localized example goals
-  const exampleUserGoals = getExampleUserGoals(t);
 
   /**
    * Progress Animation Effect
@@ -228,11 +213,16 @@ export default function DashboardPage() {
       <LevelDisplay variant="summary" />
 
       {/*
-        Main Progress Overview Card
-        Features animated circular progress indicator and statistics grid
-        Uses split layout: progress circle on left, stats grid on right
+        Dashboard Widgets Grid
+        Split view with Main Progress Card and Daily Tasks Summary
       */}
-      <Card className="h-[300px] p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/*
+          Main Progress Overview Card
+          Features animated circular progress indicator and statistics grid
+          Uses split layout: progress circle on left, stats grid on right
+        */}
+        <Card className="h-[300px] p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
         <div className="flex h-full items-center">
           {/* Left Section: Animated Progress Circle */}
           <div className="w-1/2 flex flex-col items-center justify-center pr-6 border-r border-border/50">
@@ -285,7 +275,14 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* 
+        {/*
+          Daily Tasks Summary Card
+          Shows today's task completion, XP earned, and quick access to daily tasks
+        */}
+        <DailyTasksSummary />
+      </div>
+
+      {/*
         Recent Reading Activity Section
         Horizontal scrollable carousel of recently accessed books
         Shows progress indicators and navigation links
@@ -348,61 +345,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 
-        Learning Goals Section
-        Displays user's learning objectives with completion status
-        Provides goal management and progress tracking
-      */}
-      <Card className="shadow-xl hover:shadow-primary/20 transition-shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl font-artistic text-primary">{t('dashboard.myLearningGoals')}</CardTitle>
-              <CardDescription>{t('dashboard.myLearningGoalsDesc')}</CardDescription>
-            </div>
-            {/* Goal management navigation */}
-            <Link href="/goals">
-              <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                <ListChecks className="h-4 w-4" />
-                <span>{t('dashboard.manageAllGoals')}</span>
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {exampleUserGoals.map((goal) => (
-              <div key={goal.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                {/* Completion status indicator */}
-                {goal.isAchieved ? (
-                  <CheckSquare className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                ) : (
-                  <Square className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-                
-                {/* Goal text with completion styling */}
-                <span className={cn(
-                  "flex-1 text-sm",
-                  goal.isAchieved 
-                    ? "text-muted-foreground line-through" 
-                    : "text-foreground"
-                )}>
-                  {goal.text}
-                </span>
-                
-                {/* Goal action button */}
-                <Button 
-                  variant={goal.isAchieved ? "secondary" : "default"} 
-                  size="sm"
-                  className="text-xs px-3"
-                >
-                  {goal.isAchieved ? t('buttons.viewDetails') : t('buttons.continueEffort')}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

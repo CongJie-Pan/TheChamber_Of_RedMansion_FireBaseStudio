@@ -1,3 +1,7 @@
+2025/10/15 Start
+
+- Code Editor: Claude Code, Codex, 潘驄杰
+
 1.  [Done] 針對最新新增的筆記，需要完全如同temp\NoteAreaExample.jpg 的畫面一樣的設計(字體為繁體中文) 左下角可以選擇私密或公開筆記，公開筆記的話就會在社群發布自己分享該段落的筆記內容(如同"temp\NoteShareExample.jpg" 藍色區域是用戶的筆記內容，粉色區域則是選取的文字部分及其作筆記之書名)。然後，如果這個筆記建立了，點開就需要如同"temp\NoteAreaExample_alreadyNoted.jpg" 一樣，會在畫面中間顯示筆記內容，點編輯按鈕，就會回到temp\NoteAreaExample.jpg的筆記編輯地方。
 然後在閱讀頁面的最下方 不應該有readBook.yourNotes 的顯示內容。(如同"temp\ReadAreaError.jpg")
 並且當閱讀頁面設定調成黑色時，選取上筆記的hover，就會看不到字了。(如同"temp\ReadAreaBug.jpg")

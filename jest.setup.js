@@ -42,39 +42,149 @@ process.env.NEXT_PUBLIC_FIREBASE_APP_ID = '1:123456789:web:abcdef123456';
 jest.mock('firebase/auth', () => ({
   getAuth: jest.fn(() => ({
     currentUser: null,
-    onAuthStateChanged: jest.fn(() => jest.fn()), // Return unsubscribe function
+    onAuthStateChanged: jest.fn(() => jest.fn()), // Unsubscribe function
     signOut: jest.fn(),
   })),
-  onAuthStateChanged: jest.fn(() => jest.fn()), // Return unsubscribe function
+  onAuthStateChanged: jest.fn((_auth, callback) => {
+    // Immediately invoke callback with null user so AuthProvider exits loading state
+    if (typeof callback === 'function') {
+      setTimeout(() => callback(null), 0);
+    }
+    return jest.fn(); // Unsubscribe
+  }),
   signInWithEmailAndPassword: jest.fn(),
   createUserWithEmailAndPassword: jest.fn(),
   signOut: jest.fn(),
   updateProfile: jest.fn(),
   GoogleAuthProvider: jest.fn(),
   signInWithPopup: jest.fn(),
+  signInAnonymously: jest.fn(),
 }));
 
-// Mock Firebase Firestore for testing
+// In-memory Firestore store for tests (persists across calls)
+const __firestoreStore = new Map();
+global.__firestoreStore = __firestoreStore;
+
+// Utilities to help tests seed data
+global.testUtils = global.testUtils || {};
+global.testUtils.setFirestoreDoc = (path, data) => {
+  __firestoreStore.set(path, data);
+};
+global.testUtils.getFirestoreDoc = (path) => {
+  return __firestoreStore.get(path);
+};
+
+// Mock Firebase Firestore for testing (stateful)
 jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(),
-  collection: jest.fn(),
-  doc: jest.fn(),
-  addDoc: jest.fn(),
-  getDocs: jest.fn(),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  startAfter: jest.fn(),
-  increment: jest.fn(),
-  arrayUnion: jest.fn(),
-  arrayRemove: jest.fn(),
-  serverTimestamp: jest.fn(),
-  onSnapshot: jest.fn(),
+  getFirestore: jest.fn(() => ({ _id: 'mock-firestore' })),
+  collection: jest.fn((db, path) => ({ _path: path, _db: db })),
+  doc: jest.fn((collectionOrDb, ...pathSegments) => {
+    const base = collectionOrDb && collectionOrDb._path ? collectionOrDb._path : '';
+    const fullPath = [base, ...pathSegments].filter(Boolean).join('/');
+    return {
+      id: pathSegments[pathSegments.length - 1] || base.split('/').pop() || 'mock-doc-id',
+      path: fullPath || 'mock-doc-id',
+    };
+  }),
+  runTransaction: jest.fn(async (_db, updateFn) => {
+    // Transaction-like object using shared store
+    const tx = {
+      async get(ref) {
+        const data = __firestoreStore.get(ref.path);
+        return {
+          exists: () => data != null,
+          data: () => data,
+        };
+      },
+      set(ref, data) {
+        __firestoreStore.set(ref.path, data);
+      },
+      update(ref, data) {
+        const prev = __firestoreStore.get(ref.path) || {};
+        __firestoreStore.set(ref.path, { ...prev, ...data });
+      },
+    };
+    await updateFn(tx);
+    return undefined;
+  }),
+  addDoc: jest.fn((collectionRef, data) => {
+    const id = 'new-doc-id-' + Math.random().toString(36).slice(2, 8);
+    const path = `${collectionRef._path}/${id}`;
+    __firestoreStore.set(path, { ...data, id });
+    return Promise.resolve({ id });
+  }),
+  // Enhanced getDocs mock: supports simple query filtering by collection path and where('==') clauses
+  getDocs: jest.fn((queryOrCollectionRef) => {
+    // Resolve collection path and filters
+    let collectionPath = '';
+    let filters = [];
+    let limitN = undefined;
+
+    if (queryOrCollectionRef && queryOrCollectionRef._query) {
+      const parts = queryOrCollectionRef._query;
+      const col = parts.find((p) => p && p._path);
+      if (col && col._path) collectionPath = col._path;
+      filters = parts.filter((p) => p && typeof p.field === 'string');
+      const lim = parts.find((p) => p && typeof p.limit === 'number');
+      if (lim && typeof lim.limit === 'number') limitN = lim.limit;
+    } else if (queryOrCollectionRef && queryOrCollectionRef._path) {
+      collectionPath = queryOrCollectionRef._path;
+    }
+
+    const docs = [];
+    if (global.__firestoreStore && collectionPath) {
+      for (const [path, data] of global.__firestoreStore.entries()) {
+        if (!path.startsWith(collectionPath + '/')) continue;
+        // Apply where filters (support '==' only)
+        let ok = true;
+        for (const f of filters) {
+          if (f.op === '==' && data?.[f.field] !== f.value) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        const id = path.split('/').pop();
+        docs.push({ id, data: () => data, ref: { path, id } });
+      }
+    }
+
+    const sliced = typeof limitN === 'number' ? docs.slice(0, limitN) : docs;
+    return Promise.resolve({
+      docs: sliced,
+      empty: sliced.length === 0,
+      size: sliced.length,
+      forEach: (cb) => sliced.forEach((d) => cb(d)),
+    });
+  }),
+  getDoc: jest.fn((ref) => Promise.resolve({
+    exists: () => __firestoreStore.has(ref.path),
+    data: () => __firestoreStore.get(ref.path),
+    id: ref.id,
+  })),
+  setDoc: jest.fn((ref, data) => {
+    __firestoreStore.set(ref.path, data);
+    return Promise.resolve();
+  }),
+  updateDoc: jest.fn((ref, data) => {
+    const prev = __firestoreStore.get(ref.path) || {};
+    __firestoreStore.set(ref.path, { ...prev, ...data });
+    return Promise.resolve();
+  }),
+  deleteDoc: jest.fn((ref) => {
+    __firestoreStore.delete(ref.path);
+    return Promise.resolve();
+  }),
+  query: jest.fn((...args) => ({ _query: args })),
+  where: jest.fn((field, op, value) => ({ field, op, value })),
+  orderBy: jest.fn((field, direction) => ({ field, direction })),
+  limit: jest.fn((n) => ({ limit: n })),
+  startAfter: jest.fn((doc) => ({ startAfter: doc })),
+  increment: jest.fn((n) => ({ _increment: n })),
+  arrayUnion: jest.fn((...values) => ({ _arrayUnion: values })),
+  arrayRemove: jest.fn((...values) => ({ _arrayRemove: values })),
+  serverTimestamp: jest.fn(() => ({ _serverTimestamp: true })),
+  onSnapshot: jest.fn(() => jest.fn()), // Returns unsubscribe function
   Timestamp: {
     now: jest.fn(() => ({
       toDate: () => new Date(),
@@ -111,6 +221,38 @@ jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(() => new URLSearchParams()),
 }));
 
+// Mock Radix UI Toast primitives to simple components for tests
+jest.mock('@radix-ui/react-toast', () => {
+  const React = require('react');
+  const Dummy = React.forwardRef((props, ref) => React.createElement('div', { ref, ...props }));
+  Dummy.displayName = 'Dummy';
+  return {
+    Provider: ({ children }) => React.createElement('div', { 'data-testid': 'toast-provider' }, children),
+    Viewport: Dummy,
+    Root: Dummy,
+    Title: Dummy,
+    Description: Dummy,
+    Action: Dummy,
+    Close: Dummy,
+  };
+});
+
+// Mock Radix Tabs primitives specifically (some components refer to displayName)
+jest.mock('@radix-ui/react-tabs', () => {
+  const React = require('react');
+  const mk = (name) => {
+    const C = React.forwardRef((props, ref) => React.createElement('div', { ref, ...props }));
+    C.displayName = name;
+    return C;
+  };
+  return {
+    Root: mk('TabsRoot'),
+    List: mk('TabsList'),
+    Trigger: mk('TabsTrigger'),
+    Content: mk('TabsContent'),
+  };
+});
+
 // Mock console.error to reduce noise in test output
 const originalError = console.error;
 beforeAll(() => {
@@ -132,11 +274,23 @@ afterAll(() => {
   console.error = originalError;
 });
 
-// Increase timeout for async operations
-jest.setTimeout(30000);
+// Increase timeout for async operations (especially for daily task tests)
+jest.setTimeout(60000); // 60 seconds for complex test suites
 
 // Global test utilities
 global.testUtils = {
+  // In-memory Firestore helpers
+  setFirestoreDoc: (path, data) => {
+    if (global.__firestoreStore) {
+      global.__firestoreStore.set(path, data);
+    }
+  },
+  getFirestoreDoc: (path) => {
+    if (global.__firestoreStore) {
+      return global.__firestoreStore.get(path);
+    }
+    return undefined;
+  },
   // Create mock Firestore document with ID
   createMockDoc: (id, data) => ({
     id,

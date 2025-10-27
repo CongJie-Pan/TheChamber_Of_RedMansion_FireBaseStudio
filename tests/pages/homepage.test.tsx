@@ -17,7 +17,17 @@ import { LanguageProvider } from '@/context/LanguageContext';
 jest.mock('next/link', () => {
   return function MockLink({ children, href, ...props }: any) {
     return (
-      <a href={href} {...props}>
+      <a
+        href={href}
+        {...props}
+        onClick={(e) => {
+          // Prevent actual navigation in tests
+          e.preventDefault();
+          if (props.onClick) {
+            props.onClick(e);
+          }
+        }}
+      >
         {children}
       </a>
     );
@@ -29,6 +39,23 @@ jest.mock('next/image', () => {
     return <img src={src} alt={alt} {...props} data-testid="next-image" />;
   };
 });
+
+// Mock Next.js navigation to prevent routing errors
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    pathname: '/',
+    query: {},
+    asPath: '/',
+  })),
+  usePathname: jest.fn(() => '/'),
+  useSearchParams: jest.fn(() => new URLSearchParams()),
+}));
 
 // Mock the custom components
 jest.mock('@/components/HorizontalScrollContainer', () => {

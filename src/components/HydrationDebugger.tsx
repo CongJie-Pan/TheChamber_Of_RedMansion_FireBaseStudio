@@ -1,16 +1,16 @@
 /**
  * @fileOverview Hydration Debugger Component
- * 
+ *
  * This development-only component helps diagnose hydration issues by monitoring
  * DOM changes and providing detailed information about what's causing mismatches
  * between server and client rendering.
- * 
+ *
  * Features:
  * - Monitors HTML element className changes
  * - Detects when external scripts modify the DOM
  * - Provides debugging information in development mode
  * - Can be safely included in production (it won't render)
- * 
+ *
  * Use this component to understand why hydration errors occur and identify
  * the source of DOM modifications that cause server/client mismatches.
  */
@@ -18,6 +18,14 @@
 "use client";
 
 import { useEffect } from 'react';
+
+// Extend Window interface to include Material Design Lite properties
+declare global {
+  interface Window {
+    componentHandler?: any;
+    mdl?: any;
+  }
+}
 
 /**
  * Hydration Debugger Component

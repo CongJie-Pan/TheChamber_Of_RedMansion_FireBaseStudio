@@ -22,6 +22,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -33,6 +34,7 @@ import {
   Users,
   Trophy,
   ChevronDown,
+  Target,
 } from "lucide-react";
 
 import {
@@ -44,7 +46,8 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger, 
+  SidebarMenuBadge,
+  SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -64,6 +67,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/useLanguage";
 import { LANGUAGES } from "@/lib/translations";
 import type { Language } from "@/lib/translations";
+import { dailyTaskService } from "@/lib/daily-task-service";
 
 /**
  * AppShell Component Props Interface
@@ -80,18 +84,46 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth(); // Current authenticated user state
   const { language, setLanguage, t } = useLanguage(); // Language state and translation function
 
+  // State for tracking incomplete daily tasks (for red dot notification)
+  const [hasIncompleteTasks, setHasIncompleteTasks] = useState(false);
+
+  /**
+   * Check for incomplete daily tasks
+   * Used to show red dot notification badge on daily tasks nav item
+   */
+  useEffect(() => {
+    const checkIncompleteTasks = async () => {
+      if (!user) return;
+
+      try {
+        const progress = await dailyTaskService.getUserDailyProgress(user.uid);
+        if (progress) {
+          const totalTasks = progress.tasks.length;
+          const completedTasks = progress.completedTaskIds.length;
+          setHasIncompleteTasks(completedTasks < totalTasks && totalTasks > 0);
+        }
+      } catch (error) {
+        console.error('Error checking incomplete tasks:', error);
+      }
+    };
+
+    checkIncompleteTasks();
+  }, [user, pathname]); // Re-check when path changes (user might complete tasks)
+
   /**
    * Navigation Items Configuration
-   * 
+   *
    * Defines the main navigation structure for the application.
    * Each item includes:
    * - href: Route path for navigation
    * - labelKey: Translation key for multilingual labels
    * - icon: Lucide React icon component
+   * - badge: Optional badge count or boolean for notification dot
    */
   const navItems = [
     { href: "/dashboard", labelKey: "sidebar.home", icon: LayoutDashboard },
     { href: "/read", labelKey: "sidebar.read", icon: BookOpen },
+    { href: "/daily-tasks", labelKey: "sidebar.dailyTasks", icon: Target, badge: hasIncompleteTasks },
     { href: "/achievements", labelKey: "sidebar.achievements", icon: Trophy },
     { href: "/community", labelKey: "sidebar.community", icon: Users },
   ];
@@ -143,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className="w-full justify-start"
                     /**
                      * Active State Logic
-                     * 
+                     *
                      * Determines if a navigation item should be highlighted as active:
                      * - Exact path match (pathname === item.href)
                      * - Path starts with item.href (for nested routes)
@@ -160,6 +192,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <span className="truncate">{t(item.labelKey)}</span>
                     </Link>
                   </SidebarMenuButton>
+                  {/* Red dot notification badge for incomplete tasks */}
+                  {item.badge && (
+                    <SidebarMenuBadge className="bg-red-500 text-white">
+                      <span className="sr-only">Incomplete tasks</span>
+                      •
+                    </SidebarMenuBadge>
+                  )}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -202,10 +241,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuLabel>{t('appShell.userAccount')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
-                {/* Settings option (currently disabled - feature coming soon) */}
-                <DropdownMenuItem disabled>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>{t('appShell.settings')}</span>
+                {/* Settings option */}
+                <DropdownMenuItem asChild>
+                  <Link href="/account-settings" className="flex items-center cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>{t('appShell.settings')}</span>
+                  </Link>
                 </DropdownMenuItem>
                 
                 {/* Logout option */}

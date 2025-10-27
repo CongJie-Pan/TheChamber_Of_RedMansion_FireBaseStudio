@@ -50,29 +50,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 
 // Icon imports for achievement categories and actions
-import { 
+import {
   Award,          // Achievement badges and recognition
   Star,           // Favorite/rating achievements
-  Target,         // Goal-setting and objectives
   BookOpen,       // Reading-related achievements
-  CalendarDays,   // Time-based achievements and streaks
-  CheckCircle,    // Completion indicators
-  Users,          // Community and social achievements
   Trophy,         // Major accomplishments and milestones
   Share2,         // Social sharing functionality
   ShieldCheck,    // Mastery and expertise badges
-  BarChart3,      // Statistics and analytics
-  Edit,           // Writing and note-taking achievements
-  Settings2,      // Goal customization and settings
-  ListChecks,     // Task completion and checklists
-  Clock,          // Time-based goals and tracking
-  Zap             // Special achievements and power-ups
+  BarChart3       // Statistics and analytics
 } from "lucide-react";
 
 // React hooks for component state management
@@ -100,24 +90,6 @@ const getLearningStatsData = (t: (key: string) => string) => ({
   currentStreak: 10,
 });
 
-const getAchievableGoalsData = (t: (key: string) => string) => [
-  { id: "goal1", icon: Target, name: "完成前四十回", description: "繼續您的閱讀旅程，完成《紅樓夢》前四十回。", currentProgress: 35, targetProgress: 40, unit: t('achievements.chaptersUnit') },
-  { id: "goal2", icon: CalendarDays, name: "持續學習獎章", description: "保持連續學習15天，解鎖新的獎章。", currentProgress: 10, targetProgress: 15, unit: t('achievements.currentStreak').includes('Days') ? 'Days' : '天' },
-  { id: "goal3", icon: Edit, name: "筆記大師", description: "撰寫至少20篇有深度的閱讀筆記。", currentProgress: 12, targetProgress: 20, unit: t('dashboard.notesCount').includes('Notes') ? 'Notes' : '篇' },
-];
-
-const getChallengesData = (t: (key: string) => string) => ({
-  daily: [
-    { id: "daily1", name: "今日閱讀挑戰", description: "今日閱讀《紅樓夢》30分鐘", reward: "20 成就點", active: true },
-    { id: "daily2", name: "每日一問", description: "回答一個關於今日閱讀內容的問題", reward: "10 成就點", active: false },
-  ],
-  weekly: [
-    { id: "weekly1", name: "本週章回衝刺", description: "本週完成3個章回的閱讀與筆記", reward: "100 成就點", active: true },
-  ],
-  special: [
-    { id: "special1", name: "紅樓詩詞大賞", description: "參與《紅樓夢》詩詞賞析與創作活動", reward: "特殊徽章 + 200點", active: false },
-  ],
-});
 
 
 export default function AchievementsPage() {
@@ -125,9 +97,7 @@ export default function AchievementsPage() {
   
   const achievedAchievementsData = getAchievedAchievementsData(t);
   const learningStatsData = getLearningStatsData(t);
-  const achievableGoalsData = getAchievableGoalsData(t);
-  const challengesData = getChallengesData(t);
-  
+
   const [userAchievements, setUserAchievements] = useState(achievedAchievementsData);
 
   return (
@@ -234,147 +204,6 @@ export default function AchievementsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-artistic text-white flex items-center gap-2"><Target className="text-green-400" /> {t('achievements.nextGoals')}</CardTitle>
-            <CardDescription>{t('achievements.nextGoalsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {achievableGoalsData.map(goal => (
-              <Card key={goal.id} className="bg-card/60 p-4">
-                <div className="flex items-start gap-3">
-                  <goal.icon className="h-7 w-7 text-green-500 mt-1" />
-                  <div>
-                    <h4 className="font-semibold text-white">{goal.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">{goal.description}</p>
-                    <Progress value={(goal.currentProgress / goal.targetProgress) * 100} className="h-2 mb-1" indicatorClassName="bg-green-500" />
-                    <p className="text-xs text-muted-foreground">{goal.currentProgress} / {goal.targetProgress} {goal.unit}</p>
-                  </div>
-                </div>
-                <div className="flex justify-end mt-2">
-                  <Button size="sm" variant="outline" onClick={() => alert(`${t('buttons.startGoal')}: ${goal.name}`)}>
-                    {goal.currentProgress > 0 && goal.currentProgress < goal.targetProgress ? t('buttons.continueEffort') : t('buttons.startGoal')}
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-artistic text-white flex items-center gap-2"><Settings2 className="text-purple-400" /> {t('achievements.setNewGoals')}</CardTitle>
-            <CardDescription>{t('achievements.setNewGoalsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Button variant="outline" className="w-full justify-start h-auto py-3 text-left" onClick={() => alert(t('achievements.goalDailyReadingTime'))}>
-              <Clock className="mr-2 h-5 w-5 text-purple-400" />
-              <div>
-                <p className="font-medium">{t('achievements.goalDailyReadingTime')}</p>
-                <p className="text-xs text-muted-foreground">{t('achievements.goalDailyReadingTimeDesc')}</p>
-              </div>
-            </Button>
-            <Button variant="outline" className="w-full justify-start h-auto py-3 text-left" onClick={() => alert(t('achievements.goalChapterCompletion'))}>
-              <ListChecks className="mr-2 h-5 w-5 text-purple-400" />
-              <div>
-                <p className="font-medium">{t('achievements.goalChapterCompletion')}</p>
-                <p className="text-xs text-muted-foreground">{t('achievements.goalChapterCompletionDesc')}</p>
-              </div>
-            </Button>
-            <Button variant="outline" className="w-full justify-start h-auto py-3 text-left" onClick={() => alert(t('achievements.goalStreak'))}>
-              <CalendarDays className="mr-2 h-5 w-5 text-purple-400" />
-              <div>
-                <p className="font-medium">{t('achievements.goalStreak')}</p>
-                <p className="text-xs text-muted-foreground">{t('achievements.goalStreakDesc')}</p>
-              </div>
-            </Button>
-            <Button variant="outline" className="w-full justify-start h-auto py-3 text-left" onClick={() => alert(t('achievements.goalAccuracy'))}>
-              <CheckCircle className="mr-2 h-5 w-5 text-purple-400" />
-               <div>
-                <p className="font-medium">{t('achievements.goalAccuracy')}</p>
-                <p className="text-xs text-muted-foreground">{t('achievements.goalAccuracyDesc')}</p>
-              </div>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-artistic text-white flex items-center gap-2"><Zap className="text-orange-400" /> {t('achievements.challenges')}</CardTitle>
-          <CardDescription>{t('achievements.challengesDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="daily" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="daily">{t('achievements.tabDaily')}</TabsTrigger>
-              <TabsTrigger value="weekly">{t('achievements.tabWeekly')}</TabsTrigger>
-              <TabsTrigger value="special">{t('achievements.tabSpecial')}</TabsTrigger>
-            </TabsList>
-            <TabsContent value="daily">
-              {challengesData.daily.length > 0 ? (
-                <div className="space-y-3">
-                  {challengesData.daily.map(challenge => (
-                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
-                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
-                          <p className="text-xs text-amber-400 mt-1">{t('achievements.rewardPrefix')}{challenge.reward}</p>
-                        </div>
-                        <Button size="sm" variant={challenge.active ? "default" : "outline"} onClick={() => alert(`${t('achievements.joinChallenge')}: ${challenge.name}`)}>
-                          {challenge.active ? t('achievements.challengeInProgress') : t('achievements.joinChallenge')}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : <p className="text-muted-foreground text-center py-4">{t('achievements.noDailyChallenges')}</p>}
-            </TabsContent>
-            <TabsContent value="weekly">
-              {challengesData.weekly.length > 0 ? (
-                 <div className="space-y-3">
-                  {challengesData.weekly.map(challenge => (
-                     <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
-                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
-                          <p className="text-xs text-amber-400 mt-1">{t('achievements.rewardPrefix')}{challenge.reward}</p>
-                        </div>
-                        <Button size="sm" variant={challenge.active ? "default" : "outline"} onClick={() => alert(`${t('achievements.joinChallenge')}: ${challenge.name}`)}>
-                          {challenge.active ? t('achievements.challengeInProgress') : t('achievements.joinChallenge')}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : <p className="text-muted-foreground text-center py-4">{t('achievements.noWeeklyChallenges')}</p>}
-            </TabsContent>
-            <TabsContent value="special">
-              {challengesData.special.length > 0 ? (
-                <div className="space-y-3">
-                  {challengesData.special.map(challenge => (
-                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
-                          <p className="text-xs text-muted-foreground">{challenge.description}</p>
-                          <p className="text-xs text-amber-400 mt-1">{t('achievements.rewardPrefix')}{challenge.reward}</p>
-                        </div>
-                        <Button size="sm" variant={challenge.active ? "default" : "outline"} onClick={() => alert(`${t('achievements.joinChallenge')}: ${challenge.name}`)}>
-                          {challenge.active ? t('achievements.challengeInProgress') : t('achievements.viewActivity')}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : <p className="text-muted-foreground text-center py-4">{t('achievements.noSpecialChallenges')}</p>}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
     </div>
   );
 }

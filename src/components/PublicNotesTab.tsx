@@ -1,3 +1,38 @@
+/**
+ * @fileOverview Public Notes Tab Component - Community Notes Browser
+ *
+ * This component provides a browsing interface for public reading notes shared
+ * by the community. It implements read-only note display with filtering and
+ * pagination optimized for discovery and learning from other readers.
+ *
+ * Key features:
+ * - Fetches public notes with configurable limit (cost optimization)
+ * - Search and filtering (chapter, tags) without server roundtrips
+ * - Grid layout optimized for 3-column desktop display
+ * - Read-only note cards (no edit/delete capabilities)
+ * - Responsive pagination for large result sets
+ *
+ * Architecture decisions:
+ * - Similar to notes/page.tsx but simplified for public viewing
+ * - No dual state (notes/filteredNotes) needed - simpler data flow
+ * - 12 notes per page (divisible by 3 for grid layout)
+ * - Fetch limit of 100 (balances discovery vs Firestore costs)
+ *
+ * Performance considerations:
+ * - Uses useMemo for filtering (same as NoteFilters pattern)
+ * - Client-side pagination (public notes unlikely to exceed 100)
+ * - Auto-reset to page 1 on filter change (prevents empty pages)
+ *
+ * Usage:
+ * ```typescript
+ * // In a tabbed interface or community page
+ * <PublicNotesTab />
+ * ```
+ *
+ * @see {@link ../lib/notes-service.ts} for getPublicNotes implementation
+ * @see {@link ./NoteCard.tsx} for read-only mode (showUserInfo=true)
+ */
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -19,6 +54,15 @@ import { BookOpen, AlertCircle, Search, X, ChevronLeft, ChevronRight } from 'luc
 import { useToast } from '@/hooks/use-toast';
 import { useMemo } from 'react';
 
+/**
+ * Pagination configuration for public notes
+ *
+ * Reason for 12 notes per page (vs 20 for personal notes):
+ * - Divisible by 3 for perfect grid layout (4 rows × 3 columns)
+ * - Prevents orphan cards in grid (better visual balance)
+ * - Smaller page size encourages exploration (psychological UX)
+ * - Reduces scroll length on mobile devices
+ */
 const NOTES_PER_PAGE = 12;
 
 export function PublicNotesTab() {
@@ -35,7 +79,21 @@ export function PublicNotesTab() {
   const [selectedChapter, setSelectedChapter] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
 
-  // Fetch public notes
+  /**
+   * Fetch public notes on component mount
+   *
+   * Reason for limiting to 100 notes:
+   * - Balances content discovery vs Firestore read costs
+   * - 100 notes = ~8 pages at 12 notes/page (sufficient for browsing)
+   * - Firestore pricing: Each read costs money, so we limit initial fetch
+   * - Client-side filtering makes this limit less restrictive
+   * - If needed, can implement "Load More" pattern later
+   *
+   * Reason for NOT including notes in dependency array:
+   * - Would cause infinite loop (setNotes triggers re-fetch)
+   * - Only need to fetch once on mount
+   * - Updates to public notes handled via real-time listeners (future enhancement)
+   */
   useEffect(() => {
     const fetchPublicNotes = async () => {
       try {

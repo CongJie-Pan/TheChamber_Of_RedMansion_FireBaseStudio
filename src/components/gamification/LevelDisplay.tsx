@@ -116,19 +116,20 @@ function getPermissionIcon(permission: LevelPermission) {
     [LevelPermission.BASIC_READING]: BookOpen,
     [LevelPermission.SIMPLE_AI_QA]: MessageSquare,
     [LevelPermission.DAILY_TASKS]: FileText,
-    [LevelPermission.ADVANCED_AI_QA]: MessageSquare,
-    [LevelPermission.NOTE_SHARING]: Users,
-    [LevelPermission.EXPERT_READINGS_PREVIEW]: BookOpen,
-    [LevelPermission.COMMUNITY_POST]: Users,
+    [LevelPermission.BASIC_ACHIEVEMENTS]: Award,
+    [LevelPermission.POETRY_LISTENING]: BookOpen,
+    [LevelPermission.EXPERT_READINGS_BASIC]: BookOpen,
+    [LevelPermission.GARDEN_3D_VIEW]: Home,
     [LevelPermission.POETRY_COMPETITION]: Award,
+    [LevelPermission.STUDY_GROUP_CREATE]: Users,
+    [LevelPermission.ADVANCED_AI_ANALYSIS]: MessageSquare,
+    [LevelPermission.CHARACTER_RELATIONSHIP_MAP]: Users,
     [LevelPermission.EXPERT_READINGS_FULL]: BookOpen,
-    [LevelPermission.CHARACTER_DEEP_DIVE]: Users,
-    [LevelPermission.STUDY_GROUPS]: Users,
-    [LevelPermission.MENTOR_ACCESS]: Users,
-    [LevelPermission.ADVANCED_ANALYTICS]: Sparkles,
-    [LevelPermission.CONTENT_CREATION]: FileText,
-    [LevelPermission.BETA_FEATURES]: Sparkles,
+    [LevelPermission.SPECIAL_TOPICS]: FileText,
+    [LevelPermission.MENTOR_ROLE]: Users,
     [LevelPermission.EXCLUSIVE_EVENTS]: Award,
+    [LevelPermission.RESEARCH_TOOLS]: Sparkles,
+    [LevelPermission.ANNOTATION_PUBLISH]: FileText,
   };
 
   return iconMap[permission] || Unlock;
@@ -280,34 +281,14 @@ export function LevelDisplay({
           </div>
         )}
 
-        {/* Permissions */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Unlock className="h-4 w-4 text-primary" />
-            {t('level.permissions')} ({currentPermissions.length})
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
-            {currentPermissions.map((permission) => {
-              const PermissionIcon = getPermissionIcon(permission);
-              return (
-                <div
-                  key={permission}
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                  <PermissionIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="truncate">{formatPermissionName(permission)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {/* 權限部分已隱藏 - 用戶體驗優化：不顯示技術性權限，改為專注於獎勵 */}
 
-        {/* Unlocked Content */}
+        {/* 已解鎖內容 */}
         {currentLevelConfig.exclusiveContent && currentLevelConfig.exclusiveContent.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Award className="h-4 w-4 text-primary" />
-              {t('level.unlockedContent')}
+              已解鎖內容
             </h3>
             <div className="flex flex-wrap gap-2 pl-6">
               {currentLevelConfig.exclusiveContent.map((content, index) => (
@@ -319,12 +300,12 @@ export function LevelDisplay({
           </div>
         )}
 
-        {/* Exclusive Rewards */}
+        {/* 專屬獎勵 */}
         {currentLevelConfig.visualRewards && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              {t('level.exclusiveRewards')}
+              專屬獎勵
             </h3>
             <div className="flex flex-wrap gap-2 pl-6">
               {currentLevelConfig.visualRewards.avatarFrame && (
@@ -353,12 +334,21 @@ export function LevelDisplay({
               <p className="text-sm text-muted-foreground pl-6">
                 {nextLevelConfig.description}
               </p>
-              {nextLevelConfig.permissions.length > currentPermissions.length && (
+              {nextLevelConfig.exclusiveContent && nextLevelConfig.exclusiveContent.length > 0 && (
                 <div className="pl-6 text-sm">
-                  <span className="text-muted-foreground">{t('level.newPermissionsUnlocked')}: </span>
-                  <span className="font-medium">
-                    +{nextLevelConfig.permissions.length - currentPermissions.length}
-                  </span>
+                  <span className="text-muted-foreground">解鎖專屬獎勵：</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {nextLevelConfig.exclusiveContent.slice(0, 3).map((content, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {content}
+                      </Badge>
+                    ))}
+                    {nextLevelConfig.exclusiveContent.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{nextLevelConfig.exclusiveContent.length - 3} 更多
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

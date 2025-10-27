@@ -1,5 +1,47 @@
-// Knowledge Graph Data Transformation Utilities
-// This file provides utilities to transform chapter JSON data to D3.js compatible format
+/**
+ * @fileOverview Knowledge Graph Data Transformation Utilities
+ *
+ * This module provides comprehensive utilities for transforming raw chapter JSON data
+ * into D3.js-compatible knowledge graph visualizations for Dream of the Red Chamber.
+ * It implements domain-specific classification rules based on Chinese literary knowledge.
+ *
+ * Key features:
+ * - Entity categorization using pattern matching (characters, locations, artifacts, concepts)
+ * - Relationship classification with strength and distance metrics
+ * - D3.js force-directed graph data transformation
+ * - Multi-source data loading (API, local fallback)
+ * - Color and size encoding for visual hierarchy
+ *
+ * Domain knowledge encoding:
+ * - Character types: Mythological (女媧), Main (士隱, 雨村), Secondary (英蓮)
+ * - Location types: Mystical (大荒山), Earthly (蘇州城)
+ * - Artifact types: Important items (石頭記, 玉)
+ * - Concept types: Philosophical (還淚, 情)
+ * - Event types: Plot elements (功名夢)
+ *
+ * Force-directed graph parameters:
+ * - Node radius: 18-35px based on importance
+ * - Link distance: 60-120px based on relationship type
+ * - Link strength: 0.5-0.9 based on relationship intimacy
+ *
+ * Architecture decisions:
+ * - Hardcoded classification rules (domain expertise > ML for this use case)
+ * - Graceful degradation (returns empty graph on error)
+ * - API-first with local fallback (cloud → local → empty)
+ *
+ * Usage:
+ * ```typescript
+ * // Load and transform chapter data
+ * const graphData = await loadChapterGraphData(1);
+ *
+ * // Use with D3.js force simulation
+ * const simulation = d3.forceSimulation(graphData.nodes)
+ *   .force("link", d3.forceLink(graphData.links).distance(d => d.distance))
+ *   .force("charge", d3.forceManyBody().strength(-300));
+ * ```
+ *
+ * @see {@link ../app/(main)/read-book/page.tsx} for usage in reading interface
+ */
 
 export interface ChapterGraphJson {
   entities: string[];
@@ -62,7 +104,33 @@ export interface KnowledgeGraphData {
   links: KnowledgeGraphLink[];
 }
 
-// Entity categorization rules based on Chinese literature domain knowledge
+/**
+ * Entity categorization based on Chinese literature domain knowledge
+ *
+ * Reason for pattern-based classification vs machine learning:
+ * - Domain expertise encoded in character patterns (氏, 仙, 媧)
+ * - Deterministic results (no model training/serving overhead)
+ * - Lightweight (no ML dependencies, smaller bundle size)
+ * - Transparent rules (easy to debug and extend)
+ * - Sufficient for Dream of the Red Chamber context
+ *
+ * Color scheme reasoning:
+ * - Red (#DC2626): Mythological - highest importance, divine beings
+ * - Green (#059669): Main characters - central to plot
+ * - Pink (#EC4899): Secondary characters - supporting roles
+ * - Purple (#8B5CF6): Mystical locations - supernatural realms
+ * - Amber (#F59E0B): Earthly locations - mundane world
+ * - Golden (#EAB308): Artifacts - important objects/texts
+ * - Cyan (#0891B2): Philosophical concepts - abstract ideas
+ * - Brown (#7C2D12): Events - plot points
+ * - Gray (#6B7280): Other - default fallback
+ *
+ * Radius encoding:
+ * - 35px: Primary importance (most prominent in visualization)
+ * - 28-30px: Important entities (clearly visible)
+ * - 22-25px: Secondary entities (supporting elements)
+ * - 18-20px: Tertiary entities (background elements)
+ */
 const categorizeEntity = (entityName: string): {
   type: KnowledgeGraphNode['type'];
   category: string;
@@ -175,14 +243,36 @@ const categorizeEntity = (entityName: string): {
   };
 };
 
-// Relationship type classification
+/**
+ * Relationship type classification for force-directed graph
+ *
+ * Reason for strength and distance parameters:
+ * - D3.js force simulation uses these for graph layout
+ * - Strength: How strongly connected nodes attract each other (0-1)
+ * - Distance: Ideal spacing between connected nodes (pixels)
+ * - Family relations: High strength (0.9), short distance (60) → tight clusters
+ * - Friendship: Medium strength (0.7), medium distance (90) → loosely connected
+ * - Conceptual: Low strength (0.6), long distance (120) → separate but related
+ *
+ * Relationship hierarchy:
+ * 1. family (0.9 strength, 60px) - Strongest, closest
+ * 2. literary (0.8 strength, 100px) - Strong narrative connection
+ * 3. friendship (0.7 strength, 90px) - Social connection
+ * 4. conceptual (0.6 strength, 120px) - Abstract connection
+ * 5. default (0.5 strength, 110px) - Weakest, farthest
+ *
+ * Visual effect:
+ * - Family clusters form tight groups
+ * - Conceptual links create sparse connections
+ * - Balance prevents graph from collapsing or exploding
+ */
 const classifyRelationship = (relationshipText: string): {
   type: KnowledgeGraphLink['type'];
   strength: number;
   distance: number;
 } => {
   const relationship = relationshipText.toLowerCase();
-  
+
   // Family relationships - 家庭關係
   if (relationship.includes('女兒') || relationship.includes('妻子') || relationship.includes('夫妻')) {
     return { type: 'family', strength: 0.9, distance: 60 };
@@ -268,15 +358,37 @@ export const transformChapterDataToGraphData = (chapterData: ChapterGraphJson): 
   };
 };
 
-// Load chapter data from JSON file
+/**
+ * Load chapter graph data with multi-source fallback strategy
+ *
+ * Data source hierarchy (API-first approach):
+ * 1. API endpoint: /api/chapters/{chapterNumber}/graph (preferred)
+ * 2. Local JSON file: /read/chapterGraph/chapter{chapterNumber}.json (fallback)
+ * 3. Empty graph: [] (error fallback)
+ *
+ * Reason for dual-source strategy:
+ * - API: Future cloud database integration (dynamic, updatable)
+ * - Local: Works offline, faster initial load, development/demo
+ * - Empty: Prevents component crashes on load failure
+ *
+ * Reason for not throwing errors:
+ * - Graceful degradation: App remains functional without graph
+ * - Better UX: Show empty state vs error screen
+ * - Logging: Errors logged to console for debugging
+ * - Flexibility: Different chapters may have different data availability
+ *
+ * Future enhancement:
+ * - Cache successful API responses in localStorage
+ * - Implement retry logic with exponential backoff
+ * - Add loading indicators for each source attempt
+ */
 export const loadChapterGraphData = async (chapterNumber: number): Promise<KnowledgeGraphData> => {
   try {
-    // In production, this would be an API call to cloud database
-    // For now, we'll load from the local JSON file
+    // Attempt 1: API endpoint (cloud database)
     const response = await fetch(`/api/chapters/${chapterNumber}/graph`);
-    
+
     if (!response.ok) {
-      // Fallback to local file if API is not available
+      // Attempt 2: Local file fallback
       const localResponse = await fetch(`/read/chapterGraph/chapter${chapterNumber}.json`);
       if (!localResponse.ok) {
         throw new Error(`Failed to load chapter ${chapterNumber} graph data`);
@@ -284,14 +396,14 @@ export const loadChapterGraphData = async (chapterNumber: number): Promise<Knowl
       const chapterData: ChapterGraphJson = await localResponse.json();
       return transformChapterDataToGraphData(chapterData);
     }
-    
+
     const chapterData: ChapterGraphJson = await response.json();
     return transformChapterDataToGraphData(chapterData);
-    
+
   } catch (error) {
     console.error(`Error loading chapter ${chapterNumber} graph data:`, error);
-    
-    // Return empty graph data as fallback
+
+    // Attempt 3: Return empty graph (graceful degradation)
     return {
       nodes: [],
       links: []

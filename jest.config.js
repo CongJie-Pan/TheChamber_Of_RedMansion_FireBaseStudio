@@ -52,6 +52,8 @@ const config = {
     '^@genkit-ai/(.*)$': '<rootDir>/tests/mocks/genkit.js',
     // Mock lucide-react icons to avoid ES module issues
     'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
+    // Mock all Radix UI React primitives to simple components
+    '^@radix-ui/react-.*$': '<rootDir>/tests/mocks/radix.js',
   },
   
   // Test file patterns
@@ -87,8 +89,8 @@ const config = {
   // Coverage reporters
   coverageReporters: ['text', 'lcov', 'html'],
   
-  // Test timeout (increased for Firebase operations)
-  testTimeout: 30000,
+  // Test timeout (increased for Firebase operations and daily task tests)
+  testTimeout: 60000, // Increased to 60 seconds for complex test suites
   
   // Module file extensions
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],

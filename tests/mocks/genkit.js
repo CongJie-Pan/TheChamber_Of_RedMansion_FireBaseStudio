@@ -3,30 +3,30 @@
  * This mock provides the necessary exports that our AI flows use
  */
 
-// Mock for zod-like validation
+// Mock for zod-like validation with chainable methods
+const createChainableMock = () => {
+  const mock = {
+    describe: jest.fn(() => mock),
+    optional: jest.fn(() => mock),
+    default: jest.fn(() => mock),
+    min: jest.fn(() => mock),
+    max: jest.fn(() => mock),
+    length: jest.fn(() => mock),
+    email: jest.fn(() => mock),
+    url: jest.fn(() => mock),
+    regex: jest.fn(() => mock),
+    nullable: jest.fn(() => mock),
+  };
+  return mock;
+};
+
 const z = {
-  object: jest.fn(() => ({
-    describe: jest.fn(() => z.object()),
-    optional: jest.fn(() => z.object()),
-    default: jest.fn(() => z.object()),
-  })),
-  string: jest.fn(() => ({
-    describe: jest.fn(() => z.string()),
-    optional: jest.fn(() => z.string()),
-  })),
-  boolean: jest.fn(() => ({
-    describe: jest.fn(() => z.boolean()),
-    optional: jest.fn(() => z.boolean()),
-    default: jest.fn(() => z.boolean()),
-  })),
-  number: jest.fn(() => ({
-    describe: jest.fn(() => z.number()),
-    optional: jest.fn(() => z.number()),
-  })),
-  array: jest.fn(() => ({
-    describe: jest.fn(() => z.array()),
-    optional: jest.fn(() => z.array()),
-  })),
+  object: jest.fn(() => createChainableMock()),
+  string: jest.fn(() => createChainableMock()),
+  boolean: jest.fn(() => createChainableMock()),
+  number: jest.fn(() => createChainableMock()),
+  array: jest.fn(() => createChainableMock()),
+  enum: jest.fn(() => createChainableMock()),
 };
 
 // Mock ai object that mimics the genkit ai instance
@@ -59,4 +59,6 @@ module.exports = {
   definePrompt: jest.fn(),
   generate: jest.fn(),
   generateStream: jest.fn(),
+  // Mock for @genkit-ai/googleai plugin
+  googleAI: jest.fn(() => ({})),
 };

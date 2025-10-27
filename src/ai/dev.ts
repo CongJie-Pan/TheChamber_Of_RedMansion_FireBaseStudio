@@ -20,7 +20,7 @@ config(); // Initialize dotenv to access environment variables
 import '@/ai/flows/context-aware-analysis.ts'; // AI flow for contextual text analysis
 // import '@/ai/flows/learning-analysis.ts'; // Removed - not currently in use
 import '@/ai/flows/explain-text-selection.ts'; // AI flow for explaining selected text passages
-import '@/ai/flows/grounded-red-chamber-qa.ts'; // NEW: AI flow for grounded QA with citations
+// import '@/ai/flows/grounded-red-chamber-qa.ts'; // Removed - migrated to Perplexity AI
 // import '@/ai/flows/generate-goal-suggestions.ts'; // Removed - not currently in use
 // import '@/ai/flows/ai-companion-guidance.ts'; // Removed - not currently in use
 // import '@/ai/flows/connect-themes-to-modern-contexts.ts'; // Removed - not currently in use

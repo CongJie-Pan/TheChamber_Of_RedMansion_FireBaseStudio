@@ -182,7 +182,7 @@ class ChunkErrorBoundary extends Component<ChunkErrorBoundaryProps, ChunkErrorBo
           </Alert>
 
           {process.env.NODE_ENV === 'development' && error && (
-            <Alert variant="outline">
+            <Alert variant="default">
               <AlertTitle>Error Details (Development)</AlertTitle>
               <AlertDescription className="font-mono text-xs">
                 {error.name}: {error.message}
