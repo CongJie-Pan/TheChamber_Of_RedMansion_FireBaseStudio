@@ -50,6 +50,15 @@ import {
 import { db } from './firebase';
 import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
+
+// Phase 2.9: SQLite Database Integration
+import * as userRepository from './repositories/user-repository';
+import * as taskRepository from './repositories/task-repository';
+import * as progressRepository from './repositories/progress-repository';
+import { fromUnixTimestamp } from './sqlite-db';
+
+// Use SQLite instead of Firebase (temporary flag for migration)
+const USE_SQLITE = true;
 import {
   DailyTask,
   DailyTaskProgress,
@@ -455,30 +464,76 @@ export class DailyTaskService {
       }
       console.log(`   🎯 最終經驗值: ${finalXP} XP\n`);
 
-      // 9. Award XP through user-level-service
+      // 9. Award XP through user-level-service OR SQLite repository
       // Use content-based sourceId to prevent duplicate rewards across systems
       // If the task has a content sourceId (e.g., "chapter-3-passage-1-10"),
       // use that instead of the generic daily-task ID to ensure that
       // completing the same content in reading page won't allow duplicate XP
       const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
 
-      let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean };
-      try {
-        xpResult = await userLevelService.awardXP(
-          userId,
-          finalXP,
-          `Completed daily task: ${task.title}`,
-          'task',
-          xpSourceId
-        );
-      } catch (e: any) {
-        console.warn('Award XP failed, continuing with local progress update:', e?.code || e?.message || e);
-        xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false };
+      let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean; fromLevel?: number };
+
+      if (USE_SQLITE) {
+        // SQLite path: Direct repository access
+        try {
+          // Ensure user exists in SQLite database
+          let user = userRepository.getUserById(userId);
+          if (!user) {
+            // Create user if doesn't exist
+            user = userRepository.createUser(userId, userId, undefined);
+          }
+
+          const beforeLevel = user.currentLevel;
+
+          // Award XP
+          const updatedUser = userRepository.awardXP(userId, finalXP);
+          xpResult = {
+            success: true,
+            newTotalXP: updatedUser.totalXP,
+            newLevel: updatedUser.currentLevel,
+            fromLevel: beforeLevel,
+            leveledUp: updatedUser.currentLevel > beforeLevel,
+          };
+          console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
+        } catch (e: any) {
+          console.warn('SQLite Award XP failed, continuing:', e?.message || e);
+          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
+        }
+      } else {
+        // Firebase path: Use existing service
+        try {
+          xpResult = await userLevelService.awardXP(
+            userId,
+            finalXP,
+            `Completed daily task: ${task.title}`,
+            'task',
+            xpSourceId
+          );
+        } catch (e: any) {
+          console.warn('Award XP failed, continuing with local progress update:', e?.code || e?.message || e);
+          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false };
+        }
       }
 
       // 10. Award attribute points
       const attributeGains = task.attributeRewards;
-      await userLevelService.updateAttributes(userId, attributeGains);
+
+      if (USE_SQLITE) {
+        // SQLite path: Update attributes
+        try {
+          userRepository.updateAttributes(userId, attributeGains);
+          console.log(`✅ [SQLite] Updated attributes for user ${userId}`);
+        } catch (e: any) {
+          console.warn('SQLite Update attributes failed:', e?.message || e);
+        }
+      } else {
+        // Firebase path: Use existing service
+        try {
+          await userLevelService.updateAttributes(userId, attributeGains);
+        } catch (e: any) {
+          console.warn('Update attributes failed:', e?.code || e?.message || e);
+        }
+      }
 
       // 11. Update task assignment
       const updatedAssignment: DailyTaskAssignment = {
@@ -520,10 +575,41 @@ export class DailyTaskService {
         updatedProgress.streak = await this.updateStreak(userId, todayDate);
       }
 
-      await updateDoc(
-        doc(this.dailyTaskProgressCollection, `${userId}_${todayDate}`),
-        updatedProgress as any
-      );
+      if (USE_SQLITE) {
+        // SQLite path: Update progress using repository
+        try {
+          const progressId = `${userId}_${todayDate}`;
+          // Check if progress exists in SQLite
+          let existingProgress = progressRepository.getProgress(userId, todayDate);
+
+          if (existingProgress) {
+            // Update existing progress
+            progressRepository.updateProgress(progressId, updatedProgress);
+            console.log(`✅ [SQLite] Updated progress: ${progressId}`);
+          } else {
+            // Create new progress record
+            const newProgress: DailyTaskProgress = {
+              id: progressId,
+              userId,
+              date: todayDate,
+              ...updatedProgress,
+              tasks: updatedTasks,
+              createdAt: progress.createdAt,
+              updatedAt: Timestamp.now(),
+            };
+            progressRepository.createProgress(newProgress);
+            console.log(`✅ [SQLite] Created progress: ${progressId}`);
+          }
+        } catch (e: any) {
+          console.warn('SQLite Update progress failed:', e?.message || e);
+        }
+      } else {
+        // Firebase path: Use existing updateDoc
+        await updateDoc(
+          doc(this.dailyTaskProgressCollection, `${userId}_${todayDate}`),
+          updatedProgress as any
+        );
+      }
 
       // 14. Record in history
       await this.recordTaskHistory(userId, taskId, task.type, score, finalXP, submissionTime);

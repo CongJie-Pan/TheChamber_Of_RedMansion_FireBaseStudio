@@ -31,8 +31,8 @@ import OpenAI from 'openai';
  * OpenAI API configuration constants
  */
 const OPENAI_CONFIG = {
-  // API timeout in milliseconds (10 seconds)
-  timeout: 10000,
+  // API timeout in milliseconds (60 seconds for gpt-5-mini reasoning)
+  timeout: 60000,
   // Maximum retries for failed requests
   maxRetries: 2,
   // Default model for completions, can be overridden via env OPENAI_MODEL
@@ -296,7 +296,7 @@ export async function generateCompletion(
           content: params.input,
         },
       ],
-      max_output_tokens: params.max_tokens ?? 600,
+      max_output_tokens: params.max_tokens ?? 1000, // Increased from 600 to ensure output generation
     };
 
     const allowCustomTemperature =
@@ -494,28 +494,53 @@ function extractResponsesContent(response: any): string {
     return '';
   }
 
+  // Try output_text field (simple string or array)
+  if (typeof (response as any).output_text === 'string') {
+    return (response as any).output_text;
+  }
+
   if (Array.isArray((response as any).output_text) && (response as any).output_text.length > 0) {
     return (response as any).output_text.join('\n');
   }
 
+  // Try output array structure
   const segments = (response as any).output;
   if (!Array.isArray(segments)) {
+    // Try message.content for responses API fallback format
+    if (response.message?.content) {
+      return response.message.content;
+    }
+    // Try choices[0].message.content (shouldn't happen with responses API but just in case)
+    if (response.choices?.[0]?.message?.content) {
+      return response.choices[0].message.content;
+    }
     return '';
   }
 
   const texts: string[] = [];
   for (const segment of segments) {
-    const contents = segment?.content;
-    if (!Array.isArray(contents)) continue;
-    for (const chunk of contents) {
-      if (typeof chunk?.text === 'string') {
-        texts.push(chunk.text);
-      } else if (Array.isArray(chunk?.content)) {
-        chunk.content.forEach((nested: any) => {
-          if (typeof nested?.text === 'string') {
-            texts.push(nested.text);
-          }
-        });
+    // Handle text type directly
+    if (segment?.type === 'text' && typeof segment?.text === 'string') {
+      texts.push(segment.text);
+      continue;
+    }
+
+    // Handle message format
+    if (segment?.type === 'message') {
+      const contents = segment?.content;
+      if (!Array.isArray(contents)) continue;
+      for (const chunk of contents) {
+        if (chunk?.type === 'text' && typeof chunk?.text === 'string') {
+          texts.push(chunk.text);
+        } else if (typeof chunk?.text === 'string') {
+          texts.push(chunk.text);
+        } else if (Array.isArray(chunk?.content)) {
+          chunk.content.forEach((nested: any) => {
+            if (typeof nested?.text === 'string') {
+              texts.push(nested.text);
+            }
+          });
+        }
       }
     }
   }
