@@ -17,7 +17,8 @@
     "test:ai-logging": "tsx scripts/test-ai-logging.ts",
     "rebuild:sqlite": "node ./scripts/sqlite-tool.cjs rebuild",
     "doctor:sqlite": "node ./scripts/sqlite-tool.cjs doctor",
-    "postinstall": "node ./scripts/sqlite-tool.cjs postinstall"
+    "postinstall": "node ./scripts/sqlite-tool.cjs postinstall",
+    "migrate:firestore": "tsx scripts/migrate-firestore-to-sqlite.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
