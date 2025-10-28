@@ -27,6 +27,46 @@ import '@testing-library/jest-dom';
 import { TaskCard } from '@/components/daily-tasks/TaskCard';
 import { DailyTask, TaskStatus, DailyTaskType, TaskDifficulty } from '@/lib/types/daily-task';
 
+// Mock UI components
+jest.mock('@/components/ui/card', () => ({
+  Card: ({ children, className, onClick, ...props }: any) => (
+    <div data-testid="card" className={className} onClick={onClick} {...props}>
+      {children}
+    </div>
+  ),
+  CardContent: ({ children, className, ...props }: any) => (
+    <div data-testid="card-content" className={className} {...props}>
+      {children}
+    </div>
+  ),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className, ...props }: any) => (
+    <span data-testid="badge" className={className} {...props}>
+      {children}
+    </span>
+  ),
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  BookOpen: () => <span data-testid="icon-book-open">📖</span>,
+  Feather: () => <span data-testid="icon-feather">🪶</span>,
+  Users: () => <span data-testid="icon-users">👥</span>,
+  Landmark: () => <span data-testid="icon-landmark">🏛️</span>,
+  BookMarked: () => <span data-testid="icon-book-marked">📚</span>,
+  Clock: () => <span data-testid="icon-clock">⏰</span>,
+  Sparkles: () => <span data-testid="icon-sparkles">✨</span>,
+  CheckCircle2: () => <span data-testid="icon-check-circle">✅</span>,
+  Circle: () => <span data-testid="icon-circle">⭕</span>,
+  PlayCircle: () => <span data-testid="icon-play-circle">▶️</span>,
+  TrendingUp: () => <span data-testid="icon-trending-up">📈</span>,
+  Flame: () => <span data-testid="icon-flame">🔥</span>,
+  Brain: () => <span data-testid="icon-brain">🧠</span>,
+  HeartHandshake: () => <span data-testid="icon-heart-handshake">🤝</span>,
+}));
+
 describe('TaskCard Loading States', () => {
   const mockTask: DailyTask = {
     id: 'task-1',
