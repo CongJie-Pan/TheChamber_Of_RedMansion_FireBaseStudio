@@ -61,6 +61,12 @@ describe('sqlite-db strict initialization', () => {
     const db = sqliteDb.getDatabase();
 
     expect(typeof db.exec).toBe('function');
+    const schemaStatements = mockDatabaseInstance.exec.mock.calls.map(([sql]) => sql as string);
+    expect(schemaStatements.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS xp_transactions'))).toBe(true);
+    expect(schemaStatements.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS xp_transaction_locks'))).toBe(true);
+    expect(schemaStatements.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS level_ups'))).toBe(true);
+    expect(schemaStatements.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_xp_transactions_user'))).toBe(true);
+    expect(schemaStatements.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_level_ups_user'))).toBe(true);
     expect(sqliteDb.isSQLiteAvailable()).toBe(true);
   });
 

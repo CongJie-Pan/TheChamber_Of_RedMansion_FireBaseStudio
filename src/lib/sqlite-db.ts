@@ -117,6 +117,44 @@ function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // XP transactions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS xp_transactions (
+      transactionId TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      reason TEXT,
+      source TEXT,
+      sourceId TEXT,
+      createdAt INTEGER NOT NULL,
+      UNIQUE(userId, sourceId)
+    );
+  `);
+
+  // XP transaction locks table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS xp_transaction_locks (
+      lockId TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      sourceId TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      UNIQUE(userId, sourceId)
+    );
+  `);
+
+  // Level ups table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS level_ups (
+      levelUpId TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      fromLevel INTEGER NOT NULL,
+      toLevel INTEGER NOT NULL,
+      unlockedContent TEXT, -- JSON array
+      unlockedPermissions TEXT, -- JSON array
+      createdAt INTEGER NOT NULL
+    );
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date
@@ -127,6 +165,12 @@ function initializeSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_daily_tasks_type
     ON daily_tasks(taskType);
+
+    CREATE INDEX IF NOT EXISTS idx_xp_transactions_user
+    ON xp_transactions(userId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_level_ups_user
+    ON level_ups(userId, createdAt DESC);
   `);
 
   console.log('✅ [SQLite] Database schema initialized');
