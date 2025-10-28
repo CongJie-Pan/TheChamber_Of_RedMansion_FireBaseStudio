@@ -132,7 +132,7 @@ describe('Daily Tasks API Routes - Progress & History', () => {
       expect(res.status).toBe(500);
       const body = await readJson(res);
 
-      expect(body.error).toBe('Failed to fetch daily progress');
+      expect(body.error).toBe('Failed to fetch daily task progress');
       expect(body.details).toMatch(/Database connection failed/);
     });
 

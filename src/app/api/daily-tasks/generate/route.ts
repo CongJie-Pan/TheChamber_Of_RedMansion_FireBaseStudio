@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dailyTaskService } from '@/lib/daily-task-service'
 import { taskGenerator } from '@/lib/task-generator'
-import { adminDb, verifyAuthHeader, admin } from '@/lib/firebase-admin'
+import { verifyAuthHeader } from '@/lib/firebase-admin'
 import { isLlmOnlyMode } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
@@ -57,62 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, tasks, ephemeral: true }, { status: 200 })
     }
 
-    try {
-      const tasks = await dailyTaskService.generateDailyTasks(effectiveUserId, date)
-      return NextResponse.json({ success: true, tasks, ephemeral: false }, { status: 200 })
-    } catch (err: any) {
-      // If client SDK lacks permission on server, fall back to Admin persistence path
-      const isPerm = typeof err?.code === 'string' ? err.code === 'permission-denied' : /permission-denied|insufficient permissions/i.test(String(err?.message || ''))
-      if (verifiedUid && isPerm && adminDb) {
-        try {
-          const today = new Date().toISOString().split('T')[0]
-          const targetDate = date || today
-
-          // Read current level from users profile (admin). Fallback to Level 2
-          const userSnap = await adminDb.collection('users').doc(verifiedUid).get()
-          const level = (userSnap.exists && (userSnap.data()?.currentLevel ?? 2)) || 2
-
-          const tasks = await taskGenerator.generateTasksForUser(verifiedUid, level, targetDate)
-
-          // Persist tasks (admin)
-          const now = admin?.firestore?.FieldValue?.serverTimestamp ? admin.firestore.FieldValue.serverTimestamp() : null
-          for (const task of tasks) {
-            await adminDb.collection('dailyTasks').doc(task.id).set({
-              ...task,
-              ...(now ? { createdAt: now, updatedAt: now } : {}),
-            })
-          }
-
-          // Create assignments and progress (admin)
-          const progressId = `${verifiedUid}_${targetDate}`
-          const assignments = tasks.map((task) => ({
-            taskId: task.id,
-            assignedAt: admin?.firestore?.Timestamp?.now ? admin.firestore.Timestamp.now() : new Date(),
-            status: 'not_started',
-          }))
-          await adminDb.collection('dailyTaskProgress').doc(progressId).set({
-            id: progressId,
-            userId: verifiedUid,
-            date: targetDate,
-            tasks: assignments,
-            completedTaskIds: [],
-            skippedTaskIds: [],
-            totalXPEarned: 0,
-            totalAttributeGains: {},
-            usedSourceIds: [],
-            streak: 0,
-            createdAt: admin?.firestore?.Timestamp?.now ? admin.firestore.Timestamp.now() : new Date(),
-            updatedAt: admin?.firestore?.Timestamp?.now ? admin.firestore.Timestamp.now() : new Date(),
-          })
-
-          return NextResponse.json({ success: true, tasks, ephemeral: false }, { status: 200 })
-        } catch (adminErr: any) {
-          console.error('Admin fallback failed in generate route:', adminErr)
-          // fall through to ephemeral generation below
-        }
-      }
-      throw err
-    }
+    const tasks = await dailyTaskService.generateDailyTasks(effectiveUserId, date)
+    return NextResponse.json({ success: true, tasks, ephemeral: false }, { status: 200 })
   } catch (err: any) {
     // Robust fallback: never re-read request body; rely on parsed userId
     console.error('Generate daily tasks failed, falling back to ephemeral tasks:', err)
