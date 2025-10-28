@@ -25,6 +25,8 @@ const DB_CONFIG = {
   verbose: process.env.NODE_ENV === 'development',
 } as const;
 
+const SQLITE_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
+
 /**
  * Singleton database instance
  */
@@ -142,19 +144,29 @@ let initializationFailed = false;
  *
  * @returns SQLite database instance or null if unavailable
  */
-export function getDatabase(): Database.Database | null {
+export function getDatabase(): Database.Database {
+  if (typeof window !== 'undefined') {
+    throw new Error('[SQLite] Attempted to initialize database in browser environment.');
+  }
+
+  if (!SQLITE_ENABLED) {
+    throw new Error('[SQLite] USE_SQLITE environment flag is disabled. Set USE_SQLITE=1 to enable SQLite persistence.');
+  }
+
   if (dbInstance) {
     return dbInstance;
   }
 
-  // If we've already tried and failed, don't try again
   if (initializationFailed) {
-    return null;
+    throw new Error(
+      'Failed to initialize SQLite database in this process. Check earlier logs or run "pnpm run doctor:sqlite" before retrying.'
+    );
   }
 
-  // Mark that we've attempted initialization
   if (initializationAttempted) {
-    return null;
+    throw new Error(
+      'SQLite initialization already attempted without success. Restart the process after resolving the issue.'
+    );
   }
   initializationAttempted = true;
 
@@ -164,21 +176,15 @@ export function getDatabase(): Database.Database | null {
     console.log('━'.repeat(80));
     console.log(`📁 Database path: ${DB_CONFIG.dbPath}`);
 
-    // Ensure directory exists
     ensureDbDirectory();
 
-    // Create database connection
     dbInstance = new Database(DB_CONFIG.dbPath, {
       verbose: DB_CONFIG.verbose ? console.log : undefined,
     });
 
-    // Enable foreign keys
     dbInstance.pragma('foreign_keys = ON');
-
-    // Set journal mode to WAL for better concurrency
     dbInstance.pragma('journal_mode = WAL');
 
-    // Initialize schema
     initializeSchema(dbInstance);
 
     console.log('✅ [SQLite] Database connection established');
@@ -188,25 +194,28 @@ export function getDatabase(): Database.Database | null {
   } catch (error: any) {
     initializationFailed = true;
     console.error('\n' + '━'.repeat(80));
-    console.error('❌ [SQLite] Failed to initialize database');
+    console.error('❌ [SQLite] Failed to initialize SQLite database');
     console.error('━'.repeat(80));
     console.error('Error details:', error);
 
-    // Check if it's an architecture mismatch error
-    if (error?.code === 'ERR_DLOPEN_FAILED' ||
-        error?.message?.includes('not a valid Win32 application') ||
-        error?.message?.includes('wrong ELF class')) {
+    if (
+      error?.code === 'ERR_DLOPEN_FAILED' ||
+      error?.message?.includes('not a valid Win32 application') ||
+      error?.message?.includes('wrong ELF class')
+    ) {
       console.warn('⚠️  [SQLite] Architecture mismatch detected');
       console.warn('⚠️  This usually happens when:');
       console.warn('⚠️  1. Running Windows Node.js with WSL-compiled better-sqlite3');
       console.warn('⚠️  2. Running WSL Node.js with Windows-compiled better-sqlite3');
-      console.warn('⚠️  Solution: Run "npm rebuild better-sqlite3" in the correct environment');
-      console.warn('⚠️  Falling back to Firebase for data storage');
+      console.warn('⚠️  Solution: Run "pnpm run doctor:sqlite" to inspect the environment and rebuild better-sqlite3');
     }
     console.error('━'.repeat(80) + '\n');
 
-    // Return null instead of throwing - allow graceful fallback to Firebase
-    return null;
+    const guidance =
+      'Failed to initialize SQLite database. Run "pnpm run doctor:sqlite" and ensure better-sqlite3 is rebuilt for this environment.';
+    const initializationError = new Error(`${guidance}\nOriginal error: ${error?.message ?? error}`);
+    initializationError.stack = error?.stack;
+    throw initializationError;
   }
 }
 
@@ -216,8 +225,7 @@ export function getDatabase(): Database.Database | null {
  * @returns true if SQLite is successfully initialized, false otherwise
  */
 export function isSQLiteAvailable(): boolean {
-  const db = getDatabase();
-  return db !== null;
+  return Boolean(dbInstance) && !initializationFailed;
 }
 
 /**

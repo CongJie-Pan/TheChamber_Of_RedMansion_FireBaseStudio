@@ -58,27 +58,32 @@ let userRepository: any;
 let taskRepository: any;
 let progressRepository: any;
 let fromUnixTimestamp: any;
-let isSQLiteAvailable: (() => boolean) | undefined;
 
-// Dynamically check if SQLite is actually usable
+const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
 let sqliteModulesLoaded = false;
 
-if (typeof window === 'undefined') {
+if (SQLITE_SERVER_ENABLED) {
   try {
-    // 伺服器端：嘗試載入 SQLite repositories
     userRepository = require('./repositories/user-repository');
     taskRepository = require('./repositories/task-repository');
     progressRepository = require('./repositories/progress-repository');
     const sqliteDb = require('./sqlite-db');
     fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
-    isSQLiteAvailable = sqliteDb.isSQLiteAvailable;
     sqliteModulesLoaded = true;
     console.log('✅ [DailyTaskService] SQLite modules loaded successfully');
   } catch (error: any) {
-    console.warn('⚠️  [DailyTaskService] Failed to load SQLite modules:', error?.message);
-    console.warn('⚠️  [DailyTaskService] Falling back to Firebase for all operations');
     sqliteModulesLoaded = false;
+    console.error('❌ [DailyTaskService] Failed to load SQLite modules');
+    console.error('   Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
+    const guidanceError = new Error(
+      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.',
+    );
+    (guidanceError as any).cause = error;
+    throw guidanceError;
   }
+} else if (typeof window === 'undefined') {
+  console.warn('⚠️  [DailyTaskService] USE_SQLITE flag disabled; Firebase fallback remains active.');
 }
 
 /**
@@ -89,16 +94,15 @@ if (typeof window === 'undefined') {
  * - SQLite database initialization failed (e.g., architecture mismatch)
  */
 function checkSQLiteAvailability(): boolean {
-  if (typeof window !== 'undefined') {
-    return false; // Browser environment
+  if (!SQLITE_SERVER_ENABLED) {
+    return false;
   }
   if (!sqliteModulesLoaded) {
-    return false; // Modules failed to load
+    throw new Error(
+      '[DailyTaskService] SQLite modules failed to load. Run "pnpm run doctor:sqlite" to diagnose the environment.'
+    );
   }
-  if (typeof isSQLiteAvailable === 'function') {
-    return isSQLiteAvailable(); // Check if database is actually initialized
-  }
-  return false; // Fallback to false
+  return true;
 }
 
 /**

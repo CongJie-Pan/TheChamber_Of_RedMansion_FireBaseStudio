@@ -114,7 +114,7 @@ describe('SQLite Module Loading Safety', () => {
       delete (global as any).window;
     });
 
-    test('should handle module loading errors gracefully', () => {
+    test('should fail fast with rebuild guidance when module loading errors arise', () => {
       // Arrange: Server environment
       const windowBackup = global.window;
       // @ts-ignore
@@ -123,23 +123,25 @@ describe('SQLite Module Loading Safety', () => {
       // Act: Simulate module loading with error
       let errorCaught = false;
       let modulesLoaded = false;
+      let guidanceLogged = false;
 
       if (typeof window === 'undefined') {
         try {
-          // Simulate require() that throws
           throw new Error('Module not found');
         } catch (error: any) {
           errorCaught = true;
-          console.warn('Failed to load SQLite modules:', error.message);
+          console.error('❌ [DailyTaskService] Failed to load SQLite modules');
+          console.error('Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
+          guidanceLogged = true;
         }
       }
 
       // Assert
       expect(errorCaught).toBe(true);
       expect(modulesLoaded).toBe(false);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load SQLite modules'),
-        expect.any(String)
+      expect(guidanceLogged).toBe(true);
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load SQLite modules')
       );
 
       // Cleanup
@@ -149,30 +151,27 @@ describe('SQLite Module Loading Safety', () => {
     });
   });
 
-  describe('Fallback Activation', () => {
-    test('should activate fallback when modules fail to load', () => {
+  describe('Failure Guidance', () => {
+    test('should surface doctor instructions when modules fail to load', () => {
       // Arrange
       const windowBackup = global.window;
       // @ts-ignore
       delete global.window;
 
-      let useSQLite = false;
+      let errorMessage: string | null = null;
 
       // Act: Simulate loading failure
       if (typeof window === 'undefined') {
         try {
           throw new Error('SQLite module load failed');
         } catch (error) {
-          console.warn('Falling back to Firebase');
-          useSQLite = false; // Activate fallback
+          errorMessage =
+            'Failed to initialize SQLite database. Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.';
         }
       }
 
       // Assert
-      expect(useSQLite).toBe(false);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Falling back to Firebase')
-      );
+      expect(errorMessage).toContain('pnpm run doctor:sqlite');
 
       // Cleanup
       if (windowBackup) {
@@ -270,18 +269,17 @@ describe('SQLite Module Loading Safety', () => {
         try {
           throw new Error('Cannot find module "better-sqlite3"');
         } catch (error: any) {
-          console.warn('⚠️  [DailyTaskService] Failed to load SQLite modules:', error.message);
-          console.warn('⚠️  [DailyTaskService] Falling back to Firebase for all operations');
+          console.error('❌ [DailyTaskService] Failed to load SQLite modules');
+          console.error('Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
         }
       }
 
       // Assert
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('[DailyTaskService]'),
-        expect.any(String)
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load SQLite modules')
       );
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Falling back to Firebase')
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('pnpm run doctor:sqlite')
       );
 
       // Cleanup
