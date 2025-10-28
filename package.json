@@ -14,7 +14,10 @@
     "test:watch": "jest --watch --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "test:community": "jest tests/lib/community-service --passWithNoTests",
-    "test:ai-logging": "tsx scripts/test-ai-logging.ts"
+    "test:ai-logging": "tsx scripts/test-ai-logging.ts",
+    "rebuild:sqlite": "node ./scripts/sqlite-tool.cjs rebuild",
+    "doctor:sqlite": "node ./scripts/sqlite-tool.cjs doctor",
+    "postinstall": "node ./scripts/sqlite-tool.cjs postinstall"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
