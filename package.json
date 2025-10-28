@@ -18,7 +18,10 @@
     "rebuild:sqlite": "node ./scripts/sqlite-tool.cjs rebuild",
     "doctor:sqlite": "node ./scripts/sqlite-tool.cjs doctor",
     "postinstall": "node ./scripts/sqlite-tool.cjs postinstall",
-    "migrate:firestore": "tsx scripts/migrate-firestore-to-sqlite.ts"
+    "migrate:firestore": "tsx scripts/migrate-firestore-to-sqlite.ts",
+    "migrate:highlights": "tsx scripts/migrations/migrate-highlights.ts",
+    "migrate:notes": "tsx scripts/migrations/migrate-notes.ts",
+    "migrate:all-phase2": "npm run migrate:highlights && npm run migrate:notes"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
