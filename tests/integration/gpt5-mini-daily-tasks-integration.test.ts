@@ -53,7 +53,14 @@ jest.mock('openai', () => {
                   },
                 }),
                 model: 'gpt-5-mini',
-                usage: { prompt_tokens: 200, completion_tokens: 100, total_tokens: 300 },
+                usage: {
+                  input_tokens: 200,
+                  output_tokens: 100,
+                  total_tokens: 300,
+                  output_tokens_details: {
+                    reasoning_tokens: 30, // GPT-5-mini reasoning tokens
+                  },
+                },
               };
             }
 
@@ -66,19 +73,34 @@ jest.mock('openai', () => {
                 return {
                   output_text: '優點：您準確捕捉到了文本的關鍵細節，理解深刻。\n不足：可以進一步分析人物心理。\n建議：嘗試探討寶玉詢問天氣背後的關懷之情。',
                   model: 'gpt-5-mini',
-                  usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+                  usage: {
+                    input_tokens: 100,
+                    output_tokens: 50,
+                    total_tokens: 150,
+                    output_tokens_details: { reasoning_tokens: 20 },
+                  },
                 };
               } else if (scoreNum >= 60) {
                 return {
                   output_text: '基本達標，但可以更深入。建議重新閱讀段落，注意人物對話中的情感表達。',
                   model: 'gpt-5-mini',
-                  usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 },
+                  usage: {
+                    input_tokens: 100,
+                    output_tokens: 40,
+                    total_tokens: 140,
+                    output_tokens_details: { reasoning_tokens: 15 },
+                  },
                 };
               } else {
                 return {
                   output_text: '回答尚不完整，建議認真閱讀原文，關注場景描寫和人物互動的細節。',
                   model: 'gpt-5-mini',
-                  usage: { prompt_tokens: 100, completion_tokens: 35, total_tokens: 135 },
+                  usage: {
+                    input_tokens: 100,
+                    output_tokens: 35,
+                    total_tokens: 135,
+                    output_tokens_details: { reasoning_tokens: 12 },
+                  },
                 };
               }
             }
@@ -87,7 +109,12 @@ jest.mock('openai', () => {
             return {
               output_text: '基本達標，繼續加油！',
               model: 'gpt-5-mini',
-              usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+              usage: {
+                prompt_tokens: 50,
+                completion_tokens: 10,
+                total_tokens: 60,
+                output_tokens_details: { reasoning_tokens: 3 },
+              },
             };
           }),
         },

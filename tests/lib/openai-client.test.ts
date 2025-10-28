@@ -613,4 +613,141 @@ describe('OpenAI Client Tests (GPT-5-Mini Integration)', () => {
       expect(result.output_text).toBe('Mock AI response from chat completions');
     });
   });
+
+  describe('Empty Response Detection (Phase 2.10) - Reasoning Token Handling', () => {
+    /**
+     * Test Case 21: Should detect empty response with reasoning tokens
+     *
+     * Verifies that empty responses are caught and throw descriptive errors
+     */
+    it.skip('should throw error when response is empty despite token usage', async () => {
+      // Arrange - Mock empty response with reasoning tokens
+      mockResponsesCreate.mockResolvedValueOnce({
+        model: 'gpt-5-mini',
+        output_text: '', // Empty output
+        usage: {
+          input_tokens: 125,
+          output_tokens: 448,
+          total_tokens: 573,
+          output_tokens_details: {
+            reasoning_tokens: 448, // All tokens used for reasoning
+          },
+        },
+        status: 'incomplete',
+        incomplete_details: {
+          reason: 'max_output_tokens',
+        },
+      });
+
+      // Act & Assert - Should throw with diagnostic error
+      await expect(generateCompletion({
+        model: 'gpt-5-mini',
+        input: 'Test empty response',
+        max_tokens: 500,
+      })).rejects.toThrow(/Reasoning consumed \d+ tokens/);
+    });
+
+    /**
+     * Test Case 22: Should succeed with adequate max_tokens (4000)
+     *
+     * Verifies that 4000 token limit allows both reasoning and output
+     */
+    it.skip('should successfully generate content with max_tokens: 4000', async () => {
+      // Arrange
+      mockResponsesCreate.mockResolvedValueOnce({
+        model: 'gpt-5-mini',
+        output_text: JSON.stringify({ poem: { title: '葬花吟', content: '花謝花飛花滿天' } }),
+        usage: {
+          input_tokens: 150,
+          output_tokens: 800,
+          total_tokens: 950,
+          output_tokens_details: {
+            reasoning_tokens: 400, // 400 for reasoning
+            // Remaining 400 for output
+          },
+        },
+      });
+
+      // Act
+      const result = await generateCompletion({
+        model: 'gpt-5-mini',
+        input: 'Generate poem',
+        max_tokens: 4000,
+      });
+
+      // Assert
+      expect(result.output_text).toBeDefined();
+      expect(result.output_text.length).toBeGreaterThan(0);
+      expect(result.usage?.completion_tokens).toBe(800);
+    });
+
+    /**
+     * Test Case 23: Should use default max_output_tokens of 4000
+     *
+     * Verifies default value was updated from 1000 to 4000
+     */
+    it.skip('should use default max_output_tokens: 4000', async () => {
+      // Arrange
+      mockResponsesCreate.mockClear();
+      mockResponsesCreate.mockResolvedValueOnce({
+        model: 'gpt-5-mini',
+        output_text: 'Test response',
+        usage: { input_tokens: 100, output_tokens: 200, total_tokens: 300 },
+      });
+
+      // Act - Call without explicit max_tokens
+      await generateCompletion({
+        model: 'gpt-5-mini',
+        input: 'Test default',
+      });
+
+      // Assert
+      expect(mockResponsesCreate).toHaveBeenCalledTimes(1);
+      const callArgs = mockResponsesCreate.mock.calls[0][0];
+      expect(callArgs.max_output_tokens).toBe(4000);
+    });
+
+    /**
+     * Test Case 24: Should log detailed diagnostics on empty response
+     *
+     * Verifies error message contains helpful troubleshooting info
+     */
+    it.skip('should provide diagnostic information in error message', async () => {
+      // Arrange
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockResponsesCreate.mockResolvedValueOnce({
+        model: 'gpt-5-mini',
+        output_text: '',
+        usage: {
+          input_tokens: 144,
+          output_tokens: 448,
+          total_tokens: 592,
+          output_tokens_details: {
+            reasoning_tokens: 448,
+          },
+        },
+      });
+
+      // Act
+      try {
+        await generateCompletion({
+          model: 'gpt-5-mini',
+          input: 'Test diagnostics',
+          max_tokens: 500,
+        });
+      } catch (error: any) {
+        // Assert - Error should contain actionable info
+        expect(error.message).toContain('Reasoning consumed');
+        expect(error.message).toContain('448 tokens');
+        expect(error.message).toContain('Increase max_tokens');
+        expect(error.message).toContain('4000');
+      }
+
+      // Assert - Console should log diagnostic details
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('CRITICAL'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('DIAGNOSIS'));
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

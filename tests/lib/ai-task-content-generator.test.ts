@@ -706,7 +706,119 @@ describe('AI Task Content Generator Tests (GPT-5-Mini Integration)', () => {
       const callArgs = spy.mock.calls[0][0];
       expect(callArgs.model).toBe('gpt-5-mini');
       expect(callArgs.temperature).toBeUndefined();
-      expect(callArgs.max_tokens).toBe(500);
+      expect(callArgs.max_tokens).toBe(4000); // Updated from 500 to 4000 for GPT-5-mini reasoning
+
+      spy.mockRestore();
+    });
+  });
+
+  describe('GPT-5-Mini Reasoning Token Handling (Phase 2.10)', () => {
+    /**
+     * Test Case 16: Should use 60-second timeout (not 30s)
+     *
+     * Verifies increased timeout for GPT-5-mini reasoning models
+     */
+    it('should use 60-second timeout for GPT-5-mini reasoning', async () => {
+      // Arrange
+      const spy = jest.spyOn(openaiClientModule, 'generateCompletionWithFallback');
+      spy.mockResolvedValue({
+        output_text: JSON.stringify({
+          textPassage: {
+            text: 'Test passage',
+            source: '第一回',
+            question: 'Test question?',
+            expectedKeywords: ['test'],
+          },
+        }),
+        model: 'gpt-5-mini',
+      } as any);
+
+      const params: TaskContentGenerationParams = {
+        userLevel: 3,
+        taskType: DailyTaskType.MORNING_READING,
+        difficulty: TaskDifficulty.MEDIUM,
+      };
+
+      // Act
+      await generateTaskContent(params);
+
+      // Assert - Verify timeout is 60000ms (60 seconds)
+      expect(spy).toHaveBeenCalled();
+      const timeoutArg = spy.mock.calls[0][2]; // Third argument is timeout
+      expect(timeoutArg).toBe(60000);
+
+      spy.mockRestore();
+    });
+
+    /**
+     * Test Case 17: Should handle empty response with fallback
+     *
+     * Verifies graceful fallback when GPT-5-mini returns empty content
+     */
+    it('should handle empty response and use fallback content', async () => {
+      // Arrange - Mock empty response with reasoning tokens
+      const spy = jest.spyOn(openaiClientModule, 'generateCompletionWithFallback');
+      spy.mockRejectedValue(new Error('GPT-5-mini returned empty content'));
+
+      const params: TaskContentGenerationParams = {
+        userLevel: 3,
+        taskType: DailyTaskType.POETRY,
+        difficulty: TaskDifficulty.MEDIUM,
+      };
+
+      // Act
+      const result = await generateTaskContent(params);
+
+      // Assert - Should return fallback content, not crash
+      expect(result).toBeDefined();
+      expect('poem' in result).toBe(true);
+      if ('poem' in result) {
+        expect(result.poem.title).toBeDefined();
+        expect(result.poem.content).toBeDefined();
+        // Fallback content should be valid
+        expect(result.poem.content.length).toBeGreaterThan(0);
+      }
+
+      spy.mockRestore();
+    });
+
+    /**
+     * Test Case 18: Should generate all 5 task types with 4000 max_tokens
+     *
+     * Verifies all task types use adequate token budget
+     */
+    it('should generate all 5 task types with max_tokens: 4000', async () => {
+      // Arrange
+      const spy = jest.spyOn(openaiClientModule, 'generateCompletionWithFallback');
+      const taskTypes = [
+        DailyTaskType.MORNING_READING,
+        DailyTaskType.POETRY,
+        DailyTaskType.CHARACTER_INSIGHT,
+        DailyTaskType.CULTURAL_EXPLORATION,
+        DailyTaskType.COMMENTARY_DECODE,
+      ];
+
+      // Act & Assert
+      for (const taskType of taskTypes) {
+        spy.mockClear();
+        spy.mockResolvedValue({
+          output_text: JSON.stringify({ mock: 'content' }),
+          model: 'gpt-5-mini',
+        } as any);
+
+        const params: TaskContentGenerationParams = {
+          userLevel: 3,
+          taskType,
+          difficulty: TaskDifficulty.MEDIUM,
+        };
+
+        await generateTaskContent(params);
+
+        // Verify max_tokens is 4000 for all task types
+        expect(spy).toHaveBeenCalled();
+        const callArgs = spy.mock.calls[0][0];
+        expect(callArgs.max_tokens).toBe(4000);
+      }
 
       spy.mockRestore();
     });

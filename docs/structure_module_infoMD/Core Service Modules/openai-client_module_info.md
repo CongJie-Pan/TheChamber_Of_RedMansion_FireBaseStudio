@@ -39,8 +39,9 @@ The `openai-client` module provides a configured OpenAI client for GPT-5-Mini (a
     * `generateCompletionWithFallback<T>(params: CompletionParams, fallbackValue: T, timeoutMs?: number): Promise<GPT5MiniResponse | T>` - Wrapper around `generateCompletion` with timeout and fallback. Uses `Promise.race` to timeout after specified milliseconds (default 10s). Returns fallback value if API unavailable, timeout occurs, or error thrown. Prevents blocking user workflows.
     * `extractResponsesContent(response: any): string` - Extracts text content from Responses API response structure. Handles nested `output` arrays with `content` arrays containing `text` chunks. Joins all text segments with newlines.
     * `normalizeResponsesUsage(usage: any): GPT5MiniResponse['usage'] | undefined` - Converts Responses API usage format (`input_tokens`, `output_tokens`) to standardized Chat Completions format (`prompt_tokens`, `completion_tokens`, `total_tokens`).
+    * **Empty Response Detection (Phase 2.10):** The module now includes diagnostic error handling for GPT-5-mini's reasoning token behavior. When a response contains token usage but empty content, it logs detailed diagnostics including reasoning tokens consumed, provides actionable solutions, and throws an error to trigger fallback mechanisms. This prevents silent failures when all tokens are consumed by reasoning, leaving no tokens for actual output.
 * **Key Classes / Constants / Variables:**
-    * `OPENAI_CONFIG: const` - Configuration object with `timeout: 10000` ms, `maxRetries: 2`, and `defaultModel` from env var or `'gpt-5-mini'`. Centralized config constants.
+    * `OPENAI_CONFIG: const` - Configuration object with `timeout: 60000` ms (60 seconds for base requests), `maxRetries: 2`, `defaultModel` from env var or `'gpt-5-mini'`, and `max_output_tokens: 4000` (increased from 1000 to accommodate GPT-5-mini reasoning tokens). Centralized config constants. **Phase 2.10 Update:** Default max_output_tokens increased to 4000 to allow for both reasoning tokens (internal) and actual output tokens, preventing empty responses when reasoning consumes all available tokens.
     * `openaiClient: OpenAI | null` - Singleton client instance initialized only on server-side (`typeof window === 'undefined'`) with API key present. Remains `null` on client-side or without API key.
     * `OPTIONAL_SAMPLING_KEYS: const` - Array of parameter keys that can be stripped during retry: `['temperature', 'top_p', 'presence_penalty', 'frequency_penalty', 'reasoning_effort', 'verbosity']`. Used for compatibility retry logic.
 
@@ -94,20 +95,22 @@ graph LR
 ```typescript
 import { generateCompletion, generateCompletionWithFallback, isOpenAIAvailable } from '@/lib/openai-client';
 
-// Basic completion
+// Basic completion with GPT-5-mini
 const response = await generateCompletion({
   input: '評估這段回答的文學素養：...',
   model: 'gpt-5-mini', // Optional, defaults to OPENAI_MODEL env var
   temperature: 0.7,
-  max_tokens: 500,
+  max_tokens: 4000, // Recommended: 4000+ for reasoning models to allow both reasoning and output
+  verbosity: 'medium', // Control response length
+  reasoning_effort: 'minimal', // Faster responses
 });
 console.log(response.output_text); // AI-generated feedback
 
 // With fallback (graceful degradation)
 const feedbackOrDefault = await generateCompletionWithFallback(
-  { input: 'Grade this answer...', max_tokens: 300 },
+  { input: 'Grade this answer...', max_tokens: 4000 }, // Use 4000+ for GPT-5-mini
   { output_text: '感謝您的作答。', model: 'fallback', usage: undefined },
-  8000 // 8 second timeout
+  60000 // 60 second timeout for reasoning models
 );
 
 // Check availability before calling
@@ -125,3 +128,60 @@ if (isOpenAIAvailable()) {
   - Test content extraction from different response formats
   - Test fallback behavior when client unavailable or timeout occurs
   - Test refusal handling with default Chinese message
+
+## 7. Troubleshooting Common Issues
+
+### 7.1. Empty Response Despite Token Usage (GPT-5-mini)
+
+**Symptom:** The API returns an empty `output_text` string despite showing token usage in the response.
+
+**Diagnosis:**
+```
+⚠️ [GPT-5-mini] Empty content despite 448 completion tokens used
+{
+  "output_tokens_details": {
+    "reasoning_tokens": 448
+  },
+  "output_text": ""
+}
+```
+
+**Root Cause:** GPT-5-mini (and other reasoning models like o1, o3) use internal reasoning tokens before generating output. If `max_tokens` is set too low (e.g., 500), all available tokens are consumed by the reasoning process, leaving zero tokens for actual text output.
+
+**Solution:**
+1. **Increase `max_tokens`** to at least **4000** when using GPT-5-mini
+2. Use `reasoning_effort: 'minimal'` to reduce reasoning token consumption
+3. Monitor the `output_tokens_details.reasoning_tokens` field in responses
+
+**Code Fix:**
+```typescript
+// ❌ BAD: Too low for reasoning models
+await generateCompletion({
+  model: 'gpt-5-mini',
+  input: prompt,
+  max_tokens: 500, // All consumed by reasoning!
+});
+
+// ✅ GOOD: Adequate for reasoning + output
+await generateCompletion({
+  model: 'gpt-5-mini',
+  input: prompt,
+  max_tokens: 4000, // Allows both reasoning and output
+  reasoning_effort: 'minimal', // Reduce reasoning overhead
+});
+```
+
+### 7.2. API Timeout Errors
+
+**Symptom:** Requests timeout before completion.
+
+**Solution:**
+- Increase timeout parameter in `generateCompletionWithFallback` to 60000ms (60 seconds) for reasoning models
+- Use `reasoning_effort: 'minimal'` for faster responses
+- Implement proper fallback content for graceful degradation
+
+### 7.3. Unsupported Parameter Errors
+
+**Symptom:** 400 errors with "unsupported_parameter" or "unsupported_value" codes.
+
+**Solution:** The module automatically retries with stripped optional parameters. If errors persist, check that you're using the correct model name and parameter combinations for your OpenAI API tier.

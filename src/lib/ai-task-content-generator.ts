@@ -127,16 +127,18 @@ export async function generateTaskContent(
 
   try {
     // GPT-5-mini with optimized parameters for JSON generation
+    // Note: GPT-5-mini uses reasoning tokens (like o1/o3), so we need higher max_tokens
+    // to allow for both reasoning (internal) and output (actual JSON response)
     const result = await generateCompletionWithFallback(
       {
         model: 'gpt-5-mini',
         input: prompt,
-        max_tokens: 500,
+        max_tokens: 4000, // Increased from 500 to allow for reasoning tokens + output
         verbosity: 'medium', // Control response length
         reasoning_effort: 'minimal', // Faster responses for structured output
       },
       fallbackContent,
-      30000 // 30 second timeout for content generation (increased from 15s to reduce timeout errors)
+      60000 // 60 second timeout for content generation (increased from 30s for GPT-5-mini reasoning)
     );
 
     // If result is the fallback content, return it directly

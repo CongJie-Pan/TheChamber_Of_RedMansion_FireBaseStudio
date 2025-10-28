@@ -296,7 +296,7 @@ export async function generateCompletion(
           content: params.input,
         },
       ],
-      max_output_tokens: params.max_tokens ?? 1000, // Increased from 600 to ensure output generation
+      max_output_tokens: params.max_tokens ?? 4000, // Default 4000 for GPT-5-mini reasoning models (increased from 1000)
     };
 
     const allowCustomTemperature =
@@ -406,7 +406,23 @@ export async function generateCompletion(
     console.log('='.repeat(80) + '\n');
 
     if (!content && usage?.completion_tokens && usage.completion_tokens > 0) {
-      console.warn('⚠️ [GPT-5-mini] Empty content despite', usage.completion_tokens, 'completion tokens used');
+      const reasoningTokens = (usage as any).output_tokens_details?.reasoning_tokens || 0;
+      console.error('\n' + '⚠'.repeat(80));
+      console.error('⚠️ [GPT-5-mini] CRITICAL: Empty content despite token usage!');
+      console.error('⚠'.repeat(80));
+      console.error(`❌ Completion tokens: ${usage.completion_tokens}`);
+      console.error(`🧠 Reasoning tokens: ${reasoningTokens}`);
+      console.error(`📊 Total tokens: ${usage.total_tokens}`);
+      console.error(`📏 Max output tokens: ${params.max_tokens ?? 'default'}`);
+      console.error('\n💡 DIAGNOSIS: All tokens consumed by reasoning, no tokens left for output!');
+      console.error('💡 SOLUTION: Increase max_tokens parameter to allow both reasoning and output.');
+      console.error('⚠'.repeat(80) + '\n');
+
+      // Throw error to trigger fallback mechanism
+      throw new Error(
+        `GPT-5-mini returned empty content. Reasoning consumed ${reasoningTokens} tokens, ` +
+        `leaving no tokens for output. Increase max_tokens from ${params.max_tokens ?? 'default'} to at least 4000.`
+      );
     }
 
     return {

@@ -97,14 +97,19 @@ export async function generatePersonalizedFeedback(
     console.log('\n🚀 準備呼叫 GPT-5-Mini API...\n');
     const templateFallback = generateTemplateFeedback(taskType, score);
 
+    // GPT-5-mini uses reasoning tokens (like o1/o3), so we need adequate max_tokens
+    // to allow for both reasoning (internal) and output (actual feedback text)
+    // Increased from 600 to 2000 to prevent empty responses due to reasoning token exhaustion
     const aiResult = await generateCompletionWithFallback(
       {
         model: 'gpt-5-mini',
         input: prompt,
-        max_tokens: 600,
+        max_tokens: 2000, // Increased from 600 to accommodate GPT-5-mini reasoning tokens
+        verbosity: 'medium', // Control response length
+        reasoning_effort: 'minimal', // Faster responses for feedback
       },
       templateFallback || fallbackFeedback,
-      20000
+      30000 // 30 second timeout (increased from 20s for GPT-5-mini reasoning)
     );
 
     const rawFeedback =
