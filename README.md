@@ -145,7 +145,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 
 1. **Install Dependencies**
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. **Environment Setup**
@@ -159,24 +159,41 @@ TheChamber_Of_RedMansion_FireBaseStudio/
    NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
    ```
 
-3. **Development Server**
-   ```bash
-   npm run dev
+   Add SQLite toggle (defaults to enabled):
+   ```
+   USE_SQLITE=1
    ```
 
-4. **AI Development Server** (for testing AI flows)
+3. **Verify Native SQLite Build (Windows/macOS/Linux)**
    ```bash
-   npm run genkit:dev
+   pnpm doctor:sqlite
+   pnpm rebuild:sqlite
    ```
 
-5. **Run Tests** (Unit testing with 100% coverage for content filtering)
+4. **Optional: Firestore → SQLite Migration**
+   Provide Firebase Admin credentials via `FIREBASE_SERVICE_ACCOUNT_JSON` or default application credentials, then run:
    ```bash
-   npm test
+   pnpm migrate:firestore
    ```
 
-6. **Run Tests with Coverage**
+5. **Development Server**
    ```bash
-   npm test -- --coverage
+   pnpm dev
+   ```
+
+6. **AI Development Server** (for testing AI flows)
+   ```bash
+   pnpm genkit:dev
+   ```
+
+7. **Run Tests**
+   ```bash
+   pnpm test
+   ```
+
+8. **Run Tests with Coverage**
+   ```bash
+   pnpm test -- --coverage
    ```
 
 ## 🎯 Key Features
