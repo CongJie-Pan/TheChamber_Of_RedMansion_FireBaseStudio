@@ -27,8 +27,17 @@
  * @phase Phase 2.9 - Daily Task System Testing
  */
 
-import { POST, GET } from '@/app/api/daily-tasks/generate/route';
-import { NextRequest, NextResponse } from 'next/server';
+// Mock next/server to avoid DOM Request dependency in test env
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (data: any, init?: { status?: number }) => ({
+      status: init?.status ?? 200,
+      async text() { return JSON.stringify(data) },
+      async json() { return data },
+    }),
+  },
+}));
+
 import type { DailyTask } from '@/lib/types/daily-task';
 
 // Mock services
@@ -77,7 +86,32 @@ jest.mock('@/lib/env', () => ({
   isLlmOnlyMode: jest.fn(() => false),
 }));
 
+// Helper functions
+function mockReq(body: any, headers: Record<string, string> = { 'content-type': 'application/json' }): any {
+  return {
+    headers: {
+      get: (key: string) => headers[key.toLowerCase()] || null,
+    },
+    json: async () => body,
+  } as any;
+}
+
+async function readJson(res: any) {
+  if (res.json) return res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+let POST: any;
+let GET: any;
+
 describe('Daily Tasks Generate API Fallback', () => {
+  beforeAll(() => {
+    // Import route handlers after mocking next/server
+    const route = require('@/app/api/daily-tasks/generate/route');
+    POST = route.POST;
+    GET = route.GET;
+  });
   const mockTasks: DailyTask[] = [
     {
       id: 'task-1',
@@ -115,18 +149,14 @@ describe('Daily Tasks Generate API Fallback', () => {
   describe('Primary Path - Client SDK Success', () => {
     test('should generate tasks via client SDK successfully', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json', 'authorization': 'Bearer mock-token' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -140,14 +170,10 @@ describe('Daily Tasks Generate API Fallback', () => {
       // Arrange
       mockVerifyAuthHeader.mockResolvedValue('verified-uid');
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer valid-token',
-        },
-        body: JSON.stringify({ userId: 'client-user' }),
-      });
+      const request = mockReq(
+        { userId: 'client-user' },
+        { 'content-type': 'application/json', 'authorization': 'Bearer valid-token' }
+      );
 
       // Act
       await POST(request);
@@ -165,18 +191,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       permissionError.code = 'permission-denied';
       mockGenerateDailyTasks.mockRejectedValue(permissionError);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json', 'authorization': 'Bearer mock-token' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -190,18 +212,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       const permissionError = new Error('insufficient permissions');
       mockGenerateDailyTasks.mockRejectedValue(permissionError);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json', 'authorization': 'Bearer mock-token' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -216,17 +234,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       mockGenerateDailyTasks.mockRejectedValue(new Error('Database connection failed'));
       mockVerifyAuthHeader.mockResolvedValue(null); // No verified user
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -250,18 +265,14 @@ describe('Daily Tasks Generate API Fallback', () => {
         })),
       }));
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json', 'authorization': 'Bearer mock-token' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -280,17 +291,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       const { isLlmOnlyMode } = require('@/lib/env');
       isLlmOnlyMode.mockReturnValue(true);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: 'test-user', userLevel: 3 }),
-      });
+      const request = mockReq(
+        { userId: 'test-user', userLevel: 3 },
+        { 'content-type': 'application/json' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
@@ -308,17 +316,14 @@ describe('Daily Tasks Generate API Fallback', () => {
   describe('Request Validation', () => {
     test('should reject non-JSON requests', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: 'not json',
-      });
+      const request = mockReq(
+        'not json',
+        { 'content-type': 'text/plain' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(415);
@@ -329,17 +334,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       // Arrange: No userId and no verified token
       mockVerifyAuthHeader.mockResolvedValue(null);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
+      const request = mockReq(
+        {},
+        { 'content-type': 'application/json' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(400);
@@ -354,17 +356,14 @@ describe('Daily Tasks Generate API Fallback', () => {
       mockGenerateTasksForUser.mockRejectedValue(new Error('Generator failed'));
       mockVerifyAuthHeader.mockResolvedValue(null);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json' }
+      );
 
       // Act
       const response = await POST(request);
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(500);
@@ -378,13 +377,10 @@ describe('Daily Tasks Generate API Fallback', () => {
       mockGenerateDailyTasks.mockRejectedValue(testError);
       mockVerifyAuthHeader.mockResolvedValue(null);
 
-      const request = new NextRequest('http://localhost/api/daily-tasks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: 'test-user' }),
-      });
+      const request = mockReq(
+        { userId: 'test-user' },
+        { 'content-type': 'application/json' }
+      );
 
       // Act
       await POST(request);
@@ -401,7 +397,7 @@ describe('Daily Tasks Generate API Fallback', () => {
     test('should return API documentation', async () => {
       // Act
       const response = await GET();
-      const data = await response.json();
+      const data = await readJson(response);
 
       // Assert
       expect(response.status).toBe(200);
