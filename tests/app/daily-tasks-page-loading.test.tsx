@@ -78,6 +78,51 @@ jest.mock('@/lib/firebase', () => ({
   },
 }));
 
+// Mock shadcn UI components
+jest.mock('@/components/ui/card', () => ({
+  Card: ({ children, ...props }: any) => <div data-testid="card" {...props}>{children}</div>,
+  CardContent: ({ children, ...props }: any) => <div data-testid="card-content" {...props}>{children}</div>,
+  CardHeader: ({ children, ...props }: any) => <div data-testid="card-header" {...props}>{children}</div>,
+  CardTitle: ({ children, ...props }: any) => <h2 data-testid="card-title" {...props}>{children}</h2>,
+  CardDescription: ({ children, ...props }: any) => <p data-testid="card-description" {...props}>{children}</p>,
+}));
+
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, ...props }: any) => <button data-testid="button" {...props}>{children}</button>,
+}));
+
+jest.mock('@/components/ui/progress', () => ({
+  Progress: ({ value, ...props }: any) => <div data-testid="progress" data-value={value} {...props} />,
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, ...props }: any) => <span data-testid="badge" {...props}>{children}</span>,
+}));
+
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, ...props }: any) => <div data-testid="tabs" {...props}>{children}</div>,
+  TabsContent: ({ children, ...props }: any) => <div data-testid="tabs-content" {...props}>{children}</div>,
+  TabsList: ({ children, ...props }: any) => <div data-testid="tabs-list" {...props}>{children}</div>,
+  TabsTrigger: ({ children, ...props }: any) => <button data-testid="tabs-trigger" {...props}>{children}</button>,
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  BookOpen: () => <span data-testid="icon-book-open">📖</span>,
+  Flame: () => <span data-testid="icon-flame">🔥</span>,
+  Target: () => <span data-testid="icon-target">🎯</span>,
+  Award: () => <span data-testid="icon-award">🏆</span>,
+  Calendar: () => <span data-testid="icon-calendar">📅</span>,
+  CheckCircle2: () => <span data-testid="icon-check">✓</span>,
+  Circle: () => <span data-testid="icon-circle">○</span>,
+  Clock: () => <span data-testid="icon-clock">⏰</span>,
+  Trophy: () => <span data-testid="icon-trophy">🏆</span>,
+  Sparkles: () => <span data-testid="icon-sparkles">✨</span>,
+  TrendingUp: () => <span data-testid="icon-trending">📈</span>,
+  Loader2: () => <span data-testid="loader-icon">⌛</span>,
+  Zap: () => <span data-testid="icon-zap">⚡</span>,
+}));
+
 // Mock UI components
 jest.mock('@/components/daily-tasks/TaskCard', () => ({
   TaskCard: ({ task }: { task: DailyTask }) => (
