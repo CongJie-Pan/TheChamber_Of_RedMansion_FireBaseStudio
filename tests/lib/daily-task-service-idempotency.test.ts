@@ -22,10 +22,9 @@
  * @phase Phase 2.9 - Daily Task System Idempotency
  */
 
-import { dailyTaskService } from '@/lib/daily-task-service';
 import type { DailyTaskProgress } from '@/lib/types/daily-task';
 
-// Mock Firebase
+// Mock Firebase - use factory function to avoid hoisting issues
 const mockFirestoreGetDoc = jest.fn();
 const mockFirestoreSetDoc = jest.fn();
 const mockFirestoreUpdateDoc = jest.fn();
@@ -33,9 +32,9 @@ const mockFirestoreUpdateDoc = jest.fn();
 jest.mock('firebase/firestore', () => ({
   collection: jest.fn(),
   doc: jest.fn(),
-  getDoc: mockFirestoreGetDoc,
-  setDoc: mockFirestoreSetDoc,
-  updateDoc: mockFirestoreUpdateDoc,
+  getDoc: (...args: any[]) => mockFirestoreGetDoc(...args),
+  setDoc: (...args: any[]) => mockFirestoreSetDoc(...args),
+  updateDoc: (...args: any[]) => mockFirestoreUpdateDoc(...args),
   query: jest.fn(),
   where: jest.fn(),
   orderBy: jest.fn(),
@@ -114,6 +113,9 @@ jest.mock('@/lib/task-generator', () => ({
     generateTasksForUser: mockGenerateTasksForUser,
   },
 }));
+
+// Import service AFTER mocks are set up
+import { dailyTaskService } from '@/lib/daily-task-service';
 
 describe('Daily Task Service Idempotency', () => {
   beforeEach(() => {

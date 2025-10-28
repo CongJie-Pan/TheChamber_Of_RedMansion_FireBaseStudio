@@ -23,11 +23,10 @@
  * @phase Phase 2.9 - Daily Task System Testing
  */
 
-import { UserLevelService } from '@/lib/user-level-service';
 import type { UserProfile, LevelUpRecord, XPTransaction } from '@/lib/types/user-level';
 import { Timestamp } from 'firebase/firestore';
 
-// Mock Firebase Firestore
+// Mock Firebase Firestore - use factory functions to avoid hoisting issues
 const mockFirestoreDoc = jest.fn();
 const mockFirestoreGetDoc = jest.fn();
 const mockFirestoreSetDoc = jest.fn();
@@ -45,22 +44,22 @@ const mockServerTimestamp = jest.fn(() => new Date());
 const mockTimestampNow = jest.fn(() => ({ seconds: Date.now() / 1000, nanoseconds: 0 }));
 
 jest.mock('firebase/firestore', () => ({
-  collection: mockFirestoreCollection,
-  doc: mockFirestoreDoc,
-  getDoc: mockFirestoreGetDoc,
-  setDoc: mockFirestoreSetDoc,
-  updateDoc: mockFirestoreUpdateDoc,
-  addDoc: mockFirestoreAddDoc,
-  deleteDoc: mockFirestoreDeleteDoc,
-  query: mockFirestoreQuery,
-  where: mockFirestoreWhere,
-  orderBy: mockFirestoreOrderBy,
-  limit: mockFirestoreLimit,
-  getDocs: mockFirestoreGetDocs,
-  runTransaction: mockRunTransaction,
-  serverTimestamp: mockServerTimestamp,
+  collection: (...args: any[]) => mockFirestoreCollection(...args),
+  doc: (...args: any[]) => mockFirestoreDoc(...args),
+  getDoc: (...args: any[]) => mockFirestoreGetDoc(...args),
+  setDoc: (...args: any[]) => mockFirestoreSetDoc(...args),
+  updateDoc: (...args: any[]) => mockFirestoreUpdateDoc(...args),
+  addDoc: (...args: any[]) => mockFirestoreAddDoc(...args),
+  deleteDoc: (...args: any[]) => mockFirestoreDeleteDoc(...args),
+  query: (...args: any[]) => mockFirestoreQuery(...args),
+  where: (...args: any[]) => mockFirestoreWhere(...args),
+  orderBy: (...args: any[]) => mockFirestoreOrderBy(...args),
+  limit: (...args: any[]) => mockFirestoreLimit(...args),
+  getDocs: (...args: any[]) => mockFirestoreGetDocs(...args),
+  runTransaction: (...args: any[]) => mockRunTransaction(...args),
+  serverTimestamp: (...args: any[]) => mockServerTimestamp(...args),
   Timestamp: {
-    now: mockTimestampNow,
+    now: (...args: any[]) => mockTimestampNow(...args),
     fromDate: jest.fn((date: Date) => ({ seconds: date.getTime() / 1000, nanoseconds: 0 })),
   },
 }));
@@ -104,6 +103,9 @@ jest.mock('@/lib/config/levels-config', () => ({
   }),
   MAX_LEVEL: 7,
 }));
+
+// Import UserLevelService AFTER all mocks are set up
+import { UserLevelService } from '@/lib/user-level-service';
 
 describe('UserLevelService XP Award Robustness', () => {
   let service: UserLevelService;
