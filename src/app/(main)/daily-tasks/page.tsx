@@ -104,6 +104,7 @@ export default function DailyTasksPage() {
 
   // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Task data
@@ -199,17 +200,20 @@ export default function DailyTasksPage() {
   };
 
   /**
-   * Load or generate daily tasks for the user
+   * Load or generate daily tasks for the user (non-blocking)
+   * Shows page immediately and loads tasks in background
    */
   const loadDailyTasks = async () => {
     if (!user) return;
 
-    setIsLoading(true);
+    // Show page immediately, load tasks in background
+    setIsLoading(false);
     setError(null);
 
     try {
       // LLM-only mode: skip Firestore and always fetch tasks via API
       if (llmOnly) {
+        // Show loading skeletons while generating
         const token = await auth.currentUser?.getIdToken();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -227,49 +231,72 @@ export default function DailyTasksPage() {
         setProgress(null);
         setEphemeralMode(true);
         setStats({ totalTasks: (data?.tasks || []).length, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
-        setIsLoading(false);
         return;
       }
 
-      // Try to get existing progress first
+      // Try to get existing progress first (quick check)
       let dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
 
-      // If no progress exists, generate new tasks (via server API)
+      // If no progress exists, generate new tasks in background (via server API)
       if (!dailyProgress) {
-        console.log('📝 No existing tasks found, generating new daily tasks via API...');
-        try {
-          const token = await auth.currentUser?.getIdToken();
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-          const resp = await fetch('/api/daily-tasks/generate', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ userId: user.uid }),
-          });
-          if (!resp.ok) {
-            const errJson = await resp.json().catch(() => ({}));
-            throw new Error(errJson?.error || `Failed to generate tasks: ${resp.status}`);
-          }
-          const data = await resp.json();
-          const generatedTasks = data?.tasks || [];
-          // Mark ephemeral mode if server could not persist
-          if (data?.ephemeral) {
-            setEphemeralMode(true);
-          } else {
-            setEphemeralMode(false);
-          }
-          setTasks(generatedTasks);
-        } catch (e) {
-          console.error('Error generating tasks via API:', e);
-          throw e;
-        }
+        console.log('📝 No existing tasks found, generating new daily tasks in background...');
+        setIsGeneratingTasks(true);
 
-        // Fetch the newly created progress only if not in ephemeral mode
-        if (!ephemeralMode) {
-          dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
-        } else {
-          dailyProgress = null;
-        }
+        // Generate tasks in background without blocking UI
+        (async () => {
+          try {
+            const token = await auth.currentUser?.getIdToken();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const resp = await fetch('/api/daily-tasks/generate', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ userId: user.uid }),
+            });
+            if (!resp.ok) {
+              const errJson = await resp.json().catch(() => ({}));
+              throw new Error(errJson?.error || `Failed to generate tasks: ${resp.status}`);
+            }
+            const data = await resp.json();
+            const generatedTasks = data?.tasks || [];
+
+            // Mark ephemeral mode if server could not persist
+            if (data?.ephemeral) {
+              setEphemeralMode(true);
+            } else {
+              setEphemeralMode(false);
+            }
+
+            setTasks(generatedTasks);
+
+            // Fetch the newly created progress only if not in ephemeral mode
+            if (!data?.ephemeral) {
+              const newProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+              if (newProgress) {
+                setProgress(newProgress);
+                updateStats(newProgress);
+              }
+            }
+
+            console.log('✅ Tasks generated successfully in background');
+          } catch (e) {
+            console.error('Error generating tasks in background:', e);
+            setError('任務生成失敗，請重新整理頁面。');
+            toast({
+              title: '生成失敗',
+              description: '無法生成每日任務，請重新整理頁面。',
+              variant: 'destructive',
+              duration: 5000,
+            });
+          } finally {
+            setIsGeneratingTasks(false);
+          }
+        })();
+
+        // Show empty state while generating
+        setTasks([]);
+        setProgress(null);
+        setStats({ totalTasks: 0, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
       } else {
         // Load existing tasks from assignments
         const taskIds = dailyProgress.tasks.map(t => t.taskId);
@@ -281,25 +308,11 @@ export default function DailyTasksPage() {
         }
 
         setTasks(loadedTasks);
+        setProgress(dailyProgress);
+        updateStats(dailyProgress);
       }
 
-      setProgress(dailyProgress);
-
-      // Calculate statistics
-      if (dailyProgress) {
-        const completedCount = dailyProgress.completedTaskIds.length;
-        const totalCount = dailyProgress.tasks.length;
-
-        setStats({
-          totalTasks: totalCount,
-          completedTasks: completedCount,
-          xpEarned: dailyProgress.totalXPEarned,
-          currentStreak: dailyProgress.streak,
-          completionRate: totalCount > 0 ? (completedCount / totalCount) * 100 : 0
-        });
-      }
-
-      console.log('✅ Daily tasks loaded successfully');
+      console.log('✅ Daily tasks page loaded');
     } catch (error) {
       console.error('Error loading daily tasks:', error);
       setError('無法載入每日任務，請稍後再試。');
@@ -309,9 +322,23 @@ export default function DailyTasksPage() {
         variant: 'destructive',
         duration: 5000,
       });
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  /**
+   * Helper function to update statistics from progress
+   */
+  const updateStats = (dailyProgress: DailyTaskProgress) => {
+    const completedCount = dailyProgress.completedTaskIds.length;
+    const totalCount = dailyProgress.tasks.length;
+
+    setStats({
+      totalTasks: totalCount,
+      completedTasks: completedCount,
+      xpEarned: dailyProgress.totalXPEarned,
+      currentStreak: dailyProgress.streak,
+      completionRate: totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+    });
   };
 
   /**
@@ -548,10 +575,24 @@ export default function DailyTasksPage() {
           {/* Task Cards */}
           {tasks.length === 0 ? (
             <div className="text-center py-12">
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg text-muted-foreground">
-                今天還沒有任務，請稍後再試！
-              </p>
+              {isGeneratingTasks ? (
+                <>
+                  <Loader2 className="h-16 w-16 text-primary animate-spin mx-auto mb-4" />
+                  <p className="text-lg text-foreground font-medium">
+                    正在生成今日任務...
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    AI 正在根據您的學習進度生成個性化任務
+                  </p>
+                </>
+              ) : (
+                <>
+                  <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-lg text-muted-foreground">
+                    今天還沒有任務，請稍後再試！
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

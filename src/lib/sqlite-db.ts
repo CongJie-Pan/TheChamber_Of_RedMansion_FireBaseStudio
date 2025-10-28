@@ -131,14 +131,32 @@ function initializeSchema(db: Database.Database): void {
 }
 
 /**
- * Get database instance (singleton pattern)
- *
- * @returns SQLite database instance
+ * Flag to track if SQLite initialization has been attempted
  */
-export function getDatabase(): Database.Database {
+let initializationAttempted = false;
+let initializationFailed = false;
+
+/**
+ * Get database instance (singleton pattern)
+ * Returns null if initialization fails (e.g., architecture mismatch)
+ *
+ * @returns SQLite database instance or null if unavailable
+ */
+export function getDatabase(): Database.Database | null {
   if (dbInstance) {
     return dbInstance;
   }
+
+  // If we've already tried and failed, don't try again
+  if (initializationFailed) {
+    return null;
+  }
+
+  // Mark that we've attempted initialization
+  if (initializationAttempted) {
+    return null;
+  }
+  initializationAttempted = true;
 
   try {
     console.log('\n' + '━'.repeat(80));
@@ -167,14 +185,39 @@ export function getDatabase(): Database.Database {
     console.log('━'.repeat(80) + '\n');
 
     return dbInstance;
-  } catch (error) {
+  } catch (error: any) {
+    initializationFailed = true;
     console.error('\n' + '━'.repeat(80));
     console.error('❌ [SQLite] Failed to initialize database');
     console.error('━'.repeat(80));
     console.error('Error details:', error);
+
+    // Check if it's an architecture mismatch error
+    if (error?.code === 'ERR_DLOPEN_FAILED' ||
+        error?.message?.includes('not a valid Win32 application') ||
+        error?.message?.includes('wrong ELF class')) {
+      console.warn('⚠️  [SQLite] Architecture mismatch detected');
+      console.warn('⚠️  This usually happens when:');
+      console.warn('⚠️  1. Running Windows Node.js with WSL-compiled better-sqlite3');
+      console.warn('⚠️  2. Running WSL Node.js with Windows-compiled better-sqlite3');
+      console.warn('⚠️  Solution: Run "npm rebuild better-sqlite3" in the correct environment');
+      console.warn('⚠️  Falling back to Firebase for data storage');
+    }
     console.error('━'.repeat(80) + '\n');
-    throw error;
+
+    // Return null instead of throwing - allow graceful fallback to Firebase
+    return null;
   }
+}
+
+/**
+ * Check if SQLite is available in the current environment
+ *
+ * @returns true if SQLite is successfully initialized, false otherwise
+ */
+export function isSQLiteAvailable(): boolean {
+  const db = getDatabase();
+  return db !== null;
 }
 
 /**

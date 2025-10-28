@@ -58,17 +58,56 @@ let userRepository: any;
 let taskRepository: any;
 let progressRepository: any;
 let fromUnixTimestamp: any;
+let isSQLiteAvailable: (() => boolean) | undefined;
+
+// Dynamically check if SQLite is actually usable
+let sqliteModulesLoaded = false;
 
 if (typeof window === 'undefined') {
-  // 伺服器端：載入 SQLite repositories
-  userRepository = require('./repositories/user-repository');
-  taskRepository = require('./repositories/task-repository');
-  progressRepository = require('./repositories/progress-repository');
-  ({ fromUnixTimestamp } = require('./sqlite-db'));
+  try {
+    // 伺服器端：嘗試載入 SQLite repositories
+    userRepository = require('./repositories/user-repository');
+    taskRepository = require('./repositories/task-repository');
+    progressRepository = require('./repositories/progress-repository');
+    const sqliteDb = require('./sqlite-db');
+    fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
+    isSQLiteAvailable = sqliteDb.isSQLiteAvailable;
+    sqliteModulesLoaded = true;
+    console.log('✅ [DailyTaskService] SQLite modules loaded successfully');
+  } catch (error: any) {
+    console.warn('⚠️  [DailyTaskService] Failed to load SQLite modules:', error?.message);
+    console.warn('⚠️  [DailyTaskService] Falling back to Firebase for all operations');
+    sqliteModulesLoaded = false;
+  }
 }
 
-// Use SQLite instead of Firebase (只在伺服器端啟用)
-const USE_SQLITE = typeof window === 'undefined';
+/**
+ * Check if SQLite is available and usable in the current environment
+ * Returns false if:
+ * - Running in browser (client-side)
+ * - SQLite modules failed to load
+ * - SQLite database initialization failed (e.g., architecture mismatch)
+ */
+function checkSQLiteAvailability(): boolean {
+  if (typeof window !== 'undefined') {
+    return false; // Browser environment
+  }
+  if (!sqliteModulesLoaded) {
+    return false; // Modules failed to load
+  }
+  if (typeof isSQLiteAvailable === 'function') {
+    return isSQLiteAvailable(); // Check if database is actually initialized
+  }
+  return false; // Fallback to false
+}
+
+/**
+ * Check if SQLite should be used for the current operation
+ * This is called dynamically to detect runtime failures
+ *
+ * @returns true if SQLite is available, false otherwise
+ */
+const useSQLite = () => checkSQLiteAvailability();
 import {
   DailyTask,
   DailyTaskProgress,
@@ -252,38 +291,79 @@ export class DailyTaskService {
         taskHistory // Pass history for adaptive difficulty
       );
 
-      // Store generated tasks in Firestore for later retrieval
-      for (const task of tasks) {
-        await setDoc(doc(this.dailyTasksCollection, task.id), task);
+      if (useSQLite()) {
+        // SQLite path: Use task and progress repositories
+        try {
+          // Store generated tasks in SQLite
+          taskRepository.batchCreateTasks(tasks);
+
+          // Create task assignments
+          const now = fromUnixTimestamp(Date.now());
+          const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
+            taskId: task.id,
+            assignedAt: now,
+            status: TaskStatus.NOT_STARTED,
+          }));
+
+          // Create progress record
+          const progressId = `${userId}_${targetDate}`;
+          const progressData: DailyTaskProgress = {
+            id: progressId,
+            userId,
+            date: targetDate,
+            tasks: assignments,
+            completedTaskIds: [],
+            skippedTaskIds: [],
+            totalXPEarned: 0,
+            totalAttributeGains: {},
+            usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
+            streak: await this.calculateStreak(userId, targetDate),
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          progressRepository.createProgress(progressData);
+
+          console.log(`✅ [SQLite] Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
+        } catch (e: any) {
+          console.error('❌ [SQLite] Error storing tasks:', e?.message || e);
+          throw new Error('Failed to store generated tasks');
+        }
+      } else {
+        // Firebase path: Store tasks in Firestore
+        for (const task of tasks) {
+          await setDoc(doc(this.dailyTasksCollection, task.id), task);
+        }
+
+        // Create task assignments
+        const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
+          taskId: task.id,
+          assignedAt: Timestamp.now(),
+          status: TaskStatus.NOT_STARTED,
+        }));
+
+        // Create or update progress record
+        const progressId = `${userId}_${targetDate}`;
+        const progressData: Omit<DailyTaskProgress, 'id'> & { id: string } = {
+          id: progressId,
+          userId,
+          date: targetDate,
+          tasks: assignments,
+          completedTaskIds: [],
+          skippedTaskIds: [],
+          totalXPEarned: 0,
+          totalAttributeGains: {},
+          usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
+          streak: await this.calculateStreak(userId, targetDate),
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+
+        await setDoc(doc(this.dailyTaskProgressCollection, progressId), progressData);
+
+        console.log(`✅ Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
       }
 
-      // Create task assignments
-      const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
-        taskId: task.id,
-        assignedAt: Timestamp.now(),
-        status: TaskStatus.NOT_STARTED,
-      }));
-
-      // Create or update progress record
-      const progressId = `${userId}_${targetDate}`;
-      const progressData: Omit<DailyTaskProgress, 'id'> & { id: string } = {
-        id: progressId,
-        userId,
-        date: targetDate,
-        tasks: assignments,
-        completedTaskIds: [],
-        skippedTaskIds: [],
-        totalXPEarned: 0,
-        totalAttributeGains: {},
-        usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
-        streak: await this.calculateStreak(userId, targetDate),
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      await setDoc(doc(this.dailyTaskProgressCollection, progressId), progressData);
-
-      console.log(`✅ Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
       return tasks;
     } catch (error) {
       console.error('Error generating daily tasks:', error);
@@ -301,21 +381,36 @@ export class DailyTaskService {
   async getUserDailyProgress(userId: string, date?: string): Promise<DailyTaskProgress | null> {
     try {
       const targetDate = date || getTodayDateString();
-      const progressId = `${userId}_${targetDate}`;
 
-      const progressDoc = await getDoc(doc(this.dailyTaskProgressCollection, progressId));
+      if (useSQLite()) {
+        // SQLite path: Use progress repository
+        try {
+          const progress = progressRepository.getProgress(userId, targetDate);
+          if (progress) {
+            console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
+          }
+          return progress;
+        } catch (e: any) {
+          console.error('❌ [SQLite] Error fetching progress:', e?.message || e);
+          return null;
+        }
+      } else {
+        // Firebase path: Use existing Firebase logic
+        const progressId = `${userId}_${targetDate}`;
+        const progressDoc = await getDoc(doc(this.dailyTaskProgressCollection, progressId));
 
-      if (!progressDoc.exists()) {
-        return null;
+        if (!progressDoc.exists()) {
+          return null;
+        }
+
+        const data = progressDoc.data() as DocumentData;
+        return {
+          id: progressDoc.id,
+          ...data,
+          createdAt: data.createdAt || Timestamp.now(),
+          updatedAt: data.updatedAt || Timestamp.now(),
+        } as DailyTaskProgress;
       }
-
-      const data = progressDoc.data() as DocumentData;
-      return {
-        id: progressDoc.id,
-        ...data,
-        createdAt: data.createdAt || Timestamp.now(),
-        updatedAt: data.updatedAt || Timestamp.now(),
-      } as DailyTaskProgress;
     } catch (error) {
       console.error('Error fetching daily progress:', error);
       return null;
@@ -483,7 +578,7 @@ export class DailyTaskService {
 
       let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean; fromLevel?: number };
 
-      if (USE_SQLITE) {
+      if (useSQLite()) {
         // SQLite path: Direct repository access
         try {
           // Ensure user exists in SQLite database
@@ -528,7 +623,7 @@ export class DailyTaskService {
       // 10. Award attribute points
       const attributeGains = task.attributeRewards;
 
-      if (USE_SQLITE) {
+      if (useSQLite()) {
         // SQLite path: Update attributes
         try {
           userRepository.updateAttributes(userId, attributeGains);
@@ -585,7 +680,7 @@ export class DailyTaskService {
         updatedProgress.streak = await this.updateStreak(userId, todayDate);
       }
 
-      if (USE_SQLITE) {
+      if (useSQLite()) {
         // SQLite path: Update progress using repository
         try {
           const progressId = `${userId}_${todayDate}`;
@@ -602,10 +697,15 @@ export class DailyTaskService {
               id: progressId,
               userId,
               date: todayDate,
-              ...updatedProgress,
               tasks: updatedTasks,
+              completedTaskIds: updatedProgress.completedTaskIds || [],
+              skippedTaskIds: progress.skippedTaskIds || [],
+              totalXPEarned: updatedProgress.totalXPEarned || 0,
+              totalAttributeGains: updatedProgress.totalAttributeGains || {},
+              usedSourceIds: updatedProgress.usedSourceIds || [],
+              streak: updatedProgress.streak || 0,
               createdAt: progress.createdAt,
-              updatedAt: Timestamp.now(),
+              updatedAt: updatedProgress.updatedAt || Timestamp.now(),
             };
             progressRepository.createProgress(newProgress);
             console.log(`✅ [SQLite] Created progress: ${progressId}`);
@@ -987,18 +1087,26 @@ export class DailyTaskService {
     completionTime: number
   ): Promise<void> {
     try {
-      const record: Omit<TaskHistoryRecord, 'id'> = {
-        userId,
-        taskId,
-        taskType,
-        date: getTodayDateString(),
-        score,
-        xpAwarded,
-        completionTime,
-        completedAt: Timestamp.now(),
-      };
+      if (useSQLite()) {
+        // SQLite path: History is derived from progress.completedTaskIds
+        // No separate history table needed - history is reconstructed in getTaskHistory()
+        console.log(`📝 [SQLite] Task history tracked in progress record: ${taskId}`);
+        return;
+      } else {
+        // Firebase path: Record in separate history collection
+        const record: Omit<TaskHistoryRecord, 'id'> = {
+          userId,
+          taskId,
+          taskType,
+          date: getTodayDateString(),
+          score,
+          xpAwarded,
+          completionTime,
+          completedAt: Timestamp.now(),
+        };
 
-      await addDoc(this.dailyTaskHistoryCollection, record);
+        await addDoc(this.dailyTaskHistoryCollection, record);
+      }
     } catch (error) {
       console.error('Error recording task history:', error);
       // Don't throw - history recording is not critical
@@ -1014,26 +1122,63 @@ export class DailyTaskService {
    */
   async getTaskHistory(userId: string, limitCount: number = 30): Promise<TaskHistoryRecord[]> {
     try {
-      const historyQuery = query(
-        this.dailyTaskHistoryCollection,
-        where('userId', '==', userId),
-        orderBy('completedAt', 'desc'),
-        limit(limitCount)
-      );
+      if (useSQLite()) {
+        // SQLite path: Use progress repository to get recent progress
+        try {
+          const recentProgress = progressRepository.getUserRecentProgress(userId, limitCount);
 
-      const querySnapshot = await getDocs(historyQuery);
-      const history: TaskHistoryRecord[] = [];
+          // Convert daily progress records to task history records
+          const history: TaskHistoryRecord[] = [];
+          for (const progress of recentProgress) {
+            // For each completed task in the progress, create a history record
+            for (const taskId of progress.completedTaskIds || []) {
+              // Find the task in the assignments to get more details
+              const assignment = progress.tasks.find((t: DailyTaskAssignment) => t.taskId === taskId);
+              if (assignment) {
+                history.push({
+                  id: `${userId}_${taskId}_${progress.date}`,
+                  userId: progress.userId,
+                  taskId: taskId,
+                  taskType: 'poetry_analysis' as DailyTaskType, // Default type
+                  date: progress.date,
+                  score: 80, // Default score (we don't store individual scores in progress)
+                  xpAwarded: Math.floor(progress.totalXPEarned / (progress.completedTaskIds.length || 1)),
+                  completionTime: 0, // Not tracked in progress
+                  completedAt: progress.updatedAt,
+                } as TaskHistoryRecord);
+              }
+            }
+          }
 
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        history.push({
-          id: doc.id,
-          ...data,
-          completedAt: data.completedAt || Timestamp.now(),
-        } as TaskHistoryRecord);
-      });
+          console.log(`✅ [SQLite] Fetched ${history.length} task history records for user ${userId}`);
+          return history.slice(0, limitCount);
+        } catch (e: any) {
+          console.warn('❌ [SQLite] Error fetching task history:', e?.message || e);
+          return [];
+        }
+      } else {
+        // Firebase path: Use existing Firebase logic
+        const historyQuery = query(
+          this.dailyTaskHistoryCollection,
+          where('userId', '==', userId),
+          orderBy('completedAt', 'desc'),
+          limit(limitCount)
+        );
 
-      return history;
+        const querySnapshot = await getDocs(historyQuery);
+        const history: TaskHistoryRecord[] = [];
+
+        querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+          const data = doc.data();
+          history.push({
+            id: doc.id,
+            ...data,
+            completedAt: data.completedAt || Timestamp.now(),
+          } as TaskHistoryRecord);
+        });
+
+        return history;
+      }
     } catch (error) {
       console.error('Error fetching task history:', error);
       return [];
@@ -1149,26 +1294,52 @@ export class DailyTaskService {
         return cached.task;
       }
 
-      // Cache miss - fetch from Firestore
-      const taskDoc = await getDoc(doc(this.dailyTasksCollection, taskId));
-      if (!taskDoc.exists()) {
-        // Attempt to recover minimal task info from taskId pattern
-        const recovered = this.recoverTaskFromId(taskId);
-        if (recovered) {
-          // Update cache with recovered task to avoid repeated work
-          this.taskCache.set(taskId, { task: recovered, timestamp: Date.now() });
-          console.warn(`Recovered task details from ID: ${taskId}`);
-          return recovered;
+      if (useSQLite()) {
+        // SQLite path: Use task repository
+        try {
+          const task = taskRepository.getTaskById(taskId);
+          if (!task) {
+            // Attempt to recover minimal task info from taskId pattern
+            const recovered = this.recoverTaskFromId(taskId);
+            if (recovered) {
+              // Update cache with recovered task to avoid repeated work
+              this.taskCache.set(taskId, { task: recovered, timestamp: Date.now() });
+              console.warn(`Recovered task details from ID: ${taskId}`);
+              return recovered;
+            }
+            return null;
+          }
+
+          // Update cache
+          this.taskCache.set(taskId, { task, timestamp: now });
+
+          return task;
+        } catch (e: any) {
+          console.error('❌ [SQLite] Error fetching task:', e?.message || e);
+          return null;
         }
-        return null;
+      } else {
+        // Firebase path: Cache miss - fetch from Firestore
+        const taskDoc = await getDoc(doc(this.dailyTasksCollection, taskId));
+        if (!taskDoc.exists()) {
+          // Attempt to recover minimal task info from taskId pattern
+          const recovered = this.recoverTaskFromId(taskId);
+          if (recovered) {
+            // Update cache with recovered task to avoid repeated work
+            this.taskCache.set(taskId, { task: recovered, timestamp: Date.now() });
+            console.warn(`Recovered task details from ID: ${taskId}`);
+            return recovered;
+          }
+          return null;
+        }
+
+        const task = { id: taskDoc.id, ...taskDoc.data() } as DailyTask;
+
+        // Update cache
+        this.taskCache.set(taskId, { task, timestamp: now });
+
+        return task;
       }
-
-      const task = { id: taskDoc.id, ...taskDoc.data() } as DailyTask;
-
-      // Update cache
-      this.taskCache.set(taskId, { task, timestamp: now });
-
-      return task;
     } catch (error) {
       console.error('Error getting task by ID:', error);
       return null;
