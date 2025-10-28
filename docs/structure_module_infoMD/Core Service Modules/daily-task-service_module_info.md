@@ -2,19 +2,28 @@
 
 ## 1. Module Summary
 
-The `daily-task-service` module is the main orchestration service for the Daily Task System (每日修身) gamification feature, managing task generation, assignment, progress tracking, completion evaluation, reward distribution, and streak maintenance. This 1181-line service integrates with task-generator for content generation, user-level-service for XP/attribute rewards, and ai-feedback-generator for personalized feedback, implementing atomic operations, real-time updates, anti-farming mechanisms (sourceId deduplication, cross-system duplicate prevention), performance optimizations (5-minute task caching, timeout wrappers), and graceful degradation (ephemeral assignments, task recovery from IDs) to ensure robust task management for the Red Mansion learning platform.
+The `daily-task-service` module is the main orchestration service for the Daily Task System (每日修身) gamification feature, managing task generation, assignment, progress tracking, completion evaluation, reward distribution, and streak maintenance. This service integrates with task-generator for content generation, user-level-service for XP/attribute rewards, and ai-feedback-generator for personalized feedback, implementing atomic operations, anti-farming mechanisms (sourceId deduplication, cross-system duplicate prevention), performance optimizations (5-minute task caching, timeout wrappers), and graceful degradation (ephemeral assignments, task recovery from IDs) to ensure robust task management. **Phase 2.9 Update:** Implemented dual-mode operation with conditional imports pattern - uses SQLite repositories when running server-side (Node.js), falls back to Firebase when running client-side (browser), preventing better-sqlite3 native module loading errors in browser environments.
 
 ## 2. Module Dependencies
 
-* **Internal Dependencies:**
-  * `@/lib/firebase` - Firestore database client for persistence operations.
-  * `@/lib/user-level-service` - XP rewards, attribute points, level-up logic, duplicate reward checking.
-  * `@/lib/task-generator` - Personalized task content generation with adaptive difficulty.
-  * `@/lib/ai-feedback-generator` - GPT-5-Mini powered personalized feedback generation.
-  * `@/lib/types/daily-task` - Type definitions for tasks, progress, assignments, rewards, history, statistics.
-  * `@/lib/types/user-level` - AttributePoints type definition.
+* **Internal Dependencies (Server-side SQLite mode):**
+  * `@/lib/repositories/user-repository` - User CRUD operations, XP rewards, level calculations (conditional import)
+  * `@/lib/repositories/task-repository` - Task storage, retrieval, and caching (conditional import)
+  * `@/lib/repositories/progress-repository` - Progress tracking, submissions, history (conditional import)
+  * `@/lib/sqlite-db` - Database instance and timestamp conversion utilities (conditional import)
+  * `@/lib/user-level-service` - XP rewards, attribute points, level-up logic, duplicate reward checking
+  * `@/lib/task-generator` - Personalized task content generation with adaptive difficulty
+  * `@/lib/ai-feedback-generator` - GPT-5-Mini powered personalized feedback generation
+  * `@/lib/types/daily-task` - Type definitions for tasks, progress, assignments, rewards, history, statistics
+  * `@/lib/types/user-level` - AttributePoints type definition
+* **Internal Dependencies (Client-side Firebase mode):**
+  * `@/lib/firebase` - Firestore database client for persistence operations (fallback when browser environment)
 * **External Dependencies:**
-  * `firebase/firestore` - Comprehensive Firestore operations (collection, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getDocs, serverTimestamp, Timestamp).
+  * `firebase/firestore` - Firestore operations when USE_SQLITE=false (browser environment)
+* **Conditional Loading Pattern:**
+  * Uses `typeof window === 'undefined'` to detect server vs browser environment
+  * SQLite repositories loaded via `require()` only in Node.js environment
+  * Firebase used as fallback in browser environments or when SQLite unavailable
 
 ## 3. Public API / Exports
 
