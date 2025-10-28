@@ -12,12 +12,17 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
   * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using Google GenKit framework. This separation allows AI capabilities to evolve independently without affecting UI or business logic.
   * **Presentation Layer** (`/src/app/`, `/src/components/`): Next.js 15 App Router with React Server Components for optimal performance and SEO. UI components are isolated in `/src/components/` following atomic design principles.
   * **Business Logic Layer** (`/src/lib/`): Core services handling authentication, content filtering, task management, and user progression. This layer acts as the bridge between UI and data/AI layers.
-  * **Data Layer**: Firebase Authentication and Firestore for user management and real-time data synchronization.
+  * **Data Layer - Dual-Mode Architecture** (`/src/lib/repositories/`, Firebase): Hybrid data persistence using SQLite for local-first operations with Firebase Firestore fallback for cloud synchronization. Services attempt SQLite operations first for optimal performance, automatically falling back to Firebase if SQLite is unavailable or fails, ensuring reliability while maintaining backward compatibility.
 
 * **Service-Oriented Architecture for Business Logic:**
   * Each service in `/src/lib/` is a self-contained module with a single responsibility (e.g., `daily-task-service.ts`, `community-service.ts`, `content-filter-service.ts`).
   * Services communicate through well-defined interfaces and are independently testable.
   * This modularity enables parallel development and easier maintenance.
+
+* **Repository Pattern for Data Access:**
+  * Data access logic is isolated in repository modules (`/src/lib/repositories/`) separating database operations from business logic.
+  * Repositories use prepared statements for SQL injection prevention and provide consistent CRUD interfaces across different data types.
+  * This abstraction enables database migrations, simplifies testing with in-memory SQLite, and allows services to remain agnostic of underlying storage implementation.
 
 * **AI-First Design Philosophy:**
   * AI capabilities are not bolted on but deeply integrated into the core user experience.
@@ -25,9 +30,9 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
   * AI is used for content generation, assessment, and personalization throughout the platform.
 
 * **Test-Driven Quality Assurance:**
-  * Comprehensive test coverage (77.37% overall, 100% pass rate with 71 tests) ensures reliability.
+  * Comprehensive test coverage (77.37% overall services, 100% pass rate with 146+ tests including repository layer) ensures reliability.
   * Tests mirror the `/src` structure in `/tests`, making it easy to locate and maintain test files.
-  * Critical services like content filtering and community management have extensive test suites.
+  * Critical services like content filtering, community management, and data repositories have extensive test suites with 75+ repository-specific tests.
 
 * **Internationalization by Design:**
   * Multi-language support (Traditional Chinese, Simplified Chinese, English) is built into the architecture from the ground up.
@@ -116,13 +121,17 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   ├── task-evaluator.ts              # Task submission evaluation
 │   │   ├── task-difficulty-adapter.ts     # Adaptive difficulty system
 │   │   ├── user-level-service.ts          # XP and leveling system
-│   │   ├── notes-service.ts               # Note-taking functionality
-│   │   ├── highlight-service.ts           # Text highlighting
+│   │   ├── notes-service.ts               # Note-taking functionality (dual-mode: SQLite + Firebase)
+│   │   ├── highlight-service.ts           # Text highlighting (dual-mode: SQLite + Firebase)
 │   │   ├── openai-client.ts               # OpenAI API integration
 │   │   ├── perplexity-client.ts           # Perplexity API integration
 │   │   ├── perplexity-error-handler.ts    # Error handling for external APIs
 │   │   ├── citation-processor.ts          # Citation parsing and formatting
 │   │   ├── terminal-logger.ts             # Development logging utility
+│   │   ├── repositories/      # Data access layer (SQLite operations)
+│   │   │   ├── highlight-repository.ts    # Highlight CRUD operations (270 lines, 8 functions)
+│   │   │   ├── note-repository.ts         # Note CRUD operations (470 lines, 14 functions)
+│   │   │   └── [future repositories]      # Progress, task, user repositories (Phase 3+)
 │   │   └── config/            # Configuration schemas
 │   │       └── daily-task-schema.ts       # Task data validation
 │   ├── context/               # React Context providers (global state)
@@ -138,13 +147,16 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   └── qa-module.css      # Q&A module styles
 │   └── data/                  # Static data and fixtures
 │       └── chapterGraph/      # Knowledge graph data
-├── tests/                     # Test suite (71 tests, 100% pass rate)
+├── tests/                     # Test suite (146+ tests, 100% pass rate)
 │   ├── lib/                   # Service layer tests (mirrors /src/lib/)
 │   │   ├── content-filter-service.test.ts     # Content moderation tests
 │   │   ├── community-service.test.ts          # Community feature tests
 │   │   ├── openai-client.test.ts              # OpenAI integration tests
 │   │   ├── ai-task-content-generator.test.ts  # Task generation tests
-│   │   └── ai-feedback-generator.test.ts      # Feedback generation tests
+│   │   ├── ai-feedback-generator.test.ts      # Feedback generation tests
+│   │   └── repositories/      # Repository layer tests (75+ tests)
+│   │       ├── highlight-repository.test.ts   # Highlight repo tests (25+ tests, 420 lines)
+│   │       └── note-repository.test.ts        # Note repo tests (50+ tests, 700 lines)
 │   └── setup/                 # Test configuration
 │       └── jest.setup.js      # Jest configuration and mocks
 ├── coverage/                  # Test coverage reports (HTML & JSON)
@@ -152,8 +164,14 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   └── coverage-final.json    # Machine-readable coverage data
 ├── test-output/               # Automated test results and logs
 ├── scripts/                   # Development and maintenance scripts
-│   └── test-ai-logging.ts     # AI logging validation script
+│   ├── test-ai-logging.ts     # AI logging validation script
+│   └── migrations/            # Data migration scripts (Firebase → SQLite)
+│       ├── base-migrator.ts       # Reusable migration framework (abstract class)
+│       ├── migrate-highlights.ts  # Highlight migration (200+ lines, batch processing)
+│       └── migrate-notes.ts       # Note migration (280+ lines, feature preservation)
 ├── community-backend/         # Backend service for community features
+├── sqlite/                    # SQLite database files (gitignored)
+│   └── local.db               # Local SQLite database (highlights, notes, future: all user data)
 ├── logs/                      # Application logs (development)
 ├── temp/                      # Temporary files (gitignored)
 ├── types/                     # Global TypeScript declarations
@@ -229,9 +247,9 @@ This section provides a complete listing of all modules in the codebase with two
 
 **user-level-service.ts** - Manages the gamification system including XP calculation, level progression, achievement unlocking, and reward distribution. This module tracks all user accomplishments and translates them into tangible progression metrics that motivate continued platform engagement through visible achievement milestones.
 
-**notes-service.ts** - Provides note-taking functionality including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module enables users to build their personal scholarly knowledge base by capturing insights, questions, and analyses during reading sessions.
+**notes-service.ts** - Provides note-taking functionality with dual-mode architecture (SQLite-first with Firebase fallback) including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module integrates with note-repository for local SQLite operations, automatically falling back to Firebase when SQLite is unavailable, enabling users to build their personal scholarly knowledge base with optimal performance and reliability.
 
-**highlight-service.ts** - Manages text highlighting features allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module supports active reading by enabling visual annotation and organization of key textual moments for later reference and analysis.
+**highlight-service.ts** - Manages text highlighting features with dual-mode architecture (SQLite-first with Firebase fallback) allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for local SQLite operations while maintaining backward compatibility with Firebase, supporting active reading through visual annotation and organization of key textual moments.
 
 **openai-client.ts** - Provides a configured client for OpenAI API integration used for supplementary AI features beyond GenKit's capabilities. This module handles API key management, request formatting, error handling, and response parsing for OpenAI-powered features.
 
@@ -246,6 +264,20 @@ This section provides a complete listing of all modules in the codebase with two
 **task-generator.ts** - Coordinates the task generation pipeline by selecting appropriate task types, determining difficulty levels, and triggering AI content generation. This module implements the business logic for when and what types of tasks to generate based on user schedules, preferences, and learning objectives.
 
 **knowledgeGraphUtils.ts** - Provides utility functions for processing, transforming, and querying the chapter-level knowledge graph data that maps character appearances and relationships. This module enables the knowledge graph visualization features by preparing data structures that represent narrative connections across chapters.
+
+### Repository Modules (`/src/lib/repositories/`)
+
+**highlight-repository.ts** - Implements SQLite data access layer for highlights with comprehensive CRUD operations (create, get, delete, batch) using prepared statements for SQL injection prevention. This module provides 8 functions (270 lines) including batch operations for efficient bulk inserts, count queries for statistics, and proper error handling. All operations use parameterized queries and are fully tested with 25+ unit tests covering normal operations, edge cases, and error scenarios.
+
+**note-repository.ts** - Implements SQLite data access layer for notes with full CRUD operations and advanced querying capabilities including tags (JSON arrays), public/private visibility, and user-specific filtering. This module provides 14 functions (470 lines) with automatic word count calculation, comprehensive tag support, batch operations for migration efficiency, and conditional queries (by user, by chapter, by tags, public visibility). All operations use prepared statements and are validated through 50+ comprehensive unit tests.
+
+### Migration Script Modules (`/scripts/migrations/`)
+
+**base-migrator.ts** - Provides an abstract migration framework implementing reusable patterns for Firebase-to-SQLite data migrations including batch processing, validation, dry-run mode, integrity checks, and progress logging. This base class enables consistent migration implementations by providing configurable batch sizes (default: 500 records), validation callbacks, error handling with statistics tracking, and migration summary reporting.
+
+**migrate-highlights.ts** - Implements Firebase-to-SQLite migration for highlight records using the BaseMigrator framework with batch processing, validation, and integrity verification. This script (200+ lines) fetches all highlights from Firestore, validates required fields (userId, chapterId, text, color), transforms timestamps to Unix format, performs batch inserts using highlight-repository, and verifies data integrity with count checks. Supports --dry-run, --verbose, and --no-validate flags for flexible migration execution.
+
+**migrate-notes.ts** - Implements Firebase-to-SQLite migration for note records with feature preservation including tags (JSON arrays), visibility settings, word counts, and note types. This script (280+ lines) extends BaseMigrator to handle complex note features, provides detailed feature statistics (tags usage, public notes percentage, average word count), validates all note fields including optional features, and performs comprehensive verification of feature preservation after migration (tags, visibility, types).
 
 ### Configuration Modules (`/src/lib/config/`)
 
@@ -353,6 +385,12 @@ This section provides a complete listing of all modules in the codebase with two
 
 **ai-feedback-generator.test.ts** - Tests AI feedback generation for accuracy, constructiveness, tone appropriateness, and personalization based on user context. This test suite ensures feedback enhances learning by being encouraging, specific, and actionable.
 
+### Repository Test Modules (`/tests/lib/repositories/`)
+
+**highlight-repository.test.ts** - Contains 25+ comprehensive unit tests (420 lines) validating all highlight repository operations including CRUD operations, batch processing, error handling, and edge cases. This test suite uses in-memory SQLite databases for isolation and speed, testing create operations (single and batch), retrieval by user and chapter, deletion with verification, count queries for statistics, error handling for missing fields and invalid data, Chinese character support, and transaction rollback scenarios ensuring data integrity.
+
+**note-repository.test.ts** - Implements 50+ comprehensive unit tests (700 lines) validating all note repository operations including full CRUD, tag management, visibility controls, and advanced queries. This test suite covers create operations with automatic word count calculation, tag storage as JSON arrays, batch operations for migration efficiency, retrieval by user/chapter/tags/visibility, update operations preserving data integrity, deletion with cascade handling, public note queries, tag-based filtering, error handling for constraint violations, and feature preservation (tags, isPublic, noteType) across all operations.
+
 ## 5. Common Developer Workflows
 
 ### To add a new AI feature:
@@ -382,6 +420,50 @@ This section provides a complete listing of all modules in the codebase with two
 4. **Create task schema** in `/src/lib/config/daily-task-schema.ts` for data validation.
 5. **Build UI component** in `/src/components/daily-tasks/` for task display and submission.
 6. **Test end-to-end** by generating, displaying, submitting, and grading the new task type.
+
+### To create a new repository for SQLite data access:
+1. **Create repository file** in `/src/lib/repositories/new-entity-repository.ts` with CRUD operations.
+2. **Use prepared statements** for all SQL queries to prevent SQL injection (e.g., `db.prepare('SELECT * FROM table WHERE id = ?')`).
+3. **Implement core functions**: create (single), batchCreate, getById, getByUserId, update, delete, count.
+4. **Add error handling** with try-catch blocks and meaningful error messages for debugging.
+5. **Write comprehensive tests** in `/tests/lib/repositories/` with 25+ test cases covering CRUD, batch operations, error cases, and edge conditions.
+6. **Use in-memory SQLite** (`:memory:`) in tests for isolation and speed.
+7. **Verify with TypeScript** by running `npm run typecheck` to ensure type safety.
+
+### To migrate a service to dual-mode (SQLite + Firebase):
+1. **Create repository** following the workflow above for SQLite data access layer.
+2. **Update service file** to import and use the repository for SQLite operations.
+3. **Implement dual-mode pattern** with SQLite-first, Firebase-fallback using this template:
+   ```typescript
+   export async function serviceFunction(params) {
+     // Try SQLite first
+     if (checkSQLiteAvailability()) {
+       try {
+         const result = repository.function(params);
+         console.log('✅ SQLite operation successful');
+         return result;
+       } catch (error) {
+         console.error('❌ SQLite failed, falling back to Firebase:', error.message);
+       }
+     }
+     // Fallback to Firebase
+     const result = await firebaseOperation(params);
+     console.log('✅ Firebase operation successful');
+     return result;
+   }
+   ```
+4. **Create migration script** in `/scripts/migrations/` extending BaseMigrator for data transfer.
+5. **Add npm script** in `package.json` for migration execution (e.g., `"migrate:entity": "tsx scripts/migrations/migrate-entity.ts"`).
+6. **Run TypeScript check** (`npm run typecheck`) to verify UI compatibility - zero errors expected.
+7. **Test migration** with `--dry-run` flag first, then execute actual migration.
+8. **Verify data integrity** by comparing counts and sampling data between Firebase and SQLite.
+
+### To run data migrations:
+* **Dry run (test):** `npm run migrate:highlights -- --dry-run` or `npm run migrate:notes -- --dry-run`
+* **Verbose output:** `npm run migrate:highlights -- --verbose`
+* **Actual migration:** `npm run migrate:highlights` (after dry run verification)
+* **Migrate all Phase 2:** `npm run migrate:all-phase2` (highlights + notes)
+* **Skip validation:** `npm run migrate:notes -- --no-validate` (not recommended)
 
 ### To run tests:
 * **All tests:** `npm test`
@@ -415,6 +497,10 @@ This section provides a complete listing of all modules in the codebase with two
 * **docs/testing/** - Test strategies, coverage analysis, and quality assurance reports
 * **docs/improvement_report/** - Enhancement proposals and implementation reports
 * **docs/setup/** - Deployment guides and environment configuration
+* **docs/firebaseToSQLlite/** - Firebase→SQLite migration project documentation
+  * **PHASE2-COMPLETION-REPORT.md** - Comprehensive Phase 2 completion report (highlights & notes migration)
+  * **TASK.md** - Detailed migration task tracking with 25 tasks across 5 phases
+  * **planningSpec.md** - Migration strategy and architectural planning
 
 ### API Documentation
 * **GenKit Development UI** - Access at `http://localhost:3100` after running `npm run genkit:dev`
@@ -430,8 +516,11 @@ This section provides a complete listing of all modules in the codebase with two
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
+**Document Version:** 1.1
+**Last Updated:** 2025-10-29
 **Maintained By:** Development Team
+**Change Log:**
+* **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests
+* **v1.0 (2025-10-27):** Initial comprehensive project structure documentation
 
 This document serves as the architectural map for onboarding new engineers and understanding the project's structure and design philosophy.
