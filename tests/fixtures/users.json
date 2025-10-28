@@ -1,0 +1,59 @@
+{
+  "users": [
+    {
+      "id": "test-user-1",
+      "username": "林黛玉",
+      "email": "daiyu@redmansion.test",
+      "currentLevel": 3,
+      "currentXP": 250,
+      "totalXP": 1250,
+      "attributes": "{\"wisdom\":75,\"creativity\":80,\"memory\":70,\"diligence\":65}",
+      "createdAt": 1704067200000,
+      "updatedAt": 1704153600000
+    },
+    {
+      "id": "test-user-2",
+      "username": "賈寶玉",
+      "email": "baoyu@redmansion.test",
+      "currentLevel": 2,
+      "currentXP": 150,
+      "totalXP": 650,
+      "attributes": "{\"wisdom\":60,\"creativity\":85,\"memory\":65,\"diligence\":55}",
+      "createdAt": 1704067200000,
+      "updatedAt": 1704153600000
+    },
+    {
+      "id": "test-user-3",
+      "username": "薛寶釵",
+      "email": "baochai@redmansion.test",
+      "currentLevel": 4,
+      "currentXP": 100,
+      "totalXP": 2100,
+      "attributes": "{\"wisdom\":85,\"creativity\":75,\"memory\":80,\"diligence\":90}",
+      "createdAt": 1704067200000,
+      "updatedAt": 1704153600000
+    },
+    {
+      "id": "test-user-4",
+      "username": "王熙鳳",
+      "email": "xifeng@redmansion.test",
+      "currentLevel": 1,
+      "currentXP": 50,
+      "totalXP": 50,
+      "attributes": "{\"wisdom\":70,\"creativity\":60,\"memory\":65,\"diligence\":75}",
+      "createdAt": 1704067200000,
+      "updatedAt": 1704153600000
+    },
+    {
+      "id": "test-user-5",
+      "username": "史湘雲",
+      "email": "xiangyun@redmansion.test",
+      "currentLevel": 2,
+      "currentXP": 200,
+      "totalXP": 700,
+      "attributes": "{\"wisdom\":65,\"creativity\":90,\"memory\":60,\"diligence\":70}",
+      "createdAt": 1704067200000,
+      "updatedAt": 1704153600000
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "daily_progress": [
+    {
+      "id": "test-user-1_2025-01-15",
+      "userId": "test-user-1",
+      "date": "2025-01-15",
+      "tasks": "[{\"taskId\":\"task-poetry-1\",\"assignedAt\":1704153600000},{\"taskId\":\"task-character-1\",\"assignedAt\":1704153600000}]",
+      "completedTaskIds": "[\"task-poetry-1\"]",
+      "skippedTaskIds": "[]",
+      "totalXPEarned": 50,
+      "totalAttributeGains": "{\"wisdom\":5,\"creativity\":3}",
+      "usedSourceIds": "[\"ch27-v1-2\"]",
+      "streak": 3,
+      "createdAt": 1704153600000,
+      "updatedAt": 1704240000000
+    },
+    {
+      "id": "test-user-2_2025-01-15",
+      "userId": "test-user-2",
+      "date": "2025-01-15",
+      "tasks": "[{\"taskId\":\"task-character-1\",\"assignedAt\":1704153600000},{\"taskId\":\"task-cultural-1\",\"assignedAt\":1704153600000}]",
+      "completedTaskIds": "[]",
+      "skippedTaskIds": "[]",
+      "totalXPEarned": 0,
+      "totalAttributeGains": "{}",
+      "usedSourceIds": "[]",
+      "streak": 0,
+      "createdAt": 1704153600000,
+      "updatedAt": 1704153600000
+    }
+  ]
+}

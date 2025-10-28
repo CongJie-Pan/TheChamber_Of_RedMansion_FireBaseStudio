@@ -273,13 +273,94 @@ export function isSQLiteAvailable(): boolean {
 }
 
 /**
+ * Health check for database connection
+ *
+ * @returns Object with health status and details
+ */
+export function checkDatabaseHealth(): {
+  healthy: boolean;
+  initialized: boolean;
+  accessible: boolean;
+  error?: string;
+} {
+  const result = {
+    healthy: false,
+    initialized: Boolean(dbInstance),
+    accessible: false,
+    error: undefined as string | undefined,
+  };
+
+  if (!dbInstance) {
+    result.error = 'Database not initialized';
+    return result;
+  }
+
+  try {
+    // Simple query to test database accessibility
+    const stmt = dbInstance.prepare('SELECT 1 as test');
+    const row = stmt.get() as { test: number };
+    result.accessible = row.test === 1;
+    result.healthy = result.accessible;
+  } catch (error: any) {
+    result.error = error.message;
+    result.accessible = false;
+  }
+
+  return result;
+}
+
+/**
+ * Get database statistics
+ *
+ * @returns Database statistics object
+ */
+export function getDatabaseStats(): {
+  size: number;
+  pageCount: number;
+  pageSize: number;
+  tables: number;
+} | null {
+  if (!dbInstance) {
+    return null;
+  }
+
+  try {
+    const sizeQuery = `SELECT page_count * page_size as size, page_count, page_size
+                       FROM pragma_page_count(), pragma_page_size()`;
+    const sizeRow = dbInstance.prepare(sizeQuery).get() as {
+      size: number;
+      page_count: number;
+      page_size: number;
+    };
+
+    const tablesQuery = `SELECT COUNT(*) as count FROM sqlite_master
+                         WHERE type='table' AND name NOT LIKE 'sqlite_%'`;
+    const tablesRow = dbInstance.prepare(tablesQuery).get() as { count: number };
+
+    return {
+      size: sizeRow.size,
+      pageCount: sizeRow.page_count,
+      pageSize: sizeRow.page_size,
+      tables: tablesRow.count,
+    };
+  } catch (error: any) {
+    console.error('❌ [SQLite] Failed to get database stats:', error.message);
+    return null;
+  }
+}
+
+/**
  * Close database connection
  */
 export function closeDatabase(): void {
   if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
-    console.log('✅ [SQLite] Database connection closed');
+    try {
+      dbInstance.close();
+      dbInstance = null;
+      console.log('✅ [SQLite] Database connection closed');
+    } catch (error: any) {
+      console.error('❌ [SQLite] Error closing database:', error.message);
+    }
   }
 }
 
@@ -330,3 +411,35 @@ export function fromUnixTimestamp(unixMs: number): { seconds: number; nanosecond
 export const SQLITE_CONFIG = {
   ...DB_CONFIG,
 } as const;
+
+/**
+ * Graceful shutdown handler
+ * Closes database connection on process termination signals
+ */
+function setupGracefulShutdown(): void {
+  // Only setup handlers in server environment
+  if (typeof window !== 'undefined') {
+    return;
+  }
+
+  const shutdownHandler = (signal: string) => {
+    console.log(`\n📴 [SQLite] Received ${signal}, closing database connection...`);
+    closeDatabase();
+    process.exit(0);
+  };
+
+  // Register handlers for termination signals
+  process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+  process.on('SIGINT', () => shutdownHandler('SIGINT'));
+
+  // Handle uncaught exceptions
+  process.on('beforeExit', () => {
+    if (dbInstance) {
+      console.log('📴 [SQLite] Process exiting, closing database connection...');
+      closeDatabase();
+    }
+  });
+}
+
+// Setup graceful shutdown handlers
+setupGracefulShutdown();

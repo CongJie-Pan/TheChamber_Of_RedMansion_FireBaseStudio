@@ -1,0 +1,53 @@
+
+================================================================================
+SQLite Schema Verification Report
+================================================================================
+Timestamp: 2025-10-28T22:38:55.524Z
+Process: Node.js v22.20.0
+Platform: linux (x64)
+================================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 [SQLite] Initializing database connection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 Database path: /mnt/d/AboutUniversity/114 NSTC_and_SeniorProject/2025-IM-senior-project/TheChamber_Of_RedMansion_FireBaseStudio/data/local-db/redmansion.db
+🔧 [SQLite] Initializing database schema...
+✅ [SQLite] Database schema initialized
+✅ [SQLite] Database connection established
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 DATABASE INFORMATION
+--------------------------------------------------------------------------------
+Database Size: 100.00 KB
+Total Tables: 7
+Total Indexes: 5
+
+🔍 TABLE VERIFICATION
+--------------------------------------------------------------------------------
+✅ Table: users (8 rows, 9 columns)
+✅ Table: daily_tasks (0 rows, 11 columns)
+✅ Table: daily_progress (8 rows, 12 columns)
+✅ Table: task_submissions (0 rows, 9 columns)
+✅ Table: xp_transactions (0 rows, 7 columns)
+✅ Table: xp_transaction_locks (0 rows, 4 columns)
+✅ Table: level_ups (0 rows, 7 columns)
+
+🔍 INDEX VERIFICATION
+--------------------------------------------------------------------------------
+✅ Index: idx_daily_progress_user_date
+✅ Index: idx_task_submissions_user_task
+✅ Index: idx_daily_tasks_type
+✅ Index: idx_xp_transactions_user
+✅ Index: idx_level_ups_user
+
+================================================================================
+VERIFICATION SUMMARY
+================================================================================
+Tables: ✅ VALID
+Indexes: ✅ VALID
+Database Size: 100.00 KB
+Total Row Count: 16
+================================================================================
+
+✅ VERIFICATION PASSED - Database schema is valid
