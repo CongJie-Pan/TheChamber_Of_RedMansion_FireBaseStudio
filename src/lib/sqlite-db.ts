@@ -155,6 +155,36 @@ function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // Highlights table (Phase 2 - SQLITE-005)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS highlights (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      chapterId INTEGER NOT NULL,
+      selectedText TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+  `);
+
+  // Notes table (Phase 2 - SQLITE-006)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      chapterId INTEGER NOT NULL,
+      selectedText TEXT NOT NULL,
+      note TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      lastModified INTEGER NOT NULL,
+      tags TEXT, -- JSON array
+      isPublic INTEGER DEFAULT 0,
+      wordCount INTEGER DEFAULT 0,
+      noteType TEXT,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date
@@ -171,6 +201,18 @@ function initializeSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_level_ups_user
     ON level_ups(userId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_highlights_user_chapter
+    ON highlights(userId, chapterId);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_user_chapter
+    ON notes(userId, chapterId);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_user
+    ON notes(userId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_public
+    ON notes(isPublic, createdAt DESC);
   `);
 
   console.log('✅ [SQLite] Database schema initialized');
