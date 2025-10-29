@@ -173,7 +173,7 @@ describe('Homepage Component Tests', () => {
   });
 
   describe('Image URL Configuration', () => {
-    it('should use placehold.co for all content preview images', () => {
+    it('should use local images from /images directory for content previews', () => {
       const { container } = render(
         <TestWrapper>
           <HomePage />
@@ -181,31 +181,15 @@ describe('Homepage Component Tests', () => {
       );
 
       const images = container.querySelectorAll('img');
-      const contentImages = Array.from(images).filter(img =>
-        img.getAttribute('src')?.includes('placehold.co')
+      const localImages = Array.from(images).filter(img =>
+        img.getAttribute('src')?.startsWith('/images/')
       );
 
-      // Should have at least 3 placeholder images for content previews
-      expect(contentImages.length).toBeGreaterThanOrEqual(3);
+      // Should have at least 3 local images for content previews
+      expect(localImages.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('should use correct placeholder URLs with proper dimensions', () => {
-      const { container } = render(
-        <TestWrapper>
-          <HomePage />
-        </TestWrapper>
-      );
-
-      const images = container.querySelectorAll('img');
-      const placeholderImages = Array.from(images).filter(img =>
-        img.getAttribute('src')?.includes('placehold.co/600x400')
-      );
-
-      // All placeholder images should have 600x400 dimensions
-      expect(placeholderImages.length).toBeGreaterThan(0);
-    });
-
-    it('should use themed colors for placeholder images', () => {
+    it('should use specific Red Mansions themed images', () => {
       const { container } = render(
         <TestWrapper>
           <HomePage />
@@ -215,14 +199,34 @@ describe('Homepage Component Tests', () => {
       const images = container.querySelectorAll('img');
       const imageSrcs = Array.from(images).map(img => img.getAttribute('src'));
 
-      // Check for themed color codes
-      const hasThemeColors = imageSrcs.some(src =>
-        src?.includes('8B4513') || // Brown for character garden
-        src?.includes('DC143C') || // Crimson for chapters
-        src?.includes('2F4F4F')    // Dark slate gray for poetry
+      // Check for specific Red Mansions themed image files
+      const hasCharacterImage = imageSrcs.some(src => src?.includes('Hongloumeng_Tuyong_Jia_Yingchun.jpg'));
+      const hasBaoyuImage = imageSrcs.some(src => src?.includes('Jia_Baoyu_Hongloumeng_Tuyong_lookingLaptop.png'));
+      const hasStudyImage = imageSrcs.some(src => src?.includes('inChung_lookingLaptop.png'));
+
+      expect(hasCharacterImage).toBe(true);
+      expect(hasBaoyuImage).toBe(true);
+      expect(hasStudyImage).toBe(true);
+    });
+
+    it('should use correct image file extensions (jpg/png)', () => {
+      const { container } = render(
+        <TestWrapper>
+          <HomePage />
+        </TestWrapper>
       );
 
-      expect(hasThemeColors).toBe(true);
+      const images = container.querySelectorAll('img');
+      const localImages = Array.from(images)
+        .filter(img => img.getAttribute('src')?.startsWith('/images/'))
+        .map(img => img.getAttribute('src'));
+
+      // All local images should have valid extensions
+      const hasValidExtensions = localImages.every(src =>
+        src?.endsWith('.jpg') || src?.endsWith('.png')
+      );
+
+      expect(hasValidExtensions).toBe(true);
     });
   });
 
@@ -496,9 +500,9 @@ describe('Homepage Component Tests', () => {
         </TestWrapper>
       );
 
-      // Should have 3 placeholder images for content previews
-      const placeholderImages = container.querySelectorAll('img[src*="placehold.co"]');
-      expect(placeholderImages.length).toBeGreaterThanOrEqual(3);
+      // Should have 3 local images for content previews
+      const localImages = container.querySelectorAll('img[src^="/images/"]');
+      expect(localImages.length).toBeGreaterThanOrEqual(3);
     });
 
     it('should render 4 statistics', () => {
