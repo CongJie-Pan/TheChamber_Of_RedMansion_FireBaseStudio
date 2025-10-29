@@ -25,5 +25,6 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
 
 [] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
 [] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
+[] 主頁需要修改圖片的錯誤，以及語言問題。
 
 [] 目前各項系統功能至少都要有，實際實現。
