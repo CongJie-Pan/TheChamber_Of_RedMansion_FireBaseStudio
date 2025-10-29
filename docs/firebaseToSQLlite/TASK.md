@@ -14,9 +14,9 @@
 |-------|--------|------------|----------|-----------------|
 | Phase 1: SQLite Infrastructure | ✅ Completed | 100% | ~1 day | 4/4 |
 | Phase 2: Simple Services Migration | ✅ Completed | 100% | ~1 session | 6/6 |
-| Phase 3: Core Systems Migration | 🟡 In Progress | 50% | 2-3 weeks | 4/8 |
+| Phase 3: Core Systems Migration | 🟡 In Progress | 62.5% | 2-3 weeks | 5/8 |
 | Phase 4: Authentication Replacement | ⚪ Not Started | 0% | 2-3 weeks | 0/7 |
-| **Total** | **🟡 In Progress** | **56%** | **8-11 weeks** | **14/25** |
+| **Total** | **🟡 In Progress** | **60%** | **8-11 weeks** | **15/25** |
 
 **Legend**:
 - ✅ Completed
@@ -678,7 +678,7 @@
 
 ---
 
-### [ ] **Task ID**: SQLITE-015
+### [✅] **Task ID**: SQLITE-015
 - **Task Name**: 實施 comments 系統和嵌套回覆
 - **Work Description**:
     - **Why**: 評論是社區互動的核心，需要支援嵌套回覆和完整的管理功能。
@@ -700,24 +700,33 @@
       - Nested comments patterns
       - SQLite recursive queries
 - **Deliverables**:
-    - [ ] Comment CRUD 實施
-    - [ ] 嵌套回覆邏輯
-    - [ ] 評論樹構建算法
-    - [ ] 計數更新機制
-    - [ ] 點讚功能
-    - [ ] 排序實施
-    - [ ] 軟刪除邏輯
-    - [ ] 性能測試（深度 5+ 層級）
-- **Dependencies**: SQLITE-014
+    - [x] `comment-repository.ts` 創建 (689 lines, 11 functions)
+    - [x] Comment CRUD 實施 (4 functions: createComment, getCommentById, getCommentsByPost, deleteComment)
+    - [x] 嵌套回覆邏輯 (automatic depth calculation via parent.depth + 1)
+    - [x] 評論樹構建算法 (buildCommentTree with O(n) hash map algorithm)
+    - [x] 計數更新機制 (updateReplyCount with denormalized counter)
+    - [x] 點讚功能 (likeComment, unlikeComment with duplicate prevention)
+    - [x] 排序實施 (chronological ordering by createdAt ASC)
+    - [x] 軟刪除邏輯 (status='deleted', content='[已刪除]', structure preserved)
+    - [x] 性能測試（深度 5+ 層級）(tested up to 15 levels, 100 comments < 50ms)
+    - [x] 單元測試 (43 tests, 100% pass rate)
+- **Dependencies**: SQLITE-014 ✅ Completed
 - **Constraints**:
-    - 支援無限嵌套層級
-    - 樹構建性能 < 50ms
-    - 保持評論計數準確
-- **Completion Status**: ⚪ Not Started
+    - 支援無限嵌套層級 ✅ Achieved (tested 15 levels deep)
+    - 樹構建性能 < 50ms ✅ Achieved (100 comments in < 50ms)
+    - 保持評論計數準確 ✅ Achieved (automatic increment/decrement on create/delete)
+- **Completion Status**: ✅ Completed (2025-10-29)
 - **Notes**:
-    - 嵌套評論是複雜功能
-    - 需要仔細設計數據結構
-    - 預計時間：12-16 小時
+    - 實際時間：~6 hours (implementation + testing)
+    - 完整實施 11 個函數：4 CRUD + 3 tree operations + 2 interactions + 2 queries
+    - 測試覆蓋：43 個測試 = 8 CRUD + 12 tree + 8 replies + 6 interactions + 4 queries + 3 integration + 2 performance
+    - Tree 算法：O(n) 單次遍歷，使用 Map<commentId, node> 構建
+    - 自動深度計算：parent.depth + 1，避免手動錯誤
+    - Soft delete 邏輯：保留結構用於嵌套回覆，標記為 '[已刪除]'
+    - Orphaned comments 處理：父評論刪除後的子評論自動提升為根評論
+    - Reply count 管理：創建時 +1，刪除時 -1（denormalized）
+    - Comments table schema 已在 sqlite-db.ts (lines 214-238, 4 indexes)
+    - 所有測試通過：Test Suites: 1 passed, Tests: 43 passed (72.553s)
 
 ---
 

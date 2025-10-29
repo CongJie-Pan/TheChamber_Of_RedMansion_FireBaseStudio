@@ -211,6 +211,32 @@ function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // Comments table (Phase 3 - SQLITE-015)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      postId TEXT NOT NULL,
+      authorId TEXT NOT NULL,
+      authorName TEXT NOT NULL,
+      content TEXT NOT NULL,
+      parentCommentId TEXT, -- NULL for root comments, commentId for nested replies
+      depth INTEGER DEFAULT 0, -- 0 for root, 1 for first-level reply, etc.
+      replyCount INTEGER DEFAULT 0,
+      likes INTEGER DEFAULT 0,
+      likedBy TEXT, -- JSON array of userIds
+      status TEXT DEFAULT 'active', -- 'active', 'hidden', 'deleted'
+      isEdited INTEGER DEFAULT 0,
+      moderationAction TEXT,
+      originalContent TEXT,
+      moderationWarning TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      FOREIGN KEY (postId) REFERENCES posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (authorId) REFERENCES users(id),
+      FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
+    );
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date
@@ -251,6 +277,18 @@ function initializeSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_posts_trending
     ON posts(likes DESC, viewCount DESC, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_postId
+    ON comments(postId, createdAt ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_authorId
+    ON comments(authorId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_parentId
+    ON comments(parentCommentId, createdAt ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_status
+    ON comments(status);
   `);
 
   console.log('✅ [SQLite] Database schema initialized');
