@@ -159,6 +159,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(nuwaShi?.category).toBe('神話人物');
     expect(nuwaShi?.importance).toBe('primary');
     expect(nuwaShi?.color).toBe('#DC2626');
+    // Dynamic radius: textLength * 3.5 + 10 = 3 * 3.5 + 10 = 20.5, max(35, 20.5) = 35, min(35, 60) = 35
     expect(nuwaShi?.radius).toBe(35);
     expect(nuwaShi?.group).toBe(1);
   });
@@ -178,6 +179,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(zhenShiyin?.category).toBe('主要人物');
     expect(zhenShiyin?.importance).toBe('primary');
     expect(zhenShiyin?.color).toBe('#059669');
+    // Dynamic radius: 3 chars * 3.5 + 10 = 20.5, max(30, 20.5) = 30
     expect(zhenShiyin?.radius).toBe(30);
   });
 
@@ -196,6 +198,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(yinglian?.category).toBe('次要人物');
     expect(yinglian?.importance).toBe('secondary');
     expect(yinglian?.color).toBe('#EC4899');
+    // Dynamic radius: 2 chars * 3.5 + 10 = 17, max(25, 17) = 25
     expect(yinglian?.radius).toBe(25);
   });
 
@@ -214,6 +217,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(qingengPeak?.category).toBe('神話地點');
     expect(qingengPeak?.importance).toBe('primary');
     expect(qingengPeak?.color).toBe('#8B5CF6');
+    // Dynamic radius: 3 chars * 3.5 + 10 = 20.5, max(28, 20.5) = 28
     expect(qingengPeak?.radius).toBe(28);
   });
 
@@ -232,6 +236,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(suzhou?.category).toBe('世俗地點');
     expect(suzhou?.importance).toBe('secondary');
     expect(suzhou?.color).toBe('#F59E0B');
+    // Dynamic radius: 3 chars * 3.5 + 10 = 20.5, max(24, 20.5) = 24
     expect(suzhou?.radius).toBe(24);
   });
 
@@ -250,6 +255,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(jade?.category).toBe('重要物品/文獻');
     expect(jade?.importance).toBe('primary');
     expect(jade?.color).toBe('#EAB308');
+    // Dynamic radius: 4 chars * 3.5 + 10 = 24, max(30, 24) = 30
     expect(jade?.radius).toBe(30);
   });
 
@@ -268,6 +274,7 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(concept?.category).toBe('哲學概念');
     expect(concept?.importance).toBe('secondary');
     expect(concept?.color).toBe('#0891B2');
+    // Dynamic radius: 3 chars * 3.5 + 10 = 20.5, max(22, 20.5) = 22
     expect(concept?.radius).toBe(22);
   });
 
@@ -286,7 +293,9 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(event?.category).toBe('情節事件');
     expect(event?.importance).toBe('secondary');
     expect(event?.color).toBe('#7C2D12');
-    expect(event?.radius).toBe(20);
+    // Dynamic radius: 3 chars * 3.5 + 10 = 20.5, max(20, 20.5) = 20.5, floor to 20
+    expect(event?.radius).toBeGreaterThanOrEqual(20);
+    expect(event?.radius).toBeLessThanOrEqual(21);
   });
 
   test('should handle unknown entities with default categorization', () => {
@@ -304,8 +313,147 @@ describe('Knowledge Graph Utils - Entity Categorization', () => {
     expect(unknown?.category).toBe('其他人物');
     expect(unknown?.importance).toBe('tertiary');
     expect(unknown?.color).toBe('#6B7280');
-    expect(unknown?.radius).toBe(18);
+    // Dynamic radius: textLength * 3.5 + 10 = 4 * 3.5 + 10 = 24, max(18, 24) = 24, min(24, 60) = 24
+    expect(unknown?.radius).toBe(24);
     expect(unknown?.group).toBe(7);
+  });
+});
+
+describe('Knowledge Graph Utils - Dynamic Node Radius Calculation', () => {
+  test('should calculate radius dynamically based on text length', () => {
+    // Arrange & Act
+    const result = transformChapterDataToGraphData({
+      entities: ["短名", "這是一個比較長的名字", "太虛幻境對聯（假作真時真亦假，無為有處有還無）"],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert
+    const shortName = result.nodes.find(node => node.name === "短名");
+    const mediumName = result.nodes.find(node => node.name === "這是一個比較長的名字");
+    const longName = result.nodes.find(node => node.name === "太虛幻境對聯（假作真時真亦假，無為有處有還無）");
+
+    expect(shortName).toBeDefined();
+    expect(mediumName).toBeDefined();
+    expect(longName).toBeDefined();
+
+    // Short name: 2 chars * 3.5 + 10 = 17, but baseRadius is 18, so max(18, 17) = 18
+    expect(shortName?.radius).toBeGreaterThanOrEqual(18);
+    expect(shortName?.radius).toBeLessThan(25);
+
+    // Medium name: 11 chars * 3.5 + 10 = 48.5, so 48.5 (capped at 60)
+    expect(mediumName?.radius).toBeGreaterThan(40);
+    expect(mediumName?.radius).toBeLessThanOrEqual(60);
+
+    // Long name: 24 chars * 3.5 + 10 = 94, but capped at 60
+    expect(longName?.radius).toBe(60);
+  });
+
+  test('should respect minimum radius (baseRadius)', () => {
+    // Arrange & Act - Very short entity name
+    const result = transformChapterDataToGraphData({
+      entities: ["A"],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert
+    const node = result.nodes[0];
+    // 1 char * 3.5 + 10 = 13.5, but baseRadius is 18, so max(18, 13.5) = 18
+    expect(node.radius).toBeGreaterThanOrEqual(18);
+  });
+
+  test('should respect maximum radius (60px cap)', () => {
+    // Arrange & Act - Very long entity name
+    const veryLongName = "這是一個非常非常非常非常非常非常非常非常非常非常非常長的實體名稱";
+    const result = transformChapterDataToGraphData({
+      entities: [veryLongName],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert
+    const node = result.nodes[0];
+    // 31 chars * 3.5 + 10 = 118.5, but capped at 60
+    expect(node.radius).toBe(60);
+  });
+
+  test('should scale radius proportionally for medium-length names', () => {
+    // Arrange & Act
+    const result = transformChapterDataToGraphData({
+      entities: ["5字名字", "10個字的名字", "15個字符長的名字"],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert
+    const name5 = result.nodes.find(node => node.name === "5字名字");
+    const name10 = result.nodes.find(node => node.name === "10個字的名字");
+    const name15 = result.nodes.find(node => node.name === "15個字符長的名字");
+
+    // Verify radius increases with text length
+    expect(name5?.radius).toBeDefined();
+    expect(name10?.radius).toBeDefined();
+    expect(name15?.radius).toBeDefined();
+
+    expect(name10!.radius).toBeGreaterThan(name5!.radius);
+    expect(name15!.radius).toBeGreaterThan(name10!.radius);
+  });
+
+  test('should handle different character types (Chinese, English, symbols)', () => {
+    // Arrange & Act
+    const result = transformChapterDataToGraphData({
+      entities: ["English Name", "中文名字", "Mixed混合Name名"],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert - All should have valid radius regardless of character type
+    result.nodes.forEach(node => {
+      expect(node.radius).toBeGreaterThanOrEqual(18);
+      expect(node.radius).toBeLessThanOrEqual(60);
+      expect(typeof node.radius).toBe('number');
+    });
+  });
+
+  test('should calculate radius correctly for all entity categories', () => {
+    // Arrange & Act - Test across different entity categories with same length
+    const testName = "測試實體名稱"; // 6 characters
+    const result = transformChapterDataToGraphData({
+      entities: [
+        testName,  // Will be categorized as unknown/other
+      ],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert - Radius should be based on text length, not category
+    const node = result.nodes[0];
+    // 6 chars * 3.5 + 10 = 31, max(baseRadius, 31) = 31 (since baseRadius for unknown is 18)
+    expect(node.radius).toBeGreaterThanOrEqual(30);
+    expect(node.radius).toBeLessThan(35);
+  });
+
+  test('should handle edge case of exact boundary length (60px)', () => {
+    // Arrange - Calculate exact length that would produce 60px radius
+    // 60 = length * 3.5 + 10 => length = (60 - 10) / 3.5 = 14.28 chars
+    // So we need a name with 15+ characters to hit the 60px cap
+    const longBoundaryName = "這是一個十五個字符的超長名字"; // 15 characters
+
+    // Act
+    const result = transformChapterDataToGraphData({
+      entities: [longBoundaryName],
+      relationships: [],
+      metadata: mockChapterGraphJson.metadata
+    });
+
+    // Assert
+    const node = result.nodes[0];
+    const actualLength = longBoundaryName.length;
+    const expectedRadius = Math.min(actualLength * 3.5 + 10, 60);
+    // With 15 chars: 15 * 3.5 + 10 = 62.5, capped at 60
+    expect(node.radius).toBeLessThanOrEqual(60);
+    expect(node.radius).toBeCloseTo(expectedRadius, 0);
   });
 });
 
