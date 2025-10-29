@@ -248,8 +248,8 @@ export const ChineseWindowNavButton = React.forwardRef<
         {/* Window frame effects - Layer 1 (background) */}
         <ActiveFrameBackground />
 
-        {/* Window frame border - Layer 2 (floating frame) */}
-        <WindowFrameBorder />
+        {/* Window frame border - REMOVED for simpler styling */}
+        {/* <WindowFrameBorder /> */}
 
         {/* Icon - Layer 3 (content) */}
         <Icon

@@ -159,7 +159,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-5">
             <Image
               src="/images/logo_circle.png"
               alt="紅樓慧讀 Logo"
@@ -169,7 +169,7 @@ export default function HomePage() {
             />
             <div className="text-left">
               <div className="text-xl font-bold text-foreground">紅樓慧讀</div>
-              <div className="text-xs text-muted-foreground">Red Mansions Study</div>
+              <div className="text-xs text-muted-foreground">HongLou WiseRead</div>
             </div>
           </Link>
 
@@ -420,7 +420,7 @@ export default function HomePage() {
               />
               <div>
                 <div className="text-xl font-bold">紅樓慧讀</div>
-                <div className="text-sm text-gray-400">Red Mansions Study Platform</div>
+                <div className="text-sm text-gray-400">HongLou WiseRead</div>
               </div>
             </div>
 

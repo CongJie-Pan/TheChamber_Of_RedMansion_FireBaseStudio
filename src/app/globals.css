@@ -21,9 +21,10 @@
  */
 
 /* Import Google Fonts for classical Chinese typography */
-/* Noto Serif SC provides excellent support for Traditional and Simplified Chinese characters */
+/* Noto Serif SC (also known as Source Han Serif) provides excellent support for Traditional and Simplified Chinese characters */
 /* with elegant serif styling appropriate for classical literature */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+/* 思源宋體 (Source Han Serif) / Noto Serif SC are the same font family from different distributors */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700&display=swap');
 
 /* Import Tailwind CSS layers for utility-first styling */
 @tailwind base;       /* Base styles and CSS resets */
@@ -34,8 +35,9 @@
 @import '../styles/qa-module.css';
 
 /* Set global font family for consistent Chinese text rendering */
+/* Using Source Han Serif (思源宋體) / Noto Serif SC with comprehensive fallbacks */
 body {
-  font-family: 'Noto Serif SC', serif; /* Primary font for Chinese text with serif fallback */
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif', serif; /* Primary font for Chinese text with serif fallback */
 }
 
 /**

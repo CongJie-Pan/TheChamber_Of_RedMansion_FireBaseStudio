@@ -385,51 +385,53 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     // Create main group for zooming and panning
     const g = svg.append("g").attr("class", "main-group");
 
-    // Define gradients for muted, elegant aesthetic
+    // Define gradients for enhanced visibility
     const defs = svg.append("defs");
 
-    // Muted neutral gradient for links (traditional Chinese ink aesthetic)
+    // Enhanced gradient for links with higher opacity for better visibility
     const linkGradient = defs.append("linearGradient")
       .attr("id", "link-gradient")
       .attr("gradientUnits", "userSpaceOnUse");
     linkGradient.append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", "#8A8A8A") // Muted gray start
-      .attr("stop-opacity", 0.4); // Subtle, non-intrusive
+      .attr("stop-color", "#DC2626") // Red start for better visibility
+      .attr("stop-opacity", 0.9); // Increased from 0.4 for better visibility
     linkGradient.append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", "#A0A0A0") // Lighter gray end
-      .attr("stop-opacity", 0.3); // Fade out for elegance
+      .attr("stop-color", "#EAB308") // Yellow end for gradient effect
+      .attr("stop-opacity", 0.7); // Increased from 0.3 for better visibility
 
-    // Create force simulation with optimized parameters for clarity
-    // Reason: Increase repulsion and spacing to reduce overlap and tangling
+    // Create force simulation with enhanced spacing parameters to prevent node overlap
+    // Reason: Users reported nodes overlapping - need stronger repulsion and larger distances
     const simulation = d3.forceSimulation<KnowledgeGraphNode>(graphData.nodes)
       .force("link", d3.forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(graphData.links)
         .id(d => d.id)
-        .distance(d => d.distance * 1.3) // 30% longer edges for better spacing
-        .strength(d => d.strength * 0.3))
+        .distance(d => d.distance * 2.0) // Doubled from 1.3x: 120-240px spacing for clarity
+        .strength(d => d.strength * 0.2)) // Reduced from 0.3 to allow more spreading
       .force("charge", d3.forceManyBody()
-        .strength(-1200) // Increased from -800 for more repulsion
-        .distanceMax(500)) // Increased range
+        .strength(-2500) // Increased from -1200: much stronger repulsion to prevent overlap
+        .distanceMax(600)) // Increased from 500: wider repulsion range
       .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force("collision", d3.forceCollide()
-        .radius(d => (d as KnowledgeGraphNode).radius + 15) // More breathing room (was +8)
-        .strength(0.85)); // Stronger anti-overlap (was 0.7)
+        .radius(d => (d as KnowledgeGraphNode).radius + 30) // Doubled from +15: larger personal space
+        .strength(1.0)); // Maximum strength (was 0.85): strict collision prevention
 
     simulationRef.current = simulation;
 
-    // Create links with muted, subtle styling
-    // Reason: Links should be connectors, not focal points - use thinner lines with lower opacity
-    // This creates visual hierarchy where nodes are prominent and edges are supportive
+    // Create links with enhanced visibility
+    // Reason for changes:
+    // - Increased stroke-width from Math.sqrt(d.strength) * 3 to * 5 + 2 for thicker lines
+    // - Increased stroke-opacity from 0.6 to 0.9 for better visibility
+    // - Enhanced drop-shadow for clearer edge definition
     const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
       .data(graphData.links)
       .enter().append("line")
       .attr("stroke", "url(#link-gradient)")
-      .attr("stroke-width", d => Math.sqrt(d.strength) * 3.5 + 1) // Thinner: 2.35-4.35px for subtlety
-      .attr("stroke-opacity", 0.5) // Lower opacity for muted appearance
-      .style("filter", "drop-shadow(0px 1px 2px rgba(0,0,0,0.15))"); // Subtle neutral shadow
+      .attr("stroke-width", d => Math.sqrt(d.strength) * 5 + 2) // Increased from * 3, now 3.7-5.7px instead of 2.1-3px
+      .attr("stroke-opacity", 0.9) // Increased from 0.6 for better visibility
+      .style("filter", "drop-shadow(0px 2px 6px rgba(220,38,38,0.4))"); // Enhanced shadow with red tint
 
     // Helper function to truncate text based on node radius
     // Reason: Long entity names need to be truncated to fit within nodes
@@ -464,15 +466,15 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     const linkText = linkLabel.append("text")
       .attr("class", "link-label-text")
       .text(d => d.relationship) // Display relationship type from data
-      .attr("font-size", "10px") // Smaller, less intrusive
-      .attr("font-weight", "500") // Medium weight, not heavy
-      .attr("fill", "#4A4A4A") // Dark charcoal gray for elegance
+      .attr("font-size", "14px") // Increased from 10px for better readability
+      .attr("font-weight", "600") // Slightly bolder for better visibility
+      .attr("fill", "#2C2C2C") // Darker gray for better contrast
       .attr("text-anchor", "middle")
       .attr("dy", ".35em")
       .style("pointer-events", "none")
       .style("font-family", "'Noto Serif SC', serif") // Match Chinese font
       .style("letter-spacing", "0.5px") // Improve readability
-      .style("filter", "drop-shadow(1px 1px 2px rgba(0,0,0,0.2))"); // Subtle shadow
+      .style("filter", "drop-shadow(1px 1px 2px rgba(0,0,0,0.3))"); // Slightly stronger shadow for clarity
 
     // Calculate and set background rectangle dimensions
     linkLabel.each(function(d) {
@@ -794,29 +796,37 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           </div>
         </div>
 
-        {/* Floating legend for fullscreen */}
+        {/* Floating legend for fullscreen - Updated to match actual node colors */}
         <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-sm rounded-lg p-4 text-white">
           <h4 className="font-semibold text-sm mb-3">圖例</h4>
           <div className="space-y-2 text-xs">
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B6F47' }}></div>
               <span>神話人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span>世俗人物</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5B7C8D' }}></div>
+              <span>主要人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span>神仙</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#9B8B7E' }}></div>
+              <span>次要人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span>神器/文學</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#6B7FA3' }}></div>
+              <span>神話地點</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <span>地點</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B8B73' }}></div>
+              <span>世俗地點</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#A68A5C' }}></div>
+              <span>重要物品/文獻</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7A8E92' }}></div>
+              <span>哲學概念</span>
             </div>
           </div>
         </div>
@@ -903,29 +913,37 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100"
         />
         
-        {/* Legend */}
+        {/* Legend - Updated to match actual node colors */}
         <div className="absolute top-4 right-4 bg-white/95 rounded-lg p-3 shadow-lg border">
           <h4 className="font-semibold text-sm mb-2 text-gray-800">圖例</h4>
           <div className="space-y-1 text-xs">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-red-600"></div>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B6F47' }}></div>
               <span>神話人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-green-600"></div>
-              <span>世俗人物</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5B7C8D' }}></div>
+              <span>主要人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-              <span>神仙</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#9B8B7E' }}></div>
+              <span>次要人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-600"></div>
-              <span>神器/文學</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#6B7FA3' }}></div>
+              <span>神話地點</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-amber-600"></div>
-              <span>地點</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B8B73' }}></div>
+              <span>世俗地點</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#A68A5C' }}></div>
+              <span>重要物品/文獻</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7A8E92' }}></div>
+              <span>哲學概念</span>
             </div>
           </div>
         </div>

@@ -10,9 +10,9 @@ export default {
   theme: {
   	extend: {
   		fontFamily: {
-        // Ensure sans is set if Noto Serif SC is the main body font
-        // Or remove this if Noto Serif SC is globally applied via body tag
-        sans: ['"Noto Serif SC"', 'serif'], 
+        // Source Han Serif (思源宋體) / Noto Serif SC for classical Chinese typography
+        // Multiple fallbacks ensure font availability across different systems
+        sans: ['"Noto Serif SC"', '"Source Han Serif SC"', '"Source Han Serif"', 'serif'],
       },
       colors: {
   			background: 'hsl(var(--background))',
