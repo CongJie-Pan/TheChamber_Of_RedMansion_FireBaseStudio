@@ -87,7 +87,9 @@
       "Bash(npm run doctor:sqlite:*)",
       "Bash(tee:*)",
       "Bash(tsx scripts/verify-sqlite-schema.ts:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(chmod:*)",
+      "Bash(openssl rand:*)"
     ]
   },
   "outputStyle": "default"

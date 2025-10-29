@@ -27,11 +27,13 @@ export interface UserStats {
 /**
  * SQLite-compatible User Profile
  * Extended from original for user-level-service compatibility (SQLITE-016)
+ * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
  */
 export interface UserProfile {
   userId: string;
   username: string;
   email?: string;
+  passwordHash?: string; // bcrypt hashed password (Phase 4 - SQLITE-019, only included in auth queries)
   currentLevel: number;
   currentXP: number;
   totalXP: number;
@@ -48,11 +50,13 @@ export interface UserProfile {
 
 /**
  * User data interface for database operations
+ * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
  */
 interface UserRow {
   id: string;
   username: string;
   email: string | null;
+  passwordHash: string | null; // bcrypt hashed password (Phase 4 - SQLITE-019)
   currentLevel: number;
   currentXP: number;
   totalXP: number;
@@ -160,6 +164,7 @@ function rowToUserProfile(row: UserRow): UserProfile {
     userId: row.id,
     username: row.username,
     email: row.email || undefined,
+    passwordHash: row.passwordHash || undefined, // Include password hash if present (Phase 4 - SQLITE-019)
     currentLevel: row.currentLevel,
     currentXP: row.currentXP,
     totalXP: row.totalXP,
@@ -181,12 +186,14 @@ function rowToUserProfile(row: UserRow): UserProfile {
  * @param userId - User ID
  * @param username - Username
  * @param email - User email (optional)
+ * @param passwordHash - bcrypt hashed password (optional, Phase 4 - SQLITE-019)
  * @returns Created user profile
  */
 export function createUser(
   userId: string,
   username: string,
-  email?: string
+  email?: string,
+  passwordHash?: string
 ): UserProfile {
   const db = getDatabase();
   const now = Date.now();
@@ -195,6 +202,7 @@ export function createUser(
     userId,
     username,
     email,
+    passwordHash, // Include password hash in profile (Phase 4 - SQLITE-019)
     currentLevel: 0,
     currentXP: 0,
     totalXP: 0,
@@ -211,16 +219,17 @@ export function createUser(
 
   const stmt = db.prepare(`
     INSERT INTO users (
-      id, username, email, currentLevel, currentXP, totalXP,
+      id, username, email, passwordHash, currentLevel, currentXP, totalXP,
       attributes, completedTasks, unlockedContent, completedChapters,
       hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
     userId,
     username,
     email || null,
+    passwordHash || null, // Insert password hash or null (Phase 4 - SQLITE-019)
     userProfile.currentLevel,
     userProfile.currentXP,
     userProfile.totalXP,
@@ -235,7 +244,7 @@ export function createUser(
     now
   );
 
-  console.log(`✅ [UserRepository] Created user: ${userId}`);
+  console.log(`✅ [UserRepository] Created user: ${userId}${passwordHash ? ' (with password)' : ' (without password)'}`);
   return userProfile;
 }
 
@@ -1173,6 +1182,187 @@ export function calculateUnlockedPermissions(level: number): string[] {
   }
 
   return allPermissions;
+}
+
+// ============================================================================
+// Batch Operations for Migration (SQLITE-018)
+// ============================================================================
+
+/**
+ * Batch create users for migration
+ *
+ * @param users - Array of user profiles to create (with userId, timestamps as Date objects)
+ * @returns Number of users created
+ */
+export function batchCreateUsers(users: UserProfile[]): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((usersToInsert: UserProfile[]) => {
+    const stmt = db.prepare(`
+      INSERT INTO users (
+        id, username, email, currentLevel, currentXP, totalXP,
+        attributes, completedTasks, unlockedContent, completedChapters,
+        hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const user of usersToInsert) {
+      stmt.run(
+        user.userId,
+        user.username,
+        user.email || null,
+        user.currentLevel,
+        user.currentXP,
+        user.totalXP,
+        JSON.stringify(user.attributes),
+        JSON.stringify(user.completedTasks || []),
+        JSON.stringify(user.unlockedContent || []),
+        JSON.stringify(user.completedChapters || []),
+        user.hasReceivedWelcomeBonus ? 1 : 0,
+        JSON.stringify(user.stats || DEFAULT_STATS),
+        user.createdAt.getTime(),
+        user.updatedAt.getTime(),
+        user.lastActivityAt ? user.lastActivityAt.getTime() : null
+      );
+      created++;
+    }
+  });
+
+  insertMany(users);
+  console.log(`✅ [UserRepository] Batch created ${created} users`);
+  return created;
+}
+
+/**
+ * Batch create XP transactions for migration
+ *
+ * @param transactions - Array of XP transaction records (with transactionId and timestamp)
+ * @returns Number of transactions created
+ */
+export function batchCreateXPTransactions(
+  transactions: Array<{
+    transactionId: string;
+    userId: string;
+    amount: number;
+    reason: string;
+    source: string;
+    sourceId: string;
+    timestamp: number; // Unix timestamp in milliseconds
+  }>
+): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((transactionsToInsert) => {
+    const stmt = db.prepare(`
+      INSERT INTO xp_transactions (
+        transactionId, userId, amount, reason, source, sourceId, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const tx of transactionsToInsert) {
+      stmt.run(
+        tx.transactionId,
+        tx.userId,
+        tx.amount,
+        tx.reason,
+        tx.source,
+        tx.sourceId || null,
+        tx.timestamp
+      );
+      created++;
+    }
+  });
+
+  insertMany(transactions);
+  console.log(`✅ [UserRepository] Batch created ${created} XP transactions`);
+  return created;
+}
+
+/**
+ * Batch create level-up records for migration
+ *
+ * @param levelUps - Array of level-up records (with levelUpId and timestamp)
+ * @returns Number of level-up records created
+ */
+export function batchCreateLevelUps(
+  levelUps: Array<{
+    levelUpId: string;
+    userId: string;
+    fromLevel: number;
+    toLevel: number;
+    unlockedContent?: string[];
+    unlockedPermissions?: string[];
+    timestamp: number; // Unix timestamp in milliseconds
+  }>
+): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((levelUpsToInsert) => {
+    const stmt = db.prepare(`
+      INSERT INTO level_ups (
+        levelUpId, userId, fromLevel, toLevel, unlockedContent, unlockedPermissions, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const levelUp of levelUpsToInsert) {
+      stmt.run(
+        levelUp.levelUpId,
+        levelUp.userId,
+        levelUp.fromLevel,
+        levelUp.toLevel,
+        levelUp.unlockedContent ? JSON.stringify(levelUp.unlockedContent) : null,
+        levelUp.unlockedPermissions ? JSON.stringify(levelUp.unlockedPermissions) : null,
+        levelUp.timestamp
+      );
+      created++;
+    }
+  });
+
+  insertMany(levelUps);
+  console.log(`✅ [UserRepository] Batch created ${created} level-up records`);
+  return created;
+}
+
+/**
+ * Batch create XP locks for migration
+ *
+ * @param locks - Array of XP lock records (with lockId and timestamp)
+ * @returns Number of XP locks created
+ */
+export function batchCreateXPLocks(
+  locks: Array<{
+    lockId: string;
+    userId: string;
+    sourceId: string;
+    timestamp: number; // Unix timestamp in milliseconds
+  }>
+): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((locksToInsert) => {
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO xp_transaction_locks (lockId, userId, sourceId, createdAt)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    for (const lock of locksToInsert) {
+      stmt.run(
+        lock.lockId,
+        lock.userId,
+        lock.sourceId,
+        lock.timestamp
+      );
+      created++;
+    }
+  });
+
+  insertMany(locks);
+  console.log(`✅ [UserRepository] Batch created ${created} XP locks`);
+  return created;
 }
 
 /**

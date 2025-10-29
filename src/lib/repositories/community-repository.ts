@@ -684,3 +684,58 @@ export function incrementCommentCount(postId: string, delta: number): void {
 
   console.log(`✅ [CommunityRepository] Updated comment count for post ${postId}: ${delta > 0 ? '+' : ''}${delta}`);
 }
+
+// ============================================================================
+// Batch Operations for Migration (SQLITE-018)
+// ============================================================================
+
+/**
+ * Batch create posts for migration
+ *
+ * @param posts - Array of posts to create
+ * @returns Number of posts created
+ */
+export function batchCreatePosts(posts: Array<Omit<CommunityPost, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((postsToInsert) => {
+    const stmt = db.prepare(`
+      INSERT INTO posts (
+        id, authorId, authorName, title, content, tags, category,
+        likes, likedBy, bookmarkedBy, commentCount, viewCount,
+        status, isEdited, moderationAction, originalContent, moderationWarning,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const post of postsToInsert) {
+      stmt.run(
+        post.id,
+        post.authorId,
+        post.authorName,
+        post.title || null,
+        post.content,
+        JSON.stringify(post.tags || []),
+        post.category || null,
+        post.likes || 0,
+        JSON.stringify(post.likedBy || []),
+        JSON.stringify(post.bookmarkedBy || []),
+        post.commentCount || 0,
+        post.viewCount || 0,
+        post.status || 'active',
+        post.isEdited ? 1 : 0,
+        post.moderationAction || null,
+        post.originalContent || null,
+        post.moderationWarning || null,
+        toUnixTimestamp(post.createdAt),
+        toUnixTimestamp(post.updatedAt)
+      );
+      created++;
+    }
+  });
+
+  insertMany(posts);
+  console.log(`✅ [CommunityRepository] Batch created ${created} posts`);
+  return created;
+}

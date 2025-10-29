@@ -453,3 +453,55 @@ export function getCommentCount(postId: string): number {
 
   return result.count;
 }
+
+// ============================================================================
+// Batch Operations for Migration (SQLITE-018)
+// ============================================================================
+
+/**
+ * Batch create comments for migration
+ *
+ * @param comments - Array of comments to create
+ * @returns Number of comments created
+ */
+export function batchCreateComments(comments: Array<Omit<Comment, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): number {
+  const db = getDatabase();
+  let created = 0;
+
+  const insertMany = db.transaction((commentsToInsert) => {
+    const stmt = db.prepare(`
+      INSERT INTO comments (
+        id, postId, authorId, authorName, content, parentCommentId, depth, replyCount,
+        likes, likedBy, status, isEdited, moderationAction, originalContent, moderationWarning,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const comment of commentsToInsert) {
+      stmt.run(
+        comment.id,
+        comment.postId,
+        comment.authorId,
+        comment.authorName,
+        comment.content,
+        comment.parentCommentId || null,
+        comment.depth || 0,
+        comment.replyCount || 0,
+        comment.likes || 0,
+        JSON.stringify(comment.likedBy || []),
+        comment.status || 'active',
+        comment.isEdited ? 1 : 0,
+        comment.moderationAction || null,
+        comment.originalContent || null,
+        comment.moderationWarning || null,
+        comment.createdAt.seconds * 1000, // Convert Firebase Timestamp to Unix milliseconds
+        comment.updatedAt.seconds * 1000
+      );
+      created++;
+    }
+  });
+
+  insertMany(comments);
+  console.log(`✅ [CommentRepository] Batch created ${created} comments`);
+  return created;
+}
