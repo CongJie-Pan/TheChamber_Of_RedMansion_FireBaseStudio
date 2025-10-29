@@ -302,7 +302,18 @@ export const transformChapterDataToGraphData = (chapterData: ChapterGraphJson): 
   // Create nodes from entities
   const nodes: KnowledgeGraphNode[] = chapterData.entities.map((entityName, index) => {
     const classification = categorizeEntity(entityName);
-    
+
+    // Dynamic radius calculation based on text length
+    // Reason: Long entity names need larger nodes to prevent text overflow
+    // Formula: base radius + (text length * 3.5) to accommodate ~1 char per 3.5px
+    // Max radius capped at 60px to prevent oversized nodes
+    const textLength = entityName.length;
+    const baseRadius = classification.radius;
+    const dynamicRadius = Math.min(
+      Math.max(baseRadius, textLength * 3.5 + 10),
+      60 // Maximum radius to prevent oversized nodes
+    );
+
     return {
       id: `entity-${index}`,
       name: entityName,
@@ -310,7 +321,7 @@ export const transformChapterDataToGraphData = (chapterData: ChapterGraphJson): 
       importance: classification.importance,
       description: `來自第一回的重要${classification.category}：${entityName}`,
       category: classification.category,
-      radius: classification.radius,
+      radius: dynamicRadius, // Use dynamic radius instead of fixed classification.radius
       color: classification.color,
       group: classification.group
     };

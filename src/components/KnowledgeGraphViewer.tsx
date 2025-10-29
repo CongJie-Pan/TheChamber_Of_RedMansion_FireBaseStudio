@@ -388,18 +388,18 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     // Define gradients for enhanced visual appeal
     const defs = svg.append("defs");
     
-    // Gradient for links
+    // Enhanced gradient for links with higher opacity for better visibility
     const linkGradient = defs.append("linearGradient")
       .attr("id", "link-gradient")
       .attr("gradientUnits", "userSpaceOnUse");
     linkGradient.append("stop")
       .attr("offset", "0%")
       .attr("stop-color", "#DC2626")
-      .attr("stop-opacity", 0.6);
+      .attr("stop-opacity", 0.9); // Increased from 0.6 to 0.9 for better visibility
     linkGradient.append("stop")
       .attr("offset", "100%")
       .attr("stop-color", "#EAB308")
-      .attr("stop-opacity", 0.3);
+      .attr("stop-opacity", 0.7); // Increased from 0.3 to 0.7 for better visibility
 
     // Create force simulation
     const simulation = d3.forceSimulation<KnowledgeGraphNode>(graphData.nodes)
@@ -417,16 +417,48 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
 
     simulationRef.current = simulation;
 
-    // Create links
+    // Create links with enhanced visibility
+    // Reason for changes:
+    // - Increased stroke-width from Math.sqrt(d.strength) * 3 to * 5 + 2 for thicker lines
+    // - Increased stroke-opacity from 0.6 to 0.9 for better visibility
+    // - Enhanced drop-shadow for clearer edge definition
     const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
       .data(graphData.links)
       .enter().append("line")
       .attr("stroke", "url(#link-gradient)")
-      .attr("stroke-width", d => Math.sqrt(d.strength) * 3)
-      .attr("stroke-opacity", 0.6)
-      .style("filter", "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))");
+      .attr("stroke-width", d => Math.sqrt(d.strength) * 5 + 2) // Increased from * 3, now 3.7-5.7px instead of 2.1-3px
+      .attr("stroke-opacity", 0.9) // Increased from 0.6 for better visibility
+      .style("filter", "drop-shadow(0px 2px 6px rgba(220,38,38,0.4))"); // Enhanced shadow with red tint
+
+    // Helper function to truncate text based on node radius
+    // Reason: Long entity names need to be truncated to fit within nodes
+    // Formula: maxChars ≈ radius / 3.5 (inverse of the radius calculation in knowledgeGraphUtils.ts)
+    const truncateText = (text: string, radius: number): string => {
+      const maxChars = Math.floor(radius / 3.5);
+      if (text.length <= maxChars) return text;
+      return text.substring(0, maxChars - 1) + '…';
+    };
+
+    // Create relationship labels on edges
+    // Reason: Display relationship types (r part) like "夫妻", "女兒", "來源於" on the edges
+    // Using white text-shadow for better readability against various backgrounds
+    const linkText = g.append("g")
+      .attr("class", "link-labels")
+      .selectAll("text")
+      .data(graphData.links)
+      .enter().append("text")
+      .attr("class", "link-label")
+      .text(d => d.relationship) // Display relationship type from data
+      .attr("font-size", "12px")
+      .attr("font-weight", "700")
+      .attr("fill", "#DC2626") // Red color matching link gradient start
+      .attr("text-anchor", "middle")
+      .attr("dy", "-6") // Offset above the line
+      .style("pointer-events", "none")
+      .style("font-family", "'Noto Serif SC', serif") // Match Chinese font
+      .style("text-shadow", "2px 2px 3px #fff, -2px -2px 3px #fff, 2px -2px 3px #fff, -2px 2px 3px #fff, 0 0 6px #fff"); // Strong white outline for readability
 
     // Create nodes
     const node = g.append("g")
@@ -468,9 +500,10 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .attr("stroke", "rgba(255,255,255,0.5)")
       .attr("stroke-width", 1);
 
-    // Add text labels
+    // Add text labels with truncation
+    // Reason: Apply truncation to prevent text overflow, show full text on hover via title
     node.append("text")
-      .text(d => d.name)
+      .text(d => truncateText(d.name, d.radius)) // Apply truncation based on node radius
       .attr("text-anchor", "middle")
       .attr("dy", ".35em")
       .style("font-family", "'Noto Serif SC', serif")
@@ -478,7 +511,9 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .style("font-weight", "600")
       .style("fill", "#ffffff")
       .style("text-shadow", "1px 1px 2px rgba(0,0,0,0.7)")
-      .style("pointer-events", "none");
+      .style("pointer-events", "none")
+      .append("title") // Add tooltip to show full text on hover
+      .text(d => d.name);
 
     // Node interaction handlers
     node
@@ -517,6 +552,12 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
         .attr("y1", d => (d.source as KnowledgeGraphNode).y!)
         .attr("x2", d => (d.target as KnowledgeGraphNode).x!)
         .attr("y2", d => (d.target as KnowledgeGraphNode).y!);
+
+      // Position relationship labels at edge midpoints
+      // Reason: Labels should appear centered between source and target nodes
+      linkText
+        .attr("x", d => ((d.source as KnowledgeGraphNode).x! + (d.target as KnowledgeGraphNode).x!) / 2)
+        .attr("y", d => ((d.source as KnowledgeGraphNode).y! + (d.target as KnowledgeGraphNode).y!) / 2);
 
       node.attr("transform", d => `translate(${d.x},${d.y})`);
     });
