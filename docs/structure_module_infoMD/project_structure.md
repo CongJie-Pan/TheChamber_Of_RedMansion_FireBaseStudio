@@ -219,6 +219,12 @@ This section provides a complete listing of all modules in the codebase with two
 
 **perplexity-red-chamber-qa.ts** - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
 
+### Application Pages (`/src/app/`)
+
+**page.tsx (Homepage)** - Public landing page featuring a fully internationalized marketing interface with AI-enhanced classical literature learning. This module implements a comprehensive homepage with hero section (National Palace Museum imagery), 6 core feature cards (AI analysis, character maps, annotations, community, progress tracking, poetry), 3 content preview sections (character garden, chapter navigation, poetry appreciation), learning statistics display, and call-to-action sections. All text content uses the translation system (`t()` function) to support dynamic language switching between Traditional Chinese, Simplified Chinese, and English. Images are sourced from National Palace Museum (theme.npm.edu.tw) for cultural authenticity and reliability, replacing previous Unsplash dependencies that had loading issues. The page leverages `useLanguage` hook for real-time language switching without page reload, with all UI elements (buttons, headings, descriptions, stats) responding immediately to language changes. Implementation uses data-driven approach with `features`, `stats`, and `contentPreviews` arrays that pull translated content from `translations.ts` (60+ translation keys under `page.*` namespace). The component follows responsive design principles with mobile-first approach, featuring animated loading transitions, scroll indicators, and hover effects for enhanced user engagement.
+
+**layout.tsx (Root)** - Root layout component wrapping the entire application with essential providers including AuthProvider for authentication state, LanguageProvider for multilingual support, and global styling configuration. This module sets up HTML document structure with language attributes that update dynamically based on user preference, includes Font Awesome CDN for icons, and configures metadata for SEO optimization.
+
 ### Core Service Modules (`/src/lib/`)
 
 **firebase.ts** - Initializes and configures Firebase client SDK for authentication, Firestore database access, and real-time data synchronization. This module provides the foundational connection to all backend services used throughout the application.
