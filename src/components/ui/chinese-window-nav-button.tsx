@@ -109,32 +109,82 @@ export const ChineseWindowNavButton = React.forwardRef<
 
     /**
      * Window frame border element (shown on hover)
+     *
+     * Uses dual-layer technique to create visible border outline:
+     * - Outer layer: Larger window shape with gradient + glow
+     * - Inner layer: Slightly smaller window shape (transparent)
+     * - The difference creates the border effect
      */
     const WindowFrameBorder = () => (
-      <div
-        className={cn(
-          // Positioning
-          'absolute inset-0 pointer-events-none',
-          'transition-all duration-400 ease-out',
+      <>
+        {/* Outer layer: Creates the glowing border frame */}
+        <div
+          className={cn(
+            // Positioning - extends beyond button bounds
+            'absolute pointer-events-none',
+            'transition-all duration-500 ease-out',
 
-          // Initial state (hidden)
-          'opacity-0 scale-95',
+            // Initial state (hidden)
+            'opacity-0 scale-90',
 
-          // Hover state (visible)
-          isHovered && 'opacity-100 scale-105',
+            // Hover state (visible with expansion)
+            isHovered && 'opacity-100 scale-105',
 
-          // Z-index layering
-          'z-0'
-        )}
-        style={{
-          background:
-            'linear-gradient(135deg, hsl(var(--primary)/0.4), hsl(var(--accent)/0.3), hsl(var(--primary)/0.2))',
-          clipPath: clipPath,
-          filter: 'blur(0.5px)',
-          animation: isHovered ? 'window-glow 0.6s ease-out' : 'none',
-        }}
-        aria-hidden="true"
-      />
+            // Z-index layering - on top of button content
+            'z-10'
+          )}
+          style={{
+            // Extend 8px beyond button to create "floating frame" effect
+            inset: '-8px',
+
+            // Gradient background for modern aesthetic
+            background:
+              'linear-gradient(135deg, hsl(var(--primary)/0.85), hsl(var(--accent)/0.7), hsl(var(--primary)/0.85))',
+
+            // Clip to window shape
+            clipPath: clipPath,
+
+            // Multi-layered glow effect
+            boxShadow: isHovered
+              ? `0 0 24px 2px hsl(var(--primary)/0.6),
+                 0 0 12px 1px hsl(var(--accent)/0.5),
+                 inset 0 0 20px hsl(var(--primary)/0.3)`
+              : 'none',
+
+            // Enhanced outline visibility
+            filter: 'drop-shadow(0 0 8px hsl(var(--primary)/0.4))',
+
+            animation: isHovered ? 'window-glow 0.6s ease-out' : 'none',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Inner layer: Creates transparent "cutout" for border effect */}
+        <div
+          className={cn(
+            'absolute pointer-events-none',
+            'transition-all duration-500 ease-out',
+            isHovered ? 'opacity-100 scale-105' : 'opacity-0 scale-90',
+            'z-10'
+          )}
+          style={{
+            // Slightly smaller to create border thickness
+            inset: '-4px',
+
+            // Transparent background creates the border gap
+            background: 'transparent',
+
+            // Match parent clip-path but slightly smaller
+            clipPath: clipPath,
+
+            // Inner shadow for depth
+            boxShadow: isHovered
+              ? 'inset 0 0 15px 2px hsl(var(--background)/0.9)'
+              : 'none',
+          }}
+          aria-hidden="true"
+        />
+      </>
     );
 
     /**
@@ -143,9 +193,9 @@ export const ChineseWindowNavButton = React.forwardRef<
     const ActiveFrameBackground = () =>
       isActive ? (
         <div
-          className="absolute inset-0 pointer-events-none opacity-30 z-0"
+          className="absolute inset-0 pointer-events-none opacity-40 z-0"
           style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)/0.15), hsl(var(--primary)/0.08))',
+            background: 'linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--accent)/0.12), hsl(var(--primary)/0.15))',
             clipPath: clipPath,
           }}
           aria-hidden="true"
@@ -166,7 +216,7 @@ export const ChineseWindowNavButton = React.forwardRef<
               'ml-auto flex h-5 min-w-5 items-center justify-center',
               'rounded-full bg-red-500 text-white',
               'text-xs font-semibold px-1.5',
-              'z-10'
+              'relative z-30'
             )}
             aria-label={`${badge} notifications`}
           >
@@ -180,7 +230,7 @@ export const ChineseWindowNavButton = React.forwardRef<
         <span
           className={cn(
             'ml-auto flex h-2 w-2 rounded-full bg-red-500',
-            'z-10',
+            'relative z-30',
             'animate-pulse'
           )}
           aria-label="Has notifications"
@@ -195,24 +245,26 @@ export const ChineseWindowNavButton = React.forwardRef<
      */
     const ButtonContent = () => (
       <>
-        {/* Window frame effects */}
-        <WindowFrameBorder />
+        {/* Window frame effects - Layer 1 (background) */}
         <ActiveFrameBackground />
 
-        {/* Icon */}
+        {/* Window frame border - Layer 2 (floating frame) */}
+        <WindowFrameBorder />
+
+        {/* Icon - Layer 3 (content) */}
         <Icon
           className={cn(
-            'h-5 w-5 shrink-0 z-10',
+            'h-5 w-5 shrink-0 relative z-20',
             'transition-transform duration-300',
             isHovered && 'scale-110'
           )}
           aria-hidden="true"
         />
 
-        {/* Label */}
-        <span className="truncate z-10">{label}</span>
+        {/* Label - Layer 3 (content) */}
+        <span className="truncate relative z-20">{label}</span>
 
-        {/* Badge */}
+        {/* Badge - Layer 4 (top) */}
         <BadgeIndicator />
       </>
     );

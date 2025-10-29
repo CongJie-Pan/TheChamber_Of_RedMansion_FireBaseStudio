@@ -11,8 +11,22 @@ import { getDatabase } from '../sqlite-db';
 import type { AttributePoints } from '../types/user-level';
 
 /**
+ * User statistics interface
+ */
+export interface UserStats {
+  chaptersCompleted: number;
+  totalReadingTimeMinutes: number;
+  notesCount: number;
+  currentStreak: number;
+  longestStreak: number;
+  aiInteractionsCount: number;
+  communityPostsCount: number;
+  communityLikesReceived: number;
+}
+
+/**
  * SQLite-compatible User Profile
- * Simplified from Firebase UserProfile for local database operations
+ * Extended from original for user-level-service compatibility (SQLITE-016)
  */
 export interface UserProfile {
   userId: string;
@@ -22,8 +36,14 @@ export interface UserProfile {
   currentXP: number;
   totalXP: number;
   attributes: AttributePoints;
+  completedTasks: string[]; // Task IDs
+  unlockedContent: string[]; // Content IDs
+  completedChapters: number[]; // Chapter numbers
+  hasReceivedWelcomeBonus: boolean;
+  stats: UserStats;
   createdAt: Date;
   updatedAt: Date;
+  lastActivityAt?: Date;
 }
 
 /**
@@ -37,8 +57,14 @@ interface UserRow {
   currentXP: number;
   totalXP: number;
   attributes: string; // JSON string
+  completedTasks: string | null; // JSON array
+  unlockedContent: string | null; // JSON array
+  completedChapters: string | null; // JSON array
+  hasReceivedWelcomeBonus: number; // 0 or 1
+  stats: string | null; // JSON object
   createdAt: number;
   updatedAt: number;
+  lastActivityAt: number | null;
 }
 
 /**
@@ -60,17 +86,73 @@ const DEFAULT_ATTRIBUTES: AttributePoints = {
 };
 
 /**
+ * Default stats for new users
+ */
+const DEFAULT_STATS: UserStats = {
+  chaptersCompleted: 0,
+  totalReadingTimeMinutes: 0,
+  notesCount: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  aiInteractionsCount: 0,
+  communityPostsCount: 0,
+  communityLikesReceived: 0,
+};
+
+/**
  * Convert database row to UserProfile
  */
 function rowToUserProfile(row: UserRow): UserProfile {
   let attributes = { ...DEFAULT_ATTRIBUTES };
+  let completedTasks: string[] = [];
+  let unlockedContent: string[] = [];
+  let completedChapters: number[] = [];
+  let stats = { ...DEFAULT_STATS };
 
+  // Parse attributes
   if (row.attributes) {
     try {
       attributes = JSON.parse(row.attributes);
     } catch (error) {
       console.warn(`⚠️ [UserRepository] Failed to parse attributes for user ${row.id}, using defaults`);
       attributes = { ...DEFAULT_ATTRIBUTES };
+    }
+  }
+
+  // Parse completedTasks
+  if (row.completedTasks) {
+    try {
+      completedTasks = JSON.parse(row.completedTasks);
+    } catch (error) {
+      console.warn(`⚠️ [UserRepository] Failed to parse completedTasks for user ${row.id}`);
+    }
+  }
+
+  // Parse unlockedContent
+  if (row.unlockedContent) {
+    try {
+      unlockedContent = JSON.parse(row.unlockedContent);
+    } catch (error) {
+      console.warn(`⚠️ [UserRepository] Failed to parse unlockedContent for user ${row.id}`);
+    }
+  }
+
+  // Parse completedChapters
+  if (row.completedChapters) {
+    try {
+      completedChapters = JSON.parse(row.completedChapters);
+    } catch (error) {
+      console.warn(`⚠️ [UserRepository] Failed to parse completedChapters for user ${row.id}`);
+    }
+  }
+
+  // Parse stats
+  if (row.stats) {
+    try {
+      stats = JSON.parse(row.stats);
+    } catch (error) {
+      console.warn(`⚠️ [UserRepository] Failed to parse stats for user ${row.id}, using defaults`);
+      stats = { ...DEFAULT_STATS };
     }
   }
 
@@ -82,8 +164,14 @@ function rowToUserProfile(row: UserRow): UserProfile {
     currentXP: row.currentXP,
     totalXP: row.totalXP,
     attributes,
+    completedTasks,
+    unlockedContent,
+    completedChapters,
+    hasReceivedWelcomeBonus: row.hasReceivedWelcomeBonus === 1,
+    stats,
     createdAt: fromUnixTimestamp(row.createdAt),
     updatedAt: fromUnixTimestamp(row.updatedAt),
+    lastActivityAt: row.lastActivityAt ? fromUnixTimestamp(row.lastActivityAt) : undefined,
   };
 }
 
@@ -111,15 +199,22 @@ export function createUser(
     currentXP: 0,
     totalXP: 0,
     attributes: { ...DEFAULT_ATTRIBUTES },
+    completedTasks: [],
+    unlockedContent: [],
+    completedChapters: [],
+    hasReceivedWelcomeBonus: false,
+    stats: { ...DEFAULT_STATS },
     createdAt: fromUnixTimestamp(now),
     updatedAt: fromUnixTimestamp(now),
+    lastActivityAt: fromUnixTimestamp(now),
   };
 
   const stmt = db.prepare(`
     INSERT INTO users (
       id, username, email, currentLevel, currentXP, totalXP,
-      attributes, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      attributes, completedTasks, unlockedContent, completedChapters,
+      hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -130,6 +225,12 @@ export function createUser(
     userProfile.currentXP,
     userProfile.totalXP,
     JSON.stringify(userProfile.attributes),
+    JSON.stringify(userProfile.completedTasks),
+    JSON.stringify(userProfile.unlockedContent),
+    JSON.stringify(userProfile.completedChapters),
+    userProfile.hasReceivedWelcomeBonus ? 1 : 0,
+    JSON.stringify(userProfile.stats),
+    now,
     now,
     now
   );
@@ -206,6 +307,36 @@ export function updateUser(
   if (updates.attributes !== undefined) {
     updateFields.push('attributes = ?');
     updateValues.push(JSON.stringify(updates.attributes));
+  }
+
+  if (updates.completedTasks !== undefined) {
+    updateFields.push('completedTasks = ?');
+    updateValues.push(JSON.stringify(updates.completedTasks));
+  }
+
+  if (updates.unlockedContent !== undefined) {
+    updateFields.push('unlockedContent = ?');
+    updateValues.push(JSON.stringify(updates.unlockedContent));
+  }
+
+  if (updates.completedChapters !== undefined) {
+    updateFields.push('completedChapters = ?');
+    updateValues.push(JSON.stringify(updates.completedChapters));
+  }
+
+  if (updates.hasReceivedWelcomeBonus !== undefined) {
+    updateFields.push('hasReceivedWelcomeBonus = ?');
+    updateValues.push(updates.hasReceivedWelcomeBonus ? 1 : 0);
+  }
+
+  if (updates.stats !== undefined) {
+    updateFields.push('stats = ?');
+    updateValues.push(JSON.stringify(updates.stats));
+  }
+
+  if (updates.lastActivityAt !== undefined) {
+    updateFields.push('lastActivityAt = ?');
+    updateValues.push(updates.lastActivityAt.getTime());
   }
 
   // Always update updatedAt

@@ -49,7 +49,7 @@ function ensureDbDirectory(): void {
 function initializeSchema(db: Database.Database): void {
   console.log('🔧 [SQLite] Initializing database schema...');
 
-  // Users table
+  // Users table (Phase 3 - SQLITE-016: Extended for user-level-service compatibility)
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -59,8 +59,14 @@ function initializeSchema(db: Database.Database): void {
       currentXP INTEGER DEFAULT 0,
       totalXP INTEGER DEFAULT 0,
       attributes TEXT, -- JSON format for user attributes
+      completedTasks TEXT, -- JSON array of completed task IDs
+      unlockedContent TEXT, -- JSON array of unlocked content IDs
+      completedChapters TEXT, -- JSON array of completed chapter numbers
+      hasReceivedWelcomeBonus INTEGER DEFAULT 0, -- 0=false, 1=true
+      stats TEXT, -- JSON object with user statistics (chaptersCompleted, totalReadingTimeMinutes, etc.)
       createdAt INTEGER NOT NULL,
-      updatedAt INTEGER NOT NULL
+      updatedAt INTEGER NOT NULL,
+      lastActivityAt INTEGER -- Last user activity timestamp
     );
   `);
 
