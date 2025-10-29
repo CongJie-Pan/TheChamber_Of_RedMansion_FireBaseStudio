@@ -477,9 +477,44 @@ export class UserLevelService {
       if (amount < 0) {
         throw new Error('XP amount cannot be negative');
       }
-      
+
+      // DUAL-MODE: Try SQLite first if sourceId provided, fallback to Firebase
+      if (sourceId && checkSQLiteAvailability()) {
+        console.log(`🗄️  [UserLevelService] Using SQLite for awardXP: ${userId}, amount=${amount}, source=${source}, sourceId=${sourceId}`);
+
+        try {
+          // Call repository's all-in-one atomic function
+          const result = userRepository.awardXPWithLevelUp(
+            userId,
+            amount,
+            reason,
+            source,
+            sourceId
+          );
+
+          console.log(`✅ [UserLevelService] SQLite XP award complete: ${userId} +${amount}XP ${result.leveledUp ? `(leveled up ${result.fromLevel} → ${result.newLevel})` : ''}`);
+
+          // Convert repository result to service return format
+          return {
+            success: result.success,
+            newTotalXP: result.newTotalXP,
+            newLevel: result.newLevel,
+            leveledUp: result.leveledUp,
+            isDuplicate: result.isDuplicate,
+            fromLevel: result.fromLevel,
+            unlockedContent: result.unlockedContent as string[] | undefined,
+            unlockedPermissions: result.unlockedPermissions as LevelPermission[] | undefined,
+          };
+        } catch (sqliteError) {
+          console.error('⚠️ [UserLevelService] SQLite awardXP failed, falling back to Firebase:', sqliteError);
+          // Continue to Firebase fallback below
+        }
+      }
+
+      // Firebase fallback (original implementation)
       // If sourceId is provided, perform atomic idempotent award via transaction
       if (sourceId) {
+        console.log(`☁️  [UserLevelService] Using Firebase for awardXP: ${userId}, source=${source}, sourceId=${sourceId}`);
         const userRef = doc(this.usersCollection, userId);
         const lockRef = doc(collection(db, 'xpTransactionLocks'), `${userId}__${sourceId}`);
 
@@ -759,7 +794,7 @@ export class UserLevelService {
   }
 
   /**
-   * Record a level-up event in the levelUps collection
+   * Record a level-up event (Dual-mode: SQLite → Firebase fallback)
    * Used for analytics and displaying level-up history
    *
    * @param userId - User ID who leveled up
@@ -777,6 +812,20 @@ export class UserLevelService {
     triggerReason?: string
   ): Promise<string> {
     try {
+      // DUAL-MODE: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        const levelUpId = userRepository.createLevelUpRecord({
+          userId,
+          fromLevel,
+          toLevel,
+          unlockedContent: [], // Not stored in current SQLite schema
+          unlockedPermissions: [], // Not stored in current SQLite schema
+        });
+        console.log(`📝 Level-up recorded (SQLite): ${userId} (${fromLevel} → ${toLevel})`);
+        return levelUpId;
+      }
+
+      // Firebase fallback
       const record: Omit<LevelUpRecord, 'id'> = {
         userId,
         fromLevel,
@@ -787,7 +836,7 @@ export class UserLevelService {
       };
 
       const docRef = await addDoc(this.levelUpsCollection, record);
-      console.log(`📝 Level-up recorded: ${userId} (${fromLevel} → ${toLevel})`);
+      console.log(`📝 Level-up recorded (Firebase): ${userId} (${fromLevel} → ${toLevel})`);
       return docRef.id;
     } catch (error) {
       console.error('Error recording level-up:', error);
@@ -797,7 +846,7 @@ export class UserLevelService {
   }
 
   /**
-   * Log an XP transaction for audit trail
+   * Log an XP transaction for audit trail (Dual-mode: SQLite → Firebase fallback)
    *
    * @param transaction - Transaction data (without id and timestamp)
    * @returns Promise with the transaction ID
@@ -806,6 +855,19 @@ export class UserLevelService {
     transaction: Omit<XPTransaction, 'id' | 'timestamp'>
   ): Promise<string> {
     try {
+      // DUAL-MODE: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        const transactionId = userRepository.createXPTransaction({
+          userId: transaction.userId,
+          amount: transaction.amount,
+          reason: transaction.reason,
+          source: transaction.source,
+          sourceId: transaction.sourceId || '',
+        });
+        return transactionId;
+      }
+
+      // Firebase fallback
       const record: Omit<XPTransaction, 'id'> = {
         ...transaction,
         timestamp: serverTimestamp() as Timestamp,

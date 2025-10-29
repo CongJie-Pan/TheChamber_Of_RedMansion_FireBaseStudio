@@ -1213,8 +1213,8 @@ export function awardXPWithLevelUp(
   if (!userId || !sourceId) {
     throw new Error('userId and sourceId are required');
   }
-  if (typeof amount !== 'number' || amount <= 0 || isNaN(amount)) {
-    throw new Error('amount must be a positive number');
+  if (typeof amount !== 'number' || amount < 0 || isNaN(amount)) {
+    throw new Error('amount must be a non-negative number');
   }
 
   // Check for duplicate BEFORE transaction (fast path)
@@ -1224,6 +1224,27 @@ export function awardXPWithLevelUp(
     return {
       success: true,
       isDuplicate: true,
+      newTotalXP: user?.totalXP || 0,
+      newCurrentXP: user?.currentXP || 0,
+      newLevel: user?.currentLevel || 0,
+      leveledUp: false,
+    };
+  }
+
+  // Handle 0 XP awards (edge case - mark as processed but don't change XP)
+  if (amount === 0) {
+    console.log(`⚠️ [UserRepository] Zero XP award, creating lock only: ${userId}:${sourceId}`);
+    // Create lock to mark as processed (prevents re-processing)
+    db.transaction(() => {
+      if (!hasXPLock(userId, sourceId)) {
+        createXPLock(userId, sourceId);
+      }
+    })();
+
+    const user = getUserById(userId);
+    return {
+      success: true,
+      isDuplicate: false,
       newTotalXP: user?.totalXP || 0,
       newCurrentXP: user?.currentXP || 0,
       newLevel: user?.currentLevel || 0,
@@ -1252,6 +1273,25 @@ export function awardXPWithLevelUp(
       throw new Error(`User not found: ${userId}`);
     }
 
+    // Check chapter completion deduplication (additional guard beyond XP locks)
+    const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
+    if (chapterMatch) {
+      const chapterId = parseInt(chapterMatch[1], 10);
+      const completedChapters = user.completedChapters || [];
+
+      if (completedChapters.includes(chapterId)) {
+        console.log(`⚠️ [UserRepository] Chapter ${chapterId} already completed for user ${userId}`);
+        return {
+          success: true,
+          isDuplicate: true,
+          newTotalXP: user.totalXP,
+          newCurrentXP: user.currentXP,
+          newLevel: user.currentLevel,
+          leveledUp: false,
+        };
+      }
+    }
+
     // Calculate new XP values
     const currentTotalXP = user.totalXP;
     const newTotalXP = currentTotalXP + amount;
@@ -1278,6 +1318,14 @@ export function awardXPWithLevelUp(
       updates.currentXP = xpIntoLevel;
     }
 
+    // Persist completed chapter if applicable (sourceId pattern)
+    if (chapterMatch) {
+      const chapterId = parseInt(chapterMatch[1], 10);
+      const currentCompleted = user.completedChapters || [];
+      // Add chapter to completedChapters array (deduplicated with Set)
+      updates.completedChapters = Array.from(new Set([...currentCompleted, chapterId]));
+    }
+
     updateUser(userId, updates);
 
     // Step 3: Create transaction record
@@ -1289,7 +1337,7 @@ export function awardXPWithLevelUp(
       sourceId,
     });
 
-    // Step 4: If leveled up, create level-up record
+    // Step 4: If leveled up, create level-up record and update unlocked content
     let levelUpId: string | undefined;
     let unlockedContent: string[] | undefined;
     let unlockedPermissions: string[] | undefined;
@@ -1305,6 +1353,13 @@ export function awardXPWithLevelUp(
         unlockedContent,
         unlockedPermissions,
       });
+
+      // Update unlocked content in user profile (within transaction for atomicity)
+      if (unlockedContent && unlockedContent.length > 0) {
+        const currentContent = user.unlockedContent || [];
+        const updatedContent = Array.from(new Set([...currentContent, ...unlockedContent]));
+        updateUser(userId, { unlockedContent: updatedContent });
+      }
 
       console.log(`🎊 [UserRepository] LEVEL UP! ${userId}: ${levelUpInfo.fromLevel} → ${levelUpInfo.toLevel}`);
     }
