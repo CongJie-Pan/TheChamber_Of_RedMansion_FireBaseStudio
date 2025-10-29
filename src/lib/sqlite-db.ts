@@ -477,11 +477,27 @@ export function toUnixTimestamp(timestamp?: { seconds?: number; toMillis?: () =>
 /**
  * Utility function to create Timestamp-like object from Unix timestamp
  */
-export function fromUnixTimestamp(unixMs: number): { seconds: number; nanoseconds: number; toMillis: () => number } {
+export function fromUnixTimestamp(unixMs: number): {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+  toJSON: () => object;
+} {
   return {
     seconds: Math.floor(unixMs / 1000),
     nanoseconds: (unixMs % 1000) * 1000000,
     toMillis: () => unixMs,
+    toDate: () => new Date(unixMs),
+    isEqual: (other: any) => {
+      if (!other || typeof other.toMillis !== 'function') return false;
+      return other.toMillis() === unixMs;
+    },
+    toJSON: () => ({
+      seconds: Math.floor(unixMs / 1000),
+      nanoseconds: (unixMs % 1000) * 1000000,
+    }),
   };
 }
 

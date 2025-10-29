@@ -15,7 +15,7 @@
 
 import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 import { Timestamp } from 'firebase/firestore';
-import { contentFilterService, ModerationAction } from '../content-filter-service';
+import type { ModerationAction } from '../content-filter-service';
 
 /**
  * Post data interface for database operations
@@ -99,9 +99,10 @@ function rowToPost(row: PostRow): CommunityPost {
 // ============================================================================
 
 /**
- * Create a new post with content moderation
+ * Create a new post
+ * Note: Content moderation should be performed at the service layer before calling this function
  *
- * @param post - Post data
+ * @param post - Post data (content should already be moderated)
  * @returns Created post ID
  */
 export function createPost(post: {
@@ -112,16 +113,13 @@ export function createPost(post: {
   content: string;
   tags?: string[];
   category?: string;
+  status?: 'active' | 'hidden' | 'deleted';
+  moderationAction?: string;
+  originalContent?: string;
+  moderationWarning?: string;
 }): string {
   const db = getDatabase();
   const now = Date.now();
-
-  // Content moderation check
-  const moderationResult = contentFilterService.moderateContent(post.content);
-  const finalContent = moderationResult.action === 'replace'
-    ? moderationResult.filteredContent
-    : post.content;
-  const status = moderationResult.shouldHide ? 'hidden' : 'active';
 
   const stmt = db.prepare(`
     INSERT INTO posts (
@@ -137,7 +135,7 @@ export function createPost(post: {
     post.authorId,
     post.authorName,
     post.title || null,
-    finalContent,
+    post.content,
     JSON.stringify(post.tags || []),
     post.category || null,
     0, // likes
@@ -145,11 +143,11 @@ export function createPost(post: {
     JSON.stringify([]), // bookmarkedBy
     0, // commentCount
     0, // viewCount
-    status,
+    post.status || 'active',
     0, // isEdited
-    moderationResult.action !== 'allow' ? JSON.stringify(moderationResult) : null,
-    moderationResult.action !== 'allow' ? post.content : null,
-    moderationResult.warning || null,
+    post.moderationAction || null,
+    post.originalContent || null,
+    post.moderationWarning || null,
     now,
     now
   );
@@ -235,9 +233,10 @@ export function getPosts(options: {
 
 /**
  * Update post
+ * Note: Content moderation should be performed at the service layer before calling this function
  *
  * @param postId - Post ID
- * @param updates - Fields to update
+ * @param updates - Fields to update (content should already be moderated if changed)
  * @returns Updated post
  */
 export function updatePost(
@@ -248,6 +247,9 @@ export function updatePost(
     tags: string[];
     category: string;
     status: 'active' | 'hidden' | 'deleted';
+    moderationAction: string;
+    originalContent: string;
+    moderationWarning: string;
   }>
 ): CommunityPost {
   const db = getDatabase();
@@ -262,30 +264,26 @@ export function updatePost(
   }
 
   if (updates.content !== undefined) {
-    // Content moderation check
-    const moderationResult = contentFilterService.moderateContent(updates.content);
-    const finalContent = moderationResult.action === 'replace'
-      ? moderationResult.filteredContent
-      : updates.content;
-
     fields.push('content = ?');
-    params.push(finalContent);
+    params.push(updates.content);
 
     fields.push('isEdited = ?');
     params.push(1);
+  }
 
-    if (moderationResult.action !== 'allow') {
-      fields.push('moderationAction = ?');
-      params.push(JSON.stringify(moderationResult));
+  if (updates.moderationAction !== undefined) {
+    fields.push('moderationAction = ?');
+    params.push(updates.moderationAction || null);
+  }
 
-      fields.push('originalContent = ?');
-      params.push(updates.content);
+  if (updates.originalContent !== undefined) {
+    fields.push('originalContent = ?');
+    params.push(updates.originalContent || null);
+  }
 
-      if (moderationResult.warning) {
-        fields.push('moderationWarning = ?');
-        params.push(moderationResult.warning);
-      }
-    }
+  if (updates.moderationWarning !== undefined) {
+    fields.push('moderationWarning = ?');
+    params.push(updates.moderationWarning || null);
   }
 
   if (updates.tags !== undefined) {

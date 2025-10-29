@@ -500,12 +500,17 @@ describe('Community Repository', () => {
   // ============================================================================
 
   describe('Post Moderation', () => {
-    test('should moderate offensive content on creation', () => {
+    test('should store moderated content when provided', () => {
+      // Service layer already performed moderation, repository stores the result
       const postId = createPost({
         id: 'moderation-1',
         authorId: 'user-1',
         authorName: 'Test User',
-        content: 'This is offensive content',
+        content: '[Content filtered]',
+        status: 'hidden',
+        moderationAction: JSON.stringify({ action: 'filter', reason: 'offensive' }),
+        originalContent: 'This is offensive content',
+        moderationWarning: 'Content contains offensive language',
       });
 
       const post = getPostById(postId);
@@ -515,7 +520,7 @@ describe('Community Repository', () => {
       expect(post?.moderationWarning).toBe('Content contains offensive language');
     });
 
-    test('should moderate offensive content on update', () => {
+    test('should update with moderated content when provided', () => {
       createPost({
         id: 'moderation-2',
         authorId: 'user-1',
@@ -523,8 +528,12 @@ describe('Community Repository', () => {
         content: 'Normal content',
       });
 
+      // Service layer performs moderation before calling repository
       const updated = updatePost('moderation-2', {
-        content: 'Updated with offensive words',
+        content: '[Content filtered]',
+        moderationAction: JSON.stringify({ action: 'filter', reason: 'offensive' }),
+        originalContent: 'Updated with offensive words',
+        moderationWarning: 'Content contains offensive language',
       });
 
       expect(updated.content).toBe('[Content filtered]');
@@ -552,25 +561,32 @@ describe('Community Repository', () => {
       expect(moderated.moderationWarning).toBe('Content violates community guidelines');
     });
 
-    test('should preserve original content in moderation', () => {
+    test('should preserve original content when moderation is provided', () => {
+      // Service layer provides moderated content with original preserved
       createPost({
         id: 'moderation-4',
         authorId: 'user-1',
         authorName: 'Test User',
-        content: 'This has offensive language',
+        content: '[Content filtered]',
+        originalContent: 'This has offensive language',
+        moderationAction: JSON.stringify({ action: 'filter' }),
       });
 
       const post = getPostById('moderation-4');
       expect(post?.originalContent).toBe('This has offensive language');
+      expect(post?.content).toBe('[Content filtered]');
       expect(post?.content).not.toBe(post?.originalContent);
     });
 
     test('should not show hidden posts in active queries', () => {
+      // Service layer marks post as hidden after moderation
       createPost({
         id: 'moderation-5',
         authorId: 'user-1',
         authorName: 'Test User',
-        content: 'offensive stuff',
+        content: '[Content filtered]',
+        status: 'hidden',
+        originalContent: 'offensive stuff',
       });
 
       const activePosts = getPosts({ status: 'active' });
