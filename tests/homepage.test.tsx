@@ -209,7 +209,7 @@ describe('Homepage Component Tests', () => {
       expect(hasStudyImage).toBe(true);
     });
 
-    it('should use correct image file extensions (jpg/png)', () => {
+    it('should use correct image file extensions (jpg/png/JPG)', () => {
       const { container } = render(
         <TestWrapper>
           <HomePage />
@@ -221,9 +221,9 @@ describe('Homepage Component Tests', () => {
         .filter(img => img.getAttribute('src')?.startsWith('/images/'))
         .map(img => img.getAttribute('src'));
 
-      // All local images should have valid extensions
+      // All local images should have valid extensions (case-insensitive)
       const hasValidExtensions = localImages.every(src =>
-        src?.endsWith('.jpg') || src?.endsWith('.png')
+        src?.toLowerCase().endsWith('.jpg') || src?.toLowerCase().endsWith('.png')
       );
 
       expect(hasValidExtensions).toBe(true);
@@ -469,10 +469,10 @@ describe('Homepage Component Tests', () => {
         </TestWrapper>
       );
 
-      // Check for NPM Taiwan header image
+      // Check for local hero header image
       const images = container.querySelectorAll('img');
       const heroImage = Array.from(images).find(img =>
-        img.getAttribute('src')?.includes('theme.npm.edu.tw')
+        img.getAttribute('src')?.includes('/images/introImage/introPageImage.JPG')
       );
       expect(heroImage).toBeDefined();
     });

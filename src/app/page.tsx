@@ -204,12 +204,12 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section with NPM Taiwan Header Image */}
+      {/* Hero Section with Local Header Image */}
       <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <Image
-            src="https://theme.npm.edu.tw/Attachments/WebSitePictures/913/Header_913_3843.jpg"
+            src="/images/introImage/introPageImage.JPG"
             alt="故宮經典藝術背景"
             fill
             className="object-cover"
