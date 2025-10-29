@@ -64,6 +64,62 @@ import {
 } from './config/levels-config';
 import { runTransaction } from 'firebase/firestore';
 
+// Phase 3 - SQLITE-016: Dual-Mode Architecture (SQLite + Firebase Fallback)
+// Conditional import: only load SQLite modules on server-side to avoid loading
+// better-sqlite3 native modules in browser environment
+let userRepository: any;
+let fromUnixTimestamp: any;
+let toUnixTimestamp: any;
+
+const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
+let sqliteModulesLoaded = false;
+
+if (SQLITE_SERVER_ENABLED) {
+  try {
+    userRepository = require('./repositories/user-repository');
+    const sqliteDb = require('./sqlite-db');
+    fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
+    toUnixTimestamp = sqliteDb.toUnixTimestamp;
+    sqliteModulesLoaded = true;
+    console.log('✅ [UserLevelService] SQLite modules loaded successfully');
+  } catch (error: any) {
+    sqliteModulesLoaded = false;
+    console.error('❌ [UserLevelService] Failed to load SQLite modules');
+    console.error('   Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
+    const guidanceError = new Error(
+      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.',
+    );
+    (guidanceError as any).cause = error;
+    throw guidanceError;
+  }
+} else if (typeof window === 'undefined') {
+  console.warn('⚠️  [UserLevelService] USE_SQLITE flag disabled; Firebase fallback remains active.');
+}
+
+/**
+ * Check if SQLite is available and usable in the current environment
+ * Returns false if:
+ * - Running in browser (client-side)
+ * - SQLite modules failed to load
+ * - SQLite database initialization failed
+ */
+function checkSQLiteAvailability(): boolean {
+  if (!SQLITE_SERVER_ENABLED) {
+    return false;
+  }
+  if (!sqliteModulesLoaded) {
+    return false;
+  }
+  // Additional check: ensure database is actually accessible
+  try {
+    const sqliteDb = require('./sqlite-db');
+    return sqliteDb.isSQLiteAvailable && sqliteDb.isSQLiteAvailable();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * XP reward amounts for different actions
  * Central configuration for XP economy balance
@@ -148,7 +204,7 @@ export class UserLevelService {
   private xpTransactionsCollection = collection(db, 'xpTransactions');
 
   /**
-   * Initialize a new user profile in Firestore
+   * Initialize a new user profile (Dual-mode: SQLite → Firebase fallback)
    * Called automatically when a new user registers
    *
    * @param userId - Firebase Auth user ID
@@ -169,6 +225,42 @@ export class UserLevelService {
         return existingProfile;
       }
 
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        console.log(`🗄️  [UserLevelService] Using SQLite for initializeUserProfile`);
+
+        const sqliteProfile = userRepository.createUser(userId, displayName, email);
+
+        // Update unlockedContent with level 0 exclusive content
+        const updatedProfile = userRepository.updateUser(userId, {
+          unlockedContent: LEVELS_CONFIG[0].exclusiveContent,
+        });
+
+        // Convert SQLite Date to Firebase Timestamp for service return type
+        return {
+          uid: updatedProfile.userId,
+          displayName: updatedProfile.username,
+          email: updatedProfile.email,
+          currentLevel: updatedProfile.currentLevel,
+          currentXP: updatedProfile.currentXP,
+          totalXP: updatedProfile.totalXP,
+          nextLevelXP: LEVELS_CONFIG[1].requiredXP,
+          completedTasks: updatedProfile.completedTasks,
+          unlockedContent: updatedProfile.unlockedContent,
+          completedChapters: updatedProfile.completedChapters,
+          hasReceivedWelcomeBonus: updatedProfile.hasReceivedWelcomeBonus,
+          attributes: updatedProfile.attributes,
+          stats: updatedProfile.stats,
+          createdAt: fromUnixTimestamp(updatedProfile.createdAt.getTime()) as Timestamp,
+          updatedAt: fromUnixTimestamp(updatedProfile.updatedAt.getTime()) as Timestamp,
+          lastActivityAt: updatedProfile.lastActivityAt
+            ? fromUnixTimestamp(updatedProfile.lastActivityAt.getTime()) as Timestamp
+            : fromUnixTimestamp(Date.now()) as Timestamp,
+        };
+      }
+
+      // Firebase fallback
+      console.log(`☁️  [UserLevelService] Using Firebase for initializeUserProfile`);
       const now = serverTimestamp();
       const newProfile: Omit<UserProfile, 'uid'> & { uid: string } = {
         uid: userId,
@@ -180,8 +272,8 @@ export class UserLevelService {
         nextLevelXP: LEVELS_CONFIG[1].requiredXP,
         completedTasks: [],
         unlockedContent: LEVELS_CONFIG[0].exclusiveContent,
-        completedChapters: [], // Initialize empty array for tracking completed chapters
-        hasReceivedWelcomeBonus: false, // User has not received welcome bonus yet
+        completedChapters: [],
+        hasReceivedWelcomeBonus: false,
         attributes: { ...INITIAL_ATTRIBUTES },
         stats: { ...INITIAL_STATS },
         createdAt: now as Timestamp,
@@ -189,12 +281,10 @@ export class UserLevelService {
         lastActivityAt: now as Timestamp,
       };
 
-      // Create user profile document
       await setDoc(doc(this.usersCollection, userId), newProfile);
 
       console.log(`✅ User profile initialized for ${displayName} (${userId})`);
 
-      // Return profile with actual timestamps
       return {
         ...newProfile,
         createdAt: Timestamp.now(),
@@ -208,13 +298,46 @@ export class UserLevelService {
   }
 
   /**
-   * Get user profile from Firestore
+   * Get user profile (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - Firebase Auth user ID
    * @returns Promise with user profile or null if not found
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        const sqliteProfile = userRepository.getUserById(userId);
+
+        if (!sqliteProfile) {
+          return null;
+        }
+
+        // Convert SQLite Date to Firebase Timestamp for service return type
+        const xpProgress = calculateXPProgress(sqliteProfile.totalXP);
+        return {
+          uid: sqliteProfile.userId,
+          displayName: sqliteProfile.username,
+          email: sqliteProfile.email,
+          currentLevel: sqliteProfile.currentLevel,
+          currentXP: sqliteProfile.currentXP,
+          totalXP: sqliteProfile.totalXP,
+          nextLevelXP: xpProgress.nextLevelXP, // Computed field
+          completedTasks: sqliteProfile.completedTasks,
+          unlockedContent: sqliteProfile.unlockedContent,
+          completedChapters: sqliteProfile.completedChapters,
+          hasReceivedWelcomeBonus: sqliteProfile.hasReceivedWelcomeBonus,
+          attributes: sqliteProfile.attributes,
+          stats: sqliteProfile.stats,
+          createdAt: fromUnixTimestamp(sqliteProfile.createdAt.getTime()) as Timestamp,
+          updatedAt: fromUnixTimestamp(sqliteProfile.updatedAt.getTime()) as Timestamp,
+          lastActivityAt: sqliteProfile.lastActivityAt
+            ? fromUnixTimestamp(sqliteProfile.lastActivityAt.getTime()) as Timestamp
+            : fromUnixTimestamp(Date.now()) as Timestamp,
+        };
+      }
+
+      // Firebase fallback
       const userDoc = await getDoc(doc(this.usersCollection, userId));
 
       if (!userDoc.exists()) {
@@ -262,8 +385,8 @@ export class UserLevelService {
       return {
         uid: userDoc.id,
         ...sanitizedData,
-        completedChapters: data.completedChapters || [], // Backward compatibility: default to empty array
-        hasReceivedWelcomeBonus: data.hasReceivedWelcomeBonus !== undefined ? data.hasReceivedWelcomeBonus : false, // Backward compatibility: default to false
+        completedChapters: data.completedChapters || [],
+        hasReceivedWelcomeBonus: data.hasReceivedWelcomeBonus !== undefined ? data.hasReceivedWelcomeBonus : false,
         createdAt: data.createdAt || Timestamp.now(),
         updatedAt: data.updatedAt || Timestamp.now(),
         lastActivityAt: data.lastActivityAt || Timestamp.now(),
@@ -282,7 +405,7 @@ export class UserLevelService {
   }
 
   /**
-   * Check if a reward with the same sourceId has already been granted
+   * Check if a reward with the same sourceId has already been granted (Dual-mode: SQLite → Firebase fallback)
    * Prevents duplicate XP rewards for the same action
    *
    * This method is now public to support cross-system deduplication checks
@@ -294,6 +417,12 @@ export class UserLevelService {
    */
   async checkDuplicateReward(userId: string, sourceId: string): Promise<boolean> {
     try {
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        return userRepository.hasXPLock(userId, sourceId);
+      }
+
+      // Firebase fallback
       const xpQuery = query(
         this.xpTransactionsCollection,
         where('userId', '==', userId),
@@ -869,7 +998,7 @@ export class UserLevelService {
   }
 
   /**
-   * Update user attribute points
+   * Update user attribute points (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - User ID
    * @param attributeUpdates - Partial attribute points to update
@@ -885,7 +1014,6 @@ export class UserLevelService {
         return false;
       }
 
-      const userRef = doc(this.usersCollection, userId);
       const updatedAttributes = {
         ...profile.attributes,
         ...attributeUpdates,
@@ -897,6 +1025,16 @@ export class UserLevelService {
         updatedAttributes[key as keyof AttributePoints] = Math.max(0, Math.min(100, value));
       });
 
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        userRepository.updateUser(userId, {
+          attributes: updatedAttributes,
+        });
+        return true;
+      }
+
+      // Firebase fallback
+      const userRef = doc(this.usersCollection, userId);
       await updateDoc(userRef, {
         attributes: updatedAttributes,
         updatedAt: serverTimestamp(),
@@ -910,7 +1048,7 @@ export class UserLevelService {
   }
 
   /**
-   * Update user statistics
+   * Update user statistics (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - User ID
    * @param statsUpdates - Partial stats to update
@@ -926,12 +1064,21 @@ export class UserLevelService {
         return false;
       }
 
-      const userRef = doc(this.usersCollection, userId);
       const updatedStats = {
         ...profile.stats,
         ...statsUpdates,
       };
 
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        userRepository.updateUser(userId, {
+          stats: updatedStats,
+        });
+        return true;
+      }
+
+      // Firebase fallback
+      const userRef = doc(this.usersCollection, userId);
       await updateDoc(userRef, {
         stats: updatedStats,
         updatedAt: serverTimestamp(),
@@ -945,7 +1092,7 @@ export class UserLevelService {
   }
 
   /**
-   * Mark a task as completed
+   * Mark a task as completed (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - User ID
    * @param taskId - Task ID to mark as completed
@@ -963,6 +1110,15 @@ export class UserLevelService {
         return true;
       }
 
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        userRepository.updateUser(userId, {
+          completedTasks: [...profile.completedTasks, taskId],
+        });
+        return true;
+      }
+
+      // Firebase fallback
       const userRef = doc(this.usersCollection, userId);
       await updateDoc(userRef, {
         completedTasks: [...profile.completedTasks, taskId],
@@ -977,7 +1133,7 @@ export class UserLevelService {
   }
 
   /**
-   * Get user's level-up history
+   * Get user's level-up history (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - User ID
    * @param limitCount - Number of records to fetch (default: 10)
@@ -985,6 +1141,27 @@ export class UserLevelService {
    */
   async getLevelUpHistory(userId: string, limitCount: number = 10): Promise<LevelUpRecord[]> {
     try {
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        const sqliteRecords = userRepository.getLevelUpsByUser(userId);
+
+        // Convert to service format and apply limit
+        const records: LevelUpRecord[] = sqliteRecords
+          .slice(0, limitCount)
+          .map((row: any) => ({
+            id: row.levelUpId,
+            userId: row.userId,
+            fromLevel: row.fromLevel,
+            toLevel: row.toLevel,
+            totalXPAtLevelUp: 0, // Not stored in SQLite schema, default to 0
+            timestamp: fromUnixTimestamp(row.createdAt) as Timestamp,
+            triggerReason: undefined, // Not stored in SQLite schema
+          }));
+
+        return records;
+      }
+
+      // Firebase fallback
       const levelUpsQuery = query(
         this.levelUpsCollection,
         where('userId', '==', userId),
@@ -1012,7 +1189,7 @@ export class UserLevelService {
   }
 
   /**
-   * Get user's recent XP transactions
+   * Get user's recent XP transactions (Dual-mode: SQLite → Firebase fallback)
    *
    * @param userId - User ID
    * @param limitCount - Number of transactions to fetch (default: 20)
@@ -1020,6 +1197,28 @@ export class UserLevelService {
    */
   async getXPHistory(userId: string, limitCount: number = 20): Promise<XPTransaction[]> {
     try {
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        const sqliteTransactions = userRepository.getXPTransactionsByUser(userId, limitCount);
+
+        // Convert to service format
+        const transactions: XPTransaction[] = sqliteTransactions.map((row: any) => ({
+          id: row.transactionId,
+          userId: row.userId,
+          amount: row.amount,
+          reason: row.reason,
+          source: row.source as XPTransaction['source'],
+          sourceId: row.sourceId,
+          timestamp: fromUnixTimestamp(row.createdAt) as Timestamp,
+          newTotalXP: 0, // Not stored in SQLite schema
+          newLevel: 0, // Not stored in SQLite schema
+          causedLevelUp: false, // Not stored in SQLite schema
+        }));
+
+        return transactions;
+      }
+
+      // Firebase fallback
       const xpQuery = query(
         this.xpTransactionsCollection,
         where('userId', '==', userId),
@@ -1047,7 +1246,8 @@ export class UserLevelService {
   }
 
   /**
-   * Reset all data for a guest user (GUEST USERS ONLY)
+   * Reset all data for a guest user (Dual-mode: SQLite → Firebase fallback)
+   * (GUEST USERS ONLY)
    *
    * ⚠️ WARNING: This method permanently deletes all user data including:
    * - User profile
@@ -1084,6 +1284,53 @@ export class UserLevelService {
         };
       }
 
+      // Dual-mode: Try SQLite first, fallback to Firebase
+      if (checkSQLiteAvailability()) {
+        console.log(`🗄️  [UserLevelService] Using SQLite for resetGuestUserData`);
+
+        // For SQLite, we need to manually delete from all related tables
+        // since we don't have CASCADE DELETE set up everywhere
+        const sqliteDb = require('./sqlite-db');
+        const db = sqliteDb.getDatabase();
+
+        // Delete in reverse order of dependencies to avoid foreign key errors
+        console.log('🗑️ Deleting all user-related data from SQLite...');
+
+        db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
+        db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
+        db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
+        db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
+        db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
+
+        // Delete notes if they exist
+        try {
+          db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
+        } catch (e) {
+          // Notes table might not exist yet, skip
+        }
+
+        // Delete user profile last
+        userRepository.deleteUser(userId);
+
+        console.log('✅ All user data deleted from SQLite');
+
+        // Reinitialize user profile
+        console.log('🔄 Reinitializing user profile...');
+        const newProfile = await this.initializeUserProfile(userId, displayName, email);
+        console.log('✅ User profile reinitialized');
+
+        console.log(`🎉 Complete data reset successful for user ${userId}`);
+
+        return {
+          success: true,
+          message: 'Guest user data has been successfully reset',
+          profile: newProfile,
+        };
+      }
+
+      // Firebase fallback
+      console.log(`☁️  [UserLevelService] Using Firebase for resetGuestUserData`);
+
       // Step 1: Delete all level-up records
       console.log('🗑️ Deleting level-up records...');
       const levelUpsQuery = query(
@@ -1106,9 +1353,7 @@ export class UserLevelService {
       await Promise.all(xpDeletions);
       console.log(`✅ Deleted ${xpSnapshot.size} XP transaction records`);
 
-      // Step 2.5: Delete all XP transaction locks (idempotency locks)
-      // These locks prevent re-awarding one-time achievements (e.g., chapter-1, first AI question)
-      // After a full reset, user should be treated as new, so we must clear related locks.
+      // Step 2.5: Delete all XP transaction locks
       console.log('🗑️ Deleting XP transaction locks...');
       const xpLocksCollection = collection(db, 'xpTransactionLocks');
       const locksQuery = query(
