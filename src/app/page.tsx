@@ -160,7 +160,13 @@ export default function HomePage() {
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <ScrollText className="h-8 w-8 text-primary" />
+            <Image
+              src="/images/logo_circle.png"
+              alt="紅樓慧讀 Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
             <div className="text-left">
               <div className="text-xl font-bold text-foreground">紅樓慧讀</div>
               <div className="text-xs text-muted-foreground">Red Mansions Study</div>
@@ -210,7 +216,7 @@ export default function HomePage() {
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/introImage/introPageImage.JPG"
-            alt="故宮經典藝術背景"
+            alt="首頁封面照"
             fill
             className="object-cover"
             priority
@@ -285,13 +291,13 @@ export default function HomePage() {
       </section>
 
       {/* Content Preview Section */}
-      <section className="py-20">
+      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               {t('page.contentPreviewTitle')}
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-200 max-w-2xl mx-auto">
               {t('page.contentPreviewSubtitle')}
             </p>
           </div>
@@ -405,7 +411,13 @@ export default function HomePage() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <ScrollText className="h-8 w-8 text-red-400" />
+              <Image
+                src="/images/logo_circle.png"
+                alt="紅樓慧讀 Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
               <div>
                 <div className="text-xl font-bold">紅樓慧讀</div>
                 <div className="text-sm text-gray-400">Red Mansions Study Platform</div>
