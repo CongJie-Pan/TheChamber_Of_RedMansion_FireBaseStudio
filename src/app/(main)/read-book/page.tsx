@@ -565,9 +565,23 @@ export default function ReadBookPage() {
     setCurrentPage(1);
     // Recompute pages after multi-column layout finishes
     if (enable) {
-      requestAnimationFrame(() => requestAnimationFrame(() => computePagination()))
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        computePagination();
+
+        // Auto-focus the viewport for keyboard navigation
+        const viewportEl =
+          (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
+          (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
+
+        if (viewportEl) {
+          viewportEl.focus();
+          console.log('[Pagination] Viewport focused for keyboard navigation');
+        } else {
+          console.warn('[Pagination] Could not find viewport element to focus');
+        }
+      }));
     }
-  }, [columnLayout, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey]);
+  }, [columnLayout, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey, computePagination]);
 
   const handleMouseUp = useCallback((event: globalThis.MouseEvent) => {
     const targetElement = event.target as HTMLElement;
@@ -679,32 +693,65 @@ export default function ReadBookPage() {
   // - Left/Right = prev/next page
   // - Up/Down/PageUp/PageDown/Space: prevent vertical scroll; map Up/PageUp to prev, Down/PageDown/Space to next
   useEffect(() => {
-    if (!isPaginationMode) return;
+    if (!isPaginationMode) {
+      console.log('[Pagination] Keyboard navigation disabled: isPaginationMode =', isPaginationMode);
+      return;
+    }
+
+    console.log('[Pagination] Keyboard navigation enabled for dual-column mode');
+
     const onKeyDown = (e: KeyboardEvent) => {
+      // Skip if event already handled
+      if (e.defaultPrevented) {
+        console.log('[Pagination] Event already prevented, skipping');
+        return;
+      }
+
       // Do not intercept when typing in inputs or editable areas
       const target = e.target as HTMLElement | null;
       const tag = (target?.tagName || '').toUpperCase();
       const isEditable = !!target && (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
-      if (isEditable) return;
+      if (isEditable) {
+        console.log('[Pagination] Skipping keyboard event in editable element:', tag);
+        return;
+      }
 
+      let handled = false;
       if (e.key === 'ArrowRight') {
         e.preventDefault();
+        console.log('[Pagination] ArrowRight pressed - going to next page');
         goNextPage();
+        handled = true;
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
+        console.log('[Pagination] ArrowLeft pressed - going to previous page');
         goPrevPage();
+        handled = true;
       } else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
+        console.log('[Pagination] Down/PageDown/Space pressed - going to next page');
         goNextPage();
+        handled = true;
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
+        console.log('[Pagination] Up/PageUp pressed - going to previous page');
         goPrevPage();
+        handled = true;
+      }
+
+      if (!handled && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' '].includes(e.key)) {
+        console.log('[Pagination] Key pressed but not handled:', e.key, 'currentPage:', currentPage, 'totalPages:', totalPages);
       }
     };
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
-  }, [isPaginationMode, goNextPage, goPrevPage]);
+    console.log('[Pagination] Keyboard event listener attached');
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
+      console.log('[Pagination] Keyboard event listener removed');
+    };
+  }, [isPaginationMode, goNextPage, goPrevPage, currentPage, totalPages]);
 
   /**
    * Global scroll lock and wheel interception for dual-column pagination
@@ -1773,7 +1820,7 @@ export default function ReadBookPage() {
   const getColumnClass = () => {
     switch (columnLayout) {
       case 'single': return 'columns-1';
-      case 'double': return 'md:columns-2'; // Two-column layout for horizontal reading (left to right)
+      case 'double': return 'columns-2'; // Two-column layout for horizontal reading (left to right) - removed md: prefix for consistent behavior across screen sizes
       default: return 'columns-1';
     }
   };
@@ -2626,8 +2673,13 @@ ${selectedTextContent}
         ref={scrollAreaRef as any}
         viewportProps={{
           id: 'chapter-content-viewport',
-          style: isPaginationMode ? ({ overscrollBehavior: 'contain' } as React.CSSProperties) : undefined,
-          onWheel: (e) => {
+          tabIndex: isPaginationMode ? 0 : -1, // Enable keyboard focus in pagination mode
+          style: isPaginationMode ? ({
+            overscrollBehavior: 'contain',
+            outline: 'none' // Remove default focus outline, use custom styling if needed
+          } as React.CSSProperties) : undefined,
+          'aria-label': isPaginationMode ? '雙欄閱讀模式 - 使用左右方向鍵翻頁' : undefined,
+          onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
             if (!isPaginationMode) return;
             if (e.defaultPrevented) return; // global handler already took over
             e.preventDefault();
@@ -2637,11 +2689,11 @@ ${selectedTextContent}
               goPrevPage();
             }
           },
-          onWheelCapture: (e) => {
+          onWheelCapture: (e: React.WheelEvent<HTMLDivElement>) => {
             if (!isPaginationMode) return;
             e.preventDefault();
           },
-        }}
+        } as any}
       >
         <div
           ref={chapterContentRef}
