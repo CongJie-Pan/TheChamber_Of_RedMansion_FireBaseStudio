@@ -45,11 +45,12 @@ import {
   SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
   SidebarMenuBadge,
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
+import { ChineseWindowNavButton } from "@/components/ui/chinese-window-nav-button";
+import type { WindowShape } from "@/types/chinese-window";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -111,21 +112,55 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user, pathname]); // Re-check when path changes (user might complete tasks)
 
   /**
-   * Navigation Items Configuration
+   * Navigation Items Configuration with Traditional Chinese Window Shapes
    *
    * Defines the main navigation structure for the application.
    * Each item includes:
    * - href: Route path for navigation
    * - labelKey: Translation key for multilingual labels
    * - icon: Lucide React icon component
+   * - windowShape: Traditional Chinese window frame shape for hover effect
    * - badge: Optional badge count or boolean for notification dot
+   *
+   * Window Shape Symbolism:
+   * - circular (月門): Represents completeness - fitting for Dashboard overview
+   * - hexagonal (六角窗): Represents six directions - fitting for Reading exploration
+   * - octagonal (八角窗): Represents eight trigrams (八卦) - fitting for Daily Tasks challenge
+   * - quatrefoil (四葉窗): Represents four seasons cycle - fitting for Achievements progress
+   * - circular (月門): Represents harmony - fitting for Community connection
    */
   const navItems = [
-    { href: "/dashboard", labelKey: "sidebar.home", icon: LayoutDashboard },
-    { href: "/read", labelKey: "sidebar.read", icon: BookOpen },
-    { href: "/daily-tasks", labelKey: "sidebar.dailyTasks", icon: Target, badge: hasIncompleteTasks },
-    { href: "/achievements", labelKey: "sidebar.achievements", icon: Trophy },
-    { href: "/community", labelKey: "sidebar.community", icon: Users },
+    {
+      href: "/dashboard",
+      labelKey: "sidebar.home",
+      icon: LayoutDashboard,
+      windowShape: 'circular' as WindowShape, // 月門 - completeness
+    },
+    {
+      href: "/read",
+      labelKey: "sidebar.read",
+      icon: BookOpen,
+      windowShape: 'hexagonal' as WindowShape, // 六角窗 - six directions
+    },
+    {
+      href: "/daily-tasks",
+      labelKey: "sidebar.dailyTasks",
+      icon: Target,
+      badge: hasIncompleteTasks,
+      windowShape: 'octagonal' as WindowShape, // 八角窗 - eight trigrams
+    },
+    {
+      href: "/achievements",
+      labelKey: "sidebar.achievements",
+      icon: Trophy,
+      windowShape: 'quatrefoil' as WindowShape, // 四葉窗 - four seasons
+    },
+    {
+      href: "/community",
+      labelKey: "sidebar.community",
+      icon: Users,
+      windowShape: 'circular' as WindowShape, // 月門 - harmony
+    },
   ];
   
   /**
@@ -165,48 +200,43 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </SidebarHeader>
         
-        {/* Main Navigation Menu */}
-        <SidebarContent>
-          <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.labelKey}>
-                <SidebarMenuButton
-                    asChild
-                    className="w-full justify-start"
-                    /**
-                     * Active State Logic
-                     *
-                     * Determines if a navigation item should be highlighted as active:
-                     * - Exact path match (pathname === item.href)
-                     * - Path starts with item.href (for nested routes)
-                     * - Special case: /read-book should highlight /read nav item
-                     */
-                    variant={pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/') || (pathname === '/read-book' && item.href === '/read') ? "default" : "outline"}
-                    isActive={pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/') || (pathname === '/read-book' && item.href === '/read')}
+        {/* Main Navigation Menu with Chinese Window Frame Effects */}
+        <SidebarContent className="px-2">
+          <SidebarMenu className="gap-1.5">
+            {navItems.map((item) => {
+              /**
+               * Active State Logic
+               *
+               * Determines if a navigation item should be highlighted as active:
+               * - Exact path match (pathname === item.href)
+               * - Path starts with item.href (for nested routes)
+               * - Special case: /read-book should highlight /read nav item
+               */
+              const isActive =
+                pathname === item.href ||
+                (pathname.startsWith(item.href + '/') && item.href !== '/') ||
+                (pathname === '/read-book' && item.href === '/read');
+
+              return (
+                <SidebarMenuItem key={item.labelKey}>
+                  <ChineseWindowNavButton
+                    icon={item.icon}
+                    label={t(item.labelKey)}
+                    href={item.href}
+                    isActive={isActive}
+                    windowShape={item.windowShape}
+                    badge={item.badge}
                     tooltip={t(item.labelKey)}
-                  >
-                    <Link href={item.href}>
-                      {/* Navigation icon */}
-                      <item.icon />
-                      {/* Navigation label with text truncation for responsive design */}
-                      <span className="truncate">{t(item.labelKey)}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  {/* Red dot notification badge for incomplete tasks */}
-                  {item.badge && (
-                    <SidebarMenuBadge className="bg-red-500 text-white">
-                      <span className="sr-only">Incomplete tasks</span>
-                      •
-                    </SidebarMenuBadge>
-                  )}
-              </SidebarMenuItem>
-            ))}
+                  />
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarContent>
         
         {/* Sidebar Footer with User Information */}
         <SidebarFooter className="p-4">
-          <Separator className="my-2 bg-sidebar-border" />
+          <Separator className="my-3 bg-sidebar-border opacity-30" />
           
           {/* User Account Section - Conditional rendering based on authentication state */}
            {user ? (

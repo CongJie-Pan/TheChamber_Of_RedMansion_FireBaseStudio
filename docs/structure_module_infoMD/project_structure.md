@@ -231,6 +231,10 @@ This section provides a complete listing of all modules in the codebase with two
 
 **utils.ts** - Provides common utility functions including className merging (cn), date formatting, string manipulation, and other shared helper functions. This module promotes code reuse and consistency by centralizing frequently-used operations that span multiple features.
 
+### Type Definition Modules (`/src/types/`)
+
+**chinese-window.ts** - Defines TypeScript types and configurations for traditional Chinese window frame shapes used in navigation components (~120 lines). Provides WindowShape union type, WindowFrameConfig interface, and WINDOW_SHAPES constant mapping with cultural descriptions. Includes helper functions getWindowFrameConfig() and getWindowClipPath() for accessing shape configurations. Each shape includes Chinese name (月門, 六角窗, 八角窗, 四葉窗), cultural symbolism explanation, and CSS clip-path value for efficient rendering.
+
 **content-filter-service.ts** - Implements enterprise-grade automated content moderation with real-time profanity detection, hate speech identification, spam filtering, and personal information masking. This module ensures community safety by automatically screening all user-generated content across posts, comments, and notes using multi-language pattern matching (Traditional Chinese and English) with 91.51% test coverage.
 
 **community-service.ts** - Manages all social learning features including post creation, commenting, reactions, bookmarking, and user interactions with integrated content filtering. This module serves as the central orchestrator for community features, automatically applying content moderation to maintain a safe and scholarly discussion environment with 62.96% test coverage.
@@ -301,6 +305,8 @@ This section provides a complete listing of all modules in the codebase with two
 
 **Core UI Components** - Provides 33+ reusable interface components built on Radix UI primitives including buttons, cards, dialogs, inputs, selects, and form controls. These components ensure consistent styling, accessibility, and behavior across the entire application through a centralized component library based on the Shadcn/ui design system.
 
+**chinese-window-nav-button.tsx** - Specialized navigation button component featuring traditional Chinese window frame effects on hover. Implements geometric frames (月門 moon gate, 六角窗 hexagonal, 八角窗 octagonal, 四葉窗 quatrefoil) using CSS clip-path with smooth animations (~200 lines). Designed for AppShell sidebar navigation, provides cultural authenticity through "borrowed scenery" (借景) aesthetic principles while maintaining modern UX standards with full keyboard navigation and accessibility support.
+
 **AI Interaction Components** - Includes specialized components like AIMessageBubble, ConversationFlow, StructuredQAResponse, and ThinkingProcessIndicator for displaying AI responses and managing chat interfaces. These components handle the unique requirements of AI-powered features including streaming responses, structured data display, and loading states.
 
 ### Gamification Component Modules (`/src/components/gamification/`)
@@ -329,7 +335,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### Layout Component Modules (`/src/components/layout/`)
 
-**AppShell.tsx** - Implements the main application shell with navigation sidebar, header, responsive menu, and content area layout for all protected pages. This component provides consistent navigation structure and ensures authenticated users have access to all platform features through a unified interface.
+**AppShell.tsx** - Implements the main application shell with navigation sidebar featuring traditional Chinese window frame effects, header, responsive menu, and content area layout for all protected pages. This component provides consistent navigation structure with cultural aesthetics through ChineseWindowNavButton components, ensuring authenticated users have access to all platform features through a unified, visually enhanced interface. Each navigation item is configured with symbolic window shapes (circular for completeness, hexagonal for exploration, octagonal for challenge, quatrefoil for cycles) that activate on hover with elegant CSS animations.
 
 ### Specialized Feature Components (`/src/components/`)
 
@@ -516,10 +522,11 @@ This section provides a complete listing of all modules in the codebase with two
 
 ---
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Last Updated:** 2025-10-29
 **Maintained By:** Development Team
 **Change Log:**
+* **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
 * **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests
 * **v1.0 (2025-10-27):** Initial comprehensive project structure documentation
 
