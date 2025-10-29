@@ -159,7 +159,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-5">
+          <Link href="/" className="flex items-center space-x-5 pl-6">
             <Image
               src="/images/logo_circle.png"
               alt="紅樓慧讀 Logo"
@@ -317,13 +317,13 @@ export default function HomePage() {
                   </Badge>
                 </div>
                 <CardHeader>
-                  <CardTitle className="text-xl">{content.title}</CardTitle>
-                  <CardDescription className="text-gray-600 font-medium">
+                  <CardTitle className="text-xl text-white">{content.title}</CardTitle>
+                  <CardDescription className="text-gray-200 font-medium">
                     {content.subtitle}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 leading-relaxed mb-4">
+                  <p className="text-gray-100 leading-relaxed mb-4">
                     {content.description}
                   </p>
                   <Button variant="outline" className="w-full group-hover:bg-red-600 group-hover:text-white transition-colors" asChild>
@@ -334,36 +334,6 @@ export default function HomePage() {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Statistics Section */}
-      <section className="py-20 bg-red-50">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              {t('page.statsTitle')}
-            </h2>
-            <p className="text-xl text-gray-600">
-              {t('page.statsSubtitle')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="w-8 h-8" />
-                </div>
-                <div className="text-3xl md:text-4xl font-bold text-red-600 mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-gray-600 font-medium">
-                  {stat.label}
-                </div>
-              </div>
             ))}
           </div>
         </div>
