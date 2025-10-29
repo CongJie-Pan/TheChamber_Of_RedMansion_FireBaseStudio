@@ -55,7 +55,7 @@ function initializeSchema(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL,
       email TEXT,
-      currentLevel INTEGER DEFAULT 1,
+      currentLevel INTEGER DEFAULT 0,
       currentXP INTEGER DEFAULT 0,
       totalXP INTEGER DEFAULT 0,
       attributes TEXT, -- JSON format for user attributes
@@ -185,6 +185,32 @@ function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // Posts table (Phase 3 - SQLITE-014)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id TEXT PRIMARY KEY,
+      authorId TEXT NOT NULL,
+      authorName TEXT NOT NULL,
+      title TEXT,
+      content TEXT NOT NULL,
+      tags TEXT, -- JSON array
+      category TEXT,
+      likes INTEGER DEFAULT 0,
+      likedBy TEXT, -- JSON array of userIds
+      bookmarkedBy TEXT, -- JSON array of userIds
+      commentCount INTEGER DEFAULT 0,
+      viewCount INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active', -- 'active', 'hidden', 'deleted'
+      isEdited INTEGER DEFAULT 0,
+      moderationAction TEXT,
+      originalContent TEXT,
+      moderationWarning TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      FOREIGN KEY (authorId) REFERENCES users(id)
+    );
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date
@@ -213,6 +239,18 @@ function initializeSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_notes_public
     ON notes(isPublic, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_author
+    ON posts(authorId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_category
+    ON posts(category, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_status
+    ON posts(status, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_trending
+    ON posts(likes DESC, viewCount DESC, createdAt DESC);
   `);
 
   console.log('✅ [SQLite] Database schema initialized');
