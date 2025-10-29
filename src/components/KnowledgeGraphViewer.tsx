@@ -385,52 +385,51 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     // Create main group for zooming and panning
     const g = svg.append("g").attr("class", "main-group");
 
-    // Define gradients for enhanced visual appeal
+    // Define gradients for muted, elegant aesthetic
     const defs = svg.append("defs");
-    
-    // Enhanced gradient for links with higher opacity for better visibility
+
+    // Muted neutral gradient for links (traditional Chinese ink aesthetic)
     const linkGradient = defs.append("linearGradient")
       .attr("id", "link-gradient")
       .attr("gradientUnits", "userSpaceOnUse");
     linkGradient.append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", "#DC2626")
-      .attr("stop-opacity", 0.9); // Increased from 0.6 to 0.9 for better visibility
+      .attr("stop-color", "#8A8A8A") // Muted gray start
+      .attr("stop-opacity", 0.4); // Subtle, non-intrusive
     linkGradient.append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", "#EAB308")
-      .attr("stop-opacity", 0.7); // Increased from 0.3 to 0.7 for better visibility
+      .attr("stop-color", "#A0A0A0") // Lighter gray end
+      .attr("stop-opacity", 0.3); // Fade out for elegance
 
-    // Create force simulation
+    // Create force simulation with optimized parameters for clarity
+    // Reason: Increase repulsion and spacing to reduce overlap and tangling
     const simulation = d3.forceSimulation<KnowledgeGraphNode>(graphData.nodes)
       .force("link", d3.forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(graphData.links)
         .id(d => d.id)
-        .distance(d => d.distance)
+        .distance(d => d.distance * 1.3) // 30% longer edges for better spacing
         .strength(d => d.strength * 0.3))
       .force("charge", d3.forceManyBody()
-        .strength(-800)
-        .distanceMax(400))
+        .strength(-1200) // Increased from -800 for more repulsion
+        .distanceMax(500)) // Increased range
       .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force("collision", d3.forceCollide()
-        .radius(d => (d as KnowledgeGraphNode).radius + 8)
-        .strength(0.7));
+        .radius(d => (d as KnowledgeGraphNode).radius + 15) // More breathing room (was +8)
+        .strength(0.85)); // Stronger anti-overlap (was 0.7)
 
     simulationRef.current = simulation;
 
-    // Create links with enhanced visibility
-    // Reason for changes:
-    // - Increased stroke-width from Math.sqrt(d.strength) * 3 to * 5 + 2 for thicker lines
-    // - Increased stroke-opacity from 0.6 to 0.9 for better visibility
-    // - Enhanced drop-shadow for clearer edge definition
+    // Create links with muted, subtle styling
+    // Reason: Links should be connectors, not focal points - use thinner lines with lower opacity
+    // This creates visual hierarchy where nodes are prominent and edges are supportive
     const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
       .data(graphData.links)
       .enter().append("line")
       .attr("stroke", "url(#link-gradient)")
-      .attr("stroke-width", d => Math.sqrt(d.strength) * 5 + 2) // Increased from * 3, now 3.7-5.7px instead of 2.1-3px
-      .attr("stroke-opacity", 0.9) // Increased from 0.6 for better visibility
-      .style("filter", "drop-shadow(0px 2px 6px rgba(220,38,38,0.4))"); // Enhanced shadow with red tint
+      .attr("stroke-width", d => Math.sqrt(d.strength) * 3.5 + 1) // Thinner: 2.35-4.35px for subtlety
+      .attr("stroke-opacity", 0.5) // Lower opacity for muted appearance
+      .style("filter", "drop-shadow(0px 1px 2px rgba(0,0,0,0.15))"); // Subtle neutral shadow
 
     // Helper function to truncate text based on node radius
     // Reason: Long entity names need to be truncated to fit within nodes
@@ -441,24 +440,52 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       return text.substring(0, maxChars - 1) + '…';
     };
 
-    // Create relationship labels on edges
-    // Reason: Display relationship types (r part) like "夫妻", "女兒", "來源於" on the edges
-    // Using white text-shadow for better readability against various backgrounds
-    const linkText = g.append("g")
-      .attr("class", "link-labels")
-      .selectAll("text")
+    // Create relationship labels with background boxes for improved readability
+    // Reason: Muted design requires softer labels with backgrounds instead of heavy shadows
+    const linkLabelGroup = g.append("g")
+      .attr("class", "link-labels");
+
+    const linkLabel = linkLabelGroup.selectAll("g")
       .data(graphData.links)
-      .enter().append("text")
-      .attr("class", "link-label")
+      .enter().append("g")
+      .attr("class", "link-label-group");
+
+    // Add background rectangles for labels
+    linkLabel.append("rect")
+      .attr("class", "link-label-bg")
+      .attr("fill", "rgba(250, 250, 245, 0.9)") // Off-white with 90% opacity
+      .attr("stroke", "rgba(200, 200, 200, 0.4)") // Subtle border
+      .attr("stroke-width", 0.5)
+      .attr("rx", 3) // Rounded corners
+      .attr("ry", 3)
+      .style("pointer-events", "none");
+
+    // Add text labels
+    const linkText = linkLabel.append("text")
+      .attr("class", "link-label-text")
       .text(d => d.relationship) // Display relationship type from data
-      .attr("font-size", "12px")
-      .attr("font-weight", "700")
-      .attr("fill", "#DC2626") // Red color matching link gradient start
+      .attr("font-size", "10px") // Smaller, less intrusive
+      .attr("font-weight", "500") // Medium weight, not heavy
+      .attr("fill", "#4A4A4A") // Dark charcoal gray for elegance
       .attr("text-anchor", "middle")
-      .attr("dy", "-6") // Offset above the line
+      .attr("dy", ".35em")
       .style("pointer-events", "none")
       .style("font-family", "'Noto Serif SC', serif") // Match Chinese font
-      .style("text-shadow", "2px 2px 3px #fff, -2px -2px 3px #fff, 2px -2px 3px #fff, -2px 2px 3px #fff, 0 0 6px #fff"); // Strong white outline for readability
+      .style("letter-spacing", "0.5px") // Improve readability
+      .style("filter", "drop-shadow(1px 1px 2px rgba(0,0,0,0.2))"); // Subtle shadow
+
+    // Calculate and set background rectangle dimensions
+    linkLabel.each(function(d) {
+      const text = d3.select(this).select("text").node() as SVGTextElement;
+      const bbox = text?.getBBox();
+      if (bbox) {
+        d3.select(this).select("rect")
+          .attr("x", bbox.x - 4)
+          .attr("y", bbox.y - 2)
+          .attr("width", bbox.width + 8)
+          .attr("height", bbox.height + 4);
+      }
+    });
 
     // Create nodes
     const node = g.append("g")
@@ -484,38 +511,50 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           d.fy = null;
         }));
 
-    // Add circular backgrounds for nodes
+    // Add circular backgrounds for nodes with visual hierarchy
+    // Reason: Differentiate importance levels through stroke width and opacity
     node.append("circle")
       .attr("r", d => d.radius)
       .attr("fill", d => d.color)
       .attr("stroke", "#ffffff")
-      .attr("stroke-width", 3)
-      .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.2))")
-      .style("opacity", 0.9);
+      .attr("stroke-width", d => {
+        // Visual hierarchy through stroke weight
+        if (d.importance === 'primary') return 4; // Most prominent
+        if (d.importance === 'secondary') return 2.5; // Medium prominence
+        return 1.5; // Tertiary - subtle
+      })
+      .style("filter", "drop-shadow(0px 3px 6px rgba(0,0,0,0.12))") // Softer shadow
+      .style("opacity", d => {
+        // Visual hierarchy through opacity
+        if (d.importance === 'primary') return 1.0; // Fully opaque
+        if (d.importance === 'secondary') return 0.85; // Slightly faded
+        return 0.7; // Tertiary - more faded
+      });
 
-    // Add inner circles for depth
+    // Add inner circles for depth with softer styling
     node.append("circle")
       .attr("r", d => d.radius - 5)
       .attr("fill", "none")
-      .attr("stroke", "rgba(255,255,255,0.5)")
-      .attr("stroke-width", 1);
+      .attr("stroke", "rgba(245,245,235,0.35)") // Warmer, softer cream tone
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2,2"); // Decorative dashed pattern
 
-    // Add text labels with truncation
-    // Reason: Apply truncation to prevent text overflow, show full text on hover via title
+    // Add text labels with truncation and softer styling
+    // Reason: Apply truncation to prevent text overflow, lighter weight for elegance
     node.append("text")
       .text(d => truncateText(d.name, d.radius)) // Apply truncation based on node radius
       .attr("text-anchor", "middle")
       .attr("dy", ".35em")
       .style("font-family", "'Noto Serif SC', serif")
       .style("font-size", d => `${Math.max(12, d.radius / 2.2)}px`)
-      .style("font-weight", "600")
+      .style("font-weight", "500") // Lighter weight (was 600)
       .style("fill", "#ffffff")
-      .style("text-shadow", "1px 1px 2px rgba(0,0,0,0.7)")
+      .style("text-shadow", "1px 1px 3px rgba(0,0,0,0.4)") // Softer shadow
       .style("pointer-events", "none")
       .append("title") // Add tooltip to show full text on hover
       .text(d => d.name);
 
-    // Node interaction handlers
+    // Node interaction handlers with smooth animations
     node
       .on("click", (event, d) => {
         setSelectedNode(d.id);
@@ -523,26 +562,78 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       })
       .on("mouseenter", (event, d) => {
         setHoveredNode(d.id);
-        
-        // Highlight connected links
-        link.style("stroke-opacity", l => 
-          (l.source as KnowledgeGraphNode).id === d.id || 
-          (l.target as KnowledgeGraphNode).id === d.id ? 1 : 0.2);
-        
-        // Highlight connected nodes
+
+        // Smooth transitions for all interactions
+        const transitionDuration = 150;
+
+        // Scale up hovered node with smooth animation
+        d3.select(event.currentTarget)
+          .select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .attr("r", (d as KnowledgeGraphNode).radius * 1.08); // Subtle 8% growth
+
+        // Highlight connected links with fade effect
+        link
+          .transition()
+          .duration(transitionDuration)
+          .style("stroke-opacity", l =>
+            (l.source as KnowledgeGraphNode).id === d.id ||
+            (l.target as KnowledgeGraphNode).id === d.id ? 0.8 : 0.15); // Brighter for connected
+
+        // Highlight connected relationship labels
+        linkLabel
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", l =>
+            (l.source as KnowledgeGraphNode).id === d.id ||
+            (l.target as KnowledgeGraphNode).id === d.id ? 1.0 : 0.3);
+
+        // Dim unconnected nodes
         node.select("circle")
+          .transition()
+          .duration(transitionDuration)
           .style("opacity", n => {
-            if (n.id === d.id) return 1;
-            return graphData.links.some(l => 
+            if (n.id === d.id) return 1.0;
+            return graphData.links.some(l =>
               ((l.source as KnowledgeGraphNode).id === d.id && (l.target as KnowledgeGraphNode).id === n.id) ||
               ((l.target as KnowledgeGraphNode).id === d.id && (l.source as KnowledgeGraphNode).id === n.id)
-            ) ? 0.8 : 0.3;
+            ) ? 0.75 : 0.25;
           });
       })
-      .on("mouseleave", () => {
+      .on("mouseleave", (event) => {
         setHoveredNode(null);
-        link.style("stroke-opacity", 0.6);
-        node.select("circle").style("opacity", 0.9);
+
+        const transitionDuration = 150;
+
+        // Reset node size
+        d3.select(event.currentTarget)
+          .select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .attr("r", (d: KnowledgeGraphNode) => d.radius);
+
+        // Reset link opacity
+        link
+          .transition()
+          .duration(transitionDuration)
+          .style("stroke-opacity", 0.5);
+
+        // Reset label opacity
+        linkLabel
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", 1.0);
+
+        // Reset node opacity based on importance
+        node.select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", (d: KnowledgeGraphNode) => {
+            if (d.importance === 'primary') return 1.0;
+            if (d.importance === 'secondary') return 0.85;
+            return 0.7;
+          });
       });
 
     // Update positions on simulation tick
@@ -553,11 +644,14 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
         .attr("x2", d => (d.target as KnowledgeGraphNode).x!)
         .attr("y2", d => (d.target as KnowledgeGraphNode).y!);
 
-      // Position relationship labels at edge midpoints
+      // Position relationship label groups (background + text) at edge midpoints
       // Reason: Labels should appear centered between source and target nodes
-      linkText
-        .attr("x", d => ((d.source as KnowledgeGraphNode).x! + (d.target as KnowledgeGraphNode).x!) / 2)
-        .attr("y", d => ((d.source as KnowledgeGraphNode).y! + (d.target as KnowledgeGraphNode).y!) / 2);
+      linkLabel
+        .attr("transform", d => {
+          const midX = ((d.source as KnowledgeGraphNode).x! + (d.target as KnowledgeGraphNode).x!) / 2;
+          const midY = ((d.source as KnowledgeGraphNode).y! + (d.target as KnowledgeGraphNode).y!) / 2;
+          return `translate(${midX},${midY})`;
+        });
 
       node.attr("transform", d => `translate(${d.x},${d.y})`);
     });

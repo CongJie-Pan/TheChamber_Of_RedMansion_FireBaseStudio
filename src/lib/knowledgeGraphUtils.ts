@@ -145,29 +145,29 @@ const categorizeEntity = (entityName: string): {
       type: 'character',
       category: '神話人物',
       importance: 'primary',
-      color: '#DC2626', // Traditional Chinese red
+      color: '#8B6F47', // Muted sepia (深褐) - ancient earth tones for mythological beings
       group: 1,
       radius: 35
     };
   }
-  
+
   if (entityName.includes('士隱') || entityName.includes('雨村') || entityName.includes('道人')) {
     return {
       type: 'character',
       category: '主要人物',
       importance: 'primary',
-      color: '#059669', // Emerald green
+      color: '#5B7C8D', // Muted blue-gray (青灰) - ink wash painting aesthetic
       group: 2,
       radius: 30
     };
   }
-  
+
   if (entityName.includes('英蓮') || entityName.includes('封氏')) {
     return {
       type: 'character',
       category: '次要人物',
       importance: 'secondary',
-      color: '#EC4899', // Pink
+      color: '#9B8B7E', // Warm taupe (淺褐) - muted rose-brown for harmony
       group: 2,
       radius: 25
     };
@@ -179,18 +179,18 @@ const categorizeEntity = (entityName: string): {
       type: 'location',
       category: '神話地點',
       importance: 'primary',
-      color: '#8B5CF6', // Purple for mystical places
+      color: '#6B7FA3', // Muted indigo-gray (靛青) - mountain mist, mystical atmosphere
       group: 3,
       radius: 28
     };
   }
-  
+
   if (entityName.includes('城') || entityName.includes('蘇') || entityName.includes('廟') || entityName.includes('巷')) {
     return {
       type: 'location',
       category: '世俗地點',
       importance: 'secondary',
-      color: '#F59E0B', // Amber
+      color: '#8B8B73', // Muted olive-gray (橄榄灰) - earth and stone, grounded places
       group: 3,
       radius: 24
     };
@@ -202,42 +202,42 @@ const categorizeEntity = (entityName: string): {
       type: 'event',
       category: '情節事件',
       importance: 'secondary',
-      color: '#7C2D12', // Brown
+      color: '#6B5F56', // Deep charcoal taupe (深灰褐) - aged wood, narrative events
       group: 6,
       radius: 20
     };
   }
-  
+
   // Artifact patterns - 物品/文獻
   if (entityName.includes('石') || entityName.includes('玉') || entityName.includes('記') || entityName.includes('夢') || entityName.includes('歌')) {
     return {
       type: 'artifact',
       category: '重要物品/文獻',
       importance: 'primary',
-      color: '#EAB308', // Golden yellow
+      color: '#A68A5C', // Antique bronze (古銅) - aged metal, precious artifacts
       group: 4,
       radius: 30
     };
   }
-  
+
   // Concept patterns - 概念/事件
   if (entityName.includes('情') || entityName.includes('還淚') || entityName.includes('紅塵') || entityName.includes('溫柔') || entityName.includes('火坑')) {
     return {
       type: 'concept',
       category: '哲學概念',
       importance: 'secondary',
-      color: '#0891B2', // Cyan
+      color: '#7A8E92', // Smoke blue (煙灰藍) - misty water, abstract concepts
       group: 5,
       radius: 22
     };
   }
-  
+
   // Default classification for author and other entities
   return {
     type: 'character',
     category: '其他人物',
     importance: 'tertiary',
-    color: '#6B7280', // Gray
+    color: '#808080', // Neutral gray (中灰) - balanced, unobtrusive default
     group: 7,
     radius: 18
   };
