@@ -1,3 +1,7 @@
+1101_necessaryWorkLists
+
+---
+
 [] 閱讀介面筆記文字，在搜尋中無法有不會有underline黃色。(是否是畫紅色的線不能和underline黃色同時存在?)
 [x] 閱讀頁面 當閱讀完第一回和ai問答後，應該是加總44exp 但得到的卻是88
 [x] 當我在紅學社累積到level 1 經驗值時，不會有升等動畫。(讓升等動畫只要觸發升等都會顯示)
@@ -54,8 +58,8 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
 
 [] 資料庫遷移至本地SQL Lite 、刪除Google模型
 [] 儀錶板功能完善、雙欄模式正常，主頁TaskBar UI 改善
+[] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
+[] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
 [] 增加執行效率，解決 Linter Problem
 [] 最後測試 (Smoking Test)
 
-[] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
-[] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
