@@ -27,7 +27,7 @@
  * - Type-safe operations
  */
 
-import { Timestamp } from 'firebase/firestore';
+// Firebase removed - SQLITE-025 (no longer need Timestamp import)
 import {
   UserProfile,
   UserLevel,
@@ -798,7 +798,7 @@ export class UserLevelService {
   }
 
   /**
-   * Reset all data for a guest user (Dual-mode: SQLite → Firebase fallback)
+   * Reset all data for a guest user (SQLite-only)
    * (GUEST USERS ONLY)
    *
    * ⚠️ WARNING: This method permanently deletes all user data including:
@@ -824,6 +824,10 @@ export class UserLevelService {
     message: string;
     profile?: UserProfile;
   }> {
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[UserLevelService] Cannot operate: SQLite only available server-side');
+    }
+
     try {
       console.log(`🧹 Starting complete data reset for guest user ${userId}...`);
 
@@ -836,129 +840,35 @@ export class UserLevelService {
         };
       }
 
-      // Dual-mode: Try SQLite first, fallback to Firebase
-      if (checkSQLiteAvailability()) {
-        console.log(`🗄️  [UserLevelService] Using SQLite for resetGuestUserData`);
+      console.log(`🗄️  [UserLevelService] Resetting guest user data`);
 
-        // For SQLite, we need to manually delete from all related tables
-        // since we don't have CASCADE DELETE set up everywhere
-        const sqliteDb = require('./sqlite-db');
-        const db = sqliteDb.getDatabase();
+      // For SQLite, we need to manually delete from all related tables
+      // since we don't have CASCADE DELETE set up everywhere
+      const sqliteDb = require('./sqlite-db');
+      const db = sqliteDb.getDatabase();
 
-        // Delete in reverse order of dependencies to avoid foreign key errors
-        console.log('🗑️ Deleting all user-related data from SQLite...');
+      // Delete in reverse order of dependencies to avoid foreign key errors
+      console.log('🗑️ Deleting all user-related data from SQLite...');
 
-        db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
-        db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
-        db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
-        db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
-        db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
 
-        // Delete notes if they exist
-        try {
-          db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
-        } catch (e) {
-          // Notes table might not exist yet, skip
-        }
-
-        // Delete user profile last
-        userRepository.deleteUser(userId);
-
-        console.log('✅ All user data deleted from SQLite');
-
-        // Reinitialize user profile
-        console.log('🔄 Reinitializing user profile...');
-        const newProfile = await this.initializeUserProfile(userId, displayName, email);
-        console.log('✅ User profile reinitialized');
-
-        console.log(`🎉 Complete data reset successful for user ${userId}`);
-
-        return {
-          success: true,
-          message: 'Guest user data has been successfully reset',
-          profile: newProfile,
-        };
+      // Delete notes if they exist
+      try {
+        db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
+      } catch (e) {
+        // Notes table might not exist yet, skip
       }
 
-      // Firebase fallback
-      console.log(`☁️  [UserLevelService] Using Firebase for resetGuestUserData`);
+      // Delete user profile last
+      userRepository.deleteUser(userId);
 
-      // Step 1: Delete all level-up records
-      console.log('🗑️ Deleting level-up records...');
-      const levelUpsQuery = query(
-        this.levelUpsCollection,
-        where('userId', '==', userId)
-      );
-      const levelUpsSnapshot = await getDocs(levelUpsQuery);
-      const levelUpDeletions = levelUpsSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(levelUpDeletions);
-      console.log(`✅ Deleted ${levelUpsSnapshot.size} level-up records`);
+      console.log('✅ All user data deleted from SQLite');
 
-      // Step 2: Delete all XP transaction records
-      console.log('🗑️ Deleting XP transaction records...');
-      const xpQuery = query(
-        this.xpTransactionsCollection,
-        where('userId', '==', userId)
-      );
-      const xpSnapshot = await getDocs(xpQuery);
-      const xpDeletions = xpSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(xpDeletions);
-      console.log(`✅ Deleted ${xpSnapshot.size} XP transaction records`);
-
-      // Step 2.5: Delete all XP transaction locks
-      console.log('🗑️ Deleting XP transaction locks...');
-      const xpLocksCollection = collection(db, 'xpTransactionLocks');
-      const locksQuery = query(
-        xpLocksCollection,
-        where('userId', '==', userId)
-      );
-      const locksSnapshot = await getDocs(locksQuery);
-      const lockDeletions = locksSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(lockDeletions);
-      console.log(`✅ Deleted ${locksSnapshot.size} XP transaction locks`);
-
-      // Step 2.6: Delete all user notes
-      console.log('🗑️ Deleting user notes...');
-      const notesCollection = collection(db, 'notes');
-      const notesQuery = query(
-        notesCollection,
-        where('userId', '==', userId)
-      );
-      const notesSnapshot = await getDocs(notesQuery);
-      const noteDeletions = notesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(noteDeletions);
-      console.log(`✅ Deleted ${notesSnapshot.size} user notes`);
-
-      // Step 3: Delete all daily task progress records
-      console.log('🗑️ Deleting daily task progress records...');
-      const dailyTaskProgressCollection = collection(db, 'dailyTaskProgress');
-      const progressQuery = query(
-        dailyTaskProgressCollection,
-        where('userId', '==', userId)
-      );
-      const progressSnapshot = await getDocs(progressQuery);
-      const progressDeletions = progressSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(progressDeletions);
-      console.log(`✅ Deleted ${progressSnapshot.size} daily task progress records`);
-
-      // Step 4: Delete all daily task history records
-      console.log('🗑️ Deleting daily task history records...');
-      const dailyTaskHistoryCollection = collection(db, 'dailyTaskHistory');
-      const historyQuery = query(
-        dailyTaskHistoryCollection,
-        where('userId', '==', userId)
-      );
-      const historySnapshot = await getDocs(historyQuery);
-      const historyDeletions = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(historyDeletions);
-      console.log(`✅ Deleted ${historySnapshot.size} daily task history records`);
-
-      // Step 5: Delete the user profile document
-      console.log('🗑️ Deleting user profile...');
-      await deleteDoc(doc(this.usersCollection, userId));
-      console.log('✅ User profile deleted');
-
-      // Step 6: Reinitialize user profile with default values
+      // Reinitialize user profile
       console.log('🔄 Reinitializing user profile...');
       const newProfile = await this.initializeUserProfile(userId, displayName, email);
       console.log('✅ User profile reinitialized');

@@ -56,7 +56,7 @@ import {
   type CommentTreeNode,
 } from './repositories/comment-repository';
 
-import { toUnixTimestamp, fromUnixTimestamp, Timestamp } from './sqlite-db';
+import { toUnixTimestamp, fromUnixTimestamp } from './sqlite-db';
 import { randomUUID } from 'crypto';
 
 // ============================================================================
@@ -479,248 +479,115 @@ export class CommunityService {
 
   /**
    * Add a bookmark for a post by a user.
-   * DUAL-MODE: SQLite primary, Firebase fallback
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to bookmark
    * @param userId - The ID of the user bookmarking the post
    */
   async addBookmark(postId: string, userId: string): Promise<void> {
-    // ========================================================================
-    // Try SQLite first (PRIMARY PATH)
-    // ========================================================================
-    if (checkSQLiteAvailability()) {
-      try {
-        console.log(`🗄️  SQLite: Adding bookmark for post ${postId}, user ${userId}...`);
-
-        await sqliteBookmarkPost(postId, userId);
-        console.log(`✅ SQLite: Bookmark added successfully`);
-        return;
-      } catch (error) {
-        console.error(`❌ SQLite: Failed to add bookmark for post ${postId}, falling back to Firebase:`, error);
-        // Fall through to Firebase fallback below
-      }
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot add bookmark: SQLite only available server-side');
     }
 
-    // ========================================================================
-    // Firebase fallback (FALLBACK PATH)
-    // ========================================================================
-    try {
-      console.log(`☁️  Firebase: Adding bookmark for post ${postId}, user ${userId}...`);
+    console.log(`[CommunityService] Adding bookmark for post ${postId}, user ${userId}...`);
 
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        bookmarkedBy: arrayUnion(userId),
-        updatedAt: serverTimestamp()
-      });
-      console.log(`☁️  Firebase: Bookmark added successfully`);
-    } catch (error) {
-      console.error(`❌ Firebase: Error adding bookmark for post ${postId}:`, error);
-      throw new Error('Failed to add bookmark. Please try again.');
-    }
+    await sqliteBookmarkPost(postId, userId);
+    console.log(`[CommunityService] Bookmark added successfully`);
   }
 
   /**
    * Remove a bookmark for a post by a user.
-   * DUAL-MODE: SQLite primary, Firebase fallback
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to unbookmark
    * @param userId - The ID of the user removing the bookmark
    */
   async removeBookmark(postId: string, userId: string): Promise<void> {
-    // ========================================================================
-    // Try SQLite first (PRIMARY PATH)
-    // ========================================================================
-    if (checkSQLiteAvailability()) {
-      try {
-        console.log(`🗄️  SQLite: Removing bookmark for post ${postId}, user ${userId}...`);
-
-        await sqliteUnbookmarkPost(postId, userId);
-        console.log(`✅ SQLite: Bookmark removed successfully`);
-        return;
-      } catch (error) {
-        console.error(`❌ SQLite: Failed to remove bookmark for post ${postId}, falling back to Firebase:`, error);
-        // Fall through to Firebase fallback below
-      }
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot remove bookmark: SQLite only available server-side');
     }
 
-    // ========================================================================
-    // Firebase fallback (FALLBACK PATH)
-    // ========================================================================
-    try {
-      console.log(`☁️  Firebase: Removing bookmark for post ${postId}, user ${userId}...`);
+    console.log(`[CommunityService] Removing bookmark for post ${postId}, user ${userId}...`);
 
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        bookmarkedBy: arrayRemove(userId),
-        updatedAt: serverTimestamp()
-      });
-      console.log(`☁️  Firebase: Bookmark removed successfully`);
-    } catch (error) {
-      console.error(`❌ Firebase: Error removing bookmark for post ${postId}:`, error);
-      throw new Error('Failed to remove bookmark. Please try again.');
-    }
+    await sqliteUnbookmarkPost(postId, userId);
+    console.log(`[CommunityService] Bookmark removed successfully`);
   }
 
   /**
    * Get all posts bookmarked by a specific user.
-   * DUAL-MODE: SQLite primary, Firebase fallback
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param userId - The ID of the user whose bookmarks to fetch
    * @returns Array of CommunityPost
    */
   async getBookmarkedPosts(userId: string): Promise<CommunityPost[]> {
-    // ========================================================================
-    // Try SQLite first (PRIMARY PATH)
-    // ========================================================================
-    if (checkSQLiteAvailability()) {
-      try {
-        console.log(`🗄️  SQLite: Fetching bookmarked posts for user ${userId}...`);
-
-        const posts = await sqliteGetBookmarkedPosts(userId);
-        const formattedPosts = posts.map(sqlitePostToFirebasePost);
-
-        console.log(`✅ SQLite: Fetched ${formattedPosts.length} bookmarked posts`);
-        return formattedPosts;
-      } catch (error) {
-        console.error(`❌ SQLite: Failed to fetch bookmarked posts for user ${userId}, falling back to Firebase:`, error);
-        // Fall through to Firebase fallback below
-      }
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot fetch bookmarked posts: SQLite only available server-side');
     }
 
-    // ========================================================================
-    // Firebase fallback (FALLBACK PATH)
-    // ========================================================================
-    try {
-      console.log(`☁️  Firebase: Fetching bookmarked posts for user ${userId}...`);
+    console.log(`[CommunityService] Fetching bookmarked posts for user ${userId}...`);
 
-      const postsQuery = query(
-        this.postsCollection,
-        where('bookmarkedBy', 'array-contains', userId),
-        where('status', '==', 'active'),
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(postsQuery);
-      const posts: CommunityPost[] = [];
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        posts.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as CommunityPost);
-      });
+    const posts = await sqliteGetBookmarkedPosts(userId);
 
-      console.log(`☁️  Firebase: Fetched ${posts.length} bookmarked posts`);
-      return posts;
-    } catch (error) {
-      console.error(`❌ Firebase: Error fetching bookmarked posts for user ${userId}:`, error);
-      throw new Error('Failed to fetch bookmarked posts. Please try again.');
-    }
+    console.log(`[CommunityService] Fetched ${posts.length} bookmarked posts`);
+    return posts;
   }
 
   /**
    * Update the status of a post (for moderation/approval).
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * Only admin or authorized users should call this method.
    * @param postId - The ID of the post to update
    * @param status - The new status ('active', 'hidden', 'deleted')
    */
   async updatePostStatus(postId: string, status: 'active' | 'hidden' | 'deleted'): Promise<void> {
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot update post status: SQLite only available server-side');
+    }
+
     try {
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        status,
-        updatedAt: serverTimestamp()
-      });
+      await sqliteUpdatePost(postId, { status });
+      console.log(`[CommunityService] Post ${postId} status updated to ${status}`);
     } catch (error) {
-      console.error('Error updating post status:', error);
+      console.error(`[CommunityService] Error updating post status:`, error);
       throw new Error('Failed to update post status. Please try again.');
     }
   }
 
   /**
    * Permanently delete a post (cannot be recovered).
-   * DUAL-MODE: SQLite primary, Firebase fallback
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to delete
    */
   async deletePost(postId: string): Promise<void> {
-    // ========================================================================
-    // Try SQLite first (PRIMARY PATH)
-    // ========================================================================
-    if (checkSQLiteAvailability()) {
-      try {
-        console.log(`🗄️  SQLite: Deleting post ${postId}...`);
-
-        await sqliteDeletePost(postId);
-        console.log(`✅ SQLite: Post ${postId} deleted successfully`);
-        return;
-      } catch (error) {
-        console.error(`❌ SQLite: Failed to delete post ${postId}, falling back to Firebase:`, error);
-        // Fall through to Firebase fallback below
-      }
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot delete post: SQLite only available server-side');
     }
 
-    // ========================================================================
-    // Firebase fallback (FALLBACK PATH)
-    // ========================================================================
-    try {
-      console.log(`☁️  Firebase: Deleting post ${postId}...`);
+    console.log(`[CommunityService] Deleting post ${postId}...`);
 
-      const postRef = doc(this.postsCollection, postId);
-      await deleteDoc(postRef);
-      console.log(`☁️  Firebase: Post ${postId} deleted successfully`);
-      // Note: This does NOT delete sub-collections (e.g., comments) automatically.
-      // If you want to also delete all comments, you need to recursively delete them.
-    } catch (error) {
-      console.error(`❌ Firebase: Error deleting post ${postId}:`, error);
-      throw new Error('Failed to delete post. Please try again.');
-    }
+    await sqliteDeletePost(postId);
+    console.log(`[CommunityService] Post ${postId} deleted successfully`);
   }
 
   /**
    * Permanently delete a comment (cannot be recovered).
-   * DUAL-MODE: SQLite primary, Firebase fallback
-   * @param postId - The ID of the post containing the comment
+   * SQLite-ONLY: Server-side only, uses SQLite repository
+   * @param postId - The ID of the post containing the comment (kept for API compatibility)
    * @param commentId - The ID of the comment to delete
    */
   async deleteComment(postId: string, commentId: string): Promise<void> {
-    // ========================================================================
-    // Try SQLite first (PRIMARY PATH)
-    // ========================================================================
-    if (checkSQLiteAvailability()) {
-      try {
-        console.log(`🗄️  SQLite: Deleting comment ${commentId} from post ${postId}...`);
-
-        await sqliteDeleteComment(commentId);
-        // SQLite repository handles comment count decrement automatically
-        console.log(`✅ SQLite: Comment ${commentId} deleted successfully`);
-        return;
-      } catch (error) {
-        console.error(`❌ SQLite: Failed to delete comment ${commentId}, falling back to Firebase:`, error);
-        // Fall through to Firebase fallback below
-      }
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot delete comment: SQLite only available server-side');
     }
 
-    // ========================================================================
-    // Firebase fallback (FALLBACK PATH)
-    // ========================================================================
-    try {
-      console.log(`☁️  Firebase: Deleting comment ${commentId} from post ${postId}...`);
+    console.log(`[CommunityService] Deleting comment ${commentId} from post ${postId}...`);
 
-      const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-      await deleteDoc(commentRef);
-
-      // After deleting the comment, decrement the commentCount on the parent post
-      const postRef = doc(db, 'posts', postId);
-      await updateDoc(postRef, {
-        commentCount: increment(-1),
-        updatedAt: serverTimestamp()
-      });
-
-      console.log(`☁️  Firebase: Comment ${commentId} deleted successfully`);
-    } catch (error) {
-      console.error(`❌ Firebase: Error deleting comment ${commentId}:`, error);
-      throw new Error('Failed to delete comment. Please try again.');
-    }
+    await sqliteDeleteComment(commentId);
+    // SQLite repository handles comment count decrement automatically
+    console.log(`[CommunityService] Comment ${commentId} deleted successfully`);
   }
 }
 
 // Export singleton instance
-export const communityService = new CommunityService(); 
+export const communityService = new CommunityService();
+
+// Re-export utility functions from repositories for API convenience
+export { buildCommentTree }; 
