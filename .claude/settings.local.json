@@ -90,7 +90,8 @@
       "Bash(npx tsx:*)",
       "Bash(chmod:*)",
       "Bash(openssl rand:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Read(//tmp/**)"
     ]
   },
   "outputStyle": "default"
