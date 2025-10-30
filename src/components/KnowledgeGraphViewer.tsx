@@ -466,7 +466,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     const linkText = linkLabel.append("text")
       .attr("class", "link-label-text")
       .text(d => d.relationship) // Display relationship type from data
-      .attr("font-size", "14px") // Increased from 10px for better readability
+      .attr("font-size", "18px") // Increased from 14px for better readability at smaller zoom
       .attr("font-weight", "600") // Slightly bolder for better visibility
       .attr("fill", "#2C2C2C") // Darker gray for better contrast
       .attr("text-anchor", "middle")
@@ -670,6 +670,15 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     zoomBehavior.current = zoom;
     svg.call(zoom);
 
+    // Set initial zoom to 0.5x for better overview
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate(dimensions.width / 2, dimensions.height / 2)
+      .scale(initialScale)
+      .translate(-dimensions.width / 2, -dimensions.height / 2);
+    svg.call(zoom.transform, initialTransform);
+    setZoomLevel(initialScale);
+
     // Cleanup function
     return () => {
       simulation.stop();
@@ -702,12 +711,19 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   // Control functions
   const resetView = useCallback(() => {
     if (!svgRef.current || !zoomBehavior.current) return;
-    
+
+    // Reset to initial 0.5x zoom for better overview
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate(dimensions.width / 2, dimensions.height / 2)
+      .scale(initialScale)
+      .translate(-dimensions.width / 2, -dimensions.height / 2);
+
     d3.select(svgRef.current)
       .transition()
       .duration(750)
-      .call(zoomBehavior.current.transform, d3.zoomIdentity);
-  }, []);
+      .call(zoomBehavior.current.transform, initialTransform);
+  }, [dimensions.width, dimensions.height]);
 
   const toggleSimulation = useCallback(() => {
     if (!simulationRef.current) return;
