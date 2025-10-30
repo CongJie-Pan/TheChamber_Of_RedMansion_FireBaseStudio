@@ -29,9 +29,11 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 
 ## 📁 Detailed File Structure & Purpose
 
-### 🤖 AI Integration (`/src/ai/`)
-- **`genkit.ts`** - Core AI configuration using Google's GenKit framework for integrating Gemini 2.0 Flash model. This file sets up the AI plugin and model configuration for all AI-powered features.
-- **`dev.ts`** - Development server configuration for AI features. Used for testing and developing AI flows in isolation.
+### 🤖 AI Integration (`/src/ai/`) - Updated Architecture (2025-10-30)
+**Migration:** Transitioned from GenKit/Gemini to direct OpenAI + Perplexity integration
+- **Scoring Engine:** OpenAI GPT-4-mini for evaluation tasks (reading comprehension, poetry, quizzes)
+- **Analysis Engine:** Perplexity Sonar for Q&A and context analysis
+- **Benefits:** Simplified architecture, no framework overhead, flexible AI provider selection
 - **`flows/`** - Contains specific AI workflow implementations:
   - **`explain-text-selection.ts`** - AI flow that provides contextual explanations for selected text passages from the novel using traditional Chinese. Analyzes user questions about specific text snippets within chapter context.
   - **`context-aware-analysis.ts`** - Provides intelligent analysis based on reading context and user progress.
@@ -101,7 +103,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **`community-service.ts`** - **✅ COMPLETED** - Comprehensive community management service with integrated content filtering. Handles posts, comments, likes, bookmarks, and user interactions with automatic content moderation and Firebase integration.
 
 ### ⚙️ Configuration Files
-- **`package.json`** - Project dependencies including Next.js 15, React 18, Firebase 11, GenKit AI, Radix UI components, and development tools.
+- **`package.json`** - Project dependencies including Next.js 15, React 18, Firebase 11, OpenAI SDK, Radix UI components, and development tools.
 - **`package-lock.json`** - Locked dependency versions ensuring consistent installations across different environments.
 - **`next.config.ts`** - Next.js configuration with TypeScript support, image optimization for multiple domains, and webpack customization for Node.js modules.
 - **`tailwind.config.ts`** - Tailwind CSS configuration with custom color schemes, Chinese font integration, animations, and design system tokens.
@@ -125,8 +127,10 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **Firebase Authentication** - Reliable, scalable authentication service with social login support. Chosen for its ease of integration and robust security features needed for user accounts in educational platforms.
 - **Firebase SDK 11** - Latest version providing improved performance and TypeScript support for better developer experience.
 
-### AI Integration
-- **Google GenKit with Gemini 2.0 Flash** - Advanced AI framework specifically designed for building AI-powered applications. Gemini 2.0 Flash provides excellent Chinese language understanding crucial for analyzing classical Chinese literature.
+### AI Integration (Updated 2025-10-30)
+- **OpenAI GPT-4-mini** - Powers scoring and grading tasks with JSON-structured responses. Excellent performance for evaluative AI tasks with cost efficiency.
+- **Perplexity Sonar** - Handles Q&A and analysis tasks with web search grounding capabilities. Ideal for contextual literary analysis requiring external knowledge.
+- **Direct API Integration** - Removed framework dependencies (GenKit) for simpler, more maintainable codebase.
 - **Zod Schema Validation** - Ensures type-safe AI inputs and outputs, critical for reliable AI interactions in educational contexts.
 
 ### Internationalization
