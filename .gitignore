@@ -58,3 +58,4 @@ GEMINI.md
 .gemini/commands
 >>>>>>> feature/GAME-001-user-level-system
 
+scripts/obsolete-migrations/
