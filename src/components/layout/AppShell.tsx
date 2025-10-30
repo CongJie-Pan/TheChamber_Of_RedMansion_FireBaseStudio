@@ -24,11 +24,11 @@
 import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   Settings,
-  ScrollText,
   LayoutDashboard,
   LogOut,
   Users,
@@ -191,8 +191,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Sidebar Header with App Logo and Title */}
         <SidebarHeader className="p-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            {/* App logo using ScrollText icon */}
-            <ScrollText className="h-8 w-8 text-primary" />
+            {/* App logo using custom circular logo */}
+            <Image
+              src="/images/logo_circle.png"
+              alt="紅樓慧讀 Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
             {/* App name with artistic font styling */}
             <h1 className="text-xl font-artistic text-white">{t('appName')}</h1>
           </Link>
