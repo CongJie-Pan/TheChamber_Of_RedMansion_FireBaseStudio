@@ -17,14 +17,11 @@
  * - Support for Traditional Chinese and English content
  */
 
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  serverTimestamp,
-  Timestamp 
-} from 'firebase/firestore';
-import { db } from './firebase';
+/**
+ * Note: Firebase removed in SQLITE-025
+ * Moderation logging now uses structured console logging
+ * TODO: Implement SQLite moderation_logs table for persistent logging
+ */
 
 // Content filtering result types
 export interface ContentAnalysisResult {
@@ -54,7 +51,7 @@ export interface ModerationLog {
   filteredContent?: string;
   analysisResult: ContentAnalysisResult;
   action: ModerationAction;
-  timestamp: Timestamp;
+  timestamp: Date | string; // Changed from Timestamp (SQLITE-025)
   reviewStatus: 'pending' | 'approved' | 'rejected';
   reviewedBy?: string;
   reviewNotes?: string;
@@ -71,7 +68,8 @@ export interface FilterConfiguration {
 }
 
 export class ContentFilterService {
-  private moderationLogsCollection = collection(db, 'moderation_logs');
+  // Moderation logging removed - using console.log for now (SQLITE-025)
+  // TODO: Implement SQLite moderation_logs repository
   
   // Default filter configuration
   private defaultConfig: FilterConfiguration = {
@@ -347,26 +345,22 @@ export class ContentFilterService {
     originalContent: string,
     analysisResult: ContentAnalysisResult
   ): Promise<void> {
-    try {
-      const logEntry: Omit<ModerationLog, 'id'> = {
-        contentId,
-        contentType,
-        authorId,
-        originalContent,
-        // Ensure filteredContent is never undefined for Firebase
-        filteredContent: analysisResult.filteredContent || originalContent,
-        analysisResult,
-        action: analysisResult.suggestedAction,
-        timestamp: serverTimestamp() as Timestamp,
-        reviewStatus: analysisResult.suggestedAction === 'flag-for-review' ? 'pending' : 'approved'
-      };
+    // Structured console logging (Firebase removed - SQLITE-025)
+    // TODO: Implement SQLite moderation_logs repository for persistent logging
+    const logEntry = {
+      contentId,
+      contentType,
+      authorId,
+      originalContent: originalContent.substring(0, 100) + (originalContent.length > 100 ? '...' : ''),
+      filteredContent: analysisResult.filteredContent?.substring(0, 100) + (analysisResult.filteredContent && analysisResult.filteredContent.length > 100 ? '...' : ''),
+      violations: analysisResult.violations.map(v => `${v.type}(${v.severity})`).join(', '),
+      action: analysisResult.suggestedAction,
+      confidence: analysisResult.confidence,
+      timestamp: new Date().toISOString(),
+      reviewStatus: analysisResult.suggestedAction === 'flag-for-review' ? 'pending' : 'approved'
+    };
 
-      await addDoc(this.moderationLogsCollection, logEntry);
-      console.log(`Moderation decision logged for content: ${contentId}`);
-    } catch (error) {
-      console.error('Error logging moderation decision:', error);
-      // Don't throw error - logging failure shouldn't block content processing
-    }
+    console.log(`📋 [ContentFilter] Moderation decision:`, JSON.stringify(logEntry, null, 2));
   }
 
   /**

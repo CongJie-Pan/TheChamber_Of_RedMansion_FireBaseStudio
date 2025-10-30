@@ -47,10 +47,9 @@ const TASK_GENERATION_CONFIG = {
   // Task type weights (probability distribution)
   typeWeights: {
     [DailyTaskType.MORNING_READING]: 25,
-    [DailyTaskType.POETRY]: 20,
-    [DailyTaskType.CHARACTER_INSIGHT]: 20,
-    [DailyTaskType.CULTURAL_EXPLORATION]: 20,
-    [DailyTaskType.COMMENTARY_DECODE]: 15,
+    [DailyTaskType.CHARACTER_INSIGHT]: 25,
+    [DailyTaskType.CULTURAL_EXPLORATION]: 25,
+    [DailyTaskType.COMMENTARY_DECODE]: 25,
   },
 
   // Difficulty mapping by user level
