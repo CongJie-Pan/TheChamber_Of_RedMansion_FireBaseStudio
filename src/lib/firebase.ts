@@ -1,20 +1,21 @@
 /**
  * @fileOverview Firebase configuration and initialization for the Red Mansion platform.
- * 
- * This file handles the complete Firebase setup including:
+ *
+ * This file handles Firebase Firestore and Storage setup for data persistence.
+ * Authentication has been migrated to NextAuth.js (Phase 4 - SQLITE-022).
+ *
+ * This file provides:
  * - App initialization with environment-based configuration
- * - Authentication service setup for user management
- * - Optional services (Firestore, Storage, Analytics) ready for future use
+ * - Firestore database for community posts, notes, highlights, and user data
+ * - Cloud Storage for file uploads and assets
  * - Development debugging and error handling
- * 
+ *
  * The configuration uses environment variables for security and flexibility
  * across different deployment environments (development, staging, production).
  */
 
 // Import Firebase core functionality
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-// Import authentication services for user login/logout functionality
-import { getAuth } from 'firebase/auth';
 // Import Firebase services for database and storage functionality
 import { getFirestore } from 'firebase/firestore'; // Database for storing user data and progress
 import { getStorage } from 'firebase/storage'; // File storage for user uploads and assets
@@ -62,9 +63,10 @@ if (!firebaseConfig.projectId) {
 // Initialize Firebase
 // This pattern prevents re-initializing the app on hot reloads in development
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
 const db = getFirestore(app); // Firestore database for community posts and user data
 const storage = getStorage(app); // Storage for user uploads and media files
 // const analytics = getAnalytics(app); // Analytics for usage tracking and insights
 
-export { app, auth, db, storage };
+// Note: Authentication has been migrated to NextAuth.js (Phase 4 - SQLITE-022)
+// For authentication, use NextAuth session via getServerSession() or useSession()
+export { app, db, storage };

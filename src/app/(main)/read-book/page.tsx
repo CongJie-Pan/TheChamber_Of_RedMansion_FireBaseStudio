@@ -2022,7 +2022,7 @@ export default function ReadBookPage() {
     const awardChapterXP = async () => {
       try {
         // Double-check user and chapter still exist
-        if (!user?.uid || !currentChapter) return;
+        if (!user?.id || !currentChapter) return;
 
         // Check again if already completed (from persistent data or local state)
         // This handles cases where state changed during the 5-second timer

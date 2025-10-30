@@ -62,8 +62,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/useLanguage";
 import { LANGUAGES } from "@/lib/translations";
@@ -165,16 +164,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   
   /**
    * User Logout Handler
-   * 
+   *
    * Handles the user logout process by:
-   * 1. Calling Firebase signOut function
-   * 2. Redirecting to login page on success
+   * 1. Calling NextAuth signOut function
+   * 2. Redirecting to login page via callbackUrl
    * 3. Logging errors for debugging
    */
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      router.push('/login'); 
+      await signOut({ callbackUrl: '/login' });
     } catch (error) {
       console.error("Logout error:", error);
     }

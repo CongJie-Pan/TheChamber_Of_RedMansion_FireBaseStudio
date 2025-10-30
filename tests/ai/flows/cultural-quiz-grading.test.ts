@@ -14,40 +14,47 @@
  * The tests use mock AI responses to avoid actual API calls.
  */
 
-// Mock the AI imports to avoid actual API calls during testing
-jest.mock('@/ai/genkit', () => ({
-  ai: {
-    defineFlow: jest.fn((config, handler) => handler),
-    definePrompt: jest.fn(() => jest.fn(() => ({
-      output: {
-        score: 80,
-        correctCount: 2,
-        totalQuestions: 3,
-        questionResults: [
-          {
-            questionNumber: 1,
-            isCorrect: true,
-            score: 100,
-            explanation: '回答正確！清代服飾確實以旗袍為主要特色。'
-          },
-          {
-            questionNumber: 2,
-            isCorrect: true,
-            score: 100,
-            explanation: '很好！您準確掌握了賈府的禮儀規範。'
-          },
-          {
-            questionNumber: 3,
-            isCorrect: false,
-            score: 40,
-            explanation: '這題回答不夠完整。元宵節除了吃湯圓，還有賞燈、猜燈謎等習俗。'
-          }
-        ],
-        feedback: '您的文化知識掌握得不錯，對清代服飾和禮儀有準確的認識。建議加強對傳統節日習俗的學習。',
-        culturalInsights: '## 文化知識深化\n\n**清代服飾文化**體現了滿族與漢族文化的融合。旗袍作為滿族傳統服飾，在清代成為主流。\n\n相關閱讀：\n- 《紅樓夢》中的服飾描寫\n- 清代禮儀制度'
+// Mock OpenAI client to avoid actual API calls during testing
+jest.mock('@/lib/openai-client', () => ({
+  getOpenAIClient: jest.fn(() => ({
+    chat: {
+      completions: {
+        create: jest.fn(async () => ({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                score: 80,
+                correctCount: 2,
+                totalQuestions: 3,
+                questionResults: [
+                  {
+                    questionNumber: 1,
+                    isCorrect: true,
+                    score: 100,
+                    explanation: '回答正確！清代服飾確實以旗袍為主要特色。'
+                  },
+                  {
+                    questionNumber: 2,
+                    isCorrect: true,
+                    score: 100,
+                    explanation: '很好！您準確掌握了賈府的禮儀規範。'
+                  },
+                  {
+                    questionNumber: 3,
+                    isCorrect: false,
+                    score: 40,
+                    explanation: '這題回答不夠完整。元宵節除了吃湯圓，還有賞燈、猜燈謎等習俗。'
+                  }
+                ],
+                feedback: '您的文化知識掌握得不錯，對清代服飾和禮儀有準確的認識。建議加強對傳統節日習俗的學習。',
+                culturalInsights: '## 文化知識深化\n\n**清代服飾文化**體現了滿族與漢族文化的融合。旗袍作為滿族傳統服飾，在清代成為主流。\n\n相關閱讀：\n- 《紅樓夢》中的服飾描寫\n- 清代禮儀制度'
+              })
+            }
+          }]
+        }))
       }
-    }))),
-  },
+    }
+  }))
 }));
 
 // Import the function to test after mocking
@@ -63,7 +70,7 @@ describe('Cultural Quiz Grading AI Flow Tests', () => {
   });
 
   afterEach(() => {
-    jest.restoreMocks();
+    jest.restoreAllMocks();
   });
 
   describe('Input Validation', () => {

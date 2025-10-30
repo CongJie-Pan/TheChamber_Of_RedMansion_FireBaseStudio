@@ -60,7 +60,6 @@ import { useToast } from '@/hooks/use-toast';
 // Services
 import { dailyTaskService } from '@/lib/daily-task-service';
 import { userLevelService } from '@/lib/user-level-service';
-import { auth } from '@/lib/firebase';
 
 // Types
 import {
@@ -214,12 +213,9 @@ export default function DailyTasksPage() {
       // LLM-only mode: skip Firestore and always fetch tasks via API
       if (llmOnly) {
         // Show loading skeletons while generating
-        const token = await auth.currentUser?.getIdToken();
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
         const resp = await fetch('/api/daily-tasks/generate', {
           method: 'POST',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user.id, userLevel: 2 }),
         });
         if (!resp.ok) {
@@ -245,12 +241,9 @@ export default function DailyTasksPage() {
         // Generate tasks in background without blocking UI
         (async () => {
           try {
-            const token = await auth.currentUser?.getIdToken();
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
             const resp = await fetch('/api/daily-tasks/generate', {
               method: 'POST',
-              headers,
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId: user.id }),
             });
             if (!resp.ok) {
@@ -368,12 +361,9 @@ export default function DailyTasksPage() {
 
     try {
       // Submit task completion via server API to ensure GPT runs server-side
-      const token = await auth.currentUser?.getIdToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch('/api/daily-tasks/submit', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, taskId, userResponse, task: selectedTask }),
       });
       if (!resp.ok) {
@@ -568,7 +558,7 @@ export default function DailyTasksPage() {
           {/* Task Calendar (collapsible) */}
           {showCalendar && (
             <div className="mb-6">
-              <TaskCalendar userId={user?.uid || ''} />
+              <TaskCalendar userId={user?.id || ''} />
             </div>
           )}
 

@@ -117,7 +117,7 @@ export default function NotesPage() {
     };
 
     fetchNotes();
-  }, [user?.uid, t, toast]);
+  }, [user?.id, t, toast]);
 
   // Handle note deletion
   const handleDeleteNote = async (noteId: string) => {

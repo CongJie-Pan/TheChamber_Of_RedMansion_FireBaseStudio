@@ -11,7 +11,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dailyTaskService } from '@/lib/daily-task-service'
 import { taskGenerator } from '@/lib/task-generator'
-import { verifyAuthHeader } from '@/lib/firebase-admin'
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isLlmOnlyMode } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
@@ -32,8 +33,9 @@ export async function POST(request: NextRequest) {
     userId = typeof body?.userId === 'string' ? body.userId.trim() : undefined
     date = typeof body?.date === 'string' ? body.date : undefined
 
-    // Try verify Firebase ID token from Authorization header (preferred)
-    verifiedUid = await verifyAuthHeader(request.headers.get('authorization'))
+    // Try verify NextAuth session (preferred)
+    const session = await getServerSession(authOptions)
+    verifiedUid = session?.user?.id || null
 
     if (!userId && !verifiedUid && !isLlmOnlyMode()) {
       return NextResponse.json(
