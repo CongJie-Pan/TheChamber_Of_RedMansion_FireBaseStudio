@@ -57,10 +57,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useToast } from '@/hooks/use-toast';
 
-// Services
-import { dailyTaskService } from '@/lib/daily-task-service';
-import { userLevelService } from '@/lib/user-level-service';
-
 // Types
 import {
   DailyTask,
@@ -87,6 +83,41 @@ interface TaskStats {
   xpEarned: number;
   currentStreak: number;
   completionRate: number;
+}
+
+/**
+ * ========================================
+ * API Wrapper Functions
+ * ========================================
+ * These functions call server-side API routes to avoid loading SQLite in browser
+ */
+
+/**
+ * Fetch user daily progress via API route
+ */
+async function getUserDailyProgress(userId: string): Promise<DailyTaskProgress | null> {
+  try {
+    const response = await fetch(
+      `/api/daily-tasks/progress?userId=${encodeURIComponent(userId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to fetch daily progress: ${response.status}`);
+      return null;
+    }
+
+    const progress = await response.json();
+    return progress;
+  } catch (error) {
+    console.error('Error fetching daily progress:', error);
+    return null;
+  }
 }
 
 /**
@@ -231,7 +262,7 @@ export default function DailyTasksPage() {
       }
 
       // Try to get existing progress first (quick check)
-      let dailyProgress = await dailyTaskService.getUserDailyProgress(user.id);
+      let dailyProgress = await getUserDailyProgress(user.id);
 
       // If no progress exists, generate new tasks in background (via server API)
       if (!dailyProgress) {
@@ -264,7 +295,7 @@ export default function DailyTasksPage() {
 
             // Fetch the newly created progress only if not in ephemeral mode
             if (!data?.ephemeral) {
-              const newProgress = await dailyTaskService.getUserDailyProgress(user.id);
+              const newProgress = await getUserDailyProgress(user.id);
               if (newProgress) {
                 setProgress(newProgress);
                 updateStats(newProgress);

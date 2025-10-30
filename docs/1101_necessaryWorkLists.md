@@ -56,12 +56,12 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
   - 其直接牽動 daily-task-service 與兩個 API 路由（generate/submit），以及 user-level-service 的 XP 落盤；
   - UI 僅需補齊「生成中」的狀態顯示，但根因仍在資料層與服務編排模組上。
 
-[] 資料庫遷移至本地SQL Lite 、刪除Google模型
+[x] 資料庫遷移至本地SQL Lite 、刪除Google模型
 [] 儀錶板功能完善、雙欄模式正常，主頁TaskBar UI 改善
   - 請修正雙欄模式為可以左右鍵正常翻頁的功能，目前沒法這樣。
-  - ok 主頁TASKBar 的ui 很普通，請改個較為美觀簡約一些，如果可以的話，希望hover每個btn有古典中國窗的效果
-  - ok 介紹頁裡面有圖不能正確顯示，並且語言設定沒有成效。
-  - 介紹頁
+  - [x] 主頁TASKBar 的ui 很普通，請改個較為美觀簡約一些，如果可以的話，希望hover每個btn有古典中國窗的效果
+  - [x] 介紹頁裡面有圖不能正確顯示，並且語言設定沒有成效。
+  - [x] 介紹頁
     - 左上角的logo需要和最左側的邊界有隔距離，而不是和紅樓慧讀 隔距離
     - 探索學習內容下方的每個區塊的文字需要調整
     - 刪除: 已有超過 1,200 名學習者選擇了我們的平台
@@ -69,5 +69,9 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
 [] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
 [] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
 [] 增加執行效率，解決 Linter Problem
+
+[] 資料庫問題
+  - 需要增加刪除帳戶的按鈕功能(在用戶設定那)
+
 [] 最後測試 (Smoking Test)
 

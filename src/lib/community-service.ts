@@ -59,6 +59,13 @@ import {
 import { toUnixTimestamp, fromUnixTimestamp } from './sqlite-db';
 import { randomUUID } from 'crypto';
 
+// Import shared type definitions (safe for client-side imports)
+import type {
+  CreatePostData,
+  CreateCommentData,
+  PostFilters,
+} from '@/types/community';
+
 // ============================================================================
 // Server-Side SQLite Enforcement
 // ============================================================================
@@ -75,29 +82,8 @@ export type CommunityPost = SQLiteCommunityPost;
 export type PostComment = SQLiteComment;
 export type { CommentTreeNode };
 
-export interface CreatePostData {
-  authorId: string;
-  authorName: string;
-  title?: string;
-  content: string;
-  tags: string[];
-  category?: string;
-}
-
-export interface CreateCommentData {
-  postId: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  parentCommentId?: string;
-}
-
-export interface PostFilters {
-  category?: string;
-  tags?: string[];
-  authorId?: string;
-  searchText?: string;
-}
+// Re-export shared types for backward compatibility
+export type { CreatePostData, CreateCommentData, PostFilters };
 
 /**
  * Result interface for content creation operations

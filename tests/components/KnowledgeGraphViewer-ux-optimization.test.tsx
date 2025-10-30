@@ -31,8 +31,6 @@ let mockFontSize: string | null = null;
 let mockZoomTransform: any = null;
 
 jest.mock('d3', () => {
-  const actualD3 = jest.requireActual('d3');
-  
   const mockSimulation = {
     nodes: jest.fn().mockReturnThis(),
     force: jest.fn().mockReturnThis(),
@@ -83,7 +81,6 @@ jest.mock('d3', () => {
   };
 
   return {
-    ...actualD3,
     forceSimulation: jest.fn(() => mockSimulation),
     forceLink: jest.fn(() => ({
       id: jest.fn().mockReturnThis(),
@@ -93,7 +90,7 @@ jest.mock('d3', () => {
     forceManyBody: jest.fn(() => ({
       strength: jest.fn().mockReturnThis(),
     })),
-    forceCenter: jest.fn(() => actualD3.forceCenter(0, 0)),
+    forceCenter: jest.fn(() => jest.fn()),
     forceCollide: jest.fn(() => ({
       radius: jest.fn().mockReturnThis(),
       strength: jest.fn().mockReturnThis(),

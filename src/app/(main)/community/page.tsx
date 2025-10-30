@@ -73,18 +73,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 
 // Firebase community service for database operations
-import {
-  communityService,
-  type CommunityPost,
-  type PostComment,
-  type CreatePostData,
-  type CreateCommentData
+// IMPORTANT: Only import types from services to avoid loading SQLite in browser
+import type {
+  CommunityPost,
+  PostComment,
+  CreatePostData,
+  CreateCommentData
 } from '@/lib/community-service';
 // SQLITE-025: Import Timestamp from local type definitions instead of Firebase
 import type { Timestamp } from '@/lib/types/daily-task'; // Or user-level types
 
-// User level service for XP awards
-import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
+// User level service for XP awards (import only types/constants, not service)
+import { XP_REWARDS } from '@/types/user-level-api';
 
 // Toast notifications for XP feedback
 import { useToast } from '@/hooks/use-toast';
@@ -270,13 +270,14 @@ function PostCard({
     setCurrentCommentsCount(initialPost.commentCount);
   }, [initialPost]);
 
-  // 即時監聽留言變化，當留言有新增、刪除、修改時自動更新
+  // 輪詢機制：定期更新留言，當留言區展開時每10秒自動刷新
   useEffect(() => {
     if (!showCommentInput) return;
-    // 設定 Firestore onSnapshot 監聽
-    const unsubscribe = communityService.setupCommentsListener(
-      initialPost.id,
-      (firebaseComments) => {
+
+    // 立即加載一次留言
+    const loadCommentsData = async () => {
+      try {
+        const firebaseComments = await fetchComments(initialPost.id);
         const localComments: LocalComment[] = firebaseComments.map(comment => ({
           id: comment.id,
           author: comment.authorName,
@@ -284,10 +285,20 @@ function PostCard({
           timestamp: formatTimestamp(comment.createdAt)
         }));
         setComments(localComments);
-        setCurrentCommentsCount(localComments.length); // 即時同步留言數
+        setCurrentCommentsCount(localComments.length); // 同步留言數
+      } catch (error) {
+        console.error('Error loading comments:', error);
       }
-    );
-    return () => unsubscribe();
+    };
+
+    // 立即執行一次
+    loadCommentsData();
+
+    // 設定輪詢：每10秒刷新一次
+    const intervalId = setInterval(loadCommentsData, 10000);
+
+    // 清理函數：組件卸載或留言區關閉時停止輪詢
+    return () => clearInterval(intervalId);
   }, [showCommentInput, initialPost.id]);
 
   const handleLike = async () => {
@@ -322,7 +333,7 @@ function PostCard({
     setIsLoadingComments(true);
     try {
       // 只在第一次展開時載入（即時監聽會自動更新）
-      const firebaseComments = await communityService.getComments(initialPost.id);
+      const firebaseComments = await fetchComments(initialPost.id);
       const localComments: LocalComment[] = firebaseComments.map(comment => ({
         id: comment.id,
         author: comment.authorName,
@@ -378,7 +389,7 @@ function PostCard({
     if (!user || user.name !== commentAuthor) return;
     if (!window.confirm('確定要永久刪除此留言？此操作無法復原。')) return;
     try {
-      await communityService.deleteComment(initialPost.id, commentId);
+      await deleteCommentAPI(initialPost.id, commentId);
       // 主動刷新一次留言，確保畫面立即更新
       await loadComments();
     } catch (error) {
@@ -609,6 +620,254 @@ function PostCard({
   );
 }
 
+/**
+ * ========================================
+ * API Wrapper Functions
+ * ========================================
+ * These functions call server-side API routes to avoid loading SQLite in browser
+ */
+
+/**
+ * Award XP to user via API route
+ */
+async function awardXP(
+  userId: string,
+  amount: number,
+  reason: string,
+  source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
+  sourceId?: string
+) {
+  const response = await fetch('/api/user-level/award-xp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userId,
+      amount,
+      reason,
+      source,
+      sourceId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to award XP (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to award XP');
+  }
+
+  return result;
+}
+
+/**
+ * Fetch posts via API route
+ */
+async function fetchPosts(category?: string, tags?: string[], limit?: number): Promise<CommunityPost[]> {
+  const params = new URLSearchParams();
+  if (category) params.append('category', category);
+  if (tags && tags.length > 0) params.append('tags', tags.join(','));
+  if (limit) params.append('limit', limit.toString());
+
+  const response = await fetch(`/api/community/posts?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch posts (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch posts');
+  }
+
+  return result.posts || [];
+}
+
+/**
+ * Create post via API route (using existing API)
+ */
+async function createPostAPI(postData: CreatePostData) {
+  const response = await fetch('/api/community/posts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(postData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to create post (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to create post');
+  }
+
+  return result;
+}
+
+/**
+ * Delete post via API route
+ */
+async function deletePostAPI(postId: string): Promise<void> {
+  const response = await fetch(`/api/community/posts?postId=${encodeURIComponent(postId)}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete post (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete post');
+  }
+}
+
+/**
+ * Toggle post like via API route
+ */
+async function togglePostLikeAPI(postId: string, userId: string, isLiking: boolean): Promise<boolean> {
+  if (isLiking) {
+    // Like the post
+    const response = await fetch(`/api/community/posts/${postId}/like`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to like post (${response.status})`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to like post');
+    }
+
+    return result.likeChanged;
+  } else {
+    // Unlike the post
+    const response = await fetch(`/api/community/posts/${postId}/like?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to unlike post (${response.status})`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to unlike post');
+    }
+
+    return true; // Always return true for unlike
+  }
+}
+
+/**
+ * Fetch comments via API route
+ */
+async function fetchComments(postId: string, limit?: number): Promise<PostComment[]> {
+  const params = new URLSearchParams();
+  if (limit) params.append('limit', limit.toString());
+
+  const response = await fetch(`/api/community/posts/${postId}/comments?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch comments (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch comments');
+  }
+
+  return result.comments || [];
+}
+
+/**
+ * Add comment via API route
+ */
+async function addCommentAPI(commentData: CreateCommentData) {
+  const response = await fetch(`/api/community/posts/${commentData.postId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(commentData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to add comment (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to add comment');
+  }
+
+  return result;
+}
+
+/**
+ * Delete comment via API route
+ */
+async function deleteCommentAPI(postId: string, commentId: string): Promise<void> {
+  const response = await fetch(
+    `/api/community/posts/${postId}/comments?commentId=${encodeURIComponent(commentId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete comment (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete comment');
+  }
+}
+
 export default function CommunityPage() {
   const { t } = useLanguage();
   const { user, refreshUserProfile } = useAuth();
@@ -635,7 +894,7 @@ export default function CommunityPage() {
     setError(null);
     
     try {
-      const firebasePosts = await communityService.getPosts();
+      const firebasePosts = await fetchPosts();
       const localPosts = firebasePosts.map(post => convertFirebasePost(post, user?.id));
       setPosts(localPosts);
     } catch (error) {
@@ -664,12 +923,12 @@ export default function CommunityPage() {
         category: 'discussion'
       };
 
-      const result = await communityService.createPost(postData);
+      const result = await createPostAPI(postData);
 
       // Award XP for post creation only if content was not filtered or warned
       if (result.moderationAction === 'allow') {
         try {
-          const xpResult = await userLevelService.awardXP(
+          const xpResult = await awardXP(
             user.id,
             XP_REWARDS.POST_CREATED,
             'Created community post',
@@ -744,7 +1003,7 @@ export default function CommunityPage() {
     }
 
     try {
-      const likeChanged = await communityService.togglePostLike(postId, user.id, isLiking);
+      const likeChanged = await togglePostLikeAPI(postId, user.id, isLiking);
 
       // Award XP only when liking (not un-liking)
       if (isLiking && likeChanged) {
@@ -753,7 +1012,7 @@ export default function CommunityPage() {
           // This prevents duplicate XP for like/unlike/re-like on the same post
           const sourceId = `like-${user.id}-${postId}`;
 
-          const result = await userLevelService.awardXP(
+          const result = await awardXP(
             user.id,
             XP_REWARDS.LIKE_RECEIVED, // Award to the person giving the like
             'Liked community post',
@@ -810,17 +1069,17 @@ export default function CommunityPage() {
         content: content
       };
 
-      const result = await communityService.addComment(commentData);
+      const result = await addCommentAPI(commentData);
 
       // Award XP for comment creation only if content was not filtered or warned
       if (result.moderationAction === 'allow') {
         try {
-          const xpResult = await userLevelService.awardXP(
+          const xpResult = await awardXP(
             user.id,
             XP_REWARDS.COMMENT_CREATED,
             'Created community comment',
             'community',
-            `${postId}-${result.id}`
+            `${postId}-${result.commentId}`
           );
 
           // Show toast notification with XP award
@@ -865,7 +1124,7 @@ export default function CommunityPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await communityService.deletePost(postId);
+      await deletePostAPI(postId);
       // Remove the deleted post from local state
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
     } catch (error) {

@@ -111,12 +111,12 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // Utility for text transformation based on language
-import { saveNote, getNotesByUserAndChapter, Note, deleteNoteById, updateNote, updateNoteVisibility } from '@/lib/notes-service';
-import { communityService, type CreatePostData } from '@/lib/community-service';
+import type { Note } from '@/types/notes-api';
+import type { CreatePostData, CreatePostResponse } from '@/types/community';
 import { useAuth } from '@/hooks/useAuth';
 
-// XP Integration for gamification
-import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
+// XP Integration for gamification (using shared types, not service directly)
+import { XP_REWARDS } from '@/types/user-level-api';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
 
@@ -269,6 +269,175 @@ const highlightText = (text: string, highlight: string): React.ReactNode[] => {
   return result.length > 0 ? result : [text];
 };
 
+/**
+ * ========================================
+ * API Wrapper Functions
+ * ========================================
+ * These functions call server-side API routes to avoid loading SQLite in browser
+ */
+
+/**
+ * Award XP to user via API route
+ */
+async function awardXP(
+  userId: string,
+  amount: number,
+  reason: string,
+  source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
+  sourceId?: string
+) {
+  const response = await fetch('/api/user-level/award-xp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userId,
+      amount,
+      reason,
+      source,
+      sourceId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to award XP (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to award XP');
+  }
+
+  return result;
+}
+
+/**
+ * Fetch notes for user and chapter via API route
+ */
+async function fetchNotes(userId: string, chapterId: number): Promise<Note[]> {
+  const response = await fetch(
+    `/api/notes?userId=${encodeURIComponent(userId)}&chapterId=${chapterId}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to fetch notes (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch notes');
+  }
+
+  return result.notes || [];
+}
+
+/**
+ * Save note via API route
+ */
+async function saveNoteAPI(note: Omit<Note, 'id' | 'createdAt'>): Promise<string> {
+  const response = await fetch('/api/notes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(note),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to save note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to save note');
+  }
+
+  return result.noteId;
+}
+
+/**
+ * Update note via API route
+ */
+async function updateNoteAPI(id: string, content: string): Promise<void> {
+  const response = await fetch('/api/notes', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, content }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to update note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to update note');
+  }
+}
+
+/**
+ * Delete note via API route
+ */
+async function deleteNoteAPI(id: string): Promise<void> {
+  const response = await fetch(`/api/notes?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to delete note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete note');
+  }
+}
+
+/**
+ * Update note visibility via API route
+ */
+async function updateNoteVisibilityAPI(id: string, isPublic: boolean): Promise<void> {
+  const response = await fetch('/api/notes/visibility', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, isPublic }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to update note visibility (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to update note visibility');
+  }
+}
 
 export default function ReadBookPage() {
   const router = useRouter();
@@ -401,6 +570,40 @@ export default function ReadBookPage() {
     setSessions(prev => [...prev, newSession]);
     setActiveSessionId(newSession.id);
     return newSession.id;
+  };
+
+  /**
+   * Share note to community via API route
+   *
+   * This function calls the server-side API to create a community post.
+   * Replaces direct communityService.createPost() calls to avoid
+   * client-side imports of SQLite dependencies.
+   *
+   * @param postData - Post data to share
+   * @returns Promise that resolves when post is created
+   * @throws Error if API request fails
+   */
+  const shareToCommunity = async (postData: CreatePostData): Promise<void> => {
+    const response = await fetch('/api/community/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `Failed to share note to community (${response.status})`);
+    }
+
+    const result: CreatePostResponse = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create community post');
+    }
+
+    console.log(`✅ Community post created successfully: ${result.postId}`);
   };
 
   // Load sessions (with legacy migration)
@@ -1121,11 +1324,11 @@ export default function ReadBookPage() {
             try {
               console.log(`🎯 Attempting to award first AI question achievement...`);
 
-              const result = await userLevelService.awardXP(
+              const result = await awardXP(
                 user.id,
                 XP_REWARDS.AI_FIRST_QUESTION_ACHIEVEMENT,
                 '心有疑，隨札記 - First AI question asked',
-                'ai_interaction',
+                'achievement',
                 'achievement-first-ai-question' // Fixed sourceId for one-time achievement
               );
 
@@ -1878,7 +2081,7 @@ export default function ReadBookPage() {
 
   useEffect(() => {
     if (user?.id && currentChapter) {
-      getNotesByUserAndChapter(user.id, currentChapter.id).then(setUserNotes);
+      fetchNotes(user.id, currentChapter.id).then(setUserNotes);
     } else {
       setUserNotes([]);
     }
@@ -1895,7 +2098,7 @@ export default function ReadBookPage() {
 
     const awardWelcomeBonus = async () => {
       try {
-        const result = await userLevelService.awardXP(
+        const result = await awardXP(
           user.id,
           XP_REWARDS.NEW_USER_WELCOME_BONUS,
           'Welcome to reading! First-time reader bonus',
@@ -1948,7 +2151,7 @@ export default function ReadBookPage() {
         const timestamp = Date.now();
         const sourceId = `reading-time-${user.id}-${timestamp}`;
 
-        const result = await userLevelService.awardXP(
+        const result = await awardXP(
           user.id,
           XP_REWARDS.READING_TIME_15MIN,
           'Reading for 15 minutes',
@@ -2045,7 +2248,7 @@ export default function ReadBookPage() {
         const isFirstChapter = currentChapter.id === 1;
         const xpAmount = isFirstChapter ? XP_REWARDS.FIRST_CHAPTER_COMPLETED : XP_REWARDS.CHAPTER_COMPLETED;
 
-          const result = await userLevelService.awardXP(
+          const result = await awardXP(
             user.id,
             xpAmount,
             `Completed chapter ${currentChapter.id}`,
@@ -2115,12 +2318,12 @@ export default function ReadBookPage() {
 
       if (currentNoteObj?.id) {
         // Update existing note - no XP for updates
-        await updateNote(currentNoteObj.id, currentNote);
+        await updateNoteAPI(currentNoteObj.id, currentNote);
 
         // Update visibility if changed
         const previousPublicStatus = currentNoteObj.isPublic || false;
         if (isNotePublic !== previousPublicStatus) {
-          await updateNoteVisibility(currentNoteObj.id, isNotePublic);
+          await updateNoteVisibilityAPI(currentNoteObj.id, isNotePublic);
 
           // If changed from private to public, share to community
           if (isNotePublic && !previousPublicStatus) {
@@ -2143,7 +2346,7 @@ ${selectedTextContent}
                 category: 'discussion'
               };
 
-              await communityService.createPost(postData);
+              await shareToCommunity(postData);
               console.log(`✅ Updated note shared to community`);
             } catch (communityError) {
               console.error('Error sharing updated note to community:', communityError);
@@ -2161,8 +2364,8 @@ ${selectedTextContent}
           note: currentNote,
           isPublic: isNotePublic,
         };
-        const noteId = await saveNote(noteToSave);
-        console.log(`📝 Note saved to Firestore with ID: ${noteId}, content length: ${currentNote.length} chars, isPublic: ${isNotePublic}`);
+        const noteId = await saveNoteAPI(noteToSave);
+        console.log(`📝 Note saved with ID: ${noteId}, content length: ${currentNote.length} chars, isPublic: ${isNotePublic}`);
 
         // If note is public, share it to community
         if (isNotePublic) {
@@ -2186,7 +2389,7 @@ ${selectedTextContent}
               category: 'discussion'
             };
 
-            await communityService.createPost(postData);
+            await shareToCommunity(postData);
             console.log(`✅ Public note shared to community`);
           } catch (communityError) {
             console.error('Error sharing note to community:', communityError);
@@ -2214,11 +2417,11 @@ ${selectedTextContent}
           const contentHash = simpleHash(noteSelectedText || toolbarInfo?.text || selectedTextInfo?.text || '');
           const sourceId = `note-ch${currentChapter.id}-${contentHash}`;
 
-          const result = await userLevelService.awardXP(
+          const result = await awardXP(
             user.id,
             xpAmount,
             isQualityNote ? 'Created quality note' : 'Created note',
-            'reading',
+            'note',
             sourceId
           );
 
@@ -2281,7 +2484,7 @@ ${selectedTextContent}
     if (!user?.id || !currentNoteObj?.id) return;
 
     try {
-      await deleteNoteById(currentNoteObj.id);
+      await deleteNoteAPI(currentNoteObj.id);
       await fetchNotesForChapter(); // Refresh notes from the database
 
       // Close sheet and reset states
@@ -2444,7 +2647,7 @@ ${selectedTextContent}
 
   const fetchNotesForChapter = useCallback(async () => {
     if (user?.id && currentChapter) {
-      const notes = await getNotesByUserAndChapter(user.id, currentChapter.id);
+      const notes = await fetchNotes(user.id, currentChapter.id);
       setUserNotes(notes);
     }
   }, [user, currentChapter]);
