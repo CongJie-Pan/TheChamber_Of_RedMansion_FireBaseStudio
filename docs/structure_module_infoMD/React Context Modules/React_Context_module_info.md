@@ -110,10 +110,49 @@ graph LR
   import { useLanguage } from '@/hooks/useLanguage';
 
   function UserProfileDisplay() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { t } = useLanguage();
 
-    return <h1>{t('welcome')}, {user?.displayName}!</h1>;
+    // NextAuth user properties: user.id, user.name, user.email, user.image
+    // SQLite user profile: userProfile.currentLevel, userProfile.totalXP, userProfile.isGuest
+    return <h1>{t('welcome')}, {user?.name}!</h1>;
   }
   ```
 * **Testing:** This module is primarily tested through integration tests that wrap components with the `AuthProvider` and `LanguageProvider`. Tests in files like `login-functionality.test.tsx` verify that components react correctly to changes in authentication state. Similarly, UI tests can assert that text content changes when the language is switched.
+
+---
+
+## 7. Changelog
+
+### 2025-10-30 - SQLITE-023: UI Components NextAuth Migration
+**Changes:**
+- All components consuming `AuthContext` via `useAuth()` hook updated to use NextAuth properties
+- Property mapping applied across 8 UI files:
+  - `user.uid` → `user.id` (54 instances)
+  - `user.displayName` → `user.name` (12 instances)
+  - `user.isAnonymous` → `userProfile?.isGuest` (5 instances)
+- **Impact:** AuthContext now provides dual data sources:
+  - `user` object: NextAuth session data (id, name, email, image)
+  - `userProfile` object: SQLite user data (currentLevel, totalXP, isGuest)
+- **Architecture:** Components must destructure both `user` and `userProfile` from `useAuth()`
+- **Verification:** 0 Firebase user properties remaining in UI layer
+- **Documentation:** SQLITE-023_COMPLETION_SUMMARY.md created
+
+### 2025-10-30 - SQLITE-022: AuthContext NextAuth Migration
+**Changes:**
+- `AuthContext.tsx` refactored to use NextAuth.js instead of Firebase Authentication
+- Replaced Firebase `onAuthStateChanged` with NextAuth `useSession` hook
+- User profile data now loaded from SQLite via `userLevelService.loadUserProfile()`
+- AuthContext now provides: `{ user, userProfile, isLoading, refreshUserProfile }`
+- **Session Management:** JWT-based stateless sessions with dynamic expiration
+  - Default: 24 hours
+  - Remember Me: 30 days
+- **Guest Users:** Supported via custom `createGuestUser` credential provider
+- **Impact:** All components using `useAuth()` must access `userProfile` for SQLite data (level, XP, guest status)
+- **Breaking Changes:** Removed Firebase authentication methods from context (signInWithGoogle, signInAsGuest, etc.)
+- **Migration Path:** Authentication methods moved to dedicated pages calling NextAuth `signIn()` directly
+
+### Earlier
+- Initial implementation with Firebase Authentication
+- Language context implemented with localStorage persistence
+- Support for Traditional Chinese, Simplified Chinese, and English

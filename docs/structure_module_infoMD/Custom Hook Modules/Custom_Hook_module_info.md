@@ -156,3 +156,32 @@ graph LR
   }
   ```
 * **Testing:** Custom hooks are tested in two main ways: 1) Directly, using a testing utility like `@testing-library/react-hooks` to render the hook and assert its return values. 2) Indirectly, by testing components that use the hook and mocking the context they depend on. For example, a component using `useAuth` can be tested by wrapping it in a mock `AuthProvider`.
+
+---
+
+## 7. Changelog
+
+### 2025-10-30 - SQLITE-023: UI Components NextAuth Migration
+**Changes:**
+- All UI components (8 files) updated to use NextAuth user properties
+- Property mapping applied across codebase:
+  - `user.uid` → `user.id` (54 instances)
+  - `user.displayName` → `user.name` (12 instances)
+  - `user.isAnonymous` → `userProfile?.isGuest` (5 instances)
+- Files updated: account-settings, daily-tasks, notes, community, read-book pages; AppShell, DailyTasksSummary, UserProfile components
+- **Impact:** All components now consistently use `useAuth()` hook with NextAuth session data
+- **Verification:** 0 Firebase user properties remaining in UI layer
+- **Documentation:** SQLITE-023_COMPLETION_SUMMARY.md created
+
+### 2025-10-30 - SQLITE-022: AuthContext NextAuth Migration
+**Changes:**
+- `useAuth()` hook updated to work with NextAuth.js instead of Firebase
+- Removed Firebase authentication methods (signInWithGoogle, signInWithEmail, signUpWithEmail, signInAsGuest)
+- Updated `getUserDisplayInfo()` to return NextAuth user properties
+- Hook now returns: `{ user, userProfile, isLoading, refreshUserProfile, logout, getUserDisplayInfo }`
+- `user` object structure changed: Firebase User → NextAuth Session User
+- **Impact:** Components using `useAuth()` must access `userProfile` for guest status
+
+### Earlier
+- Initial implementation with Firebase Authentication
+- Hooks created: `useAuth()`, `useLanguage()`, `useIsMobile()`
