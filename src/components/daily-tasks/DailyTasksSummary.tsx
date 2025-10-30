@@ -57,7 +57,7 @@ export const DailyTasksSummary: React.FC = () => {
     setError(null);
 
     try {
-      const todayProgress = await dailyTaskClientService.getUserDailyProgress(user.uid);
+      const todayProgress = await dailyTaskClientService.getUserDailyProgress(user.id);
       setProgress(todayProgress);
     } catch (error) {
       console.error('Error loading daily tasks progress:', error);

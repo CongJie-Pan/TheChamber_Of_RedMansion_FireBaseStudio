@@ -197,7 +197,7 @@ function NewPostForm({ onPostSubmit, t, isLoading }: {
             style={{ fontSize: '32px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           ></i>
           <div className="flex-grow">
-            <p className="font-semibold text-white mb-1">{user?.displayName || t('community.anonymousUser')}</p>
+            <p className="font-semibold text-white mb-1">{user?.name || t('community.anonymousUser')}</p>
             <Textarea
               placeholder={t('placeholders.postContent')}
               value={postContent}
@@ -362,7 +362,7 @@ function PostCard({
 
   // Handler for deleting a post (only for the author)
   const handleDelete = async () => {
-    if (!user || user.uid !== initialPost.authorId) return;
+    if (!user || user.id !== initialPost.authorId) return;
     if (!window.confirm('確定要永久刪除此貼文？此操作無法復原。')) return;
     try {
       await onDelete(initialPost.id);
@@ -374,7 +374,7 @@ function PostCard({
 
   // Handler for deleting a comment (only for the author)
   const handleDeleteComment = async (commentId: string, commentAuthor: string) => {
-    if (!user || user.displayName !== commentAuthor) return;
+    if (!user || user.name !== commentAuthor) return;
     if (!window.confirm('確定要永久刪除此留言？此操作無法復原。')) return;
     try {
       await communityService.deleteComment(initialPost.id, commentId);
@@ -443,7 +443,7 @@ function PostCard({
             <p className="text-xs text-muted-foreground">{initialPost.timestamp}</p>
           </div>
           {/* Show delete button only for the author */}
-          {user && user.uid === initialPost.authorId && (
+          {user && user.id === initialPost.authorId && (
             <Button
               variant="destructive"
               size="sm"
@@ -552,7 +552,7 @@ function PostCard({
                     <span>{comment.text}</span>
                   </div>
                   {/* Show delete button only for the comment author */}
-                  {user && user.displayName === comment.author && (
+                  {user && user.name === comment.author && (
                     <Button
                       variant="destructive"
                       size="sm"
@@ -635,7 +635,7 @@ export default function CommunityPage() {
     
     try {
       const firebasePosts = await communityService.getPosts();
-      const localPosts = firebasePosts.map(post => convertFirebasePost(post, user?.uid));
+      const localPosts = firebasePosts.map(post => convertFirebasePost(post, user?.id));
       setPosts(localPosts);
     } catch (error) {
       console.error('Error loading posts:', error);
@@ -656,8 +656,8 @@ export default function CommunityPage() {
 
     try {
       const postData: CreatePostData = {
-        authorId: user.uid,
-        authorName: user.displayName || '匿名用戶',
+        authorId: user.id,
+        authorName: user.name || '匿名用戶',
         content: content,
         tags: [t('community.postTagNew')], // Default tag for new posts
         category: 'discussion'
@@ -669,7 +669,7 @@ export default function CommunityPage() {
       if (result.moderationAction === 'allow') {
         try {
           const xpResult = await userLevelService.awardXP(
-            user.uid,
+            user.id,
             XP_REWARDS.POST_CREATED,
             'Created community post',
             'community',
@@ -711,8 +711,8 @@ export default function CommunityPage() {
       // Add new post optimistically to local state
       const newPost: LocalPost = {
         id: result.id,
-        authorId: user.uid,
-        authorName: user.displayName || '匿名用戶',
+        authorId: user.id,
+        authorName: user.name || '匿名用戶',
         timestamp: '剛剛',
         content: content,
         likes: 0,
@@ -743,17 +743,17 @@ export default function CommunityPage() {
     }
 
     try {
-      const likeChanged = await communityService.togglePostLike(postId, user.uid, isLiking);
+      const likeChanged = await communityService.togglePostLike(postId, user.id, isLiking);
 
       // Award XP only when liking (not un-liking)
       if (isLiking && likeChanged) {
         try {
           // Generate unique sourceId based on user-post combination
           // This prevents duplicate XP for like/unlike/re-like on the same post
-          const sourceId = `like-${user.uid}-${postId}`;
+          const sourceId = `like-${user.id}-${postId}`;
 
           const result = await userLevelService.awardXP(
-            user.uid,
+            user.id,
             XP_REWARDS.LIKE_RECEIVED, // Award to the person giving the like
             'Liked community post',
             'community',
@@ -804,8 +804,8 @@ export default function CommunityPage() {
     try {
       const commentData: CreateCommentData = {
         postId: postId,
-        authorId: user.uid,
-        authorName: user.displayName || '匿名用戶',
+        authorId: user.id,
+        authorName: user.name || '匿名用戶',
         content: content
       };
 
@@ -815,7 +815,7 @@ export default function CommunityPage() {
       if (result.moderationAction === 'allow') {
         try {
           const xpResult = await userLevelService.awardXP(
-            user.uid,
+            user.id,
             XP_REWARDS.COMMENT_CREATED,
             'Created community comment',
             'community',

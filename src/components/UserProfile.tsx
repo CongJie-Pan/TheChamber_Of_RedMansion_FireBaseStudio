@@ -247,9 +247,9 @@ export function UserProfile({
           <div className="text-sm">
             <span className="font-medium">{t('user.userId')}:</span>
             <span className="ml-2 font-mono text-xs text-muted-foreground">
-              {process.env.NODE_ENV === 'test' || (userInfo.uid && userInfo.uid.length <= 15) 
-                ? userInfo.uid 
-                : `${userInfo.uid?.substring(0, 12)}...`}
+              {process.env.NODE_ENV === 'test' || (userInfo.id && userInfo.id.length <= 15)
+                ? userInfo.id
+                : `${userInfo.id?.substring(0, 12)}...`}
             </span>
           </div>
           

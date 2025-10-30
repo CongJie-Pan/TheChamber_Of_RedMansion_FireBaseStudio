@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (!user) return;
 
       try {
-        const progress = await dailyTaskClientService.getUserDailyProgress(user.uid);
+        const progress = await dailyTaskClientService.getUserDailyProgress(user.id);
         if (progress) {
           const totalTasks = progress.tasks.length;
           const completedTasks = progress.completedTaskIds.length;
@@ -259,7 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {/* User information display */}
                   <div className="text-left">
                     {/* Display name with fallback to anonymous user label */}
-                    <p className="text-sm font-medium text-sidebar-foreground truncate">{user.displayName || t('community.anonymousUser')}</p>
+                    <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name || t('community.anonymousUser')}</p>
                     {/* User email address */}
                     <p className="text-xs text-sidebar-foreground/70 truncate">{user.email}</p>
                   </div>

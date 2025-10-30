@@ -1118,12 +1118,12 @@ export default function ReadBookPage() {
           setActiveSessionMessages(prev => [...prev, userMessage]);
 
           // Award XP for first AI question (one-time achievement)
-          if (user?.uid) {
+          if (user?.id) {
             try {
               console.log(`🎯 Attempting to award first AI question achievement...`);
 
               const result = await userLevelService.awardXP(
-                user.uid,
+                user.id,
                 XP_REWARDS.AI_FIRST_QUESTION_ACHIEVEMENT,
                 '心有疑，隨札記 - First AI question asked',
                 'ai_interaction',
@@ -1878,16 +1878,16 @@ export default function ReadBookPage() {
   const [userNotes, setUserNotes] = useState<Note[]>([]);
 
   useEffect(() => {
-    if (user?.uid && currentChapter) {
-      getNotesByUserAndChapter(user.uid, currentChapter.id).then(setUserNotes);
+    if (user?.id && currentChapter) {
+      getNotesByUserAndChapter(user.id, currentChapter.id).then(setUserNotes);
     } else {
       setUserNotes([]);
     }
-  }, [user?.uid, currentChapter.id]);
+  }, [user?.id, currentChapter.id]);
 
   // One-time welcome bonus for new users entering reading page
   useEffect(() => {
-    if (!user?.uid || !userProfile) return;
+    if (!user?.id || !userProfile) return;
 
     // Check if user has already received welcome bonus
     if (userProfile.hasReceivedWelcomeBonus) {
@@ -1897,16 +1897,16 @@ export default function ReadBookPage() {
     const awardWelcomeBonus = async () => {
       try {
         const result = await userLevelService.awardXP(
-          user.uid,
+          user.id,
           XP_REWARDS.NEW_USER_WELCOME_BONUS,
           'Welcome to reading! First-time reader bonus',
           'reading',
-          `welcome-bonus-${user.uid}` // Unique ID per user to prevent duplicates
+          `welcome-bonus-${user.id}` // Unique ID per user to prevent duplicates
         );
 
         // Update hasReceivedWelcomeBonus flag in user profile
         if (result.success && !result.isDuplicate) {
-          const userRef = doc(db, 'users', user.uid);
+          const userRef = doc(db, 'users', user.id);
           await updateDoc(userRef, {
             hasReceivedWelcomeBonus: true,
           });
@@ -1929,21 +1929,21 @@ export default function ReadBookPage() {
 
     // Award welcome bonus immediately
     awardWelcomeBonus();
-  }, [user?.uid, userProfile, refreshUserProfile]);
+  }, [user?.id, userProfile, refreshUserProfile]);
 
   // Reading time tracking - award 3 XP every 15 minutes
   useEffect(() => {
-    if (!user?.uid || !userProfile) return;
+    if (!user?.id || !userProfile) return;
 
     // Award reading time XP function
     const awardReadingTimeXP = async () => {
       try {
         // Generate timestamp-based sourceId to prevent duplicate awards
         const timestamp = Date.now();
-        const sourceId = `reading-time-${user.uid}-${timestamp}`;
+        const sourceId = `reading-time-${user.id}-${timestamp}`;
 
         const result = await userLevelService.awardXP(
-          user.uid,
+          user.id,
           XP_REWARDS.READING_TIME_15MIN,
           'Reading for 15 minutes',
           'reading',
@@ -1982,7 +1982,7 @@ export default function ReadBookPage() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [user?.uid, userProfile, refreshUserProfile, t, toast]);
+  }, [user?.id, userProfile, refreshUserProfile, t, toast]);
 
   // Sync completedChapters from userProfile to local state
   // This ensures we don't show achievement notifications for already-completed chapters
@@ -1994,7 +1994,7 @@ export default function ReadBookPage() {
 
   // Chapter completion tracking - award XP when navigating to new chapter
   useEffect(() => {
-    if (!user?.uid || !currentChapter) {
+    if (!user?.id || !currentChapter) {
       // Clear timer if user logs out or chapter disappears
       if (chapterTimerRef.current) {
         clearTimeout(chapterTimerRef.current);
@@ -2040,7 +2040,7 @@ export default function ReadBookPage() {
         const xpAmount = isFirstChapter ? XP_REWARDS.FIRST_CHAPTER_COMPLETED : XP_REWARDS.CHAPTER_COMPLETED;
 
           const result = await userLevelService.awardXP(
-            user.uid,
+            user.id,
             xpAmount,
             `Completed chapter ${currentChapter.id}`,
           'reading',
@@ -2099,10 +2099,10 @@ export default function ReadBookPage() {
         chapterTimerRef.current = null;
       }
     };
-  }, [user?.uid, currentChapter?.id, completedChapters]);
+  }, [user?.id, currentChapter?.id, completedChapters]);
 
   const handleSaveNote = async () => {
-    if (!user?.uid || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
+    if (!user?.id || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
 
     try {
       const selectedTextContent = noteSelectedText || toolbarInfo?.text || selectedTextInfo?.text || '';
@@ -2130,8 +2130,8 @@ ${selectedTextContent}
 來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
 
               const postData: CreatePostData = {
-                authorId: user.uid,
-                authorName: user.displayName || '匿名讀者',
+                authorId: user.id,
+                authorName: user.name || '匿名讀者',
                 content: postContent,
                 tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
                 category: 'discussion'
@@ -2149,7 +2149,7 @@ ${selectedTextContent}
       } else {
         // Create new note
         const noteToSave: Omit<Note, 'id' | 'createdAt'> = {
-          userId: user.uid,
+          userId: user.id,
           chapterId: currentChapter.id, // Use number, not string
           selectedText: selectedTextContent,
           note: currentNote,
@@ -2173,8 +2173,8 @@ ${selectedTextContent}
 來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
 
             const postData: CreatePostData = {
-              authorId: user.uid,
-              authorName: user.displayName || '匿名讀者',
+              authorId: user.id,
+              authorName: user.name || '匿名讀者',
               content: postContent,
               tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
               category: 'discussion'
@@ -2209,7 +2209,7 @@ ${selectedTextContent}
           const sourceId = `note-ch${currentChapter.id}-${contentHash}`;
 
           const result = await userLevelService.awardXP(
-            user.uid,
+            user.id,
             xpAmount,
             isQualityNote ? 'Created quality note' : 'Created note',
             'reading',
@@ -2272,7 +2272,7 @@ ${selectedTextContent}
   };
 
   const handleDeleteNote = async () => {
-    if (!user?.uid || !currentNoteObj?.id) return;
+    if (!user?.id || !currentNoteObj?.id) return;
 
     try {
       await deleteNoteById(currentNoteObj.id);
@@ -2437,8 +2437,8 @@ ${selectedTextContent}
     : null;
 
   const fetchNotesForChapter = useCallback(async () => {
-    if (user?.uid && currentChapter) {
-      const notes = await getNotesByUserAndChapter(user.uid, currentChapter.id);
+    if (user?.id && currentChapter) {
+      const notes = await getNotesByUserAndChapter(user.id, currentChapter.id);
       setUserNotes(notes);
     }
   }, [user, currentChapter]);

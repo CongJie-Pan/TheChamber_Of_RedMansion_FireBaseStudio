@@ -98,7 +98,7 @@ interface TaskStats {
  */
 export default function DailyTasksPage() {
   const { t } = useLanguage();
-  const { user, refreshUserProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const llmOnly = process.env.NEXT_PUBLIC_LLM_ONLY_MODE === 'true';
 
@@ -147,9 +147,9 @@ export default function DailyTasksPage() {
   useEffect(() => {
     if (user) {
       // Check if user is a guest (anonymous user)
-      if (!llmOnly && user.isAnonymous) {
+      if (!llmOnly && userProfile?.isGuest) {
         // Check if we've already reset tasks in this session
-        const sessionKey = `guest-tasks-reset-${user.uid}`;
+        const sessionKey = `guest-tasks-reset-${user.id}`;
         const hasResetInSession = sessionStorage.getItem(sessionKey);
 
         if (!hasResetInSession) {
@@ -172,14 +172,14 @@ export default function DailyTasksPage() {
    * Deletes today's progress and regenerates tasks for testing
    */
   const resetTodayTasksForGuest = async () => {
-    if (!user || !user.isAnonymous || llmOnly) return;
+    if (!user || !userProfile?.isGuest || llmOnly) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
       // Delete today's progress
-      await dailyTaskService.deleteTodayProgress(user.uid);
+      await dailyTaskService.deleteTodayProgress(user.id);
 
       // Load tasks (which will regenerate them)
       await loadDailyTasks();
@@ -220,7 +220,7 @@ export default function DailyTasksPage() {
         const resp = await fetch('/api/daily-tasks/generate', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ userId: user.uid, userLevel: 2 }),
+          body: JSON.stringify({ userId: user.id, userLevel: 2 }),
         });
         if (!resp.ok) {
           const errJson = await resp.json().catch(() => ({}));
@@ -235,7 +235,7 @@ export default function DailyTasksPage() {
       }
 
       // Try to get existing progress first (quick check)
-      let dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+      let dailyProgress = await dailyTaskService.getUserDailyProgress(user.id);
 
       // If no progress exists, generate new tasks in background (via server API)
       if (!dailyProgress) {
@@ -251,7 +251,7 @@ export default function DailyTasksPage() {
             const resp = await fetch('/api/daily-tasks/generate', {
               method: 'POST',
               headers,
-              body: JSON.stringify({ userId: user.uid }),
+              body: JSON.stringify({ userId: user.id }),
             });
             if (!resp.ok) {
               const errJson = await resp.json().catch(() => ({}));
@@ -271,7 +271,7 @@ export default function DailyTasksPage() {
 
             // Fetch the newly created progress only if not in ephemeral mode
             if (!data?.ephemeral) {
-              const newProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+              const newProgress = await dailyTaskService.getUserDailyProgress(user.id);
               if (newProgress) {
                 setProgress(newProgress);
                 updateStats(newProgress);
@@ -374,7 +374,7 @@ export default function DailyTasksPage() {
       const resp = await fetch('/api/daily-tasks/submit', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ userId: user.uid, taskId, userResponse, task: selectedTask }),
+        body: JSON.stringify({ userId: user.id, taskId, userResponse, task: selectedTask }),
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
