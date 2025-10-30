@@ -19,7 +19,17 @@
  * - Cultural authenticity (based on Red Chamber themes)
  */
 
-import { Timestamp } from 'firebase/firestore';
+/**
+ * Timestamp-like type for date fields (SQLITE-025: Firebase removed)
+ * Matches the return type of fromUnixTimestamp() from sqlite-db
+ */
+export type Timestamp = {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+};
 
 /**
  * Permission types that can be granted at different user levels

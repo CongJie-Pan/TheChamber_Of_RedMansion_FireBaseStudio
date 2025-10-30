@@ -16,7 +16,17 @@
  * - commentary_decode: 脂批解密 (8 min) - Commentary interpretation
  */
 
-import { Timestamp } from 'firebase/firestore';
+/**
+ * Timestamp-like type for date fields (SQLITE-025: Firebase removed)
+ * Matches the return type of fromUnixTimestamp() from sqlite-db
+ */
+export type Timestamp = {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+};
 import { AttributePoints } from './user-level';
 
 /**
