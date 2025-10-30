@@ -11,8 +11,9 @@ export default {
   	extend: {
   		fontFamily: {
         // Source Han Serif (思源宋體) / Noto Serif SC for classical Chinese typography
+        // Using Next.js font optimization with CSS variable for better performance
         // Multiple fallbacks ensure font availability across different systems
-        sans: ['"Noto Serif SC"', '"Source Han Serif SC"', '"Source Han Serif"', 'serif'],
+        sans: ['var(--font-noto-serif-sc)', '"Noto Serif SC"', '"Source Han Serif SC"', '"Source Han Serif"', 'serif'],
       },
       colors: {
   			background: 'hsl(var(--background))',

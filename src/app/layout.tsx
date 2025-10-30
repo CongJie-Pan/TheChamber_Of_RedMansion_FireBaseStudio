@@ -23,6 +23,8 @@
 
 // Import Next.js metadata type for SEO configuration
 import type { Metadata } from 'next';
+// Import Next.js font optimization for Google Fonts
+import { Noto_Serif_SC } from 'next/font/google';
 // Import global CSS styles (Tailwind, fonts, custom styles)
 import './globals.css';
 // Import toast notification component for user feedback
@@ -38,7 +40,14 @@ import HydrationDebugger from '@/components/HydrationDebugger';
 // Import chunk error boundary for handling dynamic import failures
 import ChunkErrorBoundary from '@/components/ChunkErrorBoundary';
 
-// Note: Noto Serif SC (Chinese serif font) is imported in globals.css for classical literature display
+// Configure Noto Serif SC (思源宋體) for classical Chinese typography
+// Using Next.js font optimization for better performance and reliability
+const notoSerifSC = Noto_Serif_SC({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-noto-serif-sc',
+});
 
 /**
  * Application metadata configuration
@@ -86,8 +95,8 @@ export default function RootLayout({
         />
       </head>
       
-      {/* Body with font-sans class for consistent typography */}
-      <body className="font-sans">
+      {/* Body with Noto Serif SC (思源宋體) for classical Chinese typography */}
+      <body className={`${notoSerifSC.variable} font-sans`}>
         {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
         <SessionProvider>
           {/* Authentication Provider - Manages user login/logout state for entire app */}
