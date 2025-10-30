@@ -62,6 +62,7 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
   - ok 主頁TASKBar 的ui 很普通，請改個較為美觀簡約一些，如果可以的話，希望hover每個btn有古典中國窗的效果
   - ok 介紹頁裡面有圖不能正確顯示，並且語言設定沒有成效。
   - 介紹頁
+    - 左上角的logo需要和最左側的邊界有隔距離，而不是和紅樓慧讀 隔距離
     - 探索學習內容下方的每個區塊的文字需要調整
     - 刪除: 已有超過 1,200 名學習者選擇了我們的平台
     - 沒有轉成思源宋體

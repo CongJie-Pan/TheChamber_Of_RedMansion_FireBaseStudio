@@ -8,15 +8,13 @@ This module provides global state management for the application using React's C
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-    * `@/lib/firebase`: Firebase configuration.
     * `@/components/ui/skeleton`: UI component for loading states.
     * `@/lib/types/user-level`: TypeScript types for user profiles.
     * `@/lib/user-level-service`: Service for user profile management.
     * `@/lib/translations`: Internationalization configuration and functions.
 * **External Dependencies:**
     * `react`: Core library for building the UI.
-    * `firebase/auth`: Firebase Authentication library.
-    * `firebase/firestore`: Firebase Firestore library.
+    * `next-auth/react`: NextAuth.js authentication library for React (Phase 4 - SQLITE-022).
 
 ## 3. Public API / Exports
 
@@ -29,7 +27,7 @@ This module provides global state management for the application using React's C
 
 ### 4.1. `AuthContext.tsx`
 
-* **Purpose:** This file implements the authentication context and provider for the application. It manages the user's session state by interfacing with Firebase Authentication, fetches and provides the user's profile data (including level and XP), and handles the initial loading state. This provider is intended to wrap the entire application to provide universal access to authentication status.
+* **Purpose:** This file implements the authentication context and provider for the application (Phase 4 - SQLITE-022). It manages the user's session state by interfacing with NextAuth.js authentication, fetches and provides the user's profile data from SQLite (including level, XP, and guest status), and handles the initial loading state. This provider is intended to wrap the entire application to provide universal access to authentication status. Replaces Firebase Authentication with NextAuth.js + SQLite integration.
 * **Functions:**
     * `AuthProvider({ children }: AuthProviderProps)`: The main provider component that manages and provides the authentication state.
 * **Key Classes / Constants / Variables:**
@@ -45,42 +43,45 @@ This module provides global state management for the application using React's C
 
 ## 5. System and Data Flow
 
-### 5.1. System Flowchart (Control Flow)
+### 5.1. System Flowchart (Control Flow) - Phase 4 SQLITE-022
 
 ```mermaid
 flowchart TD
-    A[Application Root: layout.tsx] --> B(AuthProvider);
-    B --> C(LanguageProvider);
-    C --> D{App Components};
+    A[Application Root: layout.tsx] --> B(SessionProvider - NextAuth);
+    B --> C(AuthProvider);
+    C --> D(LanguageProvider);
+    D --> E{App Components};
 
-    subgraph AuthProvider Logic
-        E[onAuthStateChanged Listener] --> F{User Logged In?};
-        F -- Yes --> G[loadUserProfile];
-        F -- No --> H[Clear User Profile];
-        G --> I[Set User & Profile];
+    subgraph AuthProvider Logic - SQLITE-022
+        F[useSession Hook] --> G{Session Active?};
+        G -- Yes --> H[Get user.id from session];
+        H --> I[loadUserProfile from SQLite];
+        G -- No --> J[Clear User Profile];
+        I --> K[Set User & Profile];
     end
 
     subgraph LanguageProvider Logic
-        J[useState Initialization] --> K{Check localStorage};
-        K -- Found --> L[Set Language from Storage];
-        K -- Not Found --> M[Set Default Language];
+        L[useState Initialization] --> M{Check localStorage};
+        M -- Found --> N[Set Language from Storage];
+        M -- Not Found --> O[Set Default Language];
     end
 
-    D -- Uses useAuth() hook --> B;
-    D -- Uses useLanguage() hook --> C;
+    E -- Uses useAuth() hook --> C;
+    E -- Uses useLanguage() hook --> D;
 ```
 
-### 5.2. Data Flow Diagram (Data Transformation)
+### 5.2. Data Flow Diagram (Data Transformation) - Phase 4 SQLITE-022
 
 ```mermaid
 graph LR
     subgraph External
-        Firebase[(Firebase Auth)]
-        Firestore[(Firestore DB)]
+        NextAuth[(NextAuth Session)]
+        SQLite[(SQLite Database)]
         Browser[Browser localStorage]
     end
 
     subgraph ContextModule [React Context Module]
+        SessionProv[SessionProvider - NextAuth]
         AuthProvider[AuthContext.tsx]
         LangProvider[LanguageContext.tsx]
     end
@@ -89,9 +90,10 @@ graph LR
         AppComponent(Application Components)
     end
 
-    Firebase -- Auth State --> AuthProvider;
-    Firestore -- User Profile Data --> AuthProvider;
-    AuthProvider -- AuthData (user, profile) --> AppComponent;
+    NextAuth -- Session Data --> SessionProv;
+    SessionProv -- user object --> AuthProvider;
+    SQLite -- User Profile Data --> AuthProvider;
+    AuthProvider -- AuthData (user, userProfile, isGuest) --> AppComponent;
 
     Browser -- Stored Language --> LangProvider;
     LangProvider -- Language & t() --> AppComponent;

@@ -6,6 +6,8 @@
  *
  * Key features:
  * - Credentials provider with email/password authentication
+ * - Guest/Anonymous login support
+ * - Remember Me functionality with dynamic session duration
  * - JWT-based sessions (stateless, no database storage)
  * - bcrypt password verification
  * - Custom session callbacks with user profile data
@@ -16,17 +18,23 @@
  * 2. authorize() function validates credentials against SQLite
  * 3. bcrypt verifies password hash
  * 4. JWT token created with user data
- * 5. Session established with 24-hour expiry
+ * 5. Session established with dynamic expiry (24h or 30d if Remember Me)
  *
  * @phase Phase 4 - Authentication Replacement
- * @task SQLITE-019
+ * @task SQLITE-019, SQLITE-021
  * @date 2025-10-30
  */
 
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import * as bcrypt from 'bcryptjs';
-import { getUserByEmail } from '@/lib/repositories/user-repository';
+import { getUserByEmail, createGuestUser } from '@/lib/repositories/user-repository';
+
+/**
+ * Session duration constants
+ */
+const SESSION_DURATION_STANDARD = 24 * 60 * 60; // 24 hours in seconds
+const SESSION_DURATION_REMEMBER_ME = 30 * 24 * 60 * 60; // 30 days in seconds
 
 /**
  * NextAuth.js Configuration
@@ -36,9 +44,10 @@ import { getUserByEmail } from '@/lib/repositories/user-repository';
  */
 export const authOptions: NextAuthOptions = {
   // Session strategy: JWT (stateless, no database sessions)
+  // maxAge is dynamically set in JWT callback based on Remember Me preference
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours in seconds
+    maxAge: SESSION_DURATION_STANDARD, // Default: 24 hours
   },
 
   // Custom pages configuration (using existing login/register pages)
@@ -51,9 +60,10 @@ export const authOptions: NextAuthOptions = {
   // Authentication providers
   providers: [
     /**
-     * Credentials Provider
+     * Credentials Provider - Email/Password Login
      *
-     * Handles email/password authentication with SQLite database verification
+     * Handles email/password authentication with SQLite database verification.
+     * Supports "Remember Me" functionality with extended session duration.
      */
     CredentialsProvider({
       id: 'credentials',
@@ -70,6 +80,10 @@ export const authOptions: NextAuthOptions = {
           label: 'Password',
           type: 'password'
         },
+        rememberMe: {
+          label: 'Remember Me',
+          type: 'checkbox'
+        },
       },
 
       /**
@@ -78,30 +92,31 @@ export const authOptions: NextAuthOptions = {
        * Called when user submits login credentials.
        * Validates email/password against SQLite database.
        *
-       * @param credentials - User-submitted email and password
+       * @param credentials - User-submitted email, password, and rememberMe flag
        * @returns User object if authentication successful, null otherwise
        */
       async authorize(credentials) {
         try {
           // Validate input
           if (!credentials?.email || !credentials?.password) {
-            console.log('❌ [NextAuth] Missing email or password');
+            console.log('❌ [NextAuth Credentials] Missing email or password');
             return null;
           }
 
-          console.log(`🔍 [NextAuth] Attempting login for email: ${credentials.email}`);
+          const rememberMe = credentials.rememberMe === 'true';
+          console.log(`🔍 [NextAuth Credentials] Attempting login for email: ${credentials.email} (Remember Me: ${rememberMe})`);
 
           // Query user from SQLite by email
           const user = await getUserByEmail(credentials.email.toLowerCase());
 
           if (!user) {
-            console.log(`❌ [NextAuth] User not found: ${credentials.email}`);
+            console.log(`❌ [NextAuth Credentials] User not found: ${credentials.email}`);
             return null;
           }
 
           // Check if user has a password hash (should always exist for NextAuth users)
           if (!user.passwordHash) {
-            console.log(`❌ [NextAuth] User ${user.userId} has no password hash`);
+            console.log(`❌ [NextAuth Credentials] User ${user.userId} has no password hash`);
             return null;
           }
 
@@ -112,12 +127,12 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isPasswordValid) {
-            console.log(`❌ [NextAuth] Invalid password for user: ${credentials.email}`);
+            console.log(`❌ [NextAuth Credentials] Invalid password for user: ${credentials.email}`);
             return null;
           }
 
           // Authentication successful
-          console.log(`✅ [NextAuth] Login successful for user: ${user.userId}`);
+          console.log(`✅ [NextAuth Credentials] Login successful for user: ${user.userId}`);
 
           // Return user object (will be passed to JWT callback)
           return {
@@ -127,10 +142,59 @@ export const authOptions: NextAuthOptions = {
             // Include additional user data for session
             currentLevel: user.currentLevel,
             totalXP: user.totalXP,
+            isGuest: user.isGuest || false,
+            rememberMe, // Pass Remember Me preference to JWT callback
           };
 
         } catch (error) {
-          console.error('❌ [NextAuth] Authorization error:', error);
+          console.error('❌ [NextAuth Credentials] Authorization error:', error);
+          return null;
+        }
+      },
+    }),
+
+    /**
+     * Credentials Provider - Guest/Anonymous Login
+     *
+     * Creates temporary guest accounts for users who want to try the platform
+     * without registering. Guest accounts are marked with isGuest flag.
+     */
+    CredentialsProvider({
+      id: 'guest-credentials',
+      name: 'Guest Login',
+
+      // No credentials required for guest login
+      credentials: {},
+
+      /**
+       * Authorization function for guest login
+       *
+       * Creates a new guest user in SQLite with auto-generated credentials.
+       *
+       * @returns Guest user object
+       */
+      async authorize() {
+        try {
+          console.log('🔍 [NextAuth Guest] Creating new guest account...');
+
+          // Create guest user in SQLite
+          const guestUser = await createGuestUser();
+
+          console.log(`✅ [NextAuth Guest] Guest account created: ${guestUser.userId}`);
+
+          // Return guest user object
+          return {
+            id: guestUser.userId,
+            email: guestUser.email || '',
+            name: guestUser.username,
+            currentLevel: guestUser.currentLevel,
+            totalXP: guestUser.totalXP,
+            isGuest: true,
+            rememberMe: false, // Guests don't get extended sessions
+          };
+
+        } catch (error) {
+          console.error('❌ [NextAuth Guest] Guest login error:', error);
           return null;
         }
       },
@@ -145,14 +209,15 @@ export const authOptions: NextAuthOptions = {
      * JWT Callback
      *
      * Called whenever a JWT is created or updated.
-     * Adds custom claims to the JWT token.
+     * Adds custom claims to the JWT token and sets dynamic maxAge based on Remember Me.
      *
      * @param token - The JWT token
      * @param user - User object from authorize() (only on initial sign-in)
      * @param account - Account information (only on initial sign-in)
+     * @param trigger - What caused this callback ('signIn', 'signUp', 'update')
      * @returns Modified JWT token with custom claims
      */
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       // On initial sign-in, add user data to token
       if (user && account) {
         token.userId = user.id;
@@ -160,8 +225,21 @@ export const authOptions: NextAuthOptions = {
         token.username = user.name;
         token.currentLevel = (user as any).currentLevel || 0;
         token.totalXP = (user as any).totalXP || 0;
+        token.isGuest = (user as any).isGuest || false;
 
-        console.log(`✅ [NextAuth] JWT created for user: ${user.id}`);
+        // Set session duration based on Remember Me preference
+        const rememberMe = (user as any).rememberMe || false;
+        const sessionDuration = rememberMe ? SESSION_DURATION_REMEMBER_ME : SESSION_DURATION_STANDARD;
+
+        // Store rememberMe flag and session duration in token
+        token.rememberMe = rememberMe;
+        token.sessionDuration = sessionDuration;
+
+        // Set token expiration time
+        const now = Math.floor(Date.now() / 1000); // Current time in seconds
+        token.exp = now + sessionDuration; // Token expiration time
+
+        console.log(`✅ [NextAuth] JWT created for user: ${user.id} (Session: ${rememberMe ? '30 days' : '24 hours'}, Guest: ${token.isGuest})`);
       }
 
       return token;
@@ -185,6 +263,7 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.username as string;
         (session.user as any).currentLevel = token.currentLevel;
         (session.user as any).totalXP = token.totalXP;
+        (session.user as any).isGuest = token.isGuest || false;
       }
 
       return session;

@@ -15,9 +15,10 @@
  * - Set initial HTML language attribute for accessibility
  * 
  * Provider hierarchy (from outer to inner):
- * 1. AuthProvider - Manages user authentication state
- * 2. LanguageProvider - Manages language selection and translations
- * 3. Page content + Toaster notifications
+ * 1. SessionProvider - NextAuth.js session management (Phase 4 - SQLITE-022)
+ * 2. AuthProvider - Enhanced auth state with user profile from SQLite
+ * 3. LanguageProvider - Manages language selection and translations
+ * 4. Page content + Toaster notifications
  */
 
 // Import Next.js metadata type for SEO configuration
@@ -26,6 +27,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 // Import toast notification component for user feedback
 import { Toaster } from "@/components/ui/toaster";
+// Import NextAuth session provider (Phase 4 - SQLITE-022)
+import { SessionProvider } from '@/components/providers/SessionProvider';
 // Import authentication context provider
 import { AuthProvider } from '@/context/AuthContext';
 // Import language/internationalization context provider
@@ -85,28 +88,31 @@ export default function RootLayout({
       
       {/* Body with font-sans class for consistent typography */}
       <body className="font-sans">
-        {/* Authentication Provider - Manages user login/logout state for entire app */}
-        <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-          <AuthProvider>
-            {/* Language Provider - Manages multilingual support and translations */}
-            <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-              <LanguageProvider>
-                {/* All page content is rendered here */}
-                {children}
+        {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
+        <SessionProvider>
+          {/* Authentication Provider - Manages user login/logout state for entire app */}
+          <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+            <AuthProvider>
+              {/* Language Provider - Manages multilingual support and translations */}
+              <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+                <LanguageProvider>
+                  {/* All page content is rendered here */}
+                  {children}
 
-                {/* Toast notification system for user feedback messages */}
-                <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
-                  <Toaster />
-                </ChunkErrorBoundary>
+                  {/* Toast notification system for user feedback messages */}
+                  <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
+                    <Toaster />
+                  </ChunkErrorBoundary>
 
-                {/* Development-only hydration debugger */}
-                <ChunkErrorBoundary>
-                  <HydrationDebugger />
-                </ChunkErrorBoundary>
-              </LanguageProvider>
-            </ChunkErrorBoundary>
-          </AuthProvider>
-        </ChunkErrorBoundary>
+                  {/* Development-only hydration debugger */}
+                  <ChunkErrorBoundary>
+                    <HydrationDebugger />
+                  </ChunkErrorBoundary>
+                </LanguageProvider>
+              </ChunkErrorBoundary>
+            </AuthProvider>
+          </ChunkErrorBoundary>
+        </SessionProvider>
       </body>
     </html>
   );

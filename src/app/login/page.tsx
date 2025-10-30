@@ -41,99 +41,117 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Icon imports for visual elements
-import { ScrollText, AlertTriangle, Chrome, PersonStanding } from 'lucide-react';
+import { ScrollText, AlertTriangle, PersonStanding } from 'lucide-react';
 
-// Firebase authentication imports
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+// NextAuth imports for authentication
+import { signIn } from 'next-auth/react';
 
 // React hooks for state management
 import { useState } from 'react';
 
-// Custom hooks for internationalization and authentication
+// Custom hooks for internationalization
 import { useLanguage } from '@/hooks/useLanguage';
-import { useAuth } from '@/hooks/useAuth';
 
 /**
  * Dynamic Login Form Validation Schema
- * 
+ *
  * Creates a Zod validation schema with internationalized error messages.
  * This approach allows for dynamic error messages that change based on the
  * user's selected language, providing a localized experience.
- * 
+ *
+ * Phase 4 - SQLITE-021: Added rememberMe field for extended session support
+ *
  * @param t - Translation function from useLanguage hook
  * @returns Zod schema object with validation rules and error messages
  */
 const getLoginSchema = (t: (key: string) => string) => z.object({
-  email: z.string().email({ 
+  email: z.string().email({
     message: t('register.errors.emailInvalid') // Internationalized email validation error
   }),
-  password: z.string().min(1, { 
+  password: z.string().min(1, {
     message: t('register.errors.passwordMinLength') // Internationalized password validation error
   }),
+  rememberMe: z.boolean().default(false), // Remember Me preference (Phase 4 - SQLITE-021)
 });
 
 
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { signInWithGoogle, signInAsGuest } = useAuth();
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   type LoginFormValues = z.infer<ReturnType<typeof getLoginSchema>>;
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(getLoginSchema(t)),
+    defaultValues: {
+      rememberMe: false,
+    },
   });
 
+  /**
+   * Handle email/password login with NextAuth
+   * Phase 4 - SQLITE-021/022: NextAuth.js credentials provider with Remember Me support
+   */
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
-    setFirebaseError(null);
+    setAuthError(null);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      router.push('/dashboard'); 
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setFirebaseError(t('login.errorInvalidCredential'));
-      } else {
-        setFirebaseError(t('login.errorDefault'));
+      console.log(`🔐 [Login Page] Attempting login for: ${data.email} (Remember Me: ${data.rememberMe})`);
+
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        rememberMe: data.rememberMe.toString(), // Pass as string to credentials provider
+        redirect: false, // Handle redirect manually
+      });
+
+      if (result?.error) {
+        // Handle authentication errors
+        console.error("❌ [Login Page] Login failed:", result.error);
+        setAuthError(t('login.errorInvalidCredential'));
+      } else if (result?.ok) {
+        // Login successful
+        console.log("✅ [Login Page] Login successful, redirecting to dashboard");
+        router.push('/dashboard');
       }
-      console.error("Login error:", error);
+    } catch (error: any) {
+      console.error("❌ [Login Page] Unexpected login error:", error);
+      setAuthError(t('login.errorDefault'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Google Sign-In
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    setFirebaseError(null);
-    try {
-      await signInWithGoogle();
-      router.push('/dashboard');
-    } catch (error: any) {
-      setFirebaseError(error.message || t('login.errorGoogleSignIn'));
-      console.error("Google sign-in error:", error);
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
-  // Handle Guest Sign-In
+  /**
+   * Handle guest login with NextAuth
+   * Phase 4 - SQLITE-021: Guest credentials provider for anonymous access
+   */
   const handleGuestSignIn = async () => {
     setIsGuestLoading(true);
-    setFirebaseError(null);
+    setAuthError(null);
     try {
-      await signInAsGuest();
-      router.push('/dashboard');
+      console.log('👤 [Login Page] Attempting guest login...');
+
+      const result = await signIn("guest-credentials", {
+        redirect: false, // Handle redirect manually
+      });
+
+      if (result?.error) {
+        console.error("❌ [Login Page] Guest login failed:", result.error);
+        setAuthError(t('login.errorGuest'));
+      } else if (result?.ok) {
+        console.log("✅ [Login Page] Guest login successful, redirecting to dashboard");
+        router.push('/dashboard');
+      }
     } catch (error: any) {
-      setFirebaseError(error.message || t('login.errorGuest'));
-      console.error("Guest sign-in error:", error);
+      console.error("❌ [Login Page] Unexpected guest login error:", error);
+      setAuthError(t('login.errorGuest'));
     } finally {
       setIsGuestLoading(false);
     }
@@ -151,80 +169,82 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
-            {firebaseError && (
+            {authError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{t('login.errorTitle')}</AlertTitle>
-                  <AlertDescription>{firebaseError}</AlertDescription>
+                  <AlertDescription>{authError}</AlertDescription>
                 </Alert>
               )}
             <div className="space-y-2">
               <Label htmlFor="email">{t('login.emailLabel')}</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder={t('placeholders.emailExample')} 
-                {...register("email")} 
-                className={`bg-background/70 ${errors.email ? 'border-destructive' : ''}`} 
+              <Input
+                id="email"
+                type="email"
+                placeholder={t('placeholders.emailExample')}
+                {...register("email")}
+                className={`bg-background/70 ${errors.email ? 'border-destructive' : ''}`}
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{t('login.passwordLabel')}</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                {...register("password")} 
-                className={`bg-background/70 ${errors.password ? 'border-destructive' : ''}`} 
+              <Input
+                id="password"
+                type="password"
+                {...register("password")}
+                className={`bg-background/70 ${errors.password ? 'border-destructive' : ''}`}
               />
               {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
             </div>
+
+            {/* Remember Me Checkbox (Phase 4 - SQLITE-021) */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={false}
+                onCheckedChange={(checked) => {
+                  setValue('rememberMe', checked === true);
+                }}
+              />
+              <Label
+                htmlFor="rememberMe"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                {t('login.rememberMe') || 'Remember me for 30 days'}
+              </Label>
+            </div>
+
             <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
               {isLoading ? t('login.loggingIn') : t('buttons.login')}
             </Button>
-            
-            {/* Login Options */}
+
+            {/* Guest Login Option (Phase 4 - SQLITE-021) */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  {t('login.orContinueWith')}
+                  {t('login.orContinueWith') || 'Or'}
                 </span>
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading || isLoading || isGuestLoading}
-                className="w-full"
-              >
-                {isGoogleLoading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Chrome className="h-4 w-4" />
-                )}
-                <span className="ml-2">Google</span>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGuestSignIn}
-                disabled={isGuestLoading || isLoading || isGoogleLoading}
-                className="w-full"
-              >
-                {isGuestLoading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <PersonStanding className="h-4 w-4" />
-                )}
-                <span className="ml-2">{t('login.guestLogin')}</span>
-              </Button>
-            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGuestSignIn}
+              disabled={isGuestLoading || isLoading}
+              className="w-full"
+            >
+              {isGuestLoading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <PersonStanding className="h-4 w-4" />
+              )}
+              <span className="ml-2">{t('login.guestLogin') || 'Continue as Guest'}</span>
+            </Button>
           </CardContent>
         </form>
         <CardFooter className="text-center text-sm">

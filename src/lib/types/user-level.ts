@@ -201,24 +201,36 @@ export interface UserLevel {
 
 /**
  * Individual user's progress and profile data
- * Stored in Firestore `users` collection
+ * Stored in SQLite `users` table (Phase 4 - SQLITE-022)
  * Updated frequently as user progresses through the platform
  */
 export interface UserProfile {
   /**
-   * Firebase Auth user ID (primary key)
+   * User ID (primary key) - from NextAuth or generated for guest users
    */
-  uid: string;
+  userId: string;
 
   /**
-   * User display name (from Firebase Auth or custom)
+   * User display name
    */
-  displayName: string;
+  username: string;
 
   /**
-   * User email address (from Firebase Auth)
+   * User email address (from NextAuth or generated for guest users)
    */
   email: string;
+
+  /**
+   * Password hash (bcrypt) - stored in SQLite for credentials authentication
+   * Phase 4 - SQLITE-022: Moved from Firebase to SQLite
+   */
+  passwordHash?: string;
+
+  /**
+   * Guest user flag - true for anonymous/guest users
+   * Phase 4 - SQLITE-021: Added for guest login support
+   */
+  isGuest?: boolean;
 
   /**
    * Current user level (0-7)

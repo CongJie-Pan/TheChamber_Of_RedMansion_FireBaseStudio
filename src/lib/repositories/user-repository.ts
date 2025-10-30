@@ -28,12 +28,14 @@ export interface UserStats {
  * SQLite-compatible User Profile
  * Extended from original for user-level-service compatibility (SQLITE-016)
  * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
+ * Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
  */
 export interface UserProfile {
   userId: string;
   username: string;
   email?: string;
   passwordHash?: string; // bcrypt hashed password (Phase 4 - SQLITE-019, only included in auth queries)
+  isGuest?: boolean; // true for guest/anonymous accounts (Phase 4 - SQLITE-021)
   currentLevel: number;
   currentXP: number;
   totalXP: number;
@@ -51,12 +53,14 @@ export interface UserProfile {
 /**
  * User data interface for database operations
  * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
+ * Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
  */
 interface UserRow {
   id: string;
   username: string;
   email: string | null;
   passwordHash: string | null; // bcrypt hashed password (Phase 4 - SQLITE-019)
+  isGuest: number; // 0 or 1 (Phase 4 - SQLITE-021)
   currentLevel: number;
   currentXP: number;
   totalXP: number;
@@ -165,6 +169,7 @@ function rowToUserProfile(row: UserRow): UserProfile {
     username: row.username,
     email: row.email || undefined,
     passwordHash: row.passwordHash || undefined, // Include password hash if present (Phase 4 - SQLITE-019)
+    isGuest: row.isGuest === 1, // Convert 0/1 to boolean (Phase 4 - SQLITE-021)
     currentLevel: row.currentLevel,
     currentXP: row.currentXP,
     totalXP: row.totalXP,
@@ -219,10 +224,10 @@ export function createUser(
 
   const stmt = db.prepare(`
     INSERT INTO users (
-      id, username, email, passwordHash, currentLevel, currentXP, totalXP,
+      id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
       attributes, completedTasks, unlockedContent, completedChapters,
       hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -230,6 +235,7 @@ export function createUser(
     username,
     email || null,
     passwordHash || null, // Insert password hash or null (Phase 4 - SQLITE-019)
+    0, // isGuest = 0 (false) for regular users (Phase 4 - SQLITE-021)
     userProfile.currentLevel,
     userProfile.currentXP,
     userProfile.totalXP,
@@ -246,6 +252,85 @@ export function createUser(
 
   console.log(`✅ [UserRepository] Created user: ${userId}${passwordHash ? ' (with password)' : ' (without password)'}`);
   return userProfile;
+}
+
+/**
+ * Create a new guest user
+ *
+ * Creates a temporary guest account with auto-generated credentials.
+ * Guest accounts are marked with isGuest = 1 and use generated email/password.
+ *
+ * Phase 4 - SQLITE-021: Guest/Anonymous login support for NextAuth.js
+ *
+ * @returns Created guest user profile
+ */
+export function createGuestUser(): UserProfile {
+  const db = getDatabase();
+  const now = Date.now();
+
+  // Generate unique guest ID and credentials
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const guestId = `guest_${timestamp}_${randomSuffix}`;
+  const guestEmail = `guest_${timestamp}@redmansion.local`;
+  const guestUsername = `訪客_${randomSuffix}`; // "Guest" in Chinese + random suffix
+
+  // Generate a secure random password (guest won't need it, but required for DB)
+  const crypto = require('crypto');
+  const bcrypt = require('bcryptjs');
+  const randomPassword = crypto.randomBytes(32).toString('hex');
+  const passwordHash = bcrypt.hashSync(randomPassword, 10);
+
+  const guestProfile: UserProfile = {
+    userId: guestId,
+    username: guestUsername,
+    email: guestEmail,
+    passwordHash,
+    isGuest: true, // Mark as guest account
+    currentLevel: 0,
+    currentXP: 0,
+    totalXP: 0,
+    attributes: { ...DEFAULT_ATTRIBUTES },
+    completedTasks: [],
+    unlockedContent: [],
+    completedChapters: [],
+    hasReceivedWelcomeBonus: false,
+    stats: { ...DEFAULT_STATS },
+    createdAt: fromUnixTimestamp(now),
+    updatedAt: fromUnixTimestamp(now),
+    lastActivityAt: fromUnixTimestamp(now),
+  };
+
+  const stmt = db.prepare(`
+    INSERT INTO users (
+      id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
+      attributes, completedTasks, unlockedContent, completedChapters,
+      hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    guestId,
+    guestUsername,
+    guestEmail,
+    passwordHash,
+    1, // isGuest = 1 (true) for guest accounts
+    guestProfile.currentLevel,
+    guestProfile.currentXP,
+    guestProfile.totalXP,
+    JSON.stringify(guestProfile.attributes),
+    JSON.stringify(guestProfile.completedTasks),
+    JSON.stringify(guestProfile.unlockedContent),
+    JSON.stringify(guestProfile.completedChapters),
+    guestProfile.hasReceivedWelcomeBonus ? 1 : 0,
+    JSON.stringify(guestProfile.stats),
+    now,
+    now,
+    now
+  );
+
+  console.log(`✅ [UserRepository] Created guest user: ${guestId} (${guestUsername})`);
+  return guestProfile;
 }
 
 /**

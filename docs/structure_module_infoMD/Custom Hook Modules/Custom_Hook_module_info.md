@@ -10,10 +10,9 @@ This module provides a collection of custom React hooks designed to encapsulate 
 * **Internal Dependencies:**
     * `@/context/AuthContext`: The React context for authentication.
     * `@/context/LanguageContext`: The React context for internationalization.
-    * `@/lib/firebase`: Firebase configuration.
 * **External Dependencies:**
     * `react`: Core library for building the UI.
-    * `firebase/auth`: Firebase Authentication library.
+    * `next-auth/react`: NextAuth.js authentication library for React (Phase 4 - SQLITE-022).
 
 ## 3. Public API / Exports
 
@@ -25,7 +24,7 @@ This module provides a collection of custom React hooks designed to encapsulate 
 
 ### 4.1. `useAuth.ts`
 
-* **Purpose:** This hook is the primary interface for components to interact with the authentication system. It abstracts the complexity of accessing the `AuthContext` and provides a clean API for getting the current user, checking loading states, and performing actions like logging in (with Google, email, or as a guest), signing up, and logging out. It also includes error handling and localized error messages.
+* **Purpose:** This hook is the primary interface for components to interact with the authentication system (Phase 4 - SQLITE-022). It abstracts the complexity of accessing the `AuthContext` and provides a clean API for getting the current user from NextAuth.js, accessing SQLite user profile data (level, XP, guest status), checking loading states, and performing logout operations. Authentication methods (login/register) have been moved to dedicated pages that call NextAuth `signIn()` directly. It also includes error handling and localized error messages.
 * **Functions:**
     * `useAuth(): object` - The main hook function that returns the authentication state and action methods.
 * **Key Classes / Constants / Variables:**
@@ -124,21 +123,36 @@ graph LR
 
 ## 6. Usage Example & Testing
 
-* **Usage:**
+* **Usage (Phase 4 - SQLITE-022):**
   ```typescript
   import { useAuth } from '@/hooks/useAuth';
   import { useLanguage } from '@/hooks/useLanguage';
   import { useIsMobile } from '@/hooks/use-mobile';
 
   function MyResponsiveComponent() {
-    const { user } = useAuth();
+    const { user, userProfile, logout } = useAuth();
     const { t } = useLanguage();
     const isMobile = useIsMobile();
 
+    // NextAuth user properties: user.id, user.name, user.email, user.image
+    // SQLite user profile: userProfile.currentLevel, userProfile.totalXP, userProfile.isGuest
+
     if (isMobile) {
-      return <div>{t('hello')}, {user?.displayName}! (Mobile View)</div>;
+      return (
+        <div>
+          {t('hello')}, {user?.name}! (Mobile View)
+          <p>Level: {userProfile?.currentLevel} | XP: {userProfile?.totalXP}</p>
+          <button onClick={logout}>{t('logout')}</button>
+        </div>
+      );
     }
-    return <div>{t('hello')}, {user?.displayName}! (Desktop View)</div>;
+    return (
+      <div>
+        {t('hello')}, {user?.name}! (Desktop View)
+        <p>Level: {userProfile?.currentLevel} | XP: {userProfile?.totalXP}</p>
+        <button onClick={logout}>{t('logout')}</button>
+      </div>
+    );
   }
   ```
 * **Testing:** Custom hooks are tested in two main ways: 1) Directly, using a testing utility like `@testing-library/react-hooks` to render the hook and assert its return values. 2) Indirectly, by testing components that use the hook and mocking the context they depend on. For example, a component using `useAuth` can be tested by wrapping it in a mock `AuthProvider`.

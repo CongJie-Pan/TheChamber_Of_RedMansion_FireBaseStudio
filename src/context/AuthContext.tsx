@@ -2,12 +2,12 @@
 /**
  * @fileOverview Authentication Context Provider for the Red Mansion platform.
  *
- * This context manages user authentication state throughout the application using Firebase Auth.
+ * This context manages user authentication state throughout the application using NextAuth.js.
  * It provides:
- * - Current user state (logged in user or null)
- * - User level profile with XP and progression data
+ * - Current user state from NextAuth session
+ * - User level profile with XP and progression data from SQLite
  * - Loading state during authentication checks
- * - Automatic state synchronization with Firebase authentication
+ * - Automatic state synchronization with NextAuth session
  * - Profile refresh functionality for level updates
  * - Loading UI during initial authentication verification
  *
@@ -15,23 +15,21 @@
  * available to all child components without prop drilling.
  *
  * Integration with Level System:
- * - Automatically loads user profile on authentication
+ * - Automatically loads user profile from SQLite on authentication
  * - Initializes profile for new users
- * - Provides real-time level and XP data
+ * - Provides level and XP data from SQLite database
+ *
+ * Phase 4 - SQLITE-022: Migrated from Firebase Auth to NextAuth.js
  */
 
-"use client"; // Required for client-side React hooks and Firebase auth
+"use client"; // Required for client-side React hooks and NextAuth
 
-// Import Firebase authentication types and functions
-import type { User as FirebaseUser } from 'firebase/auth';
-import { onAuthStateChanged } from 'firebase/auth';
-// Firestore real-time updates
-import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
+// Import NextAuth types and hooks
+import { useSession } from 'next-auth/react';
+import type { Session } from 'next-auth';
 // Import React types and hooks for context management
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-// Import configured Firebase auth instance
-import { auth, db } from '@/lib/firebase';
 // Import UI component for loading state display
 import { Skeleton } from '@/components/ui/skeleton';
 // Import level system types and service
@@ -43,12 +41,14 @@ import { userLevelService } from '@/lib/user-level-service';
  *
  * Defines the shape of data available to components that consume this context
  * Extended to include user profile data from the level system
+ *
+ * Phase 4 - SQLITE-022: Updated to use NextAuth Session instead of FirebaseUser
  */
 interface AuthContextType {
-  user: FirebaseUser | null; // Current authenticated user or null if not logged in
-  userProfile: UserProfile | null; // User level profile or null if not loaded
+  user: Session['user'] | null; // Current authenticated user from NextAuth session
+  userProfile: UserProfile | null; // User level profile from SQLite or null if not loaded
   isLoading: boolean; // True during initial authentication check or state changes
-  refreshUserProfile: () => Promise<void>; // Function to refresh user profile data
+  refreshUserProfile: () => Promise<void>; // Function to refresh user profile data from SQLite
 }
 
 /**
@@ -76,135 +76,102 @@ interface AuthProviderProps {
  *
  * This component wraps the entire application and provides authentication state
  * to all child components. It:
- * - Manages user authentication state with React hooks
- * - Loads and manages user level profile data
- * - Listens for Firebase auth state changes automatically
+ * - Manages user authentication state via NextAuth useSession hook
+ * - Loads and manages user level profile data from SQLite
+ * - Listens for NextAuth session changes automatically
  * - Initializes new user profiles on first login
  * - Shows loading UI during initial authentication verification
  * - Provides the context value to all child components
  *
+ * Phase 4 - SQLITE-022: Migrated from Firebase to NextAuth.js + SQLite
+ *
  * @param children - Child components that will receive the auth context
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  // State to store the current authenticated user (null if not logged in)
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  // State to store the user's level profile (null if not loaded)
+  // Get NextAuth session data (replaces Firebase onAuthStateChanged)
+  const { data: session, status } = useSession();
+
+  // State to store the user's level profile from SQLite (null if not loaded)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  // State to track whether we're still checking authentication status
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Derive user and loading state from NextAuth session
+  const user = session?.user || null;
+  const isLoading = status === 'loading';
 
   /**
-   * Load user profile from Firestore
+   * Load user profile from SQLite
    * Creates a new profile if user doesn't have one (new user)
    *
-   * @param firebaseUser - Firebase authentication user object
+   * Phase 4 - SQLITE-022: Loads from SQLite instead of Firestore
+   *
+   * @param userId - NextAuth user ID
+   * @param username - User's display name
+   * @param email - User's email address
    */
-  const loadUserProfile = useCallback(async (firebaseUser: FirebaseUser) => {
+  const loadUserProfile = useCallback(async (userId: string, username: string, email: string) => {
     try {
-      // Try to fetch existing profile
-      let profile = await userLevelService.getUserProfile(firebaseUser.uid);
+      // Try to fetch existing profile from SQLite
+      let profile = await userLevelService.getUserProfile(userId);
 
       // If no profile exists, initialize one for new user
       if (!profile) {
-        console.log('🆕 New user detected, initializing profile...');
+        console.log('🆕 [AuthContext] New user detected, initializing profile...');
         profile = await userLevelService.initializeUserProfile(
-          firebaseUser.uid,
-          firebaseUser.displayName || 'User',
-          firebaseUser.email || ''
+          userId,
+          username,
+          email
         );
-        console.log('✅ User profile initialized successfully');
+        console.log('✅ [AuthContext] User profile initialized successfully');
       }
 
       setUserProfile(profile);
     } catch (error) {
-      console.error('❌ Error loading user profile:', error);
+      console.error('❌ [AuthContext] Error loading user profile:', error);
       // Set profile to null on error, but don't block authentication
       setUserProfile(null);
     }
   }, []);
 
   /**
-   * Refresh user profile data from Firestore
+   * Refresh user profile data from SQLite
    * Useful after XP awards or level-ups to update UI
+   *
+   * Phase 4 - SQLITE-022: Refreshes from SQLite instead of Firestore
    */
   const refreshUserProfile = useCallback(async () => {
-    if (!user) {
+    if (!user?.id) {
       setUserProfile(null);
       return;
     }
 
     try {
-      const profile = await userLevelService.getUserProfile(user.uid);
+      const profile = await userLevelService.getUserProfile(user.id);
       setUserProfile(profile);
     } catch (error) {
-      console.error('❌ Error refreshing user profile:', error);
+      console.error('❌ [AuthContext] Error refreshing user profile:', error);
     }
   }, [user]);
 
   /**
-   * Effect to set up Firebase auth state listener
+   * Effect to load user profile when session changes
    *
-   * Uses Firebase's onAuthStateChanged to automatically detect when:
-   * - User logs in
-   * - User logs out
-   * - Authentication state is restored from previous session
-   * - Authentication expires or fails
-   *
-   * When user logs in, also loads their level profile
+   * Replaces Firebase onAuthStateChanged listener
+   * Automatically detects when:
+   * - User logs in (session becomes available)
+   * - User logs out (session becomes null)
+   * - Session is restored from cookie
    */
   useEffect(() => {
-    // Set up listener for authentication state changes
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser); // Update user state (null if logged out)
-
-      if (firebaseUser) {
-        // User is logged in, load their profile
-        await loadUserProfile(firebaseUser);
-      } else {
-        // User is logged out, clear profile
-        setUserProfile(null);
-      }
-
-      setIsLoading(false); // Authentication check complete
-    });
-
-    // Cleanup function: unsubscribe from listener when component unmounts
-    return () => unsubscribe();
-  }, [loadUserProfile]); // Depend on loadUserProfile callback
-
-  /**
-   * Real-time user profile subscription
-   *
-   * Subscribes to Firestore users/{uid} document updates so XP/level changes
-   * are reflected immediately across the app without manual refresh.
-   */
-  useEffect(() => {
-    if (!user) {
-      return;
+    if (user?.id) {
+      // User is logged in, load their profile from SQLite
+      const username = user.name || 'User';
+      const email = user.email || '';
+      loadUserProfile(user.id, username, email);
+    } else {
+      // User is logged out, clear profile
+      setUserProfile(null);
     }
-
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribeProfile = onSnapshot(userRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        setUserProfile(null);
-        return;
-      }
-
-      const data = snapshot.data() as any;
-      // Lightweight normalization for safety and backward-compatibility
-      setUserProfile({
-        uid: snapshot.id,
-        ...data,
-        completedChapters: Array.isArray(data.completedChapters) ? data.completedChapters : [],
-        hasReceivedWelcomeBonus: data.hasReceivedWelcomeBonus ?? false,
-        createdAt: data.createdAt || Timestamp.now(),
-        updatedAt: data.updatedAt || Timestamp.now(),
-        lastActivityAt: data.lastActivityAt || Timestamp.now(),
-      });
-    });
-
-    return () => unsubscribeProfile();
-  }, [user]);
+  }, [user, loadUserProfile]);
 
   /**
    * Loading state UI

@@ -3,31 +3,40 @@
 **Module Path**: `src/app/api/auth/[...nextauth]/route.ts`
 **Module Type**: Next.js API Route Handler
 **Phase**: Phase 4 - Authentication Replacement
-**Task**: SQLITE-019
-**Lines of Code**: 227
+**Tasks**: SQLITE-019, SQLITE-021
+**Lines of Code**: 350
 **Last Updated**: 2025-10-30
 
 ---
 
 ## Overview
 
-This module implements the core NextAuth.js authentication API route for The Chamber of Red Mansion platform. It replaces Firebase Authentication with a local SQLite-based authentication system using email/password credentials and JWT sessions.
+This module implements the core NextAuth.js authentication API route for The Chamber of Red Mansion platform. It replaces Firebase Authentication with a local SQLite-based authentication system using email/password credentials, guest login, and JWT sessions with Remember Me functionality.
 
-**Purpose**: Provide secure, stateless authentication using NextAuth.js with local SQLite database integration.
+**Purpose**: Provide secure, stateless authentication using NextAuth.js with local SQLite database integration, supporting both authenticated users and anonymous guest access.
 
 ---
 
 ## Key Features
 
-### Authentication Provider
-- **Credentials Provider**: Email/password authentication
-- **Database**: SQLite via user-repository
-- **Password Verification**: bcrypt.compare() with 10 salt rounds
-- **User Lookup**: getUserByEmail() from user-repository
+### Authentication Providers
+1. **Credentials Provider**: Email/password authentication
+   - Database: SQLite via user-repository
+   - Password Verification: bcrypt.compare() with 10 salt rounds
+   - User Lookup: getUserByEmail() from user-repository
+   - Remember Me Support: Dynamic session duration (24h or 30d)
+
+2. **Guest Credentials Provider** (SQLITE-021): Anonymous guest access
+   - Auto-generated guest accounts
+   - Temporary credentials with unique IDs
+   - Chinese guest username (訪客_xxx)
+   - Marked with isGuest flag
 
 ### Session Management
 - **Strategy**: JWT (stateless, no database storage)
-- **Expiry**: 24 hours (86400 seconds)
+- **Expiry**: Dynamic based on Remember Me preference
+  - Standard: 24 hours (86400 seconds)
+  - Remember Me: 30 days (2592000 seconds)
 - **Storage**: HTTPOnly cookies (automatic via NextAuth.js)
 - **Security**: 32-byte base64 secret (NEXTAUTH_SECRET)
 
@@ -101,12 +110,15 @@ export const authOptions: NextAuthOptions = {
 };
 ```
 
-### 2. Credentials Provider
+### 2. Credentials Provider (SQLITE-019)
 
 **Configuration**:
 - **ID**: `credentials`
 - **Name**: `Email and Password`
-- **Credentials**: email (email type), password (password type)
+- **Credentials**:
+  - email (email type)
+  - password (password type)
+  - rememberMe (text type, optional) - SQLITE-021
 
 **authorize() Function**:
 ```typescript
@@ -114,44 +126,112 @@ async authorize(credentials) {
   // 1. Validate input
   if (!credentials?.email || !credentials?.password) return null;
 
-  // 2. Query user from SQLite
+  // 2. Parse Remember Me preference (SQLITE-021)
+  const rememberMe = credentials.rememberMe === 'true';
+  console.log(`🔍 [NextAuth] Login attempt: ${credentials.email} (Remember Me: ${rememberMe})`);
+
+  // 3. Query user from SQLite
   const user = await getUserByEmail(credentials.email.toLowerCase());
   if (!user) return null;
 
-  // 3. Check password hash exists
+  // 4. Check password hash exists
   if (!user.passwordHash) return null;
 
-  // 4. Verify password with bcrypt
+  // 5. Verify password with bcrypt
   const isPasswordValid = await bcrypt.compare(
     credentials.password,
     user.passwordHash
   );
   if (!isPasswordValid) return null;
 
-  // 5. Return user object (passed to JWT callback)
+  // 6. Return user object with Remember Me flag (passed to JWT callback)
   return {
     id: user.userId,
     email: user.email || '',
     name: user.username,
     currentLevel: user.currentLevel,
     totalXP: user.totalXP,
+    rememberMe: rememberMe,  // SQLITE-021: Dynamic session duration
   };
 }
 ```
 
+### 2.5. Guest Credentials Provider (SQLITE-021)
+
+**Configuration**:
+- **ID**: `guest-credentials`
+- **Name**: `Guest Login`
+- **Credentials**: None (anonymous access)
+
+**Purpose**: Allow users to explore the platform without creating an account
+
+**authorize() Function**:
+```typescript
+async authorize(credentials, req) {
+  console.log('👤 [NextAuth Guest] Creating guest user...');
+
+  // 1. Create guest user with auto-generated credentials
+  const guestUser = await createGuestUser();
+
+  // createGuestUser() returns:
+  // - Unique ID: guest_{timestamp}_{random}
+  // - Email: guest_{timestamp}@redmansion.local
+  // - Username: 訪客_{random} (Chinese for "Guest")
+  // - Password: 32-byte secure random hex (user won't need this)
+  // - isGuest: true
+
+  // 2. Return guest user object (passed to JWT callback)
+  return {
+    id: guestUser.userId,
+    email: guestUser.email || '',
+    name: guestUser.username,
+    currentLevel: guestUser.currentLevel,
+    totalXP: guestUser.totalXP,
+    isGuest: true,           // Mark as guest user
+    rememberMe: false,       // Guest users: standard 24h session
+  };
+}
+```
+
+**Guest User Characteristics**:
+- **ID Pattern**: `guest_1698765432_a1b2c3`
+- **Email Pattern**: `guest_1698765432@redmansion.local`
+- **Username**: `訪客_a1b2c3` (Chinese: "Guest")
+- **Password**: Auto-generated (not shown to user)
+- **Level**: 0 (starts at beginner level)
+- **XP**: 0 (no experience points)
+- **isGuest Flag**: `true` (for UI customization)
+
 ### 3. JWT Callback
 
-**Purpose**: Add custom claims to JWT token on sign-in
+**Purpose**: Add custom claims to JWT token on sign-in and set dynamic session expiration
 
 ```typescript
-async jwt({ token, user, account }) {
+async jwt({ token, user, account, trigger }) {
   // On initial sign-in, add user data to token
   if (user && account) {
     token.userId = user.id;
     token.email = user.email;
     token.username = user.name;
-    token.currentLevel = user.currentLevel || 0;
-    token.totalXP = user.totalXP || 0;
+    token.currentLevel = (user as any).currentLevel || 0;
+    token.totalXP = (user as any).totalXP || 0;
+    token.isGuest = (user as any).isGuest || false;
+
+    // SQLITE-021: Set session duration based on Remember Me preference
+    const rememberMe = (user as any).rememberMe || false;
+    const sessionDuration = rememberMe
+      ? SESSION_DURATION_REMEMBER_ME  // 30 days
+      : SESSION_DURATION_STANDARD;     // 24 hours
+
+    // Store rememberMe flag and session duration in token
+    token.rememberMe = rememberMe;
+    token.sessionDuration = sessionDuration;
+
+    // Set token expiration time dynamically
+    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+    token.exp = now + sessionDuration;
+
+    console.log(`✅ [NextAuth] JWT created for user: ${user.id} (Session: ${rememberMe ? '30 days' : '24 hours'}, Guest: ${token.isGuest})`);
   }
 
   return token;
@@ -166,9 +246,12 @@ async jwt({ token, user, account }) {
   username: string;
   currentLevel: number;
   totalXP: number;
-  iat: number;        // Issued at (automatic)
-  exp: number;        // Expiry (automatic)
-  jti: string;        // JWT ID (automatic)
+  isGuest: boolean;           // SQLITE-021: Guest user flag
+  rememberMe: boolean;        // SQLITE-021: Remember Me preference
+  sessionDuration: number;    // SQLITE-021: Session duration in seconds
+  iat: number;                // Issued at (automatic)
+  exp: number;                // Expiry (automatic, dynamically set)
+  jti: string;                // JWT ID (automatic)
 }
 ```
 
@@ -178,12 +261,14 @@ async jwt({ token, user, account }) {
 
 ```typescript
 async session({ session, token }) {
+  // Add user data from token to session
   if (token && session.user) {
     session.user.id = token.userId as string;
     session.user.email = token.email as string;
     session.user.name = token.username as string;
-    session.user.currentLevel = token.currentLevel;
-    session.user.totalXP = token.totalXP;
+    (session.user as any).currentLevel = token.currentLevel;
+    (session.user as any).totalXP = token.totalXP;
+    (session.user as any).isGuest = token.isGuest || false;  // SQLITE-021: Guest flag
   }
 
   return session;
@@ -199,8 +284,9 @@ async session({ session, token }) {
     name: string;
     currentLevel: number;
     totalXP: number;
+    isGuest: boolean;     // SQLITE-021: Indicates if user is guest
   },
-  expires: string;    // ISO 8601 date string
+  expires: string;        // ISO 8601 date string
 }
 ```
 
@@ -286,7 +372,7 @@ openssl rand -base64 32
 | **Password Hashing** | bcrypt with 10 salt rounds | ✅ |
 | **JWT Signing** | NEXTAUTH_SECRET (32-byte base64) | ✅ |
 | **HTTPOnly Cookies** | Automatic via NextAuth.js | ✅ |
-| **Session Expiry** | 24-hour maxAge | ✅ |
+| **Session Expiry** | Dynamic: 24h standard / 30d Remember Me | ✅ |
 | **CSRF Protection** | Built-in NextAuth.js CSRF tokens | ✅ |
 | **Secure Cookies** | Production mode (HTTPS) | ✅ |
 | **SQL Injection** | Prepared statements in user-repository | ✅ |
@@ -315,12 +401,12 @@ openssl rand -base64 32
 
 ## Usage Examples
 
-### Client-Side Sign In
+### Client-Side Sign In (Standard)
 
 ```typescript
 import { signIn } from 'next-auth/react';
 
-// Sign in with credentials
+// Sign in with credentials (standard 24-hour session)
 const result = await signIn('credentials', {
   email: 'user@example.com',
   password: 'securePassword123',
@@ -333,6 +419,46 @@ if (result?.error) {
   // Redirect to dashboard
   router.push('/dashboard');
 }
+```
+
+### Client-Side Sign In (Remember Me) - SQLITE-021
+
+```typescript
+import { signIn } from 'next-auth/react';
+
+// Sign in with Remember Me (30-day session)
+const result = await signIn('credentials', {
+  email: 'user@example.com',
+  password: 'securePassword123',
+  rememberMe: 'true',  // Enable 30-day session
+  redirect: false,
+});
+
+if (result?.ok) {
+  router.push('/dashboard');
+} else {
+  console.error('Sign in failed:', result.error);
+}
+```
+
+### Guest Login - SQLITE-021
+
+```typescript
+import { signIn } from 'next-auth/react';
+
+// Sign in as guest (anonymous account)
+const handleGuestSignIn = async () => {
+  const result = await signIn('guest-credentials', {
+    redirect: false,
+  });
+
+  if (result?.ok) {
+    console.log('✅ Guest login successful');
+    router.push('/dashboard');
+  } else {
+    console.error('❌ Guest login failed:', result?.error);
+  }
+};
 ```
 
 ### Client-Side Session Access
@@ -445,14 +571,29 @@ catch (error) {
 
 ### Manual Testing Checklist
 
+**Standard Authentication:**
 - [ ] Sign in with valid credentials → Success
 - [ ] Sign in with wrong password → Error
 - [ ] Sign in with non-existent email → Error
 - [ ] Session persists across page refreshes
-- [ ] Session expires after 24 hours
+- [ ] Session expires after 24 hours (standard)
 - [ ] Sign out clears session
 - [ ] Custom claims in JWT token (userId, username, level, XP)
 - [ ] Custom fields in session object
+
+**Remember Me (SQLITE-021):**
+- [ ] Sign in with Remember Me checked → 30-day session
+- [ ] Remember Me session persists for 30 days
+- [ ] JWT token has correct expiry (30 days)
+- [ ] Standard session expires after 24h, Remember Me after 30d
+
+**Guest Login (SQLITE-021):**
+- [ ] Guest login creates new guest account
+- [ ] Guest user has unique ID (guest_{timestamp}_{random})
+- [ ] Guest user has Chinese username (訪客_xxx)
+- [ ] Guest user has isGuest flag set to true
+- [ ] Guest session is 24 hours (no Remember Me)
+- [ ] Guest can access platform features
 
 ### Integration Test Example
 
@@ -518,15 +659,15 @@ Network tab → Response Headers → Set-Cookie
 
 ## Future Enhancements
 
-### Planned Features (Not in SQLITE-019)
+### Planned Features
 
 - [ ] OAuth Providers (Google, GitHub)
 - [ ] Email Verification
 - [ ] Password Reset Flow
 - [ ] Account Lockout (failed login attempts)
-- [ ] Remember Me functionality
 - [ ] Session Revocation (requires database sessions)
 - [ ] Multi-Factor Authentication (2FA)
+- [ ] Guest account conversion to permanent account
 
 ---
 
@@ -552,8 +693,26 @@ Network tab → Response Headers → Set-Cookie
 - ✅ Environment configuration (NEXTAUTH_SECRET, NEXTAUTH_URL)
 - ✅ TypeScript validation with 0 errors
 
+### 2025-10-30 (SQLITE-021)
+- ✅ Implemented Remember Me functionality with dynamic session duration
+  - Standard session: 24 hours (86400 seconds)
+  - Remember Me session: 30 days (2592000 seconds)
+  - Dynamic JWT token expiry based on user preference
+- ✅ Implemented Guest/Anonymous login provider
+  - Auto-generated guest accounts with unique IDs
+  - Chinese guest usernames (訪客_xxx)
+  - isGuest flag for UI customization
+  - Guest users stored in SQLite database
+- ✅ Added rememberMe field to credentials provider
+- ✅ Updated JWT callback to set dynamic token expiration
+- ✅ Updated Session callback to include isGuest flag
+- ✅ Added createGuestUser() function to user-repository
+- ✅ Added isGuest column to SQLite users table
+- ✅ Updated login page UI with Remember Me checkbox and Guest Login button
+- ✅ TypeScript validation with 2 errors fixed
+
 ---
 
-**Status**: ✅ Completed (Phase 4 - SQLITE-019)
-**Dependencies**: user-repository (SQLITE-016), password-validation (SQLITE-020)
-**Next Steps**: Update login UI to use NextAuth (SQLITE-022)
+**Status**: ✅ Completed (Phase 4 - SQLITE-019, SQLITE-021)
+**Dependencies**: user-repository (SQLITE-016), password-validation (SQLITE-020), sqlite-db (SQLITE-014)
+**Next Steps**: Update AuthContext and UI components to use NextAuth (SQLITE-022)
