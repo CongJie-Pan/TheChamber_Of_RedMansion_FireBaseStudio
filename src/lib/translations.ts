@@ -407,10 +407,10 @@ export const translations: Record<Language, Translations> = {
       // CTA Section
       ctaTitle: '開啟您的紅樓夢學習之旅',
       ctaSubtitle: '加入我們的學習社群，與志同道合的朋友一起深入探索中國古典文學的瑰寶。無論您是初學者還是資深愛好者，都能在這裡找到適合的學習內容。',
-      ctaStats: '已有超過 1,200 名學習者選擇了我們的平台',
+      ctaStats: '加入我們',
       // Footer
       footerSlogan: '致力於傳承中華古典文學',
-      footerRights: '© 2024 紅樓慧讀平台. 致力於傳承中華古典文學.',
+      footerRights: '© 2025 紅樓慧讀平台, AI與數位傳承文化.',
     },
     appShell: {
       userAccount: '我的帳戶',
@@ -448,6 +448,7 @@ export const translations: Record<Language, Translations> = {
       noAccount: '還沒有帳戶?',
       registerNow: '立即註冊',
       loggingIn: '登入中...',
+      rememberMe: '登入請記得我',
       orContinueWith: '或使用以下方式登入',
       errorGoogleSignIn: 'Google 登入失敗，請稍後再試',
       errorPopupClosed: '登入視窗已關閉',
@@ -1078,6 +1079,7 @@ export const translations: Record<Language, Translations> = {
       noAccount: '还没有账户?',
       registerNow: '立即注册',
       loggingIn: '登录中...',
+      rememberMe: '登录请记得我',
       orContinueWith: '或使用以下方式登录',
       guestLogin: '访客登录',
     },
@@ -1696,6 +1698,7 @@ export const translations: Record<Language, Translations> = {
       noAccount: "Don't have an account?",
       registerNow: 'Register Now',
       loggingIn: 'Logging in...',
+      rememberMe: 'Remember me',
       orContinueWith: 'Or continue with',
       guestLogin: 'Guest Login',
     },
