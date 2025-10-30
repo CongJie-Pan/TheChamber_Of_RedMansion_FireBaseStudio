@@ -1,8 +1,65 @@
-# Module: `firebase-admin.ts`
+# ⚠️ DEPRECATED - Module Removed
 
-## 1. Module Summary
+**Status:** This module has been removed from the codebase
+**Removal Date:** 2025-10-30
+**Related Task:** SQLITE-024 (Phase 1 - Firebase Authentication Cleanup)
+**Reason:** Migrated from Firebase Authentication to NextAuth.js
 
-The `firebase-admin` module provides server-side Firebase Admin SDK initialization with graceful degradation for environments where Firebase is disabled or unavailable. This module supports privileged backend operations like user management, ID token verification, and elevated database writes that require admin permissions. The module is architected to avoid hard dependencies on the `firebase-admin` package, allowing the application to run in LLM-only mode or environments without Firebase credentials by returning `null` values instead of crashing.
+## Migration Information
+
+This Firebase Admin module (`src/lib/firebase-admin.ts`) has been completely removed as part of the authentication infrastructure modernization.
+
+### What Replaced It
+
+**For API Route Authentication:**
+- **Old Implementation:** `verifyAuthHeader()` with Firebase ID token verification
+- **New Implementation:** NextAuth.js session verification via `getServerSession(authOptions)`
+- **Migration Pattern:**
+  ```typescript
+  // ❌ OLD - Firebase Admin (Removed)
+  import { verifyAuthHeader } from '@/lib/firebase-admin';
+  const uid = await verifyAuthHeader(request.headers.get('authorization'));
+
+  // ✅ NEW - NextAuth Session
+  import { getServerSession } from "next-auth/next";
+  import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+  const session = await getServerSession(authOptions);
+  const uid = session?.user?.id || null;
+  ```
+
+**Benefits of Migration:**
+1. **Session-based Authentication** - More secure with HTTP-only cookies
+2. **No Bearer Tokens** - Eliminates Authorization header management
+3. **Simpler API** - Single `getServerSession()` call replaces token verification
+4. **Built-in CSRF Protection** - NextAuth provides CSRF token handling
+5. **Better Type Safety** - Full TypeScript support for session objects
+6. **Reduced Dependencies** - Removed `firebase-admin` package
+
+### Updated API Routes
+
+All API routes that previously used `verifyAuthHeader()` have been migrated:
+- `src/app/api/daily-tasks/submit/route.ts` - Uses NextAuth session
+- `src/app/api/daily-tasks/generate/route.ts` - Uses NextAuth session
+
+### See Updated Documentation
+
+- **NextAuth Configuration:** `Authentication API Modules/nextauth-api_module_info.md`
+- **Session Management:** `Core Service Modules/session-management_module_info.md`
+- **Migration Guide:** `docs/firebaseToSQLlite/TASK.md` (SQLITE-024)
+
+---
+
+**For historical reference only - do not use this documentation for current development.**
+
+---
+
+# ~~Module: `firebase-admin.ts`~~ (REMOVED)
+
+## 1. Module Summary (Historical)
+
+~~The `firebase-admin` module provides server-side Firebase Admin SDK initialization with graceful degradation for environments where Firebase is disabled or unavailable. This module supports privileged backend operations like user management, ID token verification, and elevated database writes that require admin permissions. The module is architected to avoid hard dependencies on the `firebase-admin` package, allowing the application to run in LLM-only mode or environments without Firebase credentials by returning `null` values instead of crashing.~~
+
+**This module has been removed.** See migration information above.
 
 ## 2. Module Dependencies
 

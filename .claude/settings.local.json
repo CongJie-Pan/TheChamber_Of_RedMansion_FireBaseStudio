@@ -89,7 +89,8 @@
       "Bash(tsx scripts/verify-sqlite-schema.ts:*)",
       "Bash(npx tsx:*)",
       "Bash(chmod:*)",
-      "Bash(openssl rand:*)"
+      "Bash(openssl rand:*)",
+      "Bash(git diff:*)"
     ]
   },
   "outputStyle": "default"
