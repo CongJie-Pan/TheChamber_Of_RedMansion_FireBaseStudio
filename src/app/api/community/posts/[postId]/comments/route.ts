@@ -42,25 +42,16 @@ const CreateCommentSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
-    // Step 1: Authentication check
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized - Please log in' },
-        { status: 401 }
-      );
-    }
-
-    // Step 2: Parse query parameters
+    // Step 1: Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 50;
 
-    const { postId } = params;
+    // Step 2: Await params (Next.js 15 requirement)
+    const { postId } = await params;
 
     console.log(`💬 [API] Fetching comments for post ${postId}`);
 
@@ -80,6 +71,16 @@ export async function GET(
 
   } catch (error: any) {
     console.error('❌ [API] Error fetching comments:', error);
+
+    if (error.message?.toLowerCase().includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Post not found',
+        },
+        { status: 404 }
+      );
+    }
 
     if (error.message?.includes('SQLite')) {
       return NextResponse.json(
@@ -127,7 +128,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Step 1: Authentication check
@@ -156,7 +157,9 @@ export async function POST(
     }
 
     const { authorId, authorName, content, parentCommentId } = validationResult.data;
-    const { postId } = params;
+
+    // Step 3: Await params (Next.js 15 requirement)
+    const { postId } = await params;
 
     // Step 3: Authorization check - users can only comment as themselves
     if (authorId !== session.user.id) {
@@ -196,6 +199,16 @@ export async function POST(
   } catch (error: any) {
     console.error('❌ [API] Error adding comment:', error);
 
+    if (error.message?.toLowerCase().includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Post not found',
+        },
+        { status: 404 }
+      );
+    }
+
     if (error.message?.includes('SQLite')) {
       return NextResponse.json(
         {
@@ -206,7 +219,7 @@ export async function POST(
       );
     }
 
-    if (error.message?.includes('moderation')) {
+    if (error.message?.toLowerCase().includes('guideline') || error.message?.toLowerCase().includes('violate')) {
       return NextResponse.json(
         {
           success: false,
@@ -246,7 +259,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Step 1: Authentication check
@@ -273,7 +286,8 @@ export async function DELETE(
       );
     }
 
-    const { postId } = params;
+    // Step 3: Await params (Next.js 15 requirement)
+    const { postId } = await params;
 
     console.log(`🗑️ [API] Deleting comment ${commentId} from post ${postId}`);
 
@@ -293,6 +307,26 @@ export async function DELETE(
 
   } catch (error: any) {
     console.error('❌ [API] Error deleting comment:', error);
+
+    if (error.message?.toLowerCase().includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Comment not found',
+        },
+        { status: 404 }
+      );
+    }
+
+    if (error.message?.toLowerCase().includes('unauthorized') || error.message?.toLowerCase().includes('forbidden')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Forbidden - You can only delete your own comments',
+        },
+        { status: 403 }
+      );
+    }
 
     if (error.message?.includes('SQLite')) {
       return NextResponse.json(

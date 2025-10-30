@@ -1,5 +1,4 @@
-
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -49,7 +48,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer, dev }) => {
+  webpack: (
+    config: any,
+    { isServer, dev }: { isServer: boolean; dev: boolean }
+  ) => {
     if (!isServer) {
       // Prevent bundling of Node.js specific modules on the client
       config.resolve.fallback = {

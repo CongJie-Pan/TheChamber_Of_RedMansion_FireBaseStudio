@@ -39,7 +39,7 @@ const LikeSchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Step 1: Authentication check
@@ -68,7 +68,9 @@ export async function POST(
     }
 
     const { userId } = validationResult.data;
-    const { postId } = params;
+
+    // Step 3: Await params (Next.js 15 requirement)
+    const { postId } = await params;
 
     // Step 3: Authorization check - users can only like as themselves
     if (userId !== session.user.id) {
@@ -99,6 +101,16 @@ export async function POST(
 
   } catch (error: any) {
     console.error('❌ [API] Error liking post:', error);
+
+    if (error.message?.toLowerCase().includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Post not found',
+        },
+        { status: 404 }
+      );
+    }
 
     if (error.message?.includes('SQLite')) {
       return NextResponse.json(
@@ -139,7 +151,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
     // Step 1: Authentication check
@@ -166,7 +178,8 @@ export async function DELETE(
       );
     }
 
-    const { postId } = params;
+    // Step 3: Await params (Next.js 15 requirement)
+    const { postId } = await params;
 
     // Step 3: Authorization check
     if (userId !== session.user.id) {
@@ -196,6 +209,16 @@ export async function DELETE(
 
   } catch (error: any) {
     console.error('❌ [API] Error unliking post:', error);
+
+    if (error.message?.toLowerCase().includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Post not found',
+        },
+        { status: 404 }
+      );
+    }
 
     if (error.message?.includes('SQLite')) {
       return NextResponse.json(

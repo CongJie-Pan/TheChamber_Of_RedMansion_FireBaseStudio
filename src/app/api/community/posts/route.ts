@@ -192,7 +192,8 @@ export async function GET(request: NextRequest) {
     const tagsParam = searchParams.get('tags');
     const tags = tagsParam ? tagsParam.split(',') : undefined;
     const limitParam = searchParams.get('limit');
-    const limit = limitParam ? parseInt(limitParam, 10) : 20;
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : 20;
+    const limit = isNaN(parsedLimit) ? 20 : parsedLimit;
 
     // Step 3: Build filters
     const filters: any = {};

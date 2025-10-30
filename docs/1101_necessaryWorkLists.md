@@ -72,6 +72,7 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
 
 [] 資料庫問題
   - 需要增加刪除帳戶的按鈕功能(在用戶設定那)
+  - continue run the tests of the bugs
 
 [] 最後測試 (Smoking Test)
 

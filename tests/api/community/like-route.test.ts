@@ -34,7 +34,14 @@ jest.mock('next/server', () => ({
 // Mock NextAuth
 const mockGetServerSession = jest.fn();
 jest.mock('next-auth', () => ({
+  __esModule: true,
+  default: jest.fn(() => ({ GET: jest.fn(), POST: jest.fn() })),
   getServerSession: (...args: any[]) => mockGetServerSession(...args),
+}));
+
+// Mock the auth route to prevent NextAuth execution
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
 }));
 
 // Mock community service

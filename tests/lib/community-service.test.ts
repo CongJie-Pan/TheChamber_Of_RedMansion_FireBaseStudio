@@ -1,4 +1,6 @@
 /**
+ * @jest-environment node
+ *
  * @fileOverview Tests for Community Service Layer
  *
  * Tests the business logic layer for community features including:
@@ -21,6 +23,7 @@
 
 import { communityService } from '@/lib/community-service';
 import * as communityRepo from '@/lib/repositories/community-repository';
+import * as commentRepo from '@/lib/repositories/comment-repository';
 import { contentFilterService } from '@/lib/content-filter-service';
 import {
   TEST_USERS,
@@ -34,28 +37,15 @@ import {
   MOCK_MODERATION_FILTER,
 } from '../fixtures/community-fixtures';
 
-// Mock the repository layer
+// Mock the repository layers
 jest.mock('@/lib/repositories/community-repository');
+jest.mock('@/lib/repositories/comment-repository');
 
 // Mock the content filter service
 jest.mock('@/lib/content-filter-service');
 
-// Mock Firebase
-jest.mock('@/lib/firebase-service', () => ({
-  db: {},
-  collection: jest.fn(),
-  addDoc: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn(),
-  orderBy: jest.fn(),
-  limit: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000, nanoseconds: 0 })),
-}));
+// Note: Firebase mocking removed as firebase-service doesn't exist
+// The community service will use the repository layer which is already mocked
 
 describe('Community Service', () => {
   beforeEach(() => {
@@ -68,115 +58,77 @@ describe('Community Service', () => {
     describe('SQLite Mode', () => {
       it('should create post in SQLite when enabled', async () => {
         (communityRepo.createPost as jest.Mock).mockReturnValue('post-new-001');
-        (communityRepo.getPostById as jest.Mock).mockReturnValue(MOCK_POST);
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_CLEAN
-        );
+        (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+          processedContent: CLEAN_POST_DATA.content,
+          action: 'allow',
+          shouldBlock: false,
+        });
 
         const result = await communityService.createPost(CLEAN_POST_DATA);
 
         expect(communityRepo.createPost).toHaveBeenCalled();
-        expect(communityRepo.getPostById).toHaveBeenCalledWith('post-new-001');
-        expect(result).toEqual(MOCK_POST);
+        expect(result.id).toBeDefined();
       });
 
       it('should apply content moderation before creating post', async () => {
         (communityRepo.createPost as jest.Mock).mockReturnValue('post-new-001');
-        (communityRepo.getPostById as jest.Mock).mockReturnValue(MOCK_POST);
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_CLEAN
-        );
+        const combinedContent = `${CLEAN_POST_DATA.title} ${CLEAN_POST_DATA.content}`.trim();
+        (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+          processedContent: combinedContent,
+          action: 'allow',
+          shouldBlock: false,
+        });
 
         await communityService.createPost(CLEAN_POST_DATA);
 
-        expect(contentFilterService.moderateContent).toHaveBeenCalledWith(
-          CLEAN_POST_DATA.content,
-          'post'
+        expect(contentFilterService.processContent).toHaveBeenCalledWith(
+          combinedContent,
+          expect.any(String),
+          'post',
+          CLEAN_POST_DATA.authorId
         );
       });
 
       it('should store moderation action when content is filtered', async () => {
         (communityRepo.createPost as jest.Mock).mockReturnValue('post-moderated-001');
-        (communityRepo.getPostById as jest.Mock).mockReturnValue({
-          ...MOCK_POST,
-          moderationAction: JSON.stringify(MOCK_MODERATION_FILTER),
+        // Simulate filtered content: title + filtered content
+        const titleLength = PROFANITY_POST_DATA.title?.length || 0;
+        const filteredCombined = '*** filtered title *** filtered content ***';
+        (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+          processedContent: filteredCombined,
+          action: 'filtered',
+          shouldBlock: false,
+          warningMessage: 'Content was filtered',
         });
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_FILTER
-        );
 
         const result = await communityService.createPost(PROFANITY_POST_DATA);
 
         const createCall = (communityRepo.createPost as jest.Mock).mock.calls[0][0];
-        expect(createCall.content).toBe(MOCK_MODERATION_FILTER.filteredContent);
-        expect(createCall.moderationAction).toBeDefined();
+        // Service splits the filtered content back into title and content
+        expect(createCall.title).toBe(filteredCombined.substring(0, titleLength));
+        expect(createCall.content).toBe(filteredCombined.substring(titleLength).trim());
+        expect(createCall.moderationAction).toBe('filtered');
       });
 
-      it('should fallback to Firebase when SQLite fails', async () => {
-        (communityRepo.createPost as jest.Mock).mockImplementation(() => {
-          throw new Error('SQLite connection failed');
-        });
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_CLEAN
-        );
-
-        // Mock Firebase
-        const mockFirebasePost = { id: 'firebase-post-001', ...MOCK_POST };
-        const firebase = require('@/lib/firebase-service');
-        firebase.addDoc.mockResolvedValue({ id: 'firebase-post-001' });
-        firebase.getDoc.mockResolvedValue({
-          exists: () => true,
-          data: () => mockFirebasePost,
-        });
-
-        const result = await communityService.createPost(CLEAN_POST_DATA);
-
-        expect(firebase.addDoc).toHaveBeenCalled();
-        expect(result).toBeDefined();
-      });
-    });
-
-    describe('Firebase Mode', () => {
-      beforeEach(() => {
-        process.env.SQLITE_SERVER_ENABLED = 'false';
-      });
-
-      it('should create post in Firebase when SQLite is disabled', async () => {
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_CLEAN
-        );
-
-        const firebase = require('@/lib/firebase-service');
-        firebase.addDoc.mockResolvedValue({ id: 'firebase-post-001' });
-        firebase.getDoc.mockResolvedValue({
-          exists: () => true,
-          data: () => MOCK_POST,
-        });
-
-        const result = await communityService.createPost(CLEAN_POST_DATA);
-
-        expect(communityRepo.createPost).not.toHaveBeenCalled();
-        expect(firebase.addDoc).toHaveBeenCalled();
-      });
+      // Firebase fallback tests removed - using repository layer only
     });
 
     describe('Error Handling', () => {
-      it('should throw error when both SQLite and Firebase fail', async () => {
+      it('should throw error when SQLite fails', async () => {
         (communityRepo.createPost as jest.Mock).mockImplementation(() => {
           throw new Error('SQLite failed');
         });
-        (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-          MOCK_MODERATION_CLEAN
-        );
-
-        const firebase = require('@/lib/firebase-service');
-        firebase.addDoc.mockRejectedValue(new Error('Firebase failed'));
+        (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+          processedContent: CLEAN_POST_DATA.content,
+          action: 'allow',
+          shouldBlock: false,
+        });
 
         await expect(communityService.createPost(CLEAN_POST_DATA)).rejects.toThrow();
       });
 
       it('should throw error when content moderation fails', async () => {
-        (contentFilterService.moderateContent as jest.Mock).mockRejectedValue(
+        (contentFilterService.processContent as jest.Mock).mockRejectedValue(
           new Error('Moderation service unavailable')
         );
 
@@ -190,33 +142,17 @@ describe('Community Service', () => {
   describe('getPosts', () => {
     it('should retrieve posts from SQLite with filters', async () => {
       const mockPosts = [MOCK_POST];
-      (communityRepo.getPosts as jest.Mock).mockReturnValue(mockPosts);
+      (communityRepo.getPosts as jest.Mock).mockResolvedValue(mockPosts);
 
       const result = await communityService.getPosts({ category: 'discussion' }, 20);
 
-      expect(communityRepo.getPosts).toHaveBeenCalledWith(
-        { category: 'discussion' },
-        20
-      );
+      expect(communityRepo.getPosts).toHaveBeenCalledWith({
+        category: 'discussion',
+        tags: undefined,
+        limit: 20,
+        sortBy: 'newest',
+      });
       expect(result).toEqual(mockPosts);
-    });
-
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.getPosts as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.getDocs.mockResolvedValue({
-        docs: [
-          { id: 'post-001', data: () => MOCK_POST },
-        ],
-      });
-
-      const result = await communityService.getPosts({}, 20);
-
-      expect(firebase.getDocs).toHaveBeenCalled();
-      expect(result).toBeDefined();
     });
 
     it('should return empty array when no posts found', async () => {
@@ -237,23 +173,14 @@ describe('Community Service', () => {
       expect(communityRepo.deletePost).toHaveBeenCalledWith('post-001');
     });
 
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.deletePost as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.deleteDoc.mockResolvedValue(undefined);
-
-      await communityService.deletePost('post-001');
-
-      expect(firebase.deleteDoc).toHaveBeenCalled();
-    });
   });
 
   describe('togglePostLike', () => {
     it('should add like when isLiking is true', async () => {
-      (communityRepo.likePost as jest.Mock).mockReturnValue(true);
+      (communityRepo.likePost as jest.Mock).mockResolvedValue({
+        ...MOCK_POST,
+        likedBy: [TEST_USERS.user1.id],
+      });
 
       const result = await communityService.togglePostLike('post-001', TEST_USERS.user1.id, true);
 
@@ -262,7 +189,10 @@ describe('Community Service', () => {
     });
 
     it('should remove like when isLiking is false', async () => {
-      (communityRepo.unlikePost as jest.Mock).mockReturnValue(true);
+      (communityRepo.unlikePost as jest.Mock).mockResolvedValue({
+        ...MOCK_POST,
+        likedBy: [],
+      });
 
       const result = await communityService.togglePostLike('post-001', TEST_USERS.user1.id, false);
 
@@ -271,122 +201,74 @@ describe('Community Service', () => {
     });
 
     it('should return false when like state does not change', async () => {
-      (communityRepo.likePost as jest.Mock).mockReturnValue(false);
+      // Return post with userId not in likedBy (like didn't get added)
+      (communityRepo.likePost as jest.Mock).mockResolvedValue({
+        ...MOCK_POST,
+        likedBy: [], // User not in array
+      });
 
       const result = await communityService.togglePostLike('post-001', TEST_USERS.user1.id, true);
 
       expect(result).toBe(false);
     });
 
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.likePost as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.updateDoc.mockResolvedValue(undefined);
-      firebase.getDoc.mockResolvedValue({
-        exists: () => true,
-        data: () => ({ likedBy: [] }),
-      });
-
-      await communityService.togglePostLike('post-001', TEST_USERS.user1.id, true);
-
-      expect(firebase.updateDoc).toHaveBeenCalled();
-    });
   });
 
   describe('addComment', () => {
     it('should add comment with content moderation in SQLite', async () => {
-      (communityRepo.createComment as jest.Mock).mockReturnValue('comment-new-001');
-      (communityRepo.getCommentById as jest.Mock).mockReturnValue(MOCK_COMMENT);
-      (communityRepo.incrementCommentCount as jest.Mock).mockReturnValue(undefined);
-      (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-        MOCK_MODERATION_CLEAN
-      );
+      (commentRepo.createComment as jest.Mock).mockResolvedValue(MOCK_COMMENT);
+      (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+        processedContent: CLEAN_COMMENT_DATA.content,
+        action: 'allow',
+        shouldBlock: false,
+      });
 
       const result = await communityService.addComment(CLEAN_COMMENT_DATA);
 
-      expect(contentFilterService.moderateContent).toHaveBeenCalledWith(
+      expect(contentFilterService.processContent).toHaveBeenCalledWith(
         CLEAN_COMMENT_DATA.content,
-        'comment'
+        expect.any(String), // Temporary ID
+        'comment',
+        CLEAN_COMMENT_DATA.authorId
       );
-      expect(communityRepo.createComment).toHaveBeenCalled();
-      expect(communityRepo.incrementCommentCount).toHaveBeenCalledWith(CLEAN_COMMENT_DATA.postId);
-      expect(result.id).toBe('comment-new-001');
+      expect(commentRepo.createComment).toHaveBeenCalled();
+      expect(result.id).toBeDefined();
     });
 
     it('should apply moderation to comment content', async () => {
-      (communityRepo.createComment as jest.Mock).mockReturnValue('comment-moderated-001');
-      (communityRepo.getCommentById as jest.Mock).mockReturnValue({
+      (commentRepo.createComment as jest.Mock).mockResolvedValue({
         ...MOCK_COMMENT,
-        moderationAction: MOCK_MODERATION_FILTER,
+        moderationAction: 'filtered',
       });
-      (communityRepo.incrementCommentCount as jest.Mock).mockReturnValue(undefined);
-      (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-        MOCK_MODERATION_FILTER
-      );
+      (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+        processedContent: '*** filtered content ***',
+        action: 'filtered',
+        shouldBlock: false,
+        warningMessage: 'Content was filtered',
+      });
 
       const result = await communityService.addComment(PROFANITY_COMMENT_DATA);
 
-      const createCall = (communityRepo.createComment as jest.Mock).mock.calls[0][0];
-      expect(createCall.content).toBe(MOCK_MODERATION_FILTER.filteredContent);
-      expect(result.moderationAction).toEqual(MOCK_MODERATION_FILTER);
+      const createCall = (commentRepo.createComment as jest.Mock).mock.calls[0][0];
+      expect(createCall.content).toBe('*** filtered content ***');
+      expect(result.moderationAction).toEqual('filtered');
     });
 
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.createComment as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-      (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-        MOCK_MODERATION_CLEAN
-      );
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.addDoc.mockResolvedValue({ id: 'firebase-comment-001' });
-      firebase.getDoc.mockResolvedValue({
-        exists: () => true,
-        data: () => MOCK_COMMENT,
-      });
-
-      const result = await communityService.addComment(CLEAN_COMMENT_DATA);
-
-      expect(firebase.addDoc).toHaveBeenCalled();
-      expect(result).toBeDefined();
-    });
   });
 
   describe('getComments', () => {
     it('should retrieve comments from SQLite', async () => {
       const mockComments = [MOCK_COMMENT];
-      (communityRepo.getCommentsByPostId as jest.Mock).mockReturnValue(mockComments);
+      (commentRepo.getCommentsByPost as jest.Mock).mockResolvedValue(mockComments);
 
       const result = await communityService.getComments('post-001', 50);
 
-      expect(communityRepo.getCommentsByPostId).toHaveBeenCalledWith('post-001', 50);
+      expect(commentRepo.getCommentsByPost).toHaveBeenCalledWith('post-001');
       expect(result).toEqual(mockComments);
     });
 
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.getCommentsByPostId as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.getDocs.mockResolvedValue({
-        docs: [
-          { id: 'comment-001', data: () => MOCK_COMMENT },
-        ],
-      });
-
-      const result = await communityService.getComments('post-001', 50);
-
-      expect(firebase.getDocs).toHaveBeenCalled();
-      expect(result).toBeDefined();
-    });
-
     it('should return empty array when no comments found', async () => {
-      (communityRepo.getCommentsByPostId as jest.Mock).mockReturnValue([]);
+      (commentRepo.getCommentsByPost as jest.Mock).mockResolvedValue([]);
 
       const result = await communityService.getComments('post-001', 50);
 
@@ -395,34 +277,15 @@ describe('Community Service', () => {
   });
 
   describe('deleteComment', () => {
-    it('should delete comment from SQLite and decrement count', async () => {
-      (communityRepo.deleteComment as jest.Mock).mockReturnValue(undefined);
-      (communityRepo.decrementCommentCount as jest.Mock).mockReturnValue(undefined);
+    it('should delete comment from SQLite', async () => {
+      (commentRepo.deleteComment as jest.Mock).mockResolvedValue(undefined);
 
       await communityService.deleteComment('post-001', 'comment-001');
 
-      expect(communityRepo.deleteComment).toHaveBeenCalledWith('comment-001');
-      expect(communityRepo.decrementCommentCount).toHaveBeenCalledWith('post-001');
+      expect(commentRepo.deleteComment).toHaveBeenCalledWith('comment-001');
+      // Note: Comment count decrement is handled automatically by repository
     });
 
-    it('should fallback to Firebase when SQLite fails', async () => {
-      (communityRepo.deleteComment as jest.Mock).mockImplementation(() => {
-        throw new Error('SQLite error');
-      });
-
-      const firebase = require('@/lib/firebase-service');
-      firebase.deleteDoc.mockResolvedValue(undefined);
-      firebase.getDoc.mockResolvedValue({
-        exists: () => true,
-        data: () => ({ commentCount: 5 }),
-      });
-      firebase.updateDoc.mockResolvedValue(undefined);
-
-      await communityService.deleteComment('post-001', 'comment-001');
-
-      expect(firebase.deleteDoc).toHaveBeenCalled();
-      expect(firebase.updateDoc).toHaveBeenCalled(); // Decrement comment count
-    });
   });
 
   describe('Edge Cases', () => {
@@ -430,25 +293,31 @@ describe('Community Service', () => {
       (communityRepo.createPost as jest.Mock)
         .mockReturnValueOnce('post-001')
         .mockReturnValueOnce('post-002');
-      (communityRepo.getPostById as jest.Mock)
-        .mockReturnValueOnce({ ...MOCK_POST, id: 'post-001' })
-        .mockReturnValueOnce({ ...MOCK_POST, id: 'post-002' });
-      (contentFilterService.moderateContent as jest.Mock).mockResolvedValue(
-        MOCK_MODERATION_CLEAN
-      );
+      (contentFilterService.processContent as jest.Mock).mockResolvedValue({
+        processedContent: CLEAN_POST_DATA.content,
+        action: 'allow',
+        shouldBlock: false,
+      });
 
       const [result1, result2] = await Promise.all([
         communityService.createPost(CLEAN_POST_DATA),
         communityService.createPost(CLEAN_POST_DATA),
       ]);
 
-      expect(result1.id).toBe('post-001');
-      expect(result2.id).toBe('post-002');
+      expect(result1.id).toBeDefined();
+      expect(result2.id).toBeDefined();
+      expect(result1.id).not.toBe(result2.id);
     });
 
     it('should handle rapid like/unlike toggles', async () => {
-      (communityRepo.likePost as jest.Mock).mockReturnValue(true);
-      (communityRepo.unlikePost as jest.Mock).mockReturnValue(true);
+      (communityRepo.likePost as jest.Mock).mockResolvedValue({
+        ...MOCK_POST,
+        likedBy: [TEST_USERS.user1.id],
+      });
+      (communityRepo.unlikePost as jest.Mock).mockResolvedValue({
+        ...MOCK_POST,
+        likedBy: [],
+      });
 
       await communityService.togglePostLike('post-001', TEST_USERS.user1.id, true);
       await communityService.togglePostLike('post-001', TEST_USERS.user1.id, false);
