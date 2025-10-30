@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
       const text = String(userResponse || '').trim()
       const content = (task?.content || task || {}) as DailyTask['content'] | undefined
       const type: DailyTaskType = (task?.type || task?.taskType ||
-        (content as any)?.poem ? DailyTaskType.POETRY :
         (content as any)?.character ? DailyTaskType.CHARACTER_INSIGHT :
         (content as any)?.culturalElement ? DailyTaskType.CULTURAL_EXPLORATION :
         (content as any)?.commentary ? DailyTaskType.COMMENTARY_DECODE :
@@ -113,7 +112,6 @@ export async function POST(request: NextRequest) {
       const text = String(userResponse || '').trim()
       const content = (task?.content || task || {}) as DailyTask['content'] | undefined
       const type: DailyTaskType = (task?.type || task?.taskType ||
-        (content as any)?.poem ? DailyTaskType.POETRY :
         (content as any)?.character ? DailyTaskType.CHARACTER_INSIGHT :
         (content as any)?.culturalElement ? DailyTaskType.CULTURAL_EXPLORATION :
         (content as any)?.commentary ? DailyTaskType.COMMENTARY_DECODE :

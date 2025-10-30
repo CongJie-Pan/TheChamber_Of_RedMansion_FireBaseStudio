@@ -1,4 +1,11 @@
 /**
+ * ⚠️ DEPRECATED - Module Removed from Active Use
+ *
+ * Status: This module has been deprecated
+ * Deprecation Date: 2025-10-30
+ * Reason: Poetry recitation tasks removed from daily task system due to inability to prevent copy-paste cheating
+ *
+ * Original Purpose:
  * @fileOverview Poetry Quality Assessment AI Flow
  *
  * This AI flow evaluates user recitations or compositions of poetry from
@@ -13,10 +20,13 @@
  * - Constructive feedback in Traditional Chinese
  * - Literary analysis and appreciation guidance
  *
- * Usage: Called by DailyTaskService when users submit poetry task answers
+ * Original Usage: Called by DailyTaskService when users submit poetry task answers
  *
  * @phase Phase 2.2 - AI Integration & Scoring System
  * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
+ * @deprecated 2025-10-30 - Poetry tasks removed, this module is no longer actively used
+ *
+ * Note: This file is kept for historical reference. Do not use in new code.
  */
 
 'use server'; // Required for server-side AI processing

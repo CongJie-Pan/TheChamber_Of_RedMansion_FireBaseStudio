@@ -1,5 +1,7 @@
 /**
- * @fileOverview Daily Task Service for Gamification System
+ * @fileOverview Daily Task Service for Gamification System (SQLite-only)
+ *
+ * SQLITE-025: Migrated from Firebase to SQLite-only implementation
  *
  * This service manages the Daily Task System (每日修身) operations:
  * - Task generation and assignment
@@ -12,48 +14,29 @@
  * - Generate personalized daily tasks based on user level and history
  * - Track user progress and completion status
  * - Integrate with AI flows for task evaluation
- * - Award XP and attribute points through user-level-service
+ * - Award XP and attribute points through SQLite repositories
  * - Maintain streak counters and milestones
  * - Prevent task farming and duplicate rewards
  *
- * Database Collections:
- * - dailyTasks: Task templates and definitions
- * - dailyTaskProgress: User daily progress records
- * - dailyTaskHistory: Long-term completion history
+ * Database Tables:
+ * - daily_tasks: Task templates and definitions
+ * - daily_task_progress: User daily progress records
+ * - Task history derived from progress records
  *
  * Design Principles:
+ * - SQLite-only operations (server-side)
  * - Atomic operations for data consistency
  * - Real-time progress updates
- * - Graceful degradation without Firebase
  * - Type-safe operations
  * - Comprehensive error handling
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  addDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  serverTimestamp,
-  Timestamp,
-  DocumentData,
-  QueryDocumentSnapshot,
-} from 'firebase/firestore';
-import { db } from './firebase';
 import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
 
-// Phase 2.9: SQLite Database Integration
-// 條件導入：只在伺服器端載入 SQLite 相關模組
-// 避免在客戶端（瀏覽器）載入 better-sqlite3 原生模組
+// SQLite Database Integration (Server-side only)
+// Conditional import: Load SQLite modules only on server-side
+// Avoid loading better-sqlite3 native module on client-side (browser)
 let userRepository: any;
 let taskRepository: any;
 let progressRepository: any;
@@ -83,35 +66,9 @@ if (SQLITE_SERVER_ENABLED) {
     throw guidanceError;
   }
 } else if (typeof window === 'undefined') {
-  console.warn('⚠️  [DailyTaskService] USE_SQLITE flag disabled; Firebase fallback remains active.');
+  console.error('❌ [DailyTaskService] USE_SQLITE flag disabled; service cannot operate.');
+  throw new Error('[DailyTaskService] SQLite is required but disabled. Enable USE_SQLITE environment variable.');
 }
-
-/**
- * Check if SQLite is available and usable in the current environment
- * Returns false if:
- * - Running in browser (client-side)
- * - SQLite modules failed to load
- * - SQLite database initialization failed (e.g., architecture mismatch)
- */
-function checkSQLiteAvailability(): boolean {
-  if (!SQLITE_SERVER_ENABLED) {
-    return false;
-  }
-  if (!sqliteModulesLoaded) {
-    throw new Error(
-      '[DailyTaskService] SQLite modules failed to load. Run "pnpm run doctor:sqlite" to diagnose the environment.'
-    );
-  }
-  return true;
-}
-
-/**
- * Check if SQLite should be used for the current operation
- * This is called dynamically to detect runtime failures
- *
- * @returns true if SQLite is available, false otherwise
- */
-const useSQLite = () => checkSQLiteAvailability();
 import {
   DailyTask,
   DailyTaskProgress,
@@ -126,10 +83,23 @@ import {
   StreakMilestone,
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
-
-// Phase 2.8: GPT-5-Mini Integration for Dynamic AI Feedback
-// Note: Gemini AI flows removed in Phase 2.9 - using length-based scoring instead
 import { generatePersonalizedFeedback } from './ai-feedback-generator';
+
+// Timestamp compatibility helper for SQLite
+interface TimestampLike {
+  toMillis?: () => number;
+  seconds?: number;
+  nanoseconds?: number;
+}
+
+function createTimestamp(): TimestampLike {
+  const now = Date.now();
+  return {
+    toMillis: () => now,
+    seconds: Math.floor(now / 1000),
+    nanoseconds: (now % 1000) * 1000000,
+  };
+}
 
 /**
  * Streak milestone configuration
@@ -148,11 +118,23 @@ export const STREAK_MILESTONES: StreakMilestone[] = [
  */
 export const BASE_XP_REWARDS = {
   [DailyTaskType.MORNING_READING]: 10,        // 晨讀時光: 10 XP
-  [DailyTaskType.POETRY]: 8,                  // 詩詞韻律: 8 XP
   [DailyTaskType.CHARACTER_INSIGHT]: 12,      // 人物洞察: 12 XP
   [DailyTaskType.CULTURAL_EXPLORATION]: 15,   // 文化探秘: 15 XP
   [DailyTaskType.COMMENTARY_DECODE]: 18,      // 脂批解密: 18 XP
 };
+
+/**
+ * Verify SQLite is available for server-side operations
+ * @throws Error if SQLite is not available
+ */
+function ensureSQLiteAvailable(): void {
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[DailyTaskService] Cannot operate: SQLite only available server-side');
+  }
+  if (!sqliteModulesLoaded) {
+    throw new Error('[DailyTaskService] SQLite modules failed to load. Run "pnpm run doctor:sqlite"');
+  }
+}
 
 /**
  * Attribute rewards for different task types
@@ -160,10 +142,6 @@ export const BASE_XP_REWARDS = {
 const ATTRIBUTE_REWARDS: Record<DailyTaskType, Partial<AttributePoints>> = {
   [DailyTaskType.MORNING_READING]: {
     analyticalThinking: 1,
-    culturalKnowledge: 1,
-  },
-  [DailyTaskType.POETRY]: {
-    poetrySkill: 2,
     culturalKnowledge: 1,
   },
   [DailyTaskType.CHARACTER_INSIGHT]: {
@@ -193,7 +171,7 @@ const AI_EVALUATION_TIMEOUT_MS = 3000;
 
 /**
  * Task cache TTL in milliseconds (5 minutes)
- * Phase 4.8: Performance optimization - reduce Firestore reads
+ * Performance optimization - reduce database reads
  */
 const TASK_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -222,7 +200,7 @@ function areConsecutiveDates(date1: string, date2: string): boolean {
 
 /**
  * Timeout wrapper for async operations
- * Phase 4.8: Performance optimization
+ * Performance optimization
  *
  * @param promise - Promise to execute
  * @param timeoutMs - Timeout in milliseconds
@@ -242,30 +220,28 @@ async function withTimeout<T>(
 
 /**
  * Daily Task Service Class
- * Singleton service for managing daily tasks
+ * Singleton service for managing daily tasks (SQLite-only)
  */
 export class DailyTaskService {
-  private dailyTasksCollection = collection(db, 'dailyTasks');
-  private dailyTaskProgressCollection = collection(db, 'dailyTaskProgress');
-  private dailyTaskHistoryCollection = collection(db, 'dailyTaskHistory');
-
   // Cache for last submission time (prevents spam)
   private lastSubmissionTimes: Map<string, number> = new Map();
 
-  // Phase 4.8: Task cache for performance optimization
+  // Task cache for performance optimization
   private taskCache: Map<string, { task: DailyTask; timestamp: number }> = new Map();
 
   /**
    * Generate daily tasks for a user on a specific date
    * This method should be called once per day per user
    *
-   * Phase 4.1.2: Now includes adaptive difficulty based on historical performance
+   * Includes adaptive difficulty based on historical performance
    *
    * @param userId - User ID
    * @param date - Date in YYYY-MM-DD format (defaults to today)
    * @returns Promise with array of generated tasks
    */
   async generateDailyTasks(userId: string, date?: string): Promise<DailyTask[]> {
+    ensureSQLiteAvailable();
+
     try {
       const targetDate = date || getTodayDateString();
 
@@ -283,7 +259,7 @@ export class DailyTaskService {
         throw new Error('User profile not found');
       }
 
-      // Fetch task history for adaptive difficulty (Phase 4.1.2)
+      // Fetch task history for adaptive difficulty
       const taskHistory = await this.getTaskHistory(userId, 30);
 
       // Use TaskGenerator to generate personalized tasks with adaptive difficulty
@@ -295,78 +271,37 @@ export class DailyTaskService {
         taskHistory // Pass history for adaptive difficulty
       );
 
-      if (useSQLite()) {
-        // SQLite path: Use task and progress repositories
-        try {
-          // Store generated tasks in SQLite
-          taskRepository.batchCreateTasks(tasks);
+      // Store generated tasks in SQLite
+      taskRepository.batchCreateTasks(tasks);
 
-          // Create task assignments
-          const now = fromUnixTimestamp(Date.now());
-          const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
-            taskId: task.id,
-            assignedAt: now,
-            status: TaskStatus.NOT_STARTED,
-          }));
+      // Create task assignments
+      const now = fromUnixTimestamp(Date.now());
+      const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
+        taskId: task.id,
+        assignedAt: now,
+        status: TaskStatus.NOT_STARTED,
+      }));
 
-          // Create progress record
-          const progressId = `${userId}_${targetDate}`;
-          const progressData: DailyTaskProgress = {
-            id: progressId,
-            userId,
-            date: targetDate,
-            tasks: assignments,
-            completedTaskIds: [],
-            skippedTaskIds: [],
-            totalXPEarned: 0,
-            totalAttributeGains: {},
-            usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
-            streak: await this.calculateStreak(userId, targetDate),
-            createdAt: now,
-            updatedAt: now,
-          };
+      // Create progress record
+      const progressId = `${userId}_${targetDate}`;
+      const progressData: DailyTaskProgress = {
+        id: progressId,
+        userId,
+        date: targetDate,
+        tasks: assignments,
+        completedTaskIds: [],
+        skippedTaskIds: [],
+        totalXPEarned: 0,
+        totalAttributeGains: {},
+        usedSourceIds: [],
+        streak: await this.calculateStreak(userId, targetDate),
+        createdAt: now,
+        updatedAt: now,
+      };
 
-          progressRepository.createProgress(progressData);
+      progressRepository.createProgress(progressData);
 
-          console.log(`✅ [SQLite] Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
-        } catch (e: any) {
-          console.error('❌ [SQLite] Error storing tasks:', e?.message || e);
-          throw new Error('Failed to store generated tasks');
-        }
-      } else {
-        // Firebase path: Store tasks in Firestore
-        for (const task of tasks) {
-          await setDoc(doc(this.dailyTasksCollection, task.id), task);
-        }
-
-        // Create task assignments
-        const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
-          taskId: task.id,
-          assignedAt: Timestamp.now(),
-          status: TaskStatus.NOT_STARTED,
-        }));
-
-        // Create or update progress record
-        const progressId = `${userId}_${targetDate}`;
-        const progressData: Omit<DailyTaskProgress, 'id'> & { id: string } = {
-          id: progressId,
-          userId,
-          date: targetDate,
-          tasks: assignments,
-          completedTaskIds: [],
-          skippedTaskIds: [],
-          totalXPEarned: 0,
-          totalAttributeGains: {},
-          usedSourceIds: [], // Phase 4.4: Initialize anti-farming tracker
-          streak: await this.calculateStreak(userId, targetDate),
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
-
-        await setDoc(doc(this.dailyTaskProgressCollection, progressId), progressData);
-
-        console.log(`✅ Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
-      }
+      console.log(`✅ [SQLite] Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
 
       return tasks;
     } catch (error) {
@@ -383,38 +318,17 @@ export class DailyTaskService {
    * @returns Promise with daily progress or null if not found
    */
   async getUserDailyProgress(userId: string, date?: string): Promise<DailyTaskProgress | null> {
+    ensureSQLiteAvailable();
+
     try {
       const targetDate = date || getTodayDateString();
+      const progress = progressRepository.getProgress(userId, targetDate);
 
-      if (useSQLite()) {
-        // SQLite path: Use progress repository
-        try {
-          const progress = progressRepository.getProgress(userId, targetDate);
-          if (progress) {
-            console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
-          }
-          return progress;
-        } catch (e: any) {
-          console.error('❌ [SQLite] Error fetching progress:', e?.message || e);
-          return null;
-        }
-      } else {
-        // Firebase path: Use existing Firebase logic
-        const progressId = `${userId}_${targetDate}`;
-        const progressDoc = await getDoc(doc(this.dailyTaskProgressCollection, progressId));
-
-        if (!progressDoc.exists()) {
-          return null;
-        }
-
-        const data = progressDoc.data() as DocumentData;
-        return {
-          id: progressDoc.id,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now(),
-        } as DailyTaskProgress;
+      if (progress) {
+        console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
       }
+
+      return progress;
     } catch (error) {
       console.error('Error fetching daily progress:', error);
       return null;
@@ -451,9 +365,10 @@ export class DailyTaskService {
       if (!progress) {
         // Ephemeral fallback: allow submission when progress is missing (integration/E2E use)
         console.warn('No daily progress found for today; creating ephemeral assignment for submission.');
+        const ephemeralTimestamp = createTimestamp();
         const ephemeralAssignment = {
           taskId,
-          assignedAt: Timestamp.now(),
+          assignedAt: ephemeralTimestamp,
           status: TaskStatus.NOT_STARTED as const,
         };
         progress = {
@@ -467,8 +382,8 @@ export class DailyTaskService {
           totalAttributeGains: {},
           usedSourceIds: [],
           streak: 0,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
+          createdAt: ephemeralTimestamp,
+          updatedAt: ephemeralTimestamp,
         } as unknown as DailyTaskProgress;
       }
 
@@ -501,7 +416,7 @@ export class DailyTaskService {
         } as DailyTask;
       }
 
-      // 5.5. Phase 4.4: Check sourceId deduplication (anti-farming)
+      // 5.5. Check sourceId deduplication (anti-farming)
       const usedSourceIds = progress.usedSourceIds || [];
       if (task.sourceId && usedSourceIds.includes(task.sourceId)) {
         throw new Error('You have already completed this content today. Duplicate rewards are not allowed.');
@@ -510,7 +425,6 @@ export class DailyTaskService {
       // 5.6. Cross-system deduplication check (prevents duplicate rewards from reading page)
       // If the task has a content sourceId, check if it's been used globally
       // This prevents users from getting XP twice for the same content
-      // (e.g., completing Chapter 3 in reading page, then the same chapter in daily tasks)
       if (task.sourceId) {
         const globalDuplicate = await userLevelService.checkDuplicateReward(
           userId,
@@ -573,75 +487,45 @@ export class DailyTaskService {
       }
       console.log(`   🎯 最終經驗值: ${finalXP} XP\n`);
 
-      // 9. Award XP through user-level-service OR SQLite repository
+      // 9. Award XP through SQLite repository
       // Use content-based sourceId to prevent duplicate rewards across systems
-      // If the task has a content sourceId (e.g., "chapter-3-passage-1-10"),
-      // use that instead of the generic daily-task ID to ensure that
-      // completing the same content in reading page won't allow duplicate XP
       const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
 
       let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean; fromLevel?: number };
 
-      if (useSQLite()) {
-        // SQLite path: Direct repository access
-        try {
-          // Ensure user exists in SQLite database
-          let user = userRepository.getUserById(userId);
-          if (!user) {
-            // Create user if doesn't exist
-            user = userRepository.createUser(userId, userId, undefined);
-          }
-
-          const beforeLevel = user.currentLevel;
-
-          // Award XP
-          const updatedUser = userRepository.awardXP(userId, finalXP);
-          xpResult = {
-            success: true,
-            newTotalXP: updatedUser.totalXP,
-            newLevel: updatedUser.currentLevel,
-            fromLevel: beforeLevel,
-            leveledUp: updatedUser.currentLevel > beforeLevel,
-          };
-          console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
-        } catch (e: any) {
-          console.warn('SQLite Award XP failed, continuing:', e?.message || e);
-          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
+      try {
+        // Ensure user exists in SQLite database
+        let user = userRepository.getUserById(userId);
+        if (!user) {
+          // Create user if doesn't exist
+          user = userRepository.createUser(userId, userId, undefined);
         }
-      } else {
-        // Firebase path: Use existing service
-        try {
-          xpResult = await userLevelService.awardXP(
-            userId,
-            finalXP,
-            `Completed daily task: ${task.title}`,
-            'task',
-            xpSourceId
-          );
-        } catch (e: any) {
-          console.warn('Award XP failed, continuing with local progress update:', e?.code || e?.message || e);
-          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false };
-        }
+
+        const beforeLevel = user.currentLevel;
+
+        // Award XP
+        const updatedUser = userRepository.awardXP(userId, finalXP);
+        xpResult = {
+          success: true,
+          newTotalXP: updatedUser.totalXP,
+          newLevel: updatedUser.currentLevel,
+          fromLevel: beforeLevel,
+          leveledUp: updatedUser.currentLevel > beforeLevel,
+        };
+        console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
+      } catch (e: any) {
+        console.warn('SQLite Award XP failed, continuing:', e?.message || e);
+        xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
       }
 
       // 10. Award attribute points
       const attributeGains = task.attributeRewards;
 
-      if (useSQLite()) {
-        // SQLite path: Update attributes
-        try {
-          userRepository.updateAttributes(userId, attributeGains);
-          console.log(`✅ [SQLite] Updated attributes for user ${userId}`);
-        } catch (e: any) {
-          console.warn('SQLite Update attributes failed:', e?.message || e);
-        }
-      } else {
-        // Firebase path: Use existing service
-        try {
-          await userLevelService.updateAttributes(userId, attributeGains);
-        } catch (e: any) {
-          console.warn('Update attributes failed:', e?.code || e?.message || e);
-        }
+      try {
+        userRepository.updateAttributes(userId, attributeGains);
+        console.log(`✅ [SQLite] Updated attributes for user ${userId}`);
+      } catch (e: any) {
+        console.warn('SQLite Update attributes failed:', e?.message || e);
       }
 
       // 11. Update task assignment
@@ -1275,11 +1159,11 @@ export class DailyTaskService {
     add: Partial<AttributePoints>
   ): Partial<AttributePoints> {
     return {
-      poetrySkill: (base.poetrySkill || 0) + (add.poetrySkill || 0),
       culturalKnowledge: (base.culturalKnowledge || 0) + (add.culturalKnowledge || 0),
       analyticalThinking: (base.analyticalThinking || 0) + (add.analyticalThinking || 0),
       socialInfluence: (base.socialInfluence || 0) + (add.socialInfluence || 0),
       learningPersistence: (base.learningPersistence || 0) + (add.learningPersistence || 0),
+      poetrySkill: (base.poetrySkill || 0) + (add.poetrySkill || 0),
     };
   }
 

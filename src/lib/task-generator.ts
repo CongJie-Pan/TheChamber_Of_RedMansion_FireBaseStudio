@@ -69,11 +69,6 @@ const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
     [TaskDifficulty.MEDIUM]: 12,
     [TaskDifficulty.HARD]: 16,
   },
-  [DailyTaskType.POETRY]: {
-    [TaskDifficulty.EASY]: 6,
-    [TaskDifficulty.MEDIUM]: 10,
-    [TaskDifficulty.HARD]: 14,
-  },
   [DailyTaskType.CHARACTER_INSIGHT]: {
     [TaskDifficulty.EASY]: 10,
     [TaskDifficulty.MEDIUM]: 15,
@@ -98,10 +93,6 @@ const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
 const ATTRIBUTE_REWARD_TABLE: Record<DailyTaskType, Partial<AttributePoints>> = {
   [DailyTaskType.MORNING_READING]: {
     analyticalThinking: 1,
-    culturalKnowledge: 1,
-  },
-  [DailyTaskType.POETRY]: {
-    poetrySkill: 2,
     culturalKnowledge: 1,
   },
   [DailyTaskType.CHARACTER_INSIGHT]: {
@@ -231,8 +222,8 @@ export class TaskGenerator {
       case 3: // Wednesday - Mid-week reflection
         weights[DailyTaskType.CHARACTER_INSIGHT] *= 1.5;
         break;
-      case 5: // Friday - Aesthetic appreciation
-        weights[DailyTaskType.POETRY] *= 1.5;
+      case 5: // Friday - Deep learning
+        weights[DailyTaskType.COMMENTARY_DECODE] *= 1.5;
         break;
       case 0: // Sunday - Deep learning
       case 6: // Saturday - Deep learning
@@ -346,12 +337,6 @@ export class TaskGenerator {
         return `chapter-${passage.chapter}-passage-${passage.startLine}-${passage.endLine}`;
       }
 
-      case DailyTaskType.POETRY: {
-        const poem = content.poem;
-        if (!poem) return `unknown-poem-${Date.now()}`;
-        return `poem-${poem.id}`;
-      }
-
       case DailyTaskType.CHARACTER_INSIGHT: {
         const character = content.character;
         if (!character) return `unknown-character-${Date.now()}`;
@@ -386,11 +371,6 @@ export class TaskGenerator {
         [TaskDifficulty.MEDIUM]: '晨讀時光 - 深入紅樓',
         [TaskDifficulty.HARD]: '晨讀時光 - 透析紅樓',
       },
-      [DailyTaskType.POETRY]: {
-        [TaskDifficulty.EASY]: '詩詞韻律 - 吟詠入門',
-        [TaskDifficulty.MEDIUM]: '詩詞韻律 - 韻味品析',
-        [TaskDifficulty.HARD]: '詩詞韻律 - 意境探幽',
-      },
       [DailyTaskType.CHARACTER_INSIGHT]: {
         [TaskDifficulty.EASY]: '人物洞察 - 性格初識',
         [TaskDifficulty.MEDIUM]: '人物洞察 - 關係剖析',
@@ -417,7 +397,6 @@ export class TaskGenerator {
   private getTaskDescription(type: DailyTaskType, difficulty: TaskDifficulty): string {
     const descriptions: Record<DailyTaskType, string> = {
       [DailyTaskType.MORNING_READING]: '閱讀《紅樓夢》精選段落，理解文本深意，培養古典文學鑒賞能力。',
-      [DailyTaskType.POETRY]: '品讀紅樓詩詞，感受韻律之美，提升文學素養與審美情趣。',
       [DailyTaskType.CHARACTER_INSIGHT]: '分析紅樓人物性格特點與命運走向，洞察人性與社會。',
       [DailyTaskType.CULTURAL_EXPLORATION]: '探索紅樓中的傳統文化元素，了解古代禮儀、服飾、建築等知識。',
       [DailyTaskType.COMMENTARY_DECODE]: '解讀脂硯齋批語，發現隱藏的文本線索與創作意圖。',
@@ -432,7 +411,6 @@ export class TaskGenerator {
   private getTimeEstimate(type: DailyTaskType): number {
     const estimates: Record<DailyTaskType, number> = {
       [DailyTaskType.MORNING_READING]: 5,
-      [DailyTaskType.POETRY]: 3,
       [DailyTaskType.CHARACTER_INSIGHT]: 5,
       [DailyTaskType.CULTURAL_EXPLORATION]: 10,
       [DailyTaskType.COMMENTARY_DECODE]: 8,
@@ -461,18 +439,6 @@ export class TaskGenerator {
             depth: 30,
             insight: 25,
             completeness: 15,
-          },
-        };
-
-      case DailyTaskType.POETRY:
-        return {
-          ...baseCriteria,
-          evaluationPrompt: '評估用戶對詩詞意境的理解、韻律把握以及情感共鳴的深度。',
-          rubric: {
-            accuracy: 25,
-            depth: 25,
-            insight: 30,
-            completeness: 20,
           },
         };
 
@@ -636,9 +602,6 @@ export class TaskGenerator {
       case DailyTaskType.MORNING_READING:
         return { textPassage: this.generateMorningReadingContent(difficulty) };
 
-      case DailyTaskType.POETRY:
-        return { poem: this.generatePoetryContent(difficulty) };
-
       case DailyTaskType.CHARACTER_INSIGHT:
         return { character: this.generateCharacterContent(difficulty) };
 
@@ -689,43 +652,6 @@ export class TaskGenerator {
     };
 
     return passages[difficulty];
-  }
-
-  /**
-   * Generate poetry content
-   */
-  private generatePoetryContent(difficulty: TaskDifficulty): PoemContent {
-    const poems: Record<TaskDifficulty, PoemContent> = {
-      [TaskDifficulty.EASY]: {
-        id: 'poem_001',
-        title: '葬花吟（節選）',
-        author: '林黛玉',
-        content: '花謝花飛飛滿天，紅消香斷有誰憐？\n游絲軟繫飄春榭，落絮輕沾撲繡簾。',
-        chapter: 27,
-        difficulty: 3,
-        theme: '花',
-      },
-      [TaskDifficulty.MEDIUM]: {
-        id: 'poem_002',
-        title: '秋窗風雨夕',
-        author: '林黛玉',
-        content: '秋花慘淡秋草黃，耿耿秋燈秋夜長。\n已覺秋窗秋不盡，那堪風雨助淒涼！\n助秋風雨來何速？驚破秋窗秋夢綠。\n抱得秋情不忍眠，自向秋屏移淚燭。',
-        chapter: 45,
-        difficulty: 6,
-        theme: '秋',
-      },
-      [TaskDifficulty.HARD]: {
-        id: 'poem_003',
-        title: '好了歌',
-        author: '跛足道人',
-        content: '世人都曉神仙好，惟有功名忘不了！\n古今將相在何方？荒塚一堆草沒了。\n世人都曉神仙好，只有金銀忘不了！\n終朝只恨聚無多，及到多時眼閉了。',
-        chapter: 1,
-        difficulty: 8,
-        theme: '人生哲理',
-      },
-    };
-
-    return poems[difficulty];
   }
 
   /**

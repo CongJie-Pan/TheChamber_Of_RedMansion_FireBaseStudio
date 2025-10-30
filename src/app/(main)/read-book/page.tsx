@@ -108,6 +108,7 @@ import { classifyError, formatErrorForUser, logError } from '@/lib/perplexity-er
 // Custom hooks for application functionality
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from '@/hooks/useLanguage';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Utility for text transformation based on language
 import { saveNote, getNotesByUserAndChapter, Note, deleteNoteById, updateNote, updateNoteVisibility } from '@/lib/notes-service';
@@ -276,6 +277,7 @@ export default function ReadBookPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const isMobile = useIsMobile();
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   // Removed vernacular toggle per product decision
@@ -559,7 +561,7 @@ export default function ReadBookPage() {
 
   // Enable pagination automatically for double-column layout
   useEffect(() => {
-    const enable = columnLayout === 'double';
+    const enable = columnLayout === 'double' && !isMobile;
     setIsPaginationMode(enable);
     // Reset to first page when toggling mode
     setCurrentPage(1);
@@ -581,7 +583,7 @@ export default function ReadBookPage() {
         }
       }));
     }
-  }, [columnLayout, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey, computePagination]);
+  }, [columnLayout, isMobile, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey, computePagination]);
 
   const handleMouseUp = useCallback((event: globalThis.MouseEvent) => {
     const targetElement = event.target as HTMLElement;
@@ -1820,7 +1822,7 @@ export default function ReadBookPage() {
   const getColumnClass = () => {
     switch (columnLayout) {
       case 'single': return 'columns-1';
-      case 'double': return 'columns-2'; // Two-column layout for horizontal reading (left to right) - removed md: prefix for consistent behavior across screen sizes
+      case 'double': return 'md:columns-2'; // Two-column layout for horizontal reading on medium+ screens; mobile falls back to single column
       default: return 'columns-1';
     }
   };
