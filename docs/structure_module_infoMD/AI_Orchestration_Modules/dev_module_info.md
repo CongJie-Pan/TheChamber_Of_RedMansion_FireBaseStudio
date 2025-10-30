@@ -1,105 +1,66 @@
-# Module: `dev`
+# ⚠️ DEPRECATED - Module Removed
 
-## 1. Module Summary
+**Status:** This module has been removed from the codebase
+**Removal Date:** 2025-10-30
+**Reason:** Migrated from GenKit/Gemini to OpenAI GPT-4-mini + Perplexity Sonar direct API integration
 
-The `dev` module serves as the development server entry point for GenKit AI flows, initializing the local testing environment and registering active AI flows for interactive development and debugging. This module loads environment variables from `.env` files, imports currently implemented AI flows to make them available in the GenKit development UI, and provides commented references to deprecated or planned flows for development tracking. The module is exclusively used during development via the `npm run genkit:dev` command and is not included in production builds.
+## Migration Impact
 
-## 2. Module Dependencies
+The `dev.ts` GenKit development server has been completely removed as part of the transition to direct API integration. This file was exclusively used for testing AI flows in the GenKit development UI.
 
-* **Internal Dependencies:**
-  * `@/ai/flows/context-aware-analysis` - AI flow for contextual text analysis based on reading position and user progress
-  * `@/ai/flows/explain-text-selection` - AI flow for explaining selected text passages with user-provided questions
-* **External Dependencies:**
-  * `dotenv` - Environment variable loader for accessing `.env.local` configuration during development
+### What Replaced This Module
 
-## 3. Public API / Exports
+- **Testing Approach:** AI flows are now tested through standard Jest unit tests with mocked API responses
+- **Development Tools:** Direct API testing using tools like Postman or curl for manual testing
+- **No Framework Overhead:** Simplified architecture without GenKit orchestration layer
 
-This module has no exports. It serves as a side-effect module that registers AI flows with GenKit's development server through import statements.
+### Affected Flows (Now Using Direct APIs)
 
-## 4. Code File Breakdown
+**Migrated to OpenAI GPT-4-mini:**
+- Daily reading comprehension scoring
+- Poetry quality assessment
+- Character analysis scoring
+- Cultural quiz grading
+- Commentary interpretation
 
-### 4.1. `dev.ts`
+**Migrated to Perplexity Sonar:**
+- Context-aware analysis (was referenced in this module)
+- Explain text selection (was referenced in this module)
+- Interactive character relationship mapping
 
-* **Purpose:** This file acts as the bootstrapping configuration for GenKit's development server, providing a centralized location to manage which AI flows are active and testable during development. By consolidating flow imports in a single file, developers can easily enable or disable flows for testing without modifying multiple configuration files, while commented imports serve as documentation for flows that have been removed or are pending implementation. The dotenv initialization at the file's start ensures that environment variables (like `GEMINI_API_KEY` and `PERPLEXITYAI_API_KEY`) are loaded before any AI flow modules attempt to access them, preventing configuration errors during development.
+### How to Test AI Flows Now
 
-* **Functions:**
-    * None - This module contains only import statements and comments. All functionality is provided through side effects of importing other modules.
-
-* **Key Classes / Constants / Variables:**
-    * `config`: Imported function from `dotenv` package, invoked immediately via `config()` to load environment variables from `.env`, `.env.local`, and other dotenv-supported files into `process.env`. This ensures API keys and configuration values are available to AI flows during development.
-
-    * **Active Flow Imports** (2 flows currently enabled):
-      - `@/ai/flows/context-aware-analysis.ts`: Contextual AI analysis flow that adapts based on user's current reading position, progress level, and historical interaction patterns
-      - `@/ai/flows/explain-text-selection.ts`: Text explanation flow that provides detailed analysis of user-selected passages with Perplexity AI integration
-
-    * **Deprecated Flow Comments** (5 flows removed):
-      - `generate-special-topic-framework.ts`: Removed - not currently in use
-      - `learning-analysis.ts`: Removed - not currently in use
-      - `grounded-red-chamber-qa.ts`: Removed - migrated to Perplexity AI
-      - `generate-goal-suggestions.ts`: Removed - not currently in use
-      - `ai-companion-guidance.ts`: Removed - not currently in use
-      - `connect-themes-to-modern-contexts.ts`: Removed - not currently in use
-
-## 5. System and Data Flow
-
-### 5.1. System Flowchart (Control Flow)
-
-```mermaid
-flowchart TD
-    A[npm run genkit:dev] --> B[Execute dev.ts]
-    B --> C[Load dotenv package]
-    C --> D[Call config function]
-    D --> E[Read .env files]
-    E --> F[Populate process.env]
-
-    F --> G[Import context-aware-analysis flow]
-    G --> H[Register flow with GenKit]
-
-    F --> I[Import explain-text-selection flow]
-    I --> J[Register flow with GenKit]
-
-    H --> K[GenKit Development Server Ready]
-    J --> K
-
-    K --> L[Start GenKit UI at localhost:3100]
-    L --> M[Developer can test flows interactively]
-```
-
-### 5.2. Data Flow Diagram (Data Transformation)
-
-```mermaid
-graph LR
-    EnvFiles[.env / .env.local files] -- File System Read --> DotEnv[dotenv.config]
-    DotEnv -- Key-Value Pairs --> ProcessEnv[process.env]
-
-    ProcessEnv -- GEMINI_API_KEY --> GenKitConfig[GenKit Configuration]
-    ProcessEnv -- PERPLEXITYAI_API_KEY --> PerplexityConfig[Perplexity Configuration]
-
-    FlowDef1[context-aware-analysis.ts] -- Flow Definition --> GenKitRegistry[GenKit Flow Registry]
-    FlowDef2[explain-text-selection.ts] -- Flow Definition --> GenKitRegistry
-
-    GenKitRegistry -- Available Flows --> DevUI[GenKit Development UI]
-    DevUI -- Test Inputs --> FlowExecution[Flow Execution]
-    FlowExecution -- AI Responses --> DevUI
-```
-
-## 6. Usage Example & Testing
-
-* **Usage:**
 ```bash
-# Start the GenKit development server
-npm run genkit:dev
+# Run all AI flow tests
+npm test
 
-# GenKit will execute dev.ts, which loads environment variables and imports flows
-# Access the development UI at http://localhost:3100
-# Select and test any registered AI flow interactively
+# Run specific AI flow test
+npm test -- tests/ai/flows/daily-reading-comprehension.test.ts
+
+# Run tests in watch mode during development
+npm test -- --watch
 ```
 
-* **Testing:** This module is not directly testable as it serves as a development server configuration entry point with no exported functions. Testing occurs through the GenKit development UI where developers can:
-  1. Access `http://localhost:3100` after running `npm run genkit:dev`
-  2. Select a registered flow (e.g., "explain-text-selection" or "context-aware-analysis")
-  3. Provide test inputs matching the flow's schema
-  4. Execute the flow and inspect AI responses, errors, and execution traces
-  5. Verify environment variables are correctly loaded by checking if AI models respond without authentication errors
+### Related Documentation
 
-The effectiveness of this module is validated by whether the GenKit UI successfully loads and displays all imported flows with functional AI model connections.
+- See `genkit_module_info.md` (also deprecated) for GenKit framework details
+- See `README.md` for updated AI Integration architecture
+- See individual AI flow module documentation for current implementation details
+
+---
+
+## Original Module Documentation (Historical Reference)
+
+### Module Summary
+
+The `dev` module served as the development server entry point for GenKit AI flows, initializing the local testing environment and registering active AI flows for interactive development and debugging. This module loaded environment variables from `.env` files, imported currently implemented AI flows to make them available in the GenKit development UI, and provided commented references to deprecated or planned flows for development tracking. The module was exclusively used during development via the `npm run genkit:dev` command and was not included in production builds.
+
+### Key Components (Historical)
+
+- **dotenv configuration:** Loaded environment variables for GenKit development
+- **Flow registration:** Imported AI flows to make them available in GenKit UI
+- **Development server:** Provided interactive testing interface at `http://localhost:3100`
+
+### Migration Notes
+
+If you need to reference the original implementation, check git history before commit `6645e86` (2025-10-30).

@@ -9,7 +9,7 @@ The Chamber of Red Mansion is an AI-powered educational web platform designed to
 This project follows a **Component-Driven Architecture with AI Enhancement** pattern, organized around the following core principles:
 
 * **Layered Architecture with Clear Separation of Concerns:**
-  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using Google GenKit framework. This separation allows AI capabilities to evolve independently without affecting UI or business logic.
+  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using direct OpenAI GPT-4-mini and Perplexity Sonar API integration. This separation allows AI capabilities to evolve independently without affecting UI or business logic, with simplified architecture removing framework overhead.
   * **Presentation Layer** (`/src/app/`, `/src/components/`): Next.js 15 App Router with React Server Components for optimal performance and SEO. UI components are isolated in `/src/components/` following atomic design principles.
   * **Business Logic Layer** (`/src/lib/`): Core services handling authentication, content filtering, task management, and user progression. This layer acts as the bridge between UI and data/AI layers.
   * **Data Layer - Dual-Mode Architecture** (`/src/lib/repositories/`, Firebase): Hybrid data persistence using SQLite for local-first operations with Firebase Firestore fallback for cloud synchronization. Services attempt SQLite operations first for optimal performance, automatically falling back to Firebase if SQLite is unavailable or fails, ensuring reliability while maintaining backward compatibility.
@@ -54,9 +54,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   ├── setup/                       # Setup and deployment guides
 │   └── *.md                         # System overviews and planning documents
 ├── src/                       # Main application source code
-│   ├── ai/                    # AI orchestration and GenKit flows
-│   │   ├── genkit.ts          # Core AI configuration (Gemini 2.0 Flash setup)
-│   │   ├── dev.ts             # AI development server entry point
+│   ├── ai/                    # AI orchestration with direct API integration
 │   │   ├── perplexity-config.ts    # Perplexity API integration config
 │   │   └── flows/             # Isolated AI workflow implementations
 │   │       ├── explain-text-selection.ts        # Contextual text analysis
@@ -195,29 +193,33 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### AI Orchestration Modules (`/src/ai/`)
 
-**genkit.ts** - Configures the core AI framework using Google GenKit with Gemini 2.0 Flash model for all AI operations in the platform. This module serves as the central AI initialization point that all other AI flows depend on for model access and configuration.
+**[DEPRECATED] genkit.ts** - ⚠️ Removed on 2025-10-30. Previously configured Google GenKit with Gemini 2.0 Flash. Replaced by direct OpenAI and Perplexity API integration.
 
-**perplexity-config.ts** - Provides configuration and setup for integrating Perplexity API to access external knowledge sources beyond the classical text. This enables users to ask questions that require contemporary scholarly research and real-time information retrieval.
+**[DEPRECATED] dev.ts** - ⚠️ Removed on 2025-10-30. Previously served as GenKit development server entry point. AI flows are now tested through standard Jest unit tests.
 
-### AI Flow Modules (`/src/ai/flows/`)
+**perplexity-config.ts** - Provides configuration and setup for integrating Perplexity Sonar API to access external knowledge sources beyond the classical text. This enables users to ask questions that require contemporary scholarly research and real-time information retrieval with web search capabilities.
 
-**explain-text-selection.ts** - Provides contextual AI-powered explanations for user-selected text passages from the novel using traditional Chinese analysis. This flow analyzes the literary context, historical background, and linguistic nuances to help readers understand complex classical Chinese prose.
+### AI Flow Modules (`/src/ai/flows/`) - Updated 2025-10-30
 
-**context-aware-analysis.ts** - Delivers intelligent analysis that adapts based on the user's current reading position, progress level, and historical interaction patterns. This module personalizes the learning experience by considering what the user has already learned and their comprehension level.
+**Migration Note:** All AI flows migrated from GenKit/Gemini to direct API integration on 2025-10-30. Scoring flows use OpenAI GPT-4-mini; analysis flows use Perplexity Sonar.
 
-**interactive-character-relationship-map.ts** - Generates dynamic AI insights about character relationships, motivations, and development arcs throughout the novel's 120 chapters. This flow helps readers navigate the complex web of over 400 characters by highlighting key relationships and their evolution.
+**explain-text-selection.ts** [Perplexity Sonar] - Provides contextual AI-powered explanations for user-selected text passages from the novel using traditional Chinese analysis with web search capabilities. This flow analyzes the literary context, historical background, and linguistic nuances to help readers understand complex classical Chinese prose.
 
-**daily-reading-comprehension.ts** - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
+**context-aware-analysis.ts** [Perplexity Sonar] - Delivers intelligent analysis that adapts based on the user's current reading position, progress level, and historical interaction patterns with web search integration. This module personalizes the learning experience by considering what the user has already learned and their comprehension level.
 
-**poetry-quality-assessment.ts** - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
+**interactive-character-relationship-map.ts** [Perplexity Sonar] - Generates dynamic AI insights about character relationships, motivations, and development arcs throughout the novel's 120 chapters with contemporary scholarly references. This flow helps readers navigate the complex web of over 400 characters by highlighting key relationships and their evolution.
 
-**character-analysis-scoring.ts** - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
+**daily-reading-comprehension.ts** [OpenAI GPT-4-mini] - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria with JSON-structured responses. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
 
-**cultural-quiz-grading.ts** - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
+**poetry-quality-assessment.ts** [OpenAI GPT-4-mini] - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards with structured JSON output. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
 
-**commentary-interpretation.ts** - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
+**character-analysis-scoring.ts** [OpenAI GPT-4-mini] - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth with JSON-formatted results. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
 
-**perplexity-red-chamber-qa.ts** - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
+**cultural-quiz-grading.ts** [OpenAI GPT-4-mini] - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context with structured JSON responses. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
+
+**commentary-interpretation.ts** [OpenAI GPT-4-mini] - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars with JSON-structured feedback. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
+
+**perplexity-red-chamber-qa.ts** [Perplexity Sonar] - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research with web search capabilities. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
 
 ### Application Pages (`/src/app/`)
 
@@ -261,7 +263,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 **highlight-service.ts** - Manages text highlighting features with dual-mode architecture (SQLite-first with Firebase fallback) allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for local SQLite operations while maintaining backward compatibility with Firebase, supporting active reading through visual annotation and organization of key textual moments.
 
-**openai-client.ts** - Provides a configured client for OpenAI API integration used for supplementary AI features beyond GenKit's capabilities. This module handles API key management, request formatting, error handling, and response parsing for OpenAI-powered features.
+**openai-client.ts** - Provides the primary configured client for OpenAI GPT-4-mini API integration, powering all scoring and grading tasks in the platform (updated 2025-10-30). This module handles API key management, request formatting, error handling, response parsing, and JSON-structured output for daily task evaluations including reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, and commentary interpretation.
 
 **perplexity-client.ts** - Implements the Perplexity API client for accessing external knowledge sources and contemporary scholarly research with streaming support. This module enables real-time question answering that goes beyond the novel's text by leveraging current academic discourse and research databases.
 
@@ -405,12 +407,15 @@ This section provides a complete listing of all modules in the codebase with two
 
 ## 5. Common Developer Workflows
 
-### To add a new AI feature:
-1. **Define the AI flow** in `/src/ai/flows/new-feature.ts` using GenKit's `defineFlow` API.
-2. **Test the flow** using `npm run genkit:dev` to access the GenKit development UI.
-3. **Create the API route** in `/src/app/api/new-feature/route.ts` to expose the flow via HTTP.
-4. **Build the UI component** in `/src/components/` that calls the API endpoint.
-5. **Write tests** in `/tests/lib/` for any new service logic.
+### To add a new AI feature (Updated 2025-10-30):
+1. **Define the AI flow** in `/src/ai/flows/new-feature.ts` using direct OpenAI or Perplexity API calls:
+   - Use `getOpenAIClient()` from `/src/lib/openai-client.ts` for scoring/grading tasks
+   - Use `perplexityRedChamberQA()` from `/src/ai/flows/perplexity-red-chamber-qa.ts` for analysis/Q&A tasks
+2. **Write unit tests first** in `/tests/ai/flows/new-feature.test.ts` with mocked API responses to define expected interface and behavior.
+3. **Implement the flow logic** with proper Zod schema validation for inputs/outputs and error handling.
+4. **Create the API route** in `/src/app/api/new-feature/route.ts` to expose the flow via HTTP.
+5. **Build the UI component** in `/src/components/` that calls the API endpoint.
+6. **Run tests** using `npm test -- tests/ai/flows/new-feature.test.ts` to verify functionality.
 
 ### To add a new page/route:
 1. **Create the page file** in `/src/app/(main)/new-page/page.tsx` for protected routes or `/src/app/new-page/page.tsx` for public routes.
@@ -486,7 +491,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### To develop and debug:
 * **Development server:** `npm run dev` (runs on port 3001)
-* **AI development:** `npm run genkit:dev` (opens GenKit UI for testing AI flows)
+* **AI testing:** `npm test -- tests/ai/flows/` (run all AI flow tests with mocked API responses)
 * **Type checking:** `npm run typecheck`
 * **Linting:** `npm run lint`
 * **Production build:** `npm run build`
@@ -515,23 +520,27 @@ This section provides a complete listing of all modules in the codebase with two
   * **planningSpec.md** - Migration strategy and architectural planning
 
 ### API Documentation
-* **GenKit Development UI** - Access at `http://localhost:3100` after running `npm run genkit:dev`
 * **API Routes** - All endpoints are defined in `/src/app/api/` with Next.js route handlers
+* **AI Flow Testing** - Test AI flows through Jest unit tests in `/tests/ai/flows/` with mocked API responses
 * **Firebase Console** - Authentication and Firestore database management
+* **OpenAI API** - Direct integration with GPT-4-mini for scoring tasks
+* **Perplexity API** - Direct integration with Sonar for analysis and Q&A tasks
 
 ### Development Resources
 * **Next.js 15 Documentation** - https://nextjs.org/docs
-* **GenKit Framework** - https://firebase.google.com/docs/genkit
+* **OpenAI API Documentation** - https://platform.openai.com/docs/api-reference
+* **Perplexity API Documentation** - https://docs.perplexity.ai/
 * **Radix UI Components** - https://www.radix-ui.com/primitives/docs/overview/introduction
 * **Tailwind CSS** - https://tailwindcss.com/docs
 * **Firebase** - https://firebase.google.com/docs
 
 ---
 
-**Document Version:** 1.2
-**Last Updated:** 2025-10-29
+**Document Version:** 1.3
+**Last Updated:** 2025-10-30
 **Maintained By:** Development Team
 **Change Log:**
+* **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-4-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
 * **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
 * **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests
 * **v1.0 (2025-10-27):** Initial comprehensive project structure documentation
