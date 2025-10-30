@@ -4,6 +4,10 @@
  * This API endpoint is triggered by Vercel Cron to automatically generate
  * daily tasks for all active users at midnight (UTC+8 00:00).
  *
+ * **SQLITE-025**: Migrated to SQLite-only (Firebase removed)
+ * - Uses user-repository for querying active users
+ * - No Firebase/Firestore dependencies
+ *
  * Security:
  * - Protected by CRON_SECRET environment variable
  * - Only accessible via Vercel Cron scheduler
@@ -11,7 +15,7 @@
  *
  * Execution Flow:
  * 1. Verify cron secret from request headers
- * 2. Query all active users from Firebase
+ * 2. Query all active users from SQLite database
  * 3. Batch generate tasks using dailyTaskService
  * 4. Track success/failure counts
  * 5. Return execution summary
@@ -22,18 +26,10 @@
  * - Return detailed execution report
  *
  * @phase Phase 4.2 - Cron Job API Implementation
+ * @updated SQLITE-025 - Firebase removal
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  limit as firestoreLimit,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { dailyTaskService } from '@/lib/daily-task-service';
 
 /**
@@ -44,7 +40,7 @@ const MAX_USERS_PER_EXECUTION = 1000;
 
 /**
  * Batch size for parallel task generation
- * Balances between performance and Firebase rate limits
+ * Balances between performance and database rate limits
  */
 const BATCH_SIZE = 10;
 
@@ -77,6 +73,21 @@ function getTodayDateString(): string {
   return localDate.toISOString().split('T')[0];
 }
 
+// SQLite User Repository - loaded dynamically to avoid client-side issues
+let userRepository: any;
+
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined';
+
+if (SQLITE_SERVER_ENABLED) {
+  try {
+    userRepository = require('@/lib/repositories/user-repository');
+    console.log('✅ [CronResetDailyTasks] SQLite user repository loaded');
+  } catch (error: any) {
+    console.error('❌ [CronResetDailyTasks] Failed to load user repository');
+    throw new Error('Failed to load SQLite user repository');
+  }
+}
+
 /**
  * GET handler - returns API info and status
  * Useful for health checks and documentation
@@ -84,11 +95,12 @@ function getTodayDateString(): string {
 export async function GET(request: NextRequest) {
   return NextResponse.json({
     name: 'Daily Task Reset Cron Job',
-    version: '1.0.0',
+    version: '2.0.0',
     description: 'Automatically generates daily tasks for all users at midnight UTC+8',
     schedule: '0 16 * * * (UTC 16:00 = UTC+8 00:00)',
     endpoint: '/api/cron/reset-daily-tasks',
     security: 'Protected by CRON_SECRET environment variable',
+    database: 'SQLite-only (Firebase removed - SQLITE-025)',
     usage: {
       method: 'POST',
       headers: {
@@ -143,21 +155,20 @@ export async function POST(request: NextRequest) {
 
     console.log('[Cron] ✅ Cron secret verified');
 
-    // 2. Query all active users from Firebase
-    const usersCollection = collection(db, 'users');
-
-    // Query users who have logged in within the last 30 days (active users)
+    // 2. Query all active users from SQLite database
+    // Active users = users who logged in within the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoUnix = Math.floor(thirtyDaysAgo.getTime() / 1000);
 
-    const usersQuery = query(
-      usersCollection,
-      where('lastLoginAt', '>=', Timestamp.fromDate(thirtyDaysAgo)),
-      firestoreLimit(MAX_USERS_PER_EXECUTION)
-    );
+    const allUsers = userRepository.getAllUsers();
 
-    const usersSnapshot = await getDocs(usersQuery);
-    const totalUsers = usersSnapshot.size;
+    // Filter active users (logged in within last 30 days)
+    const activeUsers = allUsers.filter((user: any) => {
+      return user.lastLoginAt && user.lastLoginAt >= thirtyDaysAgoUnix;
+    }).slice(0, MAX_USERS_PER_EXECUTION); // Limit to max users per execution
+
+    const totalUsers = activeUsers.length;
 
     console.log(`[Cron] Found ${totalUsers} active users to process`);
 
@@ -179,10 +190,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Process users in batches
-    const userIds: string[] = [];
-    usersSnapshot.forEach((doc) => {
-      userIds.push(doc.id);
-    });
+    const userIds: string[] = activeUsers.map((user: any) => user.userId);
 
     const result: CronExecutionResult = {
       success: true,
@@ -243,7 +251,7 @@ export async function POST(request: NextRequest) {
       // Wait for batch to complete
       await Promise.allSettled(batchPromises);
 
-      // Add delay between batches to avoid rate limiting (100ms)
+      // Add delay between batches to avoid database contention (100ms)
       if (i + BATCH_SIZE < userIds.length) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
