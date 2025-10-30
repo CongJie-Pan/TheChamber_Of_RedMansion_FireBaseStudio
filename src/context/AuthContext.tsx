@@ -32,9 +32,8 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 // Import UI component for loading state display
 import { Skeleton } from '@/components/ui/skeleton';
-// Import level system types and service
+// Import level system types
 import type { UserProfile } from '@/lib/types/user-level';
-import { userLevelService } from '@/lib/user-level-service';
 
 /**
  * Type definition for the authentication context value
@@ -99,10 +98,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isLoading = status === 'loading';
 
   /**
-   * Load user profile from SQLite
+   * Load user profile from SQLite via API
    * Creates a new profile if user doesn't have one (new user)
    *
-   * Phase 4 - SQLITE-022: Loads from SQLite instead of Firestore
+   * Phase 4 - SQLITE-022: Loads from SQLite via API route (server-side)
    *
    * @param userId - NextAuth user ID
    * @param username - User's display name
@@ -110,21 +109,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const loadUserProfile = useCallback(async (userId: string, username: string, email: string) => {
     try {
-      // Try to fetch existing profile from SQLite
-      let profile = await userLevelService.getUserProfile(userId);
+      // Try to fetch existing profile from SQLite via API
+      const response = await fetch(`/api/user/profile?userId=${userId}`);
 
-      // If no profile exists, initialize one for new user
-      if (!profile) {
-        console.log('🆕 [AuthContext] New user detected, initializing profile...');
-        profile = await userLevelService.initializeUserProfile(
-          userId,
-          username,
-          email
-        );
-        console.log('✅ [AuthContext] User profile initialized successfully');
+      if (response.ok) {
+        // Profile exists, load it
+        const data = await response.json();
+        setUserProfile(data.profile);
+        return;
       }
 
-      setUserProfile(profile);
+      if (response.status === 404) {
+        // Profile doesn't exist, initialize one for new user
+        console.log('🆕 [AuthContext] New user detected, initializing profile...');
+
+        const initResponse = await fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, displayName: username, email }),
+        });
+
+        if (initResponse.ok) {
+          const initData = await initResponse.json();
+          setUserProfile(initData.profile);
+          console.log('✅ [AuthContext] User profile initialized successfully');
+        } else {
+          const errorData = await initResponse.json();
+          console.error('❌ [AuthContext] Failed to initialize profile:', errorData.error);
+          setUserProfile(null);
+        }
+        return;
+      }
+
+      // Handle other errors
+      const errorData = await response.json();
+      console.error('❌ [AuthContext] Error loading user profile:', errorData.error);
+      setUserProfile(null);
+
     } catch (error) {
       console.error('❌ [AuthContext] Error loading user profile:', error);
       // Set profile to null on error, but don't block authentication
@@ -133,10 +154,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
-   * Refresh user profile data from SQLite
+   * Refresh user profile data from SQLite via API
    * Useful after XP awards or level-ups to update UI
    *
-   * Phase 4 - SQLITE-022: Refreshes from SQLite instead of Firestore
+   * Phase 4 - SQLITE-022: Refreshes from SQLite via API route (server-side)
    */
   const refreshUserProfile = useCallback(async () => {
     if (!user?.id) {
@@ -145,8 +166,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      const profile = await userLevelService.getUserProfile(user.id);
-      setUserProfile(profile);
+      const response = await fetch(`/api/user/profile?userId=${user.id}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.profile);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ [AuthContext] Error refreshing profile:', errorData.error);
+        setUserProfile(null);
+      }
     } catch (error) {
       console.error('❌ [AuthContext] Error refreshing user profile:', error);
     }
