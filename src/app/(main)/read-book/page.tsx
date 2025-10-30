@@ -2710,9 +2710,8 @@ ${selectedTextContent}
             // Enhanced column settings for better horizontal reading experience
             ...(columnLayout === 'double' && isPaginationMode ? {
               columnGap: '3rem', // Wider gap between columns for better readability
-              columnFill: 'balance', // Balance columns to avoid blank second column
+              columnFill: 'auto', // Allow natural flow to ensure pagination measures full height
               minHeight: '100%', // Ensure each page is at least viewport height
-              height: '100%',
             } : {})
           }}
         >
