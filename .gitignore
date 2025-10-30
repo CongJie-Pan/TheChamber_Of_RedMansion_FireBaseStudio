@@ -60,3 +60,6 @@ GEMINI.md
 
 scripts/obsolete-migrations/
 tests/obsolete-firebase-tests/
+.env.local.firebase_backup_*
+*.env.backup
+data/backups/*.db
