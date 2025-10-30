@@ -14,8 +14,19 @@
  */
 
 import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
-import { Timestamp } from 'firebase/firestore';
 import type { ModerationAction } from '../content-filter-service';
+
+/**
+ * Timestamp-like type for date fields (SQLITE-025: Firebase removed)
+ * Matches the return type of fromUnixTimestamp()
+ */
+type Timestamp = {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+};
 
 /**
  * Post data interface for database operations
