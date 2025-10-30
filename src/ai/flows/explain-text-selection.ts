@@ -45,12 +45,20 @@ export async function explainTextSelection(
   input: ExplainTextSelectionInput
 ): Promise<ExplainTextSelectionOutput> {
   try {
-    debugLog('explainTextSelection called with input:', input);
+    await debugLog('EXPLAIN_TEXT', 'explainTextSelection called', {
+      questionLength: input.userQuestion.length,
+      selectedTextLength: input.selectedText.length,
+      chapterContextLength: input.chapterContext.length,
+    });
 
     // Create Perplexity QA input using the flow helper
     const perplexityInput = await createPerplexityQAInputForFlow(
       input.userQuestion,
-      { text: input.selectedText }, // Convert to selection info format
+      {
+        text: input.selectedText,
+        position: null,
+        range: null,
+      }, // Convert to selection info format with required fields
       input.chapterContext,
       'current-chapter', // Generic chapter title key
       {
@@ -68,12 +76,17 @@ export async function explainTextSelection(
     if (!perplexityResponse.success || !perplexityResponse.answer) {
       // Only log errors in non-test environments
       if (process.env.NODE_ENV !== 'test') {
-        errorLog('Perplexity QA failed:', perplexityResponse.error);
+        await errorLog('EXPLAIN_TEXT', 'Perplexity QA failed', {
+          error: perplexityResponse.error,
+          success: perplexityResponse.success,
+        });
       }
       throw new Error(perplexityResponse.error || 'AI模型未能生成有效的文本解釋。');
     }
 
-    debugLog('explainTextSelection completed successfully');
+    await debugLog('EXPLAIN_TEXT', 'explainTextSelection completed successfully', {
+      answerLength: perplexityResponse.answer?.length || 0,
+    });
     
     return {
       explanation: perplexityResponse.answer
@@ -82,7 +95,9 @@ export async function explainTextSelection(
   } catch (error) {
     // Only log errors in non-test environments
     if (process.env.NODE_ENV !== 'test') {
-      errorLog('Error in explainTextSelection:', error);
+      await errorLog('EXPLAIN_TEXT', 'Error in explainTextSelection', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     
     // Provide a fallback explanation
