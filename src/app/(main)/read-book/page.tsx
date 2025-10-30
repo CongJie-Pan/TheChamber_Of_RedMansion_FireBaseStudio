@@ -119,9 +119,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
-// Firebase imports for welcome bonus flag update
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 interface Annotation {
   text: string;
@@ -1906,13 +1903,20 @@ export default function ReadBookPage() {
           `welcome-bonus-${user.id}` // Unique ID per user to prevent duplicates
         );
 
-        // Update hasReceivedWelcomeBonus flag in user profile
-        if (result.success && !result.isDuplicate) {
-          const userRef = doc(db, 'users', user.id);
-          await updateDoc(userRef, {
-            hasReceivedWelcomeBonus: true,
-          });
-        }
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //         // Update hasReceivedWelcomeBonus flag in user profile
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           //         if (result.success && !result.isDuplicate) {
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           //           const userRef = doc(db, 'users', user.id);
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           await updateDoc(userRef, {
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //             hasReceivedWelcomeBonus: true,
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           });
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //         }
 
         await refreshUserProfile();
 

@@ -80,7 +80,8 @@ import {
   type CreatePostData,
   type CreateCommentData
 } from '@/lib/community-service';
-import { Timestamp } from 'firebase/firestore';
+// SQLITE-025: Import Timestamp from local type definitions instead of Firebase
+import type { Timestamp } from '@/lib/types/daily-task'; // Or user-level types
 
 // User level service for XP awards
 import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
