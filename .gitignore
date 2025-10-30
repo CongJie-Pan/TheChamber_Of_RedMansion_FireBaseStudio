@@ -59,3 +59,4 @@ GEMINI.md
 >>>>>>> feature/GAME-001-user-level-system
 
 scripts/obsolete-migrations/
+tests/obsolete-firebase-tests/
