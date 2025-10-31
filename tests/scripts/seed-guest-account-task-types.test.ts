@@ -1,4 +1,6 @@
 /**
+ * @jest-environment node
+ *
  * @fileoverview Unit tests for guest account seed script task type validation
  *
  * Validates that the guest account seeding script uses correct DailyTaskType
