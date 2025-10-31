@@ -111,6 +111,10 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   ├── env.ts             # Environment variable validation
 │   │   ├── translations.ts    # 1000+ translation keys (i18n system)
 │   │   ├── utils.ts           # Common utility functions
+│   │   ├── constants/         # Centralized constant values (Phase 4-T1)
+│   │   │   └── guest-account.ts  # Guest account constants (IDs, XP, task IDs)
+│   │   ├── middleware/        # Middleware functions (Phase 4-T1)
+│   │   │   └── guest-account.ts  # Guest detection and configuration utilities
 │   │   ├── content-filter-service.ts      # Automated content moderation (91.51% coverage)
 │   │   ├── community-service.ts           # Community management (62.96% coverage)
 │   │   ├── daily-task-service.ts          # Task lifecycle management
@@ -145,28 +149,42 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   └── qa-module.css      # Q&A module styles
 │   └── data/                  # Static data and fixtures
 │       └── chapterGraph/      # Knowledge graph data
-├── tests/                     # Test suite (146+ tests, 100% pass rate)
+├── tests/                     # Test suite (164+ tests, 100% pass rate)
 │   ├── lib/                   # Service layer tests (mirrors /src/lib/)
 │   │   ├── content-filter-service.test.ts     # Content moderation tests
 │   │   ├── community-service.test.ts          # Community feature tests
 │   │   ├── openai-client.test.ts              # OpenAI integration tests
 │   │   ├── ai-task-content-generator.test.ts  # Task generation tests
 │   │   ├── ai-feedback-generator.test.ts      # Feedback generation tests
+│   │   ├── middleware/        # Middleware tests (Phase 4-T1)
+│   │   │   └── guest-account.test.ts          # Guest account middleware (13 tests, 100% pass)
 │   │   └── repositories/      # Repository layer tests (75+ tests)
 │   │       ├── highlight-repository.test.ts   # Highlight repo tests (25+ tests, 420 lines)
 │   │       └── note-repository.test.ts        # Note repo tests (50+ tests, 700 lines)
+│   ├── scripts/               # Script tests (Phase 4-T1)
+│   │   └── seed-guest-account.test.ts         # Guest seeding tests (5 tests)
+│   ├── performance/           # Performance tests (Phase 4-T3)
+│   │   └── lazy-loading.test.tsx              # Lazy loading and build config tests (9 tests)
+│   ├── integration/           # Integration tests (Phase 4-T1)
+│   │   └── guest-account-api.test.ts          # Guest API integration (5 tests)
+│   ├── components/            # Component tests (Phase 4-T1)
+│   │   └── dashboard-guest-badge.test.tsx     # Guest badge UI tests (6 tests)
+│   ├── instrumentation.test.ts # Instrumentation hook tests (Phase 4-T1, 6 tests)
 │   └── setup/                 # Test configuration
 │       └── jest.setup.js      # Jest configuration and mocks
 ├── coverage/                  # Test coverage reports (HTML & JSON)
 │   ├── lcov-report/           # Human-readable coverage report
 │   └── coverage-final.json    # Machine-readable coverage data
 ├── test-output/               # Automated test results and logs
+├── instrumentation.ts         # Next.js instrumentation hook (Phase 4-T1: guest account auto-seed)
 ├── scripts/                   # Development and maintenance scripts
 │   ├── test-ai-logging.ts     # AI logging validation script
+│   ├── seed-guest-account.ts  # Phase 4-T1: Guest account seeding script (fixed 70 XP, 2 tasks)
 │   └── migrations/            # Data migration scripts (Firebase → SQLite)
 │       ├── base-migrator.ts       # Reusable migration framework (abstract class)
 │       ├── migrate-highlights.ts  # Highlight migration (200+ lines, batch processing)
-│       └── migrate-notes.ts       # Note migration (280+ lines, feature preservation)
+│       ├── migrate-notes.ts       # Note migration (280+ lines, feature preservation)
+│       └── fix-moderation-action-format.ts  # Community moderation data standardization
 ├── community-backend/         # Backend service for community features
 ├── sqlite/                    # SQLite database files (gitignored)
 │   └── local.db               # Local SQLite database (highlights, notes, future: all user data)
@@ -279,6 +297,12 @@ This section provides a complete listing of all modules in the codebase with two
 
 **knowledgeGraphUtils.ts** - Provides utility functions for processing, transforming, and querying the chapter-level knowledge graph data that maps character appearances and relationships. This module enables the knowledge graph visualization features by preparing data structures that represent narrative connections across chapters.
 
+### Guest Account System Modules (`/src/lib/constants/`, `/src/lib/middleware/` - Phase 4-T1)
+
+**constants/guest-account.ts** - Centralizes all guest account configuration constants including fixed user ID (`guest-test-user-00000000`), email (`guest@redmansion.test`), username (訪客測試帳號), fixed XP (70), level (1), and task IDs for the two predefined tasks (reading comprehension and character analysis). This module ensures production-safe imports by keeping constants in the src/ directory rather than scripts/, preventing runtime errors when the application bundle is built. Constants are used across middleware, seed scripts, API routes, and UI components to maintain consistency.
+
+**middleware/guest-account.ts** - Provides utility functions for detecting and handling guest account behavior including `isGuestAccount()` to check if a user ID matches the guest account, `getGuestTaskIds()` to retrieve the fixed task IDs, `isGuestModeEnabled()` to verify environment-based enabling (development or explicit flag), `getGuestConfig()` to return complete guest configuration, and `logGuestAction()` for debugging guest account operations. This middleware enables special rules for guest users: fixed tasks instead of dynamic generation, XP reset to 70 on server restart, and AI grading enabled for all tasks. Fully tested with 13/13 unit tests passing (100% coverage).
+
 ### Repository Modules (`/src/lib/repositories/`)
 
 **highlight-repository.ts** - Implements SQLite data access layer for highlights with comprehensive CRUD operations (create, get, delete, batch) using prepared statements for SQL injection prevention. This module provides 8 functions (270 lines) including batch operations for efficient bulk inserts, count queries for statistics, and proper error handling. All operations use parameterized queries and are fully tested with 25+ unit tests covering normal operations, edge cases, and error scenarios.
@@ -292,6 +316,14 @@ This section provides a complete listing of all modules in the codebase with two
 **migrate-highlights.ts** - Implements Firebase-to-SQLite migration for highlight records using the BaseMigrator framework with batch processing, validation, and integrity verification. This script (200+ lines) fetches all highlights from Firestore, validates required fields (userId, chapterId, text, color), transforms timestamps to Unix format, performs batch inserts using highlight-repository, and verifies data integrity with count checks. Supports --dry-run, --verbose, and --no-validate flags for flexible migration execution.
 
 **migrate-notes.ts** - Implements Firebase-to-SQLite migration for note records with feature preservation including tags (JSON arrays), visibility settings, word counts, and note types. This script (280+ lines) extends BaseMigrator to handle complex note features, provides detailed feature statistics (tags usage, public notes percentage, average word count), validates all note fields including optional features, and performs comprehensive verification of feature preservation after migration (tags, visibility, types).
+
+### Guest Account Script Modules (`/scripts/` - Phase 4-T1)
+
+**seed-guest-account.ts** - Implements guest test account seeding functionality that creates a consistent baseline account for development and testing with fixed state (user ID: `guest-test-user-00000000`, XP: 70, level: 1, 2 predefined daily tasks). This script provides the `seedGuestAccount()` function with reset flag support, creates database records using SQLite transactions for atomicity, deletes existing guest data when reset=true, inserts guest user with fixed attributes, creates two fixed daily tasks (reading comprehension 50 XP medium, character analysis 30 XP easy), and initializes daily progress with 0 completed tasks. Includes comprehensive error handling with transaction rollback on failures. Script is executed automatically on server startup via instrumentation hook in development environment to ensure guest account is always available with predictable state.
+
+### Server Instrumentation Module (`/instrumentation.ts` - Phase 4-T1)
+
+**instrumentation.ts** - Implements Next.js 15 instrumentation hook that runs on server startup to perform initialization tasks before the application accepts requests. This module provides the `register()` function that executes in development environment only (checking `process.env.NODE_ENV === 'development'`), automatically seeds the guest test account by calling `seedGuestAccount(true)` with reset flag to ensure fresh state on every server restart, includes comprehensive error handling to prevent server startup failures if seeding fails, and logs all operations with `[Instrumentation]` prefix for debugging. This hook enables the guest account system requirement that XP and tasks reset to fixed baseline (70 XP, 2 tasks) whenever the development server restarts, providing developers with a consistent testing environment without manual intervention. Configured in `next.config.ts` with `experimental.instrumentationHook: true`.
 
 ### Configuration Modules (`/src/lib/config/`)
 
@@ -486,6 +518,22 @@ This section provides a complete listing of all modules in the codebase with two
 * **Migrate all Phase 2:** `npm run migrate:all-phase2` (highlights + notes)
 * **Skip validation:** `npm run migrate:notes -- --no-validate` (not recommended)
 
+### To use guest account for testing (Phase 4-T1):
+1. **Automatic seeding** on development server start (via instrumentation hook in `instrumentation.ts`)
+2. **Manual seeding** with reset: `tsx scripts/seed-guest-account.ts --reset`
+3. **Login** with User ID: `guest-test-user-00000000` (or email: `guest@redmansion.test`)
+4. **Verify** dashboard shows 🧪 測試帳號 badge with "固定 70 XP • 2 個每日任務"
+5. **Check fixed tasks**: Navigate to daily tasks page - should show 2 predefined tasks
+6. **Test AI grading**: Complete tasks to verify AI evaluation works correctly
+7. **Reset testing**: Restart development server - guest account resets to 70 XP and 0 completed tasks
+* **Guest account features**:
+  - Fixed user ID, email, username (never changes)
+  - Always 70 XP and level 1 on server restart
+  - 2 fixed daily tasks (reading comprehension 50 XP, character analysis 30 XP)
+  - No dynamic task generation (returns fixed tasks from database)
+  - AI grading enabled for comprehensive testing
+  - Disabled in production environment (development only)
+
 ### To run tests:
 * **All tests:** `npm test`
 * **Watch mode:** `npm test -- --watch`
@@ -540,10 +588,11 @@ This section provides a complete listing of all modules in the codebase with two
 
 ---
 
-**Document Version:** 1.3
-**Last Updated:** 2025-10-30
+**Document Version:** 1.4
+**Last Updated:** 2025-10-31
 **Maintained By:** Development Team
 **Change Log:**
+* **v1.4 (2025-10-31):** Phase 4 Completion - Guest Account System (fixed test environment with 70 XP baseline, server auto-reset, 13/13 tests passing), Login Logo Update (replaced ScrollText with official logo_circle.png), Performance Optimization (build time 126s → 59s, 53% improvement via SWC minification, lazy loading, CSS optimization). Fixed 2 critical bugs: import path issue (scripts → src/lib/constants) and repository import pattern (object → direct function).
 * **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-4-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
 * **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
 * **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests

@@ -31,8 +31,9 @@
 // React imports for state management and lifecycle
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-// Next.js navigation for routing
+// Next.js navigation and dynamic loading for routing and performance
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
 // UI component imports from design system
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,22 @@ import ReactMarkdown from 'react-markdown'; // For rendering AI response markdow
 // Custom components and utilities
 import { cn } from "@/lib/utils";
 import { SimulatedKnowledgeGraph } from '@/components/SimulatedKnowledgeGraph';
-import KnowledgeGraphViewer from '@/components/KnowledgeGraphViewer';
+
+// Phase 4-T3: Lazy load KnowledgeGraphViewer (D3.js is heavy ~200KB)
+const KnowledgeGraphViewer = dynamic(
+  () => import('@/components/KnowledgeGraphViewer'),
+  {
+    ssr: false, // Disable server-side rendering for client-only component
+    loading: () => (
+      <div className="flex items-center justify-center h-[600px] bg-muted/20 rounded-lg">
+        <div className="text-center space-y-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="text-sm text-muted-foreground">載入知識圖譜...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 // AI integration for text analysis
 // Note: legacy Genkit explainTextSelection not used in unified QA flow
@@ -289,6 +305,26 @@ async function awardXP(
   source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
   sourceId?: string
 ) {
+  // Phase 3-T3: Client-side validation before API call
+  if (!userId || userId.trim() === '') {
+    throw new Error('Invalid userId: must be non-empty string');
+  }
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error(`Invalid amount: must be positive integer, got ${amount}`);
+  }
+  if (!reason || reason.length === 0 || reason.length > 200) {
+    throw new Error(`Invalid reason: must be 1-200 characters, got ${reason.length} characters`);
+  }
+
+  // Phase 3-T3: Enhanced logging for debugging
+  console.log(`[XP Award] Request params:`, {
+    userId: userId.substring(0, 8) + '...',
+    amount,
+    reason: reason.substring(0, 50) + (reason.length > 50 ? '...' : ''),
+    source,
+    sourceId: sourceId || '(none)'
+  });
+
   const response = await fetch('/api/user-level/award-xp', {
     method: 'POST',
     headers: {
@@ -305,15 +341,18 @@ async function awardXP(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error(`[XP Award] API error (${response.status}):`, errorData);
     throw new Error(errorData.error || `Failed to award XP (${response.status})`);
   }
 
   const result = await response.json();
 
   if (!result.success) {
+    console.error(`[XP Award] Service error:`, result);
     throw new Error(result.error || 'Failed to award XP');
   }
 
+  console.log(`[XP Award] Success:`, { newTotalXP: result.newTotalXP, leveledUp: result.leveledUp });
   return result;
 }
 
@@ -2094,6 +2133,9 @@ export default function ReadBookPage() {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const [userNotes, setUserNotes] = useState<Note[]>([]);
 
+  // Phase 3-T1: Track welcome bonus attempt to prevent repeated API calls in same session
+  const welcomeBonusAttemptedRef = useRef(false);
+
   useEffect(() => {
     if (user?.id && currentChapter) {
       fetchNotes(user.id, currentChapter.id).then(setUserNotes);
@@ -2106,13 +2148,23 @@ export default function ReadBookPage() {
   useEffect(() => {
     if (!user?.id || !userProfile) return;
 
+    // Phase 3-T1: Check if we've already attempted welcome bonus in this session
+    if (welcomeBonusAttemptedRef.current) {
+      return; // Already attempted in this session, skip to prevent polling
+    }
+
     // Check if user has already received welcome bonus
     if (userProfile.hasReceivedWelcomeBonus) {
+      welcomeBonusAttemptedRef.current = true; // Mark as checked
       return; // User already received bonus, skip
     }
 
     const awardWelcomeBonus = async () => {
+      // Phase 3-T1: Mark as attempted immediately to prevent retry loops
+      welcomeBonusAttemptedRef.current = true;
+
       try {
+        console.log('[Welcome Bonus] Attempting to award welcome bonus');
         const result = await awardXP(
           user.id,
           XP_REWARDS.NEW_USER_WELCOME_BONUS,
@@ -2120,6 +2172,11 @@ export default function ReadBookPage() {
           'reading',
           `welcome-bonus-${user.id}` // Unique ID per user to prevent duplicates
         );
+
+        console.log('[Welcome Bonus] XP award result:', {
+          success: result.success,
+          isDuplicate: result.isDuplicate
+        });
 
           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
           //         // Update hasReceivedWelcomeBonus flag in user profile
@@ -2147,7 +2204,8 @@ export default function ReadBookPage() {
           });
         }
       } catch (error) {
-        console.error('Error awarding welcome bonus:', error);
+        console.error('[Welcome Bonus] Error awarding welcome bonus:', error);
+        // Phase 3-T1: Don't retry on error - ref already marked as attempted
       }
     };
 

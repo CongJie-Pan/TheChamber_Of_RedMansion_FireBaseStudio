@@ -161,9 +161,6 @@ export async function POST(
 
     const { authorId, authorName, content, parentCommentId } = validationResult.data;
 
-    // Step 3: Await params (Next.js 15 requirement)
-    const { postId } = await params;
-
     // Step 3: Authorization check - users can only comment as themselves
     if (authorId !== session.user.id) {
       return NextResponse.json(

@@ -72,9 +72,6 @@ export async function POST(
 
     const { userId } = validationResult.data;
 
-    // Step 3: Await params (Next.js 15 requirement)
-    const { postId } = await params;
-
     // Step 3: Authorization check - users can only like as themselves
     if (userId !== session.user.id) {
       return NextResponse.json(

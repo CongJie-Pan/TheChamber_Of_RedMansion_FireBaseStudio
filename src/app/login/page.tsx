@@ -28,6 +28,7 @@
 
 // Next.js imports for navigation and routing
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 // Form handling and validation imports
@@ -44,7 +45,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from '@/components/ui/checkbox';
 
 // Icon imports for visual elements
-import { ScrollText, AlertTriangle, PersonStanding } from 'lucide-react';
+import { AlertTriangle, PersonStanding } from 'lucide-react';
 
 // NextAuth imports for authentication
 import { signIn } from 'next-auth/react';
@@ -162,7 +163,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl bg-card/90 backdrop-blur-lg">
         <CardHeader className="space-y-1 text-center">
           <Link href="/" className="inline-block mb-4">
-             <ScrollText className="h-12 w-12 text-primary mx-auto" />
+            <Image
+              src="/images/logo_circle.png"
+              alt="紅樓慧讀 Logo"
+              width={80}
+              height={80}
+              className="mx-auto rounded-full"
+              priority
+            />
           </Link>
           <CardTitle className="text-3xl font-artistic text-primary">{t('login.welcomeBack')}</CardTitle>
           <CardDescription>{t('login.pageDescription')}</CardDescription>

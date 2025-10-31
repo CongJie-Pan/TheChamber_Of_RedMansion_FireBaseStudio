@@ -27,7 +27,7 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
 }
  POST /daily-tasks 500 in 5518ms) 
 
-[] 任務生成功能失敗之關鍵模組定位:                                                                                                                                                                      
+[x] 任務生成功能失敗之關鍵模組定位:                                                                                                                                                                      
   - 主要根因: docs/structure_module_infoMD/Core Service Modules/sqlite-db_module_info.md                                                                                 
       - better‑sqlite3 原生模組架構不相容導致 SQLite 初始化失敗 → 服務改用 Firebase 後又遇到權限不足，造成「每日任務不持久化、刷新重生」、「EXP 不更新」等連鎖問題。     
                                                                                                                                                                          
@@ -66,13 +66,184 @@ For more details see https://firebase.google.com/docs/genkit/plugins/google-gena
     - 探索學習內容下方的每個區塊的文字需要調整
     - 刪除: 已有超過 1,200 名學習者選擇了我們的平台
     - 沒有轉成思源宋體
-[] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
-[] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
-[] 增加執行效率，解決 Linter Problem
+[x] 此外，不需要詩詞韻律，那樣背誦的任務，因為答案可以複製貼上。
+[x] 每日修身，點開"文化探秘 - 傳統啟蒙" 沒有產生任務內容。
+[x] 增加執行效率，解決 Linter Problem
 
 [] 資料庫問題
   - 需要增加刪除帳戶的按鈕功能(在用戶設定那)
   - continue run the tests of the bugs
+
+### 10/31 bugs
+
+1. 為何我打開閱讀頁面，node終端就會持續的刷訊息，例如終端持續刷以下訊息:
+- 📖 [API /user/profile] Fetching profile for user: aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31
+
+    SELECT * FROM users WHERE id = 'aa6c084b-a092-4c6e-a8a6-ff7d05b1'/*+4 bytes*/
+
+✅ [API /user/profile] Profile fetched successfully for aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31
+ GET /api/user/profile?userId=aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31 200 in 60ms
+🎁 [API] Awarding 15 XP to user aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31 for: Welcome to reading! First-time reader bonus
+🗄️  [UserLevelService] Awarding XP: aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31, amount=15, source=reading, sourceId=welcome-bonus-aa6c084b-a092-4c6e-a8a6-ff7d05b1fd31
+
+    SELECT COUNT(*) as count
+    FROM xp_transaction_locks
+    WHERE userId = 'aa6c084b-a092-4c6e-a8a6-ff7d05b1'/*+4 bytes*/ AND sourceId = 'welcome-bonus-aa6c084b-a092-4c6e'/*+18 bytes*/
+
+2. 圖譜節點會持續抖動、並且用戶不能隨意縮放大小，只要用戶進行縮放動作，就會自動回調到0.5x
+
+3. 每日任務 : 
+
+每日任務 會持續的進行任務輸出，是不是沒有個限制，就只要兩個任務就好。希望的話可以把系統開啟後，就自動進行任務產出工作，否則不要讓用戶等太久。也不要每次開啟該頁面就是要重刷重產出一次。
+
+4. 當我給了任務的答案後，就會出現以下訊息:
+
+## Error Type
+Console ReferenceError
+
+## Error Message
+dailyTaskService is not defined
+
+
+    at loadDailyTasks (webpack-internal:///(app-pages-browser)/./src/app/(main)/daily-tasks/page.tsx:335:34)
+
+Next.js version: 15.5.6 (Webpack)
+
+然後頁面顯示:
+載入失敗
+無法載入每日任務，請稍後再試。
+
+終端有gpt的回應，但是沒法顯示，系統看來是標示為完成(主頁顯示)，但是我只完成一個，但是主頁的狀態說我都已經全完成(1 / 1 完成)，正確來講，是會有兩個任務，這裡邏輯出了什麼問題。並且先前終端有出現這個訊息:
+
+  297 |
+> 298 |       stmt.run(
+      |            ^
+  299 |         id,
+  300 |         taskType,
+  301 |         difficulty, {
+  code: 'SQLITE_CONSTRAINT_NOTNULL'
+}
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\next-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\dev\next-dev-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\trace\trace.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null  
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\lib\router-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\lib\start-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+Generate daily tasks failed, falling back to ephemeral tasks: Error: Failed to generate daily tasks. Please try again.
+    at DailyTaskService.generateDailyTasks (src\lib\daily-task-service.ts:319:13)
+    at async POST (src\app\api\daily-tasks\generate\route.ts:62:19)
+  317 |     } catch (error) {
+  318 |       console.error('Error generating daily tasks:', error);
+> 319 |       throw new Error('Failed to generate daily tasks. Please try again.');
+      |             ^
+  320 |     }
+  321 |   }
+  322 |
+  
+3. 當我在社群上發送"你好"的文後，出現以下錯誤:
+1) ## Error Type
+Console Error
+
+## Error Message
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `CommunityPage`. See https://react.dev/link/warning-keys for more information.
+
+
+    at eval (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1532:152)
+    at Array.map (<anonymous>:null:null)
+    at CommunityPage (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1532:65)
+
+Next.js version: 15.5.6 (Webpack)
+
+## Error Type
+Console Error
+
+## Error Message
+Failed to fetch posts (500)
+
+
+    at fetchPosts (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:929:15)
+    at async loadPosts (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1099:35)
+
+Next.js version: 15.5.6 (Webpack)
+
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\lib\start-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+❌ [API] Error fetching posts: SyntaxError: Unexpected token 'a', "allow" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at rowToPost (src\lib\repositories\community-repository.ts:100:51)
+    at Array.map (<anonymous>)
+    at getPosts (src\lib\repositories\community-repository.ts:242:15)
+    at CommunityService.getPosts (src\lib\community-service.ts:194:39)
+    at GET (src\app\api\community\posts\route.ts:206:42)
+   98 |     status: row.status,
+   99 |     isEdited: row.isEdited === 1,
+> 100 |     moderationAction: row.moderationAction ? JSON.parse(row.moderationAction) : undefined,
+      |                                                   ^
+  101 |     originalContent: row.originalContent || undefined,
+  102 |     moderationWarning: row.moderationWarning || undefined,
+  103 |     createdAt: fromUnixTimestamp(row.createdAt),
+ GET /api/community/posts? 500 in 136ms
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\dev\middleware-webpack.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\lib\router-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\server\lib\start-server.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null
+[Error: x: Invalid source map. Only conformant source maps can be used to find the original code.] {
+  [cause]: [Error: ENOENT: no such file or directory, open 'D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\node_modules\next\dist\compiled\source-map08\mappings.wasm'] {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio\\node_modules\\next\\dist\\compiled\\source-map08\\mappings.wasm'
+  }
+}
+
+然後按讚、評論也無法，會顯示以下訊息:
+
+## Error Type
+Console Error
+
+## Error Message
+Failed to like post (404)
+
+
+    at togglePostLikeAPI (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:991:19)
+    at async handleLike (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1196:33)
+    at async handleLike (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:338:29)
+
+Next.js version: 15.5.6 (Webpack)
+
+## Error Type
+Console Error
+
+## Error Message
+Failed to add comment
+
+
+    at addCommentAPI (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1050:15)
+    at async handleComment (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:1248:28)
+    at async handleSubmitComment (webpack-internal:///(app-pages-browser)/./src/app/(main)/community/page.tsx:384:13)
+
+Next.js version: 15.5.6 (Webpack)
+
+5. 當我在ai問答區域，按下了送出ai問答內容後，就出現以下錯誤，並且把ai問答的框框區域收走了
+
+## Error Type
+Console Error
+
+## Error Message
+Invalid request data
+
+
+    at awardXP (webpack-internal:///(app-pages-browser)/./src/app/(main)/read-book/page.tsx:374:15)
+    at async handleUserSubmitQuestion (webpack-internal:///(app-pages-browser)/./src/app/(main)/read-book/page.tsx:1416:44)
+
+Next.js version: 15.5.6 (Webpack)
+
+[] 建立一個專門的測試帳號(作為訪客帳號)，這個帳號專門就是將經驗值定在70 exp，且為全新紀錄的帳號，每次重開伺服器，就會重回這個設定。然後此帳號，設定成每日任務先固定(原有動態產出任務，先隱藏此任務)，然後給ai作評分就好。
+
+[] 登入畫面中，歡迎回來上面的書卷請改為"public\images\logo_circle.png"
+
+[] 提高每頁compliling的效率時間 提升至3-5秒內完成
+
+[] i use npm not pnpm , is there other ways to prevent repeatly rebuild the db ?
 
 [] 最後測試 (Smoking Test)
 

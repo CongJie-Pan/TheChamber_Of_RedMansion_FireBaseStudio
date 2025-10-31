@@ -92,7 +92,8 @@
       "Bash(openssl rand:*)",
       "Bash(git diff:*)",
       "Read(//tmp/**)",
-      "Bash(npx eslint src --ext .ts,.tsx --max-warnings 0)"
+      "Bash(npx eslint src --ext .ts,.tsx --max-warnings 0)",
+      "Bash(time npm run build)"
     ]
   },
   "outputStyle": "default"

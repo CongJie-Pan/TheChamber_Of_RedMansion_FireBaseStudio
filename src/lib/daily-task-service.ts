@@ -284,12 +284,36 @@ export class DailyTaskService {
       // Fixed: Ensure only 2 tasks per day (safety check)
       const limitedTasks = tasks.slice(0, 2);
 
-      // Store generated tasks in SQLite
-      taskRepository.batchCreateTasks(limitedTasks);
+      // Enhanced: Pre-insert validation to ensure all required fields are present
+      const validatedTasks = limitedTasks.map((task, index) => {
+        const validated = {
+          ...task,
+          // Ensure critical fields have values with fallbacks
+          title: task.title || `${task.type} 任務`,
+          description: task.description || `請完成此學習任務`,
+          baseXP: task.baseXP ?? BASE_XP_REWARDS[task.type] ?? 10,
+        };
 
-      // Create task assignments
+        // Log validation warnings
+        if (!task.title) {
+          console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing title, using fallback: "${validated.title}"`);
+        }
+        if (!task.description) {
+          console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing description, using fallback`);
+        }
+        if (task.baseXP === undefined || task.baseXP === null) {
+          console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing baseXP, using fallback: ${validated.baseXP}`);
+        }
+
+        return validated;
+      });
+
+      // Store validated tasks in SQLite
+      taskRepository.batchCreateTasks(validatedTasks);
+
+      // Create task assignments (use validatedTasks to match what was stored)
       const now = fromUnixTimestamp(Date.now());
-      const assignments: DailyTaskAssignment[] = limitedTasks.map((task) => ({
+      const assignments: DailyTaskAssignment[] = validatedTasks.map((task) => ({
         taskId: task.id,
         assignedAt: now,
         status: TaskStatus.NOT_STARTED,
@@ -314,9 +338,9 @@ export class DailyTaskService {
 
       progressRepository.createProgress(progressData);
 
-      console.log(`✅ [SQLite] Generated ${limitedTasks.length} daily tasks for user ${userId} on ${targetDate}`);
+      console.log(`✅ [SQLite] Generated ${validatedTasks.length} daily tasks for user ${userId} on ${targetDate}`);
 
-      return limitedTasks;
+      return validatedTasks;
     } catch (error) {
       console.error('Error generating daily tasks:', error);
       throw new Error('Failed to generate daily tasks. Please try again.');

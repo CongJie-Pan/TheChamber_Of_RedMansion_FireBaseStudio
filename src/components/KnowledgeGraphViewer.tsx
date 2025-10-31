@@ -372,9 +372,10 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  
-  // D3.js zoom behavior
+
+  // Phase 3-T2: D3.js zoom behavior with persistent transform state
   const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const currentTransformRef = useRef<d3.ZoomTransform | null>(null); // Preserve zoom across re-renders
 
   // Initialize D3.js visualization
   useEffect(() => {
@@ -421,6 +422,13 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .alphaMin(0.001); // Stop simulation when alpha drops below this threshold
 
     simulationRef.current = simulation;
+
+    // Phase 3-T2: Force stop simulation after 5 seconds to prevent infinite jitter
+    const simulationTimeout = setTimeout(() => {
+      console.log('[KnowledgeGraph] Forcing simulation stop after 5 seconds');
+      simulation.stop();
+      setIsPlaying(false);
+    }, 5000);
 
     // Create links with enhanced visibility
     // Reason for changes:
@@ -644,6 +652,15 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
 
     // Update positions on simulation tick
     simulation.on("tick", () => {
+      // Phase 3-T2: Check for convergence and stop simulation when stable
+      const alpha = simulation.alpha();
+      if (alpha < 0.01) {
+        console.log(`[KnowledgeGraph] Simulation converged (alpha=${alpha.toFixed(4)}), stopping`);
+        simulation.stop();
+        setIsPlaying(false);
+        return; // Stop updating positions once converged
+      }
+
       link
         .attr("x1", d => (d.source as KnowledgeGraphNode).x!)
         .attr("y1", d => (d.source as KnowledgeGraphNode).y!)
@@ -669,16 +686,25 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
         const { transform } = event;
         g.attr("transform", transform);
         setZoomLevel(transform.k);
+        // Phase 3-T2: Save current transform to preserve zoom across re-renders
+        currentTransformRef.current = transform;
       });
 
     zoomBehavior.current = zoom;
     svg.call(zoom);
+
+    // Phase 3-T2: Restore saved zoom transform if exists (prevents zoom reset)
+    if (currentTransformRef.current && !isInitialMount.current) {
+      console.log('[KnowledgeGraph] Restoring zoom transform:', currentTransformRef.current);
+      svg.call(zoom.transform, currentTransformRef.current);
+    }
 
     // Note: Initial zoom is set in separate useEffect to prevent reset on dimensions change
 
     // Cleanup function
     return () => {
       simulation.stop();
+      clearTimeout(simulationTimeout); // Phase 3-T2: Clear timeout to prevent memory leak
     };
   }, [graphData, dimensions.width, dimensions.height, onNodeClick]);
 

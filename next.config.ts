@@ -1,5 +1,10 @@
 import type { NextConfig } from 'next';
 
+// Phase 4-T3: Bundle analyzer for optimization insights
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
@@ -7,6 +12,18 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  // Phase 4-T3: Performance Optimizations
+  swcMinify: true, // Enable SWC minification for faster builds
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+  experimental: {
+    optimizeCss: true, // Enable CSS optimization
+    optimizePackageImports: ['lucide-react', 'd3', '@radix-ui/react-icons'], // Tree-shake specific packages
+    instrumentationHook: true, // Phase 4-T1: Enable instrumentation for guest account seeding
   },
   images: {
     remotePatterns: [
@@ -119,4 +136,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

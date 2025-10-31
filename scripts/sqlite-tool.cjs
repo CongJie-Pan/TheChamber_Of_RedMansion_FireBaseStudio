@@ -36,13 +36,16 @@ function collectEnvironmentInfo() {
     hasBetterSqlite3 = false;
   }
 
+  const packageManager = detectPackageManager();
+
   return {
     platform: process.platform,
     arch: process.arch,
     release: os.release(),
     nodeVersion: process.version,
     nodeExecPath: process.execPath,
-    pnpmCommand: getPnpmCommand(),
+    packageManager: packageManager.manager,
+    packageManagerCommand: packageManager.command,
     hasBetterSqlite3,
     betterSqlite3Package: packageJsonPath,
     betterSqlite3Binary: binaryPath,
@@ -50,12 +53,49 @@ function collectEnvironmentInfo() {
 }
 
 /**
- * Returns the appropriate pnpm binary name for the current platform.
+ * Detects which package manager is available and returns the appropriate command.
+ * Respects FORCE_NPM environment variable to skip pnpm detection.
+ * Checks in order: pnpm, npm. Falls back to npm if neither is explicitly found.
  *
- * @returns {string} pnpm executable.
+ * @returns {{manager: string, command: string}} Package manager info.
  */
-function getPnpmCommand() {
-  return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+function detectPackageManager() {
+  const isWindows = process.platform === 'win32';
+  const npmCommand = isWindows ? 'npm.cmd' : 'npm';
+  const pnpmCommand = isWindows ? 'pnpm.cmd' : 'pnpm';
+
+  // Respect FORCE_NPM environment variable
+  if (process.env.FORCE_NPM === '1' || process.env.FORCE_NPM === 'true') {
+    console.log('⚙️  FORCE_NPM environment variable detected, using npm');
+    return { manager: 'npm', command: npmCommand };
+  }
+
+  // Try npm first (more reliable and commonly available)
+  try {
+    const npmCheck = spawnSync(npmCommand, ['--version'], { stdio: 'pipe' });
+    if (npmCheck.status === 0 && !npmCheck.error) {
+      return { manager: 'npm', command: npmCommand };
+    }
+  } catch {
+    // npm not available
+  }
+
+  // Try pnpm as fallback
+  try {
+    const pnpmCheck = spawnSync(pnpmCommand, ['--version'], { stdio: 'pipe' });
+    if (pnpmCheck.status === 0 && !pnpmCheck.error) {
+      return { manager: 'pnpm', command: pnpmCommand };
+    }
+  } catch {
+    // pnpm not available or failed
+  }
+
+  // Fallback to npm (should always be available with Node.js)
+  console.log('⚠️  Warning: Could not verify package manager, defaulting to npm');
+  return {
+    manager: 'npm',
+    command: npmCommand
+  };
 }
 
 /**
@@ -92,7 +132,7 @@ function logEnvironment(info) {
   console.log(`OS Release        : ${info.release}`);
   console.log(`Node.js Version   : ${info.nodeVersion}`);
   console.log(`Node Exec Path    : ${info.nodeExecPath}`);
-  console.log(`pnpm Command      : ${info.pnpmCommand}`);
+  console.log(`Package Manager   : ${info.packageManager} (${info.packageManagerCommand})`);
   console.log(`better-sqlite3    : ${info.hasBetterSqlite3 ? 'installed' : 'not resolved'}`);
   if (info.betterSqlite3Package) {
     console.log(`  package.json    : ${info.betterSqlite3Package}`);
@@ -106,13 +146,16 @@ function logEnvironment(info) {
 }
 
 /**
- * Executes `pnpm rebuild better-sqlite3`.
+ * Executes `npm rebuild better-sqlite3` or `pnpm rebuild better-sqlite3`
+ * depending on which package manager is detected.
  *
  * @returns {number} Process exit status.
  */
 function runRebuild() {
-  const command = getPnpmCommand();
-  const result = spawnSync(command, ['rebuild', 'better-sqlite3'], {
+  const pm = detectPackageManager();
+  console.log(`🔧 Rebuilding better-sqlite3 using ${pm.manager}...`);
+
+  const result = spawnSync(pm.command, ['rebuild', 'better-sqlite3'], {
     stdio: 'inherit',
   });
 

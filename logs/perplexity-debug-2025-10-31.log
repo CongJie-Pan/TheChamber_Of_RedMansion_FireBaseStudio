@@ -1,0 +1,342 @@
+[2025-10-31T02:23:18.298Z] [DEBUG] [PERPLEXITY_STREAMING] Starting async generator: perplexityRedChamberQAStreaming
+DATA: {
+  "functionName": "perplexityRedChamberQAStreaming",
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "hasAsyncIterator": false
+}
+[2025-10-31T02:23:18.335Z] [DEBUG] [PERPLEXITY_STREAMING] Function entry point reached
+DATA: {
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "userQuestionLength": 114,
+  "enableStreaming": true
+}
+[2025-10-31T02:23:18.366Z] [DEBUG] [PERPLEXITY_STREAMING] Getting Perplexity client
+[2025-10-31T02:23:18.371Z] [DEBUG] [PERPLEXITY_STREAMING] Client obtained
+DATA: {
+  "clientType": "object",
+  "clientConstructor": "PerplexityClient",
+  "hasStreamingMethod": true
+}
+[2025-10-31T02:23:18.381Z] [DEBUG] [PERPLEXITY_STREAMING] Calling client.streamingCompletionRequest
+DATA: {
+  "processedInputType": "object",
+  "processedInputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ]
+}
+[2025-10-31T02:23:18.384Z] [DEBUG] [PERPLEXITY_STREAMING] Stream generator created
+DATA: {
+  "generatorType": "object",
+  "generatorConstructor": "",
+  "hasAsyncIterator": true
+}
+[2025-10-31T02:23:18.388Z] [DEBUG] [PERPLEXITY_STREAMING] Starting for-await loop on: client.streamingCompletionRequest
+DATA: {
+  "iterableSource": "client.streamingCompletionRequest",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}
+[2025-10-31T02:23:18.396Z] [DEBUG] [PERPLEXITY_CLIENT] PerplexityClient.streamingCompletionRequest called
+DATA: {
+  "inputType": "object",
+  "userQuestionLength": 114,
+  "enableStreaming": true
+}
+[2025-10-31T02:23:18.400Z] [DEBUG] [PERPLEXITY_CLIENT] Making HTTP request to Perplexity API
+DATA: {
+  "endpoint": "/chat/completions",
+  "requestDataKeys": [
+    "model",
+    "temperature",
+    "max_tokens",
+    "stream",
+    "reasoning_effort",
+    "messages"
+  ],
+  "model": "sonar-reasoning",
+  "stream": true
+}
+[2025-10-31T02:23:20.454Z] [DEBUG] [PERPLEXITY_CLIENT] Received HTTP response
+DATA: {
+  "statusCode": 200,
+  "statusText": "OK",
+  "dataType": "object",
+  "dataConstructor": "IncomingMessage"
+}
+[2025-10-31T02:23:20.475Z] [DEBUG] [PERPLEXITY_CLIENT] Starting for-await loop on: this.parseStreamingResponse(stream)
+DATA: {
+  "iterableSource": "this.parseStreamingResponse(stream)",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}
+[2025-10-31T02:23:26.862Z] [DEBUG] [PERPLEXITY_STREAMING] Starting async generator: perplexityRedChamberQAStreaming
+DATA: {
+  "functionName": "perplexityRedChamberQAStreaming",
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "hasAsyncIterator": false
+}
+[2025-10-31T02:23:26.870Z] [DEBUG] [PERPLEXITY_STREAMING] Function entry point reached
+DATA: {
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "userQuestionLength": 11,
+  "enableStreaming": true
+}
+[2025-10-31T02:23:26.874Z] [DEBUG] [PERPLEXITY_STREAMING] Getting Perplexity client
+[2025-10-31T02:23:26.876Z] [DEBUG] [PERPLEXITY_STREAMING] Client obtained
+DATA: {
+  "clientType": "object",
+  "clientConstructor": "PerplexityClient",
+  "hasStreamingMethod": true
+}
+[2025-10-31T02:23:26.878Z] [DEBUG] [PERPLEXITY_STREAMING] Calling client.streamingCompletionRequest
+DATA: {
+  "processedInputType": "object",
+  "processedInputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ]
+}
+[2025-10-31T02:23:26.885Z] [DEBUG] [PERPLEXITY_STREAMING] Stream generator created
+DATA: {
+  "generatorType": "object",
+  "generatorConstructor": "",
+  "hasAsyncIterator": true
+}
+[2025-10-31T02:23:26.888Z] [DEBUG] [PERPLEXITY_STREAMING] Starting for-await loop on: client.streamingCompletionRequest
+DATA: {
+  "iterableSource": "client.streamingCompletionRequest",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}
+[2025-10-31T02:23:26.902Z] [DEBUG] [PERPLEXITY_CLIENT] PerplexityClient.streamingCompletionRequest called
+DATA: {
+  "inputType": "object",
+  "userQuestionLength": 11,
+  "enableStreaming": true
+}
+[2025-10-31T02:23:26.910Z] [DEBUG] [PERPLEXITY_CLIENT] Making HTTP request to Perplexity API
+DATA: {
+  "endpoint": "/chat/completions",
+  "requestDataKeys": [
+    "model",
+    "temperature",
+    "max_tokens",
+    "stream",
+    "reasoning_effort",
+    "messages"
+  ],
+  "model": "sonar-reasoning",
+  "stream": true
+}
+[2025-10-31T02:23:28.704Z] [DEBUG] [PERPLEXITY_CLIENT] Received HTTP response
+DATA: {
+  "statusCode": 200,
+  "statusText": "OK",
+  "dataType": "object",
+  "dataConstructor": "IncomingMessage"
+}
+[2025-10-31T02:23:28.709Z] [DEBUG] [PERPLEXITY_CLIENT] Starting for-await loop on: this.parseStreamingResponse(stream)
+DATA: {
+  "iterableSource": "this.parseStreamingResponse(stream)",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}
+[2025-10-31T06:28:27.849Z] [DEBUG] [PERPLEXITY_STREAMING] Starting async generator: perplexityRedChamberQAStreaming
+DATA: {
+  "functionName": "perplexityRedChamberQAStreaming",
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "hasAsyncIterator": false
+}
+[2025-10-31T06:28:27.950Z] [DEBUG] [PERPLEXITY_STREAMING] Function entry point reached
+DATA: {
+  "inputType": "object",
+  "inputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ],
+  "userQuestionLength": 114,
+  "enableStreaming": true
+}
+[2025-10-31T06:28:27.990Z] [DEBUG] [PERPLEXITY_STREAMING] Getting Perplexity client
+[2025-10-31T06:28:27.992Z] [DEBUG] [PERPLEXITY_STREAMING] Client obtained
+DATA: {
+  "clientType": "object",
+  "clientConstructor": "PerplexityClient",
+  "hasStreamingMethod": true
+}
+[2025-10-31T06:28:27.999Z] [DEBUG] [PERPLEXITY_STREAMING] Calling client.streamingCompletionRequest
+DATA: {
+  "processedInputType": "object",
+  "processedInputKeys": [
+    "userQuestion",
+    "modelKey",
+    "reasoningEffort",
+    "questionContext",
+    "enableStreaming",
+    "includeDetailedCitations",
+    "showThinkingProcess",
+    "temperature",
+    "maxTokens",
+    "selectedText",
+    "chapterContext",
+    "currentChapter"
+  ]
+}
+[2025-10-31T06:28:28.001Z] [DEBUG] [PERPLEXITY_STREAMING] Stream generator created
+DATA: {
+  "generatorType": "object",
+  "generatorConstructor": "",
+  "hasAsyncIterator": true
+}
+[2025-10-31T06:28:28.003Z] [DEBUG] [PERPLEXITY_STREAMING] Starting for-await loop on: client.streamingCompletionRequest
+DATA: {
+  "iterableSource": "client.streamingCompletionRequest",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}
+[2025-10-31T06:28:28.004Z] [DEBUG] [PERPLEXITY_CLIENT] PerplexityClient.streamingCompletionRequest called
+DATA: {
+  "inputType": "object",
+  "userQuestionLength": 114,
+  "enableStreaming": true
+}
+[2025-10-31T06:28:28.006Z] [DEBUG] [PERPLEXITY_CLIENT] Making HTTP request to Perplexity API
+DATA: {
+  "endpoint": "/chat/completions",
+  "requestDataKeys": [
+    "model",
+    "temperature",
+    "max_tokens",
+    "stream",
+    "reasoning_effort",
+    "messages"
+  ],
+  "model": "sonar-reasoning",
+  "stream": true
+}
+[2025-10-31T06:28:29.844Z] [DEBUG] [PERPLEXITY_CLIENT] Received HTTP response
+DATA: {
+  "statusCode": 200,
+  "statusText": "OK",
+  "dataType": "object",
+  "dataConstructor": "IncomingMessage"
+}
+[2025-10-31T06:28:29.848Z] [DEBUG] [PERPLEXITY_CLIENT] Starting for-await loop on: this.parseStreamingResponse(stream)
+DATA: {
+  "iterableSource": "this.parseStreamingResponse(stream)",
+  "iterableType": "object",
+  "hasAsyncIterator": true,
+  "hasIterator": false,
+  "constructorName": ""
+}

@@ -97,14 +97,12 @@ function rowToPost(row: PostRow): CommunityPost {
     viewCount: row.viewCount,
     status: row.status,
     isEdited: row.isEdited === 1,
-    // Fixed: Handle both string and JSON format for moderationAction
+    // Fixed: Handle both string primitives and legacy JSON format for moderationAction
     moderationAction: row.moderationAction ?
       (typeof row.moderationAction === 'string' &&
-       (row.moderationAction === 'allow' ||
-        row.moderationAction === 'warn' ||
-        row.moderationAction === 'filter')
-         ? row.moderationAction
-         : JSON.parse(row.moderationAction))
+       ['allow', 'warn', 'filter', 'hide', 'block', 'flag-for-review'].includes(row.moderationAction)
+         ? row.moderationAction  // Direct string primitive (current format)
+         : JSON.parse(row.moderationAction))  // Legacy JSON format
       : undefined,
     originalContent: row.originalContent || undefined,
     moderationWarning: row.moderationWarning || undefined,

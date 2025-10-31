@@ -14,6 +14,8 @@ import { taskGenerator } from '@/lib/task-generator'
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isLlmOnlyMode } from '@/lib/env'
+import { isGuestAccount, getGuestTaskIds, logGuestAction } from '@/lib/middleware/guest-account'
+import { getTasksByIds } from '@/lib/repositories/task-repository'
 
 export async function POST(request: NextRequest) {
   // Parse body ONCE and keep values for both main path and fallback
@@ -46,6 +48,26 @@ export async function POST(request: NextRequest) {
 
     const effectiveUserId = verifiedUid || (userId as string)
 
+    // Phase 4-T1: Guest account always returns fixed tasks (no generation)
+    if (isGuestAccount(effectiveUserId)) {
+      logGuestAction('Task generation requested - returning fixed tasks');
+      const guestTaskIds = getGuestTaskIds();
+      const tasks = await getTasksByIds(guestTaskIds);
+
+      if (tasks.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Guest account tasks not found. Run: tsx scripts/seed-guest-account.ts --reset'
+          },
+          { status: 404 }
+        );
+      }
+
+      logGuestAction(`Returning ${tasks.length} fixed tasks`, { taskIds: guestTaskIds });
+      return NextResponse.json({ success: true, tasks, isGuest: true }, { status: 200 });
+    }
+
     // LLM-only: no Firestore interactions, always return ephemeral tasks
     if (isLlmOnlyMode()) {
       const today = new Date().toISOString().split('T')[0]
@@ -59,7 +81,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, tasks, ephemeral: true }, { status: 200 })
     }
 
+    // Phase 2-T1: Server-side duplicate protection is handled by dailyTaskService.generateDailyTasks
+    // It checks for existing progress and returns cached tasks without regeneration
     const tasks = await dailyTaskService.generateDailyTasks(effectiveUserId, date)
+
+    console.log(`✅ [API] Generate endpoint returned ${tasks.length} tasks (may be cached from existing progress)`)
+
     return NextResponse.json({ success: true, tasks, ephemeral: false }, { status: 200 })
   } catch (err: any) {
     // Robust fallback: never re-read request body; rely on parsed userId

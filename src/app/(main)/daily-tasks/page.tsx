@@ -326,27 +326,23 @@ export default function DailyTasksPage() {
         setProgress(null);
         setStats({ totalTasks: 0, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
       } else {
-        // Fixed: Fetch tasks via API instead of direct service call
+        // Phase 2-T1 Fix: Use dedicated tasks endpoint to fetch existing tasks without regeneration
         // Get task IDs from progress
         const taskIds = dailyProgress.tasks.map(t => t.taskId);
 
-        // Fetch complete task details via API
-        const resp = await fetch('/api/daily-tasks/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id }),
-        });
+        console.log(`📋 Loading existing tasks (${taskIds.length}) without regeneration`);
+
+        // Fetch complete task details via tasks API (NOT generate API)
+        const resp = await fetch(`/api/daily-tasks/tasks?taskIds=${taskIds.join(',')}`);
 
         if (resp.ok) {
           const data = await resp.json();
           const loadedTasks = data?.tasks || [];
-
-          // Filter only the tasks that are in today's assignments
-          const relevantTasks = loadedTasks.filter((task: DailyTask) =>
-            taskIds.includes(task.id)
-          );
-
-          setTasks(relevantTasks);
+          setTasks(loadedTasks);
+          console.log(`✅ Loaded ${loadedTasks.length} existing tasks`);
+        } else {
+          console.warn('Failed to fetch task details, tasks may be missing');
+          setTasks([]);
         }
 
         setProgress(dailyProgress);
