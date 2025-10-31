@@ -11,6 +11,13 @@
 import { getDatabase } from '../sqlite-db';
 import type { AttributePoints } from '../types/user-level';
 import { isGuestAccount } from '../middleware/guest-account';
+import {
+  GUEST_EMAIL,
+  GUEST_FIXED_XP,
+  GUEST_LEVEL,
+  GUEST_USER_ID,
+  GUEST_USERNAME,
+} from '../constants/guest-account';
 
 /**
  * User statistics interface
@@ -267,15 +274,15 @@ export function createUser(
  * @returns Created guest user profile
  */
 export function createGuestUser(): UserProfile {
+  // Return existing fixed guest account if present
+  const existingGuest = getUserById(GUEST_USER_ID);
+  if (existingGuest) {
+    console.log(`✅ [UserRepository] Reusing existing guest user: ${GUEST_USER_ID}`);
+    return existingGuest;
+  }
+
   const db = getDatabase();
   const now = Date.now();
-
-  // Generate unique guest ID and credentials
-  const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
-  const guestId = `guest_${timestamp}_${randomSuffix}`;
-  const guestEmail = `guest_${timestamp}@redmansion.local`;
-  const guestUsername = `訪客_${randomSuffix}`; // "Guest" in Chinese + random suffix
 
   // Generate a secure random password (guest won't need it, but required for DB)
   const crypto = require('crypto');
@@ -284,14 +291,14 @@ export function createGuestUser(): UserProfile {
   const passwordHash = bcrypt.hashSync(randomPassword, 10);
 
   const guestProfile: UserProfile = {
-    userId: guestId,
-    username: guestUsername,
-    email: guestEmail,
+    userId: GUEST_USER_ID,
+    username: GUEST_USERNAME,
+    email: GUEST_EMAIL,
     passwordHash,
     isGuest: true, // Mark as guest account
-    currentLevel: 0,
-    currentXP: 0,
-    totalXP: 0,
+    currentLevel: GUEST_LEVEL,
+    currentXP: GUEST_FIXED_XP,
+    totalXP: GUEST_FIXED_XP,
     attributes: { ...DEFAULT_ATTRIBUTES },
     completedTasks: [],
     unlockedContent: [],
@@ -311,28 +318,39 @@ export function createGuestUser(): UserProfile {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  stmt.run(
-    guestId,
-    guestUsername,
-    guestEmail,
-    passwordHash,
-    1, // isGuest = 1 (true) for guest accounts
-    guestProfile.currentLevel,
-    guestProfile.currentXP,
-    guestProfile.totalXP,
-    JSON.stringify(guestProfile.attributes),
-    JSON.stringify(guestProfile.completedTasks),
-    JSON.stringify(guestProfile.unlockedContent),
-    JSON.stringify(guestProfile.completedChapters),
-    guestProfile.hasReceivedWelcomeBonus ? 1 : 0,
-    JSON.stringify(guestProfile.stats),
-    now,
-    now,
-    now
-  );
+  try {
+    stmt.run(
+      GUEST_USER_ID,
+      GUEST_USERNAME,
+      GUEST_EMAIL,
+      passwordHash,
+      1, // isGuest = 1 (true) for guest accounts
+      guestProfile.currentLevel,
+      guestProfile.currentXP,
+      guestProfile.totalXP,
+      JSON.stringify(guestProfile.attributes),
+      JSON.stringify(guestProfile.completedTasks),
+      JSON.stringify(guestProfile.unlockedContent),
+      JSON.stringify(guestProfile.completedChapters),
+      guestProfile.hasReceivedWelcomeBonus ? 1 : 0,
+      JSON.stringify(guestProfile.stats),
+      now,
+      now,
+      now
+    );
 
-  console.log(`✅ [UserRepository] Created guest user: ${guestId} (${guestUsername})`);
-  return guestProfile;
+    console.log(`✅ [UserRepository] Created guest user: ${GUEST_USER_ID} (${GUEST_USERNAME})`);
+    return guestProfile;
+  } catch (error: any) {
+    if (typeof error?.message === 'string' && error.message.includes('UNIQUE constraint failed')) {
+      const fallbackGuest = getUserById(GUEST_USER_ID);
+      if (fallbackGuest) {
+        console.warn('⚠️ [UserRepository] Guest user already existed during creation, returning existing record.');
+        return fallbackGuest;
+      }
+    }
+    throw error;
+  }
 }
 
 /**

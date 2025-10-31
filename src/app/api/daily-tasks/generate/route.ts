@@ -95,11 +95,12 @@ export async function POST(request: NextRequest) {
       const today = new Date().toISOString().split('T')[0]
       const fallbackLevel = 2
       const fallbackUserId = verifiedUid || userId || 'guest'
-      const tasks = await taskGenerator.generateTasksForUser(
+      const generatedTasks = await taskGenerator.generateTasksForUser(
         String(fallbackUserId),
         fallbackLevel,
         date || today
       )
+      const tasks = generatedTasks.slice(0, 2)
       return NextResponse.json({ success: true, tasks, ephemeral: true }, { status: 200 })
     } catch (fallbackErr: any) {
       const message = typeof err?.message === 'string' ? err.message : 'Failed to generate daily tasks'
