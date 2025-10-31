@@ -62,6 +62,17 @@ describe('AIMessageBubble Component', () => {
       expect(screen.getByText('Thought for 15 seconds')).toBeInTheDocument();
     });
 
+    test('should hide thinking section when showThinkingInline is false', () => {
+      render(
+        <AIMessageBubble
+          {...defaultProps}
+          showThinkingInline={false}
+        />
+      );
+
+      expect(screen.queryByText(/Thought for/)).not.toBeInTheDocument();
+    });
+
     test('should NOT render thinking section when thinkingProcess is undefined', () => {
       render(
         <AIMessageBubble
@@ -95,7 +106,7 @@ describe('AIMessageBubble Component', () => {
       expect(screen.queryByText(/Thought for/)).not.toBeInTheDocument();
     });
 
-    test('should show "Thinking..." when thinking not complete', () => {
+    test('should show "Thinking…" when thinking not complete', () => {
       render(
         <AIMessageBubble
           {...defaultProps}
@@ -103,10 +114,10 @@ describe('AIMessageBubble Component', () => {
         />
       );
 
-      expect(screen.getByText('Thinking...')).toBeInTheDocument();
+      expect(screen.getByText('Thinking…')).toBeInTheDocument();
     });
 
-    test('should use default duration of 10 seconds when not provided', () => {
+    test('should show generic completion label when duration is not provided', () => {
       render(
         <AIMessageBubble
           {...defaultProps}
@@ -114,40 +125,26 @@ describe('AIMessageBubble Component', () => {
         />
       );
 
-      expect(screen.getByText('Thought for 10 seconds')).toBeInTheDocument();
+      expect(screen.getByText('Thought complete')).toBeInTheDocument();
     });
   });
 
   describe('Thinking Section Collapsibility', () => {
-    test('should start with thinking section collapsed (chevron right)', () => {
+    test('should toggle thinking section visibility on click', () => {
       render(<AIMessageBubble {...defaultProps} />);
 
-      expect(screen.getByTestId('chevron-right-icon')).toBeInTheDocument();
-      expect(screen.queryByText(defaultProps.thinkingProcess)).not.toBeInTheDocument();
-    });
+      const toggleButton = screen.getByLabelText('收合思考過程');
 
-    test('should expand thinking section on click', () => {
-      render(<AIMessageBubble {...defaultProps} />);
-
-      const toggleButton = screen.getByRole('button', { name: /Thought for 15 seconds/i });
-      fireEvent.click(toggleButton);
-
-      expect(screen.getByTestId('chevron-down-icon')).toBeInTheDocument();
-      expect(screen.getByText(defaultProps.thinkingProcess)).toBeInTheDocument();
-    });
-
-    test('should collapse thinking section on second click', () => {
-      render(<AIMessageBubble {...defaultProps} />);
-
-      const toggleButton = screen.getByRole('button', { name: /Thought for 15 seconds/i });
-
-      // Expand
-      fireEvent.click(toggleButton);
-      expect(screen.getByText(defaultProps.thinkingProcess)).toBeInTheDocument();
+      // Initially expanded
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
 
       // Collapse
       fireEvent.click(toggleButton);
-      expect(screen.queryByText(defaultProps.thinkingProcess)).not.toBeInTheDocument();
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+
+      // Expand again
+      fireEvent.click(toggleButton);
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
     });
   });
 
@@ -264,9 +261,6 @@ describe('AIMessageBubble Component', () => {
         />
       );
 
-      const toggleButton = screen.getByRole('button', { name: /Thought for/i });
-      fireEvent.click(toggleButton);
-
       expect(screen.getByText(longThinkingProcess)).toBeInTheDocument();
     });
 
@@ -285,9 +279,6 @@ describe('AIMessageBubble Component', () => {
           thinkingProcess={specialChars}
         />
       );
-
-      const toggleButton = screen.getByRole('button', { name: /Thought for/i });
-      fireEvent.click(toggleButton);
 
       expect(screen.getByText(specialChars)).toBeInTheDocument();
     });
@@ -318,10 +309,13 @@ describe('AIMessageBubble Component', () => {
     test('should maintain state across re-renders', () => {
       const { rerender } = render(<AIMessageBubble {...defaultProps} />);
 
-      // Expand thinking
-      const toggleButton = screen.getByRole('button', { name: /Thought for/i });
+      const toggleButton = screen.getByLabelText('收合思考過程');
+
+      // Collapse then expand to simulate interaction
       fireEvent.click(toggleButton);
-      expect(screen.getByText(defaultProps.thinkingProcess)).toBeInTheDocument();
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(toggleButton);
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
 
       // Re-render with different answer
       rerender(<AIMessageBubble {...defaultProps} answer="New answer content" />);

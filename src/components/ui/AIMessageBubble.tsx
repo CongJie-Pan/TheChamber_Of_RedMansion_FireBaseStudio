@@ -18,7 +18,7 @@
  */
 
 import React, { useEffect, useState, useId } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PerplexityCitation } from '@/types/perplexity-qa';
 import { StructuredQAResponse } from './StructuredQAResponse';
@@ -50,6 +50,9 @@ export interface AIMessageBubbleProps {
 
   /** Additional CSS classes */
   className?: string;
+
+  /** Whether to render thinking process inline with the answer bubble */
+  showThinkingInline?: boolean;
 }
 
 /**
@@ -64,16 +67,17 @@ export function AIMessageBubble({
   isStreaming = false,
   onCitationClick,
   className,
+  showThinkingInline = true,
 }: AIMessageBubbleProps) {
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
   // Show the thinking section ONLY when actual thinking content exists
-  const showThinkingSection = hasThinkingContent;
-  const [isThinkingExpanded, setIsThinkingExpanded] = useState<boolean>(hasThinkingContent);
+  const showThinkingSection = hasThinkingContent && showThinkingInline;
+  const [isThinkingExpanded, setIsThinkingExpanded] = useState<boolean>(showThinkingSection);
   const collapseId = useId();
   // When thinking content first appears, expand by default to match reference design
   useEffect(() => {
-    if (hasThinkingContent) setIsThinkingExpanded(true);
-  }, [hasThinkingContent]);
+    if (showThinkingSection) setIsThinkingExpanded(true);
+  }, [showThinkingSection]);
 
   return (
     <div className={cn('ai-message-bubble space-y-3', className)}>

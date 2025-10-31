@@ -1476,22 +1476,6 @@ export default function ReadBookPage() {
             }
           }
 
-          // IMMEDIATELY create AI message placeholder (Fix Issue #2 - immediate avatar)
-          const aiMessagePlaceholderId = `ai-${Date.now()}`;
-          const aiMessagePlaceholder: ConversationMessage = {
-            id: aiMessagePlaceholderId,
-            role: 'ai' as MessageRole,
-            content: '', // Empty initially, will be populated during streaming
-            timestamp: new Date(),
-            isStreaming: true, // Show loading state
-            citations: [],
-            thinkingProcess: '', // Will be populated during streaming
-            thinkingDuration: 0,
-          };
-          console.log('[QA Module] Creating AI placeholder:', aiMessagePlaceholderId);
-          setActiveSessionMessages(prev => [...prev, aiMessagePlaceholder]);
-          streamingAIMessageIdRef.current = aiMessagePlaceholderId; // Track for updates
-
           // Clear input field immediately after submission (Fix Issue #2)
           setUserQuestionInput('');
 
@@ -1899,8 +1883,6 @@ export default function ReadBookPage() {
                       setThinkingContent(extractedThinkingText);
                     }
 
-                    // Update existing AI placeholder message (Fix Issue #2 - no duplicate creation)
-                    // streamingAIMessageIdRef.current should already be set from placeholder creation
                     if (streamingAIMessageIdRef.current) {
                       const msgId = streamingAIMessageIdRef.current;
                       setActiveSessionMessages(prev => prev.map(m => {
@@ -1931,21 +1913,25 @@ export default function ReadBookPage() {
                         };
                       }));
                     } else {
-                      // Fallback: create new message if placeholder somehow missing
-                      console.warn('[QA Module] No placeholder found, creating new AI message');
+                      // Create streaming message once actual answer tokens arrive
                       const initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
-                      const aiMsgId = `ai-stream-${Date.now()}`;
-                      streamingAIMessageIdRef.current = aiMsgId;
-                      const aiStreamingMessage: ConversationMessage = {
-                        id: aiMsgId,
-                        role: 'ai',
-                        content: initialContent,
-                        timestamp: new Date(),
-                        citations: chunk.citations || [],
-                        thinkingProcess: extractedThinkingText || thinkingContent || '',
-                        isStreaming: true,
-                      };
-                      setActiveSessionMessages(prev => [...prev, aiStreamingMessage]);
+                      if (initialContent && initialContent.trim().length > 0) {
+                        console.log('[QA Module] Creating streaming AI message after first answer tokens');
+                        const aiMsgId = `ai-stream-${Date.now()}`;
+                        streamingAIMessageIdRef.current = aiMsgId;
+                        const aiStreamingMessage: ConversationMessage = {
+                          id: aiMsgId,
+                          role: 'ai',
+                          content: initialContent,
+                          timestamp: new Date(),
+                          citations: chunk.citations || [],
+                          thinkingProcess: extractedThinkingText || thinkingContent || '',
+                          isStreaming: true,
+                        };
+                        setActiveSessionMessages(prev => [...prev, aiStreamingMessage]);
+                      } else {
+                        console.log('[QA Module] Deferring AI message creation until answer content is available');
+                      }
                     }
 
                     if (chunk.isComplete) {
@@ -1992,6 +1978,25 @@ export default function ReadBookPage() {
                           isStreaming: false,
                         } : m));
                         streamingAIMessageIdRef.current = null;
+                      } else if (cleaned && cleaned.trim().length > 0) {
+                        // Final chunk delivered full answer but no streaming message was created yet (e.g., think-only chunks earlier)
+                        const finalMsgId = `ai-${Date.now()}`;
+                        const measuredSec = (questionSubmittedAtRef.current != null && responseStartedAtRef.current != null)
+                          ? Math.max(0, Math.round((responseStartedAtRef.current - questionSubmittedAtRef.current) / 1000))
+                          : Math.round(chunk.responseTime / 1000);
+                        setActiveSessionMessages(prev => [
+                          ...prev,
+                          {
+                            id: finalMsgId,
+                            role: 'ai',
+                            content: cleaned,
+                            timestamp: new Date(),
+                            citations: chunk.citations || [],
+                            thinkingProcess: finalServerThinking || thinkingContent,
+                            thinkingDuration: measuredSec,
+                            isStreaming: false,
+                          },
+                        ]);
                       }
 
                       setAiInteractionState('answered');
@@ -3563,6 +3568,7 @@ ${selectedTextContent}
                                 window.open(citation.url, '_blank');
                               }
                             }}
+                            showThinkingInline={false}
                           />
                         );
                       }
