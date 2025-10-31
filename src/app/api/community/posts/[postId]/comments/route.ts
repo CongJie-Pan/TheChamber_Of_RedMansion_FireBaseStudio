@@ -45,13 +45,13 @@ export async function GET(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
-    // Step 1: Parse query parameters
+    // Fixed: Await params in Next.js 15
+    const { postId } = await params;
+
+    // Step 2: Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 50;
-
-    // Step 2: Await params (Next.js 15 requirement)
-    const { postId } = await params;
 
     console.log(`💬 [API] Fetching comments for post ${postId}`);
 
@@ -131,6 +131,9 @@ export async function POST(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
+    // Fixed: Await params in Next.js 15
+    const { postId } = await params;
+
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
 

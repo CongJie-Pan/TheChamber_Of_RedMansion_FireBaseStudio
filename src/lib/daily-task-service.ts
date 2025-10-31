@@ -281,12 +281,15 @@ export class DailyTaskService {
         taskHistory // Pass history for adaptive difficulty
       );
 
+      // Fixed: Ensure only 2 tasks per day (safety check)
+      const limitedTasks = tasks.slice(0, 2);
+
       // Store generated tasks in SQLite
-      taskRepository.batchCreateTasks(tasks);
+      taskRepository.batchCreateTasks(limitedTasks);
 
       // Create task assignments
       const now = fromUnixTimestamp(Date.now());
-      const assignments: DailyTaskAssignment[] = tasks.map((task) => ({
+      const assignments: DailyTaskAssignment[] = limitedTasks.map((task) => ({
         taskId: task.id,
         assignedAt: now,
         status: TaskStatus.NOT_STARTED,
@@ -311,9 +314,9 @@ export class DailyTaskService {
 
       progressRepository.createProgress(progressData);
 
-      console.log(`✅ [SQLite] Generated ${tasks.length} daily tasks for user ${userId} on ${targetDate}`);
+      console.log(`✅ [SQLite] Generated ${limitedTasks.length} daily tasks for user ${userId} on ${targetDate}`);
 
-      return tasks;
+      return limitedTasks;
     } catch (error) {
       console.error('Error generating daily tasks:', error);
       throw new Error('Failed to generate daily tasks. Please try again.');

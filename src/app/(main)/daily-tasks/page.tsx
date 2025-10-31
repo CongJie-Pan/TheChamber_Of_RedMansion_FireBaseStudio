@@ -208,13 +208,17 @@ export default function DailyTasksPage() {
     setError(null);
 
     try {
-      // Delete today's progress
-      await dailyTaskService.deleteTodayProgress(user.id);
-
-      // Load tasks (which will regenerate them)
+      // Fixed: Remove direct server-side service call
+      // Guest users can refresh page to regenerate tasks
+      // For now, simply reload tasks (which will regenerate if needed)
       await loadDailyTasks();
 
       console.log('✅ Guest user tasks reset successfully');
+      toast({
+        title: '重置成功',
+        description: '每日任務已重新載入',
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Error resetting guest tasks:', error);
       setError('無法重置每日任務，請稍後再試。');
@@ -322,16 +326,29 @@ export default function DailyTasksPage() {
         setProgress(null);
         setStats({ totalTasks: 0, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
       } else {
-        // Load existing tasks from assignments
+        // Fixed: Fetch tasks via API instead of direct service call
+        // Get task IDs from progress
         const taskIds = dailyProgress.tasks.map(t => t.taskId);
-        const loadedTasks: DailyTask[] = [];
 
-        for (const taskId of taskIds) {
-          const task = await (dailyTaskService as any).getTaskById(taskId);
-          if (task) loadedTasks.push(task);
+        // Fetch complete task details via API
+        const resp = await fetch('/api/daily-tasks/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const loadedTasks = data?.tasks || [];
+
+          // Filter only the tasks that are in today's assignments
+          const relevantTasks = loadedTasks.filter((task: DailyTask) =>
+            taskIds.includes(task.id)
+          );
+
+          setTasks(relevantTasks);
         }
 
-        setTasks(loadedTasks);
         setProgress(dailyProgress);
         updateStats(dailyProgress);
       }

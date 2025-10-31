@@ -42,6 +42,9 @@ export async function POST(
   { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
+    // Fixed: Await params in Next.js 15
+    const { postId } = await params;
+
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
 

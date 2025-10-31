@@ -295,13 +295,14 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
 
       const now = Date.now();
 
+      // Fixed: Ensure all nullable fields have proper default values
       stmt.run(
         id,
         taskType,
         difficulty,
-        title,
+        title || `任務 ${taskType}`, // Provide default title if missing
         description || null,
-        baseXP,
+        baseXP || 0, // Ensure baseXP has a value
         JSON.stringify(contentFields),
         sourceChapter || null,
         sourceVerseStart || null,

@@ -97,7 +97,15 @@ function rowToPost(row: PostRow): CommunityPost {
     viewCount: row.viewCount,
     status: row.status,
     isEdited: row.isEdited === 1,
-    moderationAction: row.moderationAction ? JSON.parse(row.moderationAction) : undefined,
+    // Fixed: Handle both string and JSON format for moderationAction
+    moderationAction: row.moderationAction ?
+      (typeof row.moderationAction === 'string' &&
+       (row.moderationAction === 'allow' ||
+        row.moderationAction === 'warn' ||
+        row.moderationAction === 'filter')
+         ? row.moderationAction
+         : JSON.parse(row.moderationAction))
+      : undefined,
     originalContent: row.originalContent || undefined,
     moderationWarning: row.moderationWarning || undefined,
     createdAt: fromUnixTimestamp(row.createdAt),
