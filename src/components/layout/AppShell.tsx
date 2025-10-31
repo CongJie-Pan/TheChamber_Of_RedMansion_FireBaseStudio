@@ -261,7 +261,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     style={{ fontSize: '32px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                   ></i>
                   {/* User information display */}
-                  <div className="text-left">
+                  <div className="text-left flex-1 min-w-0">
                     {/* Display name with fallback to anonymous user label */}
                     <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name || t('community.anonymousUser')}</p>
                     {/* User email address */}

@@ -451,7 +451,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 AI 批改中
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                GPT-4-mini 正在分析你的答案...
+                GPT-5-mini 正在分析你的答案...
               </p>
             </div>
 
