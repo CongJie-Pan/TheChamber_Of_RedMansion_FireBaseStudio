@@ -58,11 +58,11 @@ describe('Task Repository', () => {
     }
   });
 
-  const createMockTask = (id: string, taskType: TaskType, difficulty: TaskDifficulty): DailyTask => ({
+  const createMockTask = (id: string, type: TaskType, difficulty: TaskDifficulty): DailyTask => ({
     id,
-    taskType,
+    type, // Fixed: DailyTask interface uses 'type', not 'taskType'
     difficulty,
-    title: `Test ${taskType} Task`,
+    title: `Test ${type} Task`,
     description: 'A test task',
     baseXP: 50,
     question: 'What is the test question?',
@@ -80,7 +80,7 @@ describe('Task Repository', () => {
       const created = taskRepository.createTask(task);
 
       expect(created.id).toBe('task_001');
-      expect(created.taskType).toBe('comprehension');
+      expect(created.type).toBe('comprehension'); // Fixed: Use 'type' instead of 'taskType'
       expect(created.difficulty).toBe('medium');
       expect(created.baseXP).toBe(50);
     });
@@ -91,7 +91,7 @@ describe('Task Repository', () => {
       const created = taskRepository.createTask(task);
 
       expect(created.id).toBe('task_002');
-      expect(created.taskType).toBe('vocabulary');
+      expect(created.type).toBe('vocabulary'); // Fixed: Use 'type' instead of 'taskType'
       expect(created.difficulty).toBe('easy');
     });
 
@@ -101,14 +101,14 @@ describe('Task Repository', () => {
       const created = taskRepository.createTask(task);
 
       expect(created.id).toBe('task_003');
-      expect(created.taskType).toBe('creative');
+      expect(created.type).toBe('creative'); // Fixed: Use 'type' instead of 'taskType'
       expect(created.difficulty).toBe('hard');
     });
 
     test('should store task with content fields', () => {
       const task: DailyTask = {
         id: 'task_004',
-        taskType: 'comprehension',
+        type: 'comprehension', // Fixed: Use 'type' instead of 'taskType'
         difficulty: 'medium',
         title: 'Character Analysis',
         baseXP: 60,
@@ -136,7 +136,7 @@ describe('Task Repository', () => {
 
       expect(retrieved).not.toBeNull();
       expect(retrieved?.id).toBe('task_005');
-      expect(retrieved?.taskType).toBe('comprehension');
+      expect(retrieved?.type).toBe('comprehension'); // Fixed: Use 'type' instead of 'taskType'
     });
 
     test('should return null for non-existent task', () => {
@@ -169,21 +169,21 @@ describe('Task Repository', () => {
       const tasks = taskRepository.getTasksByType('comprehension');
 
       expect(tasks).toHaveLength(2);
-      expect(tasks.every(t => t.taskType === 'comprehension')).toBe(true);
+      expect(tasks.every(t => t.type === 'comprehension')).toBe(true); // Fixed: Use 'type' instead of 'taskType'
     });
 
     test('should retrieve all vocabulary tasks', () => {
       const tasks = taskRepository.getTasksByType('vocabulary');
 
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].taskType).toBe('vocabulary');
+      expect(tasks[0].type).toBe('vocabulary'); // Fixed: Use 'type' instead of 'taskType'
     });
 
     test('should retrieve all creative tasks', () => {
       const tasks = taskRepository.getTasksByType('creative');
 
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].taskType).toBe('creative');
+      expect(tasks[0].type).toBe('creative'); // Fixed: Use 'type' instead of 'taskType'
     });
 
     test('should return empty array for type with no tasks', () => {

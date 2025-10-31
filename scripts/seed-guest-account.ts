@@ -52,7 +52,7 @@ const GUEST_USER = {
 const GUEST_TASKS = [
   {
     id: GUEST_TASK_1_ID,
-    taskType: 'reading_comprehension',
+    taskType: 'morning_reading', // Fixed: Use correct DailyTaskType enum value
     difficulty: 'medium',
     title: '閱讀理解：林黛玉進賈府',
     description: '請仔細閱讀第三回「林黛玉進賈府」的選段，並回答相關問題',
@@ -76,7 +76,7 @@ const GUEST_TASKS = [
   },
   {
     id: GUEST_TASK_2_ID,
-    taskType: 'character_analysis',
+    taskType: 'character_insight', // Fixed: Use correct DailyTaskType enum value
     difficulty: 'easy',
     title: '人物分析：賈寶玉性格特點',
     description: '請分析賈寶玉的性格特點，並舉例說明',
@@ -124,17 +124,20 @@ const GUEST_PROGRESS = {
 
 /**
  * Delete existing guest account data
+ * Phase 4-T1: Ensures complete reset including all task submissions and progress records
  */
 function deleteGuestData(db: Database.Database): void {
   console.log(`\n🗑️  Deleting existing guest account data...`);
 
+  // Delete in order of foreign key dependencies (child tables first)
+  // This ensures complete reset: XP=70, Level=1, 0 completed tasks
   const deletions = [
+    { table: 'task_submissions', condition: 'userId = ?' },   // All task submission records
     { table: 'level_ups', condition: 'userId = ?' },
     { table: 'xp_transaction_locks', condition: 'userId = ?' },
     { table: 'xp_transactions', condition: 'userId = ?' },
-    { table: 'task_submissions', condition: 'userId = ?' },
-    { table: 'daily_progress', condition: 'userId = ?' },
-    { table: 'daily_tasks', condition: 'id IN (?, ?)' },
+    { table: 'daily_progress', condition: 'userId = ?' },     // ALL daily progress records
+    { table: 'daily_tasks', condition: 'id IN (?, ?)' },      // Guest-specific fixed tasks
     { table: 'users', condition: 'id = ?' },
   ];
 

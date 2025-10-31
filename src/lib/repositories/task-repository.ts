@@ -35,7 +35,7 @@ function rowToTask(row: TaskRow): DailyTask {
 
   return {
     id: row.id,
-    taskType: row.taskType as TaskType,
+    type: row.taskType as TaskType, // DailyTask interface uses 'type', database uses 'taskType'
     difficulty: row.difficulty as TaskDifficulty,
     title: row.title,
     description: row.description || undefined,
@@ -61,7 +61,7 @@ export function createTask(task: DailyTask): DailyTask {
   // Extract fields that should be stored separately
   const {
     id,
-    taskType,
+    type, // DailyTask interface uses 'type', not 'taskType'
     difficulty,
     title,
     description,
@@ -72,6 +72,9 @@ export function createTask(task: DailyTask): DailyTask {
     createdAt,
     ...contentFields
   } = task;
+
+  // Field mapping: DailyTask.type -> database.taskType
+  const taskType = type;
 
   const stmt = db.prepare(`
     INSERT INTO daily_tasks (
@@ -209,7 +212,7 @@ export function updateTask(
   // Extract fields
   const {
     id,
-    taskType,
+    type, // DailyTask interface uses 'type', not 'taskType'
     difficulty,
     title,
     description,
@@ -220,6 +223,9 @@ export function updateTask(
     createdAt,
     ...contentFields
   } = updatedTask;
+
+  // Field mapping: DailyTask.type -> database.taskType
+  const taskType = type;
 
   const stmt = db.prepare(`
     UPDATE daily_tasks
@@ -281,7 +287,7 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
     for (const task of tasksToInsert) {
       const {
         id,
-        taskType,
+        type, // DailyTask interface uses 'type', not 'taskType'
         difficulty,
         title,
         description,
@@ -292,6 +298,9 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
         createdAt,
         ...contentFields
       } = task;
+
+      // Field mapping: DailyTask.type -> database.taskType
+      const taskType = type;
 
       const now = Date.now();
 
