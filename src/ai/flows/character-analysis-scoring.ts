@@ -16,14 +16,15 @@
  * Usage: Called by DailyTaskService when users submit character insight task answers
  *
  * @phase Phase 2.3 - AI Integration & Scoring System
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
  */
 
 'use server'; // Required for server-side AI processing
 
-// Import the configured AI instance from GenKit
-import { ai } from '@/ai/genkit';
+// Import OpenAI client for AI processing
+import { getOpenAIClient } from '@/lib/openai-client';
 // Import Zod for schema validation and type inference
-import { z } from 'genkit';
+import { z } from 'zod';
 
 /**
  * Input schema for character analysis scoring
@@ -65,32 +66,29 @@ const CharacterAnalysisScoringOutputSchema = z.object({
 export type CharacterAnalysisScoringOutput = z.infer<typeof CharacterAnalysisScoringOutputSchema>;
 
 /**
- * Define the AI prompt for character analysis scoring
- * 定義人物分析評分的 AI 提示
+ * Build the assessment prompt for OpenAI
+ * 構建 OpenAI 評估提示
  */
-const characterAnalysisScoringPrompt = ai.definePrompt({
-  name: 'characterAnalysisScoringPrompt',
-  input: { schema: CharacterAnalysisScoringInputSchema },
-  output: { schema: CharacterAnalysisScoringOutputSchema },
-  prompt: `你是一位專精《紅樓夢》人物研究的文學評論家，正在評估學生對小說人物的分析質量。
+function buildCharacterAnalysisPrompt(input: CharacterAnalysisScoringInput): string {
+  const themesList = input.expectedThemes.map(theme => `- ${theme}`).join('\n');
 
-**分析人物：** {{characterName}}
+  return `你是一位專精《紅樓夢》人物研究的文學評論家，正在評估學生對小說人物的分析質量。
+
+**分析人物：** ${input.characterName}
 
 **人物背景：**
-{{{characterDescription}}}
+${input.characterDescription}
 
 **分析題目：**
-{{{analysisPrompt}}}
+${input.analysisPrompt}
 
 **學生分析：**
-{{{userAnalysis}}}
+${input.userAnalysis}
 
 **預期主題：**
-{{#each expectedThemes}}
-- {{this}}
-{{/each}}
+${themesList}
 
-**任務難度：** {{difficulty}}
+**任務難度：** ${input.difficulty}
 
 請根據以下標準評估學生的人物分析：
 
@@ -111,73 +109,76 @@ const characterAnalysisScoringPrompt = ai.definePrompt({
 - **中等難度 (medium)**: 需要涵蓋多個主題，展現一定洞察力，70-85 分區間
 - **困難難度 (hard)**: 需要深刻洞察、全面主題覆蓋、文學分析，才能獲得高分
 
-請提供：
-1. **綜合質量分 (qualityScore)**: 0-100
-2. **深度評級 (depth)**: superficial, moderate, 或 profound
-3. **洞察力分數 (insight)**: 0-100
-4. **已涵蓋主題 (themesCovered)**: 學生成功探討的主題列表
-5. **遺漏主題 (themesMissed)**: 學生未探討但應該包含的主題列表
-6. **反饋 (feedback)**: 80-120 字的鼓勵性反饋，讚揚亮點並指出深化方向
-7. **詳細評析 (detailedAnalysis)**: 250-350 字的深入評析，使用 Markdown 格式，包含：
-   - 分析的優點（用 **粗體** 標註精彩洞察）
-   - 可以深化的角度（用列表格式）
-   - 推薦的閱讀章節或參考資料
-   - 人物研究的延伸思考方向
+請以 JSON 格式回應，包含以下欄位：
+{
+  "qualityScore": 0-100的綜合質量分,
+  "depth": "superficial/moderate/profound",
+  "insight": 0-100的洞察力分數,
+  "themesCovered": ["學生成功探討的主題1", "主題2"],
+  "themesMissed": ["學生未探討但應該包含的主題1", "主題2"],
+  "feedback": "80-120字的鼓勵性反饋，讚揚亮點並指出深化方向",
+  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式，包含：分析的優點（用 **粗體** 標註精彩洞察）、可以深化的角度（用列表格式）、推薦的閱讀章節或參考資料、人物研究的延伸思考方向"
+}
 
-請以繁體中文回應，語氣專業且具有啟發性。`,
-});
+請以繁體中文回應，語氣專業且具有啟發性。確保回覆格式為有效的 JSON。`;
+}
 
 /**
- * Define the AI flow for character analysis scoring
- * 定義人物分析評分的 AI 流程
+ * Parse OpenAI response and validate schema
+ * 解析 OpenAI 回應並驗證結構
  */
-const characterAnalysisScoringFlow = ai.defineFlow(
-  {
-    name: 'characterAnalysisScoringFlow',
-    inputSchema: CharacterAnalysisScoringInputSchema,
-    outputSchema: CharacterAnalysisScoringOutputSchema,
-  },
-  async (input) => {
-    try {
-      const { output } = await characterAnalysisScoringPrompt(input);
+function parseCharacterAnalysisResponse(responseText: string, input: CharacterAnalysisScoringInput): CharacterAnalysisScoringOutput {
+  try {
+    // Try to parse JSON response
+    const parsed = JSON.parse(responseText);
 
-      // Validate output completeness
-      if (!output || typeof output.qualityScore !== 'number' || !output.depth) {
-        console.error('AI flow characterAnalysisScoringFlow produced incomplete output:', output);
-        throw new Error('AI 模型未能生成有效的人物分析評分。');
-      }
+    // Validate and sanitize scores
+    const qualityScore = typeof parsed.qualityScore === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.qualityScore)))
+      : 50;
 
-      // Ensure scores are within valid range
-      const validatedOutput = {
-        qualityScore: Math.max(0, Math.min(100, Math.round(output.qualityScore))),
-        depth: output.depth || 'moderate',
-        insight: Math.max(0, Math.min(100, Math.round(output.insight || 50))),
-        themesCovered: output.themesCovered || [],
-        themesMissed: output.themesMissed || input.expectedThemes,
-        feedback: output.feedback || '感謝您的人物分析，請繼續深入探索！',
-        detailedAnalysis: output.detailedAnalysis || '# 人物分析評價\n\n您的分析已收到。',
-      };
+    const insight = typeof parsed.insight === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.insight)))
+      : 50;
 
-      return validatedOutput;
-    } catch (error) {
-      // Log error only in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Error in characterAnalysisScoringFlow:', error);
-      }
+    // Validate depth enum
+    const depth = ['superficial', 'moderate', 'profound'].includes(parsed.depth)
+      ? parsed.depth
+      : 'moderate';
 
-      // Return fallback assessment
-      return {
-        qualityScore: 50,
-        depth: 'moderate' as const,
-        insight: 50,
-        themesCovered: [],
-        themesMissed: input.expectedThemes,
-        feedback: '很抱歉，AI 評分系統暫時無法使用。您的人物分析已記錄，我們會盡快人工審核。',
-        detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細評析。',
-      };
-    }
+    // Validate arrays
+    const themesCovered = Array.isArray(parsed.themesCovered)
+      ? parsed.themesCovered.filter((t: any): t is string => typeof t === 'string')
+      : [];
+
+    const themesMissed = Array.isArray(parsed.themesMissed)
+      ? parsed.themesMissed.filter((t: any): t is string => typeof t === 'string')
+      : input.expectedThemes;
+
+    // Validate text fields
+    const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
+      ? parsed.feedback
+      : '感謝您的人物分析，請繼續深入探索！';
+
+    const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
+      ? parsed.detailedAnalysis
+      : '# 人物分析評價\n\n您的分析已收到。';
+
+    return {
+      qualityScore,
+      depth,
+      insight,
+      themesCovered,
+      themesMissed,
+      feedback,
+      detailedAnalysis,
+    };
+  } catch (error) {
+    // If JSON parsing fails, throw error
+    console.error('Failed to parse OpenAI response as JSON:', error);
+    throw new Error('AI response parsing failed');
   }
-);
+}
 
 /**
  * Main exported function for character analysis scoring
@@ -189,5 +190,56 @@ const characterAnalysisScoringFlow = ai.defineFlow(
 export async function scoreCharacterAnalysis(
   input: CharacterAnalysisScoringInput
 ): Promise<CharacterAnalysisScoringOutput> {
-  return characterAnalysisScoringFlow(input);
+  try {
+    // Get OpenAI client
+    const openai = getOpenAIClient();
+
+    // Build assessment prompt
+    const prompt = buildCharacterAnalysisPrompt(input);
+
+    // Call OpenAI API with GPT-4-mini
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-mini',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位專精《紅樓夢》人物研究的文學評論家，擅長評估學生的人物分析質量。請以 JSON 格式回應。',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }, // Request JSON response
+    });
+
+    // Extract response content
+    const responseText = completion.choices[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error('OpenAI returned empty response');
+    }
+
+    // Parse and validate response
+    return parseCharacterAnalysisResponse(responseText, input);
+
+  } catch (error) {
+    // Log error only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Error in scoreCharacterAnalysis:', error);
+    }
+
+    // Return fallback assessment
+    return {
+      qualityScore: 50,
+      depth: 'moderate' as const,
+      insight: 50,
+      themesCovered: [],
+      themesMissed: input.expectedThemes,
+      feedback: '很抱歉，AI 評分系統暫時無法使用。您的人物分析已記錄，我們會盡快人工審核。',
+      detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細評析。',
+    };
+  }
 }

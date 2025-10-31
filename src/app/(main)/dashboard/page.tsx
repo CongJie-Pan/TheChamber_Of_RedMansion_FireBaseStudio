@@ -47,6 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 // Icon imports for visual indicators and navigation
 import { 
@@ -68,6 +69,10 @@ import { useState, useEffect } from 'react';
 // Utility functions and custom hooks
 import { cn } from "@/lib/utils";
 import { useLanguage } from '@/hooks/useLanguage';
+import { useAuth } from '@/hooks/useAuth';
+
+// Phase 4-T1: Guest account detection
+import { isGuestAccount } from '@/lib/middleware/guest-account';
 
 // Gamification components
 import { LevelDisplay } from '@/components/gamification';
@@ -136,11 +141,14 @@ interface RecentActivityItem {
 export default function DashboardPage() {
   // Language support for internationalization
   const { t } = useLanguage();
-  
+
+  // Phase 4-T1: Get user for guest account detection
+  const { user } = useAuth();
+
   // State for chapter progress (would come from user data in production)
   const [completedChapters, setCompletedChapters] = useState(20);
   const totalChapters = 120; // Total chapters in Dream of the Red Chamber
-  
+
   // State for animated progress circle
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
@@ -211,6 +219,23 @@ export default function DashboardPage() {
         Gamification feature to motivate continued learning
       */}
       <LevelDisplay variant="summary" />
+
+      {/* Phase 4-T1: Guest Account Indicator Badge */}
+      {isGuestAccount(user?.id) && (
+        <Card className="p-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700">
+              🧪 測試帳號
+            </Badge>
+            <div className="text-sm text-yellow-800 dark:text-yellow-200">
+              <p className="font-medium">您正在使用訪客測試帳號</p>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                固定 70 XP • 每次伺服器重啟時重設 • 固定 2 個每日任務
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/*
         Dashboard Widgets Grid

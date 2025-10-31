@@ -11,13 +11,22 @@
  *
  * Task types:
  * - morning_reading: 晨讀時光 (5 min) - Reading comprehension
- * - poetry: 詩詞韻律 (3 min) - Poetry recitation/memorization
  * - character_insight: 人物洞察 (5 min) - Character analysis
  * - cultural_exploration: 文化探秘 (10 min) - Cultural knowledge quiz
  * - commentary_decode: 脂批解密 (8 min) - Commentary interpretation
  */
 
-import { Timestamp } from 'firebase/firestore';
+/**
+ * Timestamp-like type for date fields (SQLITE-025: Firebase removed)
+ * Matches the return type of fromUnixTimestamp() from sqlite-db
+ */
+export type Timestamp = {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+};
 import { AttributePoints } from './user-level';
 
 /**
@@ -25,7 +34,6 @@ import { AttributePoints } from './user-level';
  */
 export enum DailyTaskType {
   MORNING_READING = 'morning_reading',     // 晨讀時光
-  POETRY = 'poetry',                       // 詩詞韻律
   CHARACTER_INSIGHT = 'character_insight', // 人物洞察
   CULTURAL_EXPLORATION = 'cultural_exploration', // 文化探秘
   COMMENTARY_DECODE = 'commentary_decode', // 脂批解密
@@ -61,19 +69,6 @@ export interface TextPassage {
   question: string;          // 理解度問題
   expectedKeywords?: string[]; // 預期關鍵詞 (用於AI評分)
   hint?: string;             // 思考提示 (引導用戶思考方向)
-}
-
-/**
- * Poetry content for poetry recitation task
- */
-export interface PoemContent {
-  id: string;                // 詩詞 ID
-  title: string;             // 詩詞標題
-  author: string;            // 作者
-  content: string;           // 詩詞原文
-  chapter?: number;          // 出現章回 (可選)
-  difficulty: number;        // 難度評分 (1-10)
-  theme?: string;            // 主題 (花、月、風、雨等)
 }
 
 /**
@@ -159,7 +154,6 @@ export interface DailyTask {
   // Task content (type-specific)
   content: {
     textPassage?: TextPassage;
-    poem?: PoemContent;
     character?: CharacterPrompt;
     culturalElement?: CulturalElement;
     commentary?: CommentaryContent;

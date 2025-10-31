@@ -16,14 +16,15 @@
  * Usage: Called by DailyTaskService when users submit commentary decoding task answers
  *
  * @phase Phase 2.5 - AI Integration & Scoring System
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
  */
 
 'use server'; // Required for server-side AI processing
 
-// Import the configured AI instance from GenKit
-import { ai } from '@/ai/genkit';
+// Import OpenAI client for AI processing
+import { getOpenAIClient } from '@/lib/openai-client';
 // Import Zod for schema validation and type inference
-import { z } from 'genkit';
+import { z } from 'zod';
 
 /**
  * Input schema for commentary interpretation scoring
@@ -66,32 +67,29 @@ const CommentaryInterpretationOutputSchema = z.object({
 export type CommentaryInterpretationOutput = z.infer<typeof CommentaryInterpretationOutputSchema>;
 
 /**
- * Define the AI prompt for commentary interpretation scoring
- * 定義脂批解讀評分的 AI 提示
+ * Build the assessment prompt for OpenAI
+ * 構建 OpenAI 評估提示
  */
-const commentaryInterpretationPrompt = ai.definePrompt({
-  name: 'commentaryInterpretationPrompt',
-  input: { schema: CommentaryInterpretationInputSchema },
-  output: { schema: CommentaryInterpretationOutputSchema },
-  prompt: `你是一位專精脂硯齋批語研究的《紅樓夢》學者，正在評估學生對脂批的理解深度。
+function buildCommentaryInterpretationPrompt(input: CommentaryInterpretationInput): string {
+  const hintsList = input.interpretationHints.map(hint => `- ${hint}`).join('\n');
 
-**章回背景：** {{chapterContext}}
+  return `你是一位專精脂硯齋批語研究的《紅樓夢》學者，正在評估學生對脂批的理解深度。
+
+**章回背景：** ${input.chapterContext}
 
 **相關原文：**
-{{{relatedPassage}}}
+${input.relatedPassage}
 
 **脂硯齋批語：**
-{{{commentaryText}}}
+${input.commentaryText}
 
 **學生解讀：**
-{{{userInterpretation}}}
+${input.userInterpretation}
 
 **解讀提示：**
-{{#each interpretationHints}}
-- {{this}}
-{{/each}}
+${hintsList}
 
-**任務難度：** {{difficulty}}
+**任務難度：** ${input.difficulty}
 
 脂硯齋批語是《紅樓夢》研究的重要材料，往往揭示了：
 - 人物命運的伏筆和暗示
@@ -117,75 +115,82 @@ const commentaryInterpretationPrompt = ai.definePrompt({
 - **中等難度 (medium)**: 需要理解多層含義和象徵意義 60-80 分區間
 - **困難難度 (hard)**: 需要透徹理解隱喻、伏筆和深層意涵才能獲得高分
 
-請提供：
-1. **綜合評分 (score)**: 0-100
-2. **洞察層次 (insightLevel)**: surface, moderate, deep, 或 profound
-3. **文學敏感度 (literarySensitivity)**: 0-100
-4. **已捕捉洞察 (keyInsightsCaptured)**: 學生成功理解的關鍵含義
-5. **遺漏洞察 (keyInsightsMissed)**: 學生未理解的重要含義
-6. **反饋 (feedback)**: 100-150 字的鼓勵性反饋，肯定洞察力並指出深化方向
-7. **詳細評析 (detailedAnalysis)**: 250-350 字的深入評析，使用 Markdown 格式，包含：
-   - 學生解讀的優點（用 **粗體** 標註精彩觀察）
-   - 可以深化的角度（用列表格式）
-   - 脂批研究的方法指導
-8. **批語正解 (commentaryExplanation)**: 200-300 字的權威解釋，闡明此批語的真正含義、象徵意義和文學價值
+請以 JSON 格式回應，包含以下欄位：
+{
+  "score": 0-100的綜合評分,
+  "insightLevel": "surface/moderate/deep/profound",
+  "literarySensitivity": 0-100的文學敏感度,
+  "keyInsightsCaptured": ["學生成功理解的關鍵含義1", "含義2"],
+  "keyInsightsMissed": ["學生未理解的重要含義1", "含義2"],
+  "feedback": "100-150字的鼓勵性反饋，肯定洞察力並指出深化方向",
+  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式，包含：學生解讀的優點（用 **粗體** 標註精彩觀察）、可以深化的角度（用列表格式）、脂批研究的方法指導",
+  "commentaryExplanation": "200-300字的權威解釋，闡明此批語的真正含義、象徵意義和文學價值"
+}
 
-請以繁體中文回應，語氣學術而不失親和力，引導學生進入紅學研究的深層境界。`,
-});
+請以繁體中文回應，語氣學術而不失親和力，引導學生進入紅學研究的深層境界。確保回覆格式為有效的 JSON。`;
+}
 
 /**
- * Define the AI flow for commentary interpretation scoring
- * 定義脂批解讀評分的 AI 流程
+ * Parse OpenAI response and validate schema
+ * 解析 OpenAI 回應並驗證結構
  */
-const commentaryInterpretationFlow = ai.defineFlow(
-  {
-    name: 'commentaryInterpretationFlow',
-    inputSchema: CommentaryInterpretationInputSchema,
-    outputSchema: CommentaryInterpretationOutputSchema,
-  },
-  async (input) => {
-    try {
-      const { output } = await commentaryInterpretationPrompt(input);
+function parseCommentaryInterpretationResponse(responseText: string, input: CommentaryInterpretationInput): CommentaryInterpretationOutput {
+  try {
+    // Try to parse JSON response
+    const parsed = JSON.parse(responseText);
 
-      // Validate output completeness
-      if (!output || typeof output.score !== 'number' || !output.insightLevel) {
-        console.error('AI flow commentaryInterpretationFlow produced incomplete output:', output);
-        throw new Error('AI 模型未能生成有效的脂批解讀評分。');
-      }
+    // Validate and sanitize scores
+    const score = typeof parsed.score === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.score)))
+      : 50;
 
-      // Ensure scores are within valid range
-      const validatedOutput = {
-        score: Math.max(0, Math.min(100, Math.round(output.score))),
-        insightLevel: output.insightLevel || 'moderate',
-        literarySensitivity: Math.max(0, Math.min(100, Math.round(output.literarySensitivity || 50))),
-        keyInsightsCaptured: output.keyInsightsCaptured || [],
-        keyInsightsMissed: output.keyInsightsMissed || input.interpretationHints,
-        feedback: output.feedback || '感謝您的脂批解讀，請繼續深入研究！',
-        detailedAnalysis: output.detailedAnalysis || '# 脂批解讀評價\n\n您的解讀已收到。',
-        commentaryExplanation: output.commentaryExplanation || '# 脂批正解\n\n此批語蘊含深意，值得細細品味。',
-      };
+    const literarySensitivity = typeof parsed.literarySensitivity === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.literarySensitivity)))
+      : 50;
 
-      return validatedOutput;
-    } catch (error) {
-      // Log error only in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Error in commentaryInterpretationFlow:', error);
-      }
+    // Validate insightLevel enum
+    const insightLevel = ['surface', 'moderate', 'deep', 'profound'].includes(parsed.insightLevel)
+      ? parsed.insightLevel
+      : 'moderate';
 
-      // Return fallback assessment
-      return {
-        score: 50,
-        insightLevel: 'moderate' as const,
-        literarySensitivity: 50,
-        keyInsightsCaptured: [],
-        keyInsightsMissed: input.interpretationHints,
-        feedback: '很抱歉，AI 評分系統暫時無法使用。您的脂批解讀已記錄，我們會盡快人工審核。',
-        detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細評析。',
-        commentaryExplanation: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看批語正解。',
-      };
-    }
+    // Validate arrays
+    const keyInsightsCaptured = Array.isArray(parsed.keyInsightsCaptured)
+      ? parsed.keyInsightsCaptured.filter((k: any): k is string => typeof k === 'string')
+      : [];
+
+    const keyInsightsMissed = Array.isArray(parsed.keyInsightsMissed)
+      ? parsed.keyInsightsMissed.filter((k: any): k is string => typeof k === 'string')
+      : input.interpretationHints;
+
+    // Validate text fields
+    const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
+      ? parsed.feedback
+      : '感謝您的脂批解讀，請繼續深入研究！';
+
+    const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
+      ? parsed.detailedAnalysis
+      : '# 脂批解讀評價\n\n您的解讀已收到。';
+
+    const commentaryExplanation = typeof parsed.commentaryExplanation === 'string' && parsed.commentaryExplanation.length > 0
+      ? parsed.commentaryExplanation
+      : '# 脂批正解\n\n此批語蘊含深意，值得細細品味。';
+
+    return {
+      score,
+      insightLevel,
+      literarySensitivity,
+      keyInsightsCaptured,
+      keyInsightsMissed,
+      feedback,
+      detailedAnalysis,
+      commentaryExplanation,
+    };
+  } catch (error) {
+    // If JSON parsing fails, throw error
+    console.error('Failed to parse OpenAI response as JSON:', error);
+    throw new Error('AI response parsing failed');
   }
-);
+}
 
 /**
  * Main exported function for commentary interpretation scoring
@@ -197,5 +202,57 @@ const commentaryInterpretationFlow = ai.defineFlow(
 export async function scoreCommentaryInterpretation(
   input: CommentaryInterpretationInput
 ): Promise<CommentaryInterpretationOutput> {
-  return commentaryInterpretationFlow(input);
+  try {
+    // Get OpenAI client
+    const openai = getOpenAIClient();
+
+    // Build assessment prompt
+    const prompt = buildCommentaryInterpretationPrompt(input);
+
+    // Call OpenAI API with GPT-4-mini
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-mini',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位專精脂硯齋批語研究的《紅樓夢》學者，擅長評估學生對脂批的理解深度。請以 JSON 格式回應。',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2500,
+      response_format: { type: 'json_object' }, // Request JSON response
+    });
+
+    // Extract response content
+    const responseText = completion.choices[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error('OpenAI returned empty response');
+    }
+
+    // Parse and validate response
+    return parseCommentaryInterpretationResponse(responseText, input);
+
+  } catch (error) {
+    // Log error only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Error in scoreCommentaryInterpretation:', error);
+    }
+
+    // Return fallback assessment
+    return {
+      score: 50,
+      insightLevel: 'moderate' as const,
+      literarySensitivity: 50,
+      keyInsightsCaptured: [],
+      keyInsightsMissed: input.interpretationHints,
+      feedback: '很抱歉，AI 評分系統暫時無法使用。您的脂批解讀已記錄，我們會盡快人工審核。',
+      detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細評析。',
+      commentaryExplanation: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看批語正解。',
+    };
+  }
 }

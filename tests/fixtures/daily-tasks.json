@@ -1,0 +1,43 @@
+{
+  "daily_tasks": [
+    {
+      "id": "task-poetry-1",
+      "taskType": "POETRY",
+      "difficulty": "MEDIUM",
+      "title": "詩詞鑒賞：《葬花吟》片段理解",
+      "description": "閱讀並分析林黛玉的《葬花吟》選段，理解其情感表達。",
+      "baseXP": 50,
+      "content": "{\"poem\":\"花謝花飛花滿天，紅消香斷有誰憐？\",\"question\":\"這兩句詩表達了什麼樣的情感？\",\"hints\":[\"注意'誰憐'二字\",\"思考花落的象徵意義\"]}",
+      "sourceChapter": 27,
+      "sourceVerseStart": 1,
+      "sourceVerseEnd": 2,
+      "createdAt": 1704153600000
+    },
+    {
+      "id": "task-character-1",
+      "taskType": "CHARACTER_INSIGHT",
+      "difficulty": "EASY",
+      "title": "人物解析：賈寶玉性格特點",
+      "description": "分析賈寶玉的性格特點及其在書中的表現。",
+      "baseXP": 30,
+      "content": "{\"character\":\"賈寶玉\",\"question\":\"賈寶玉最突出的性格特點是什麼？請舉例說明。\",\"hints\":[\"思考他對女性的態度\",\"回憶他與林黛玉的互動\"]}",
+      "sourceChapter": 3,
+      "sourceVerseStart": null,
+      "sourceVerseEnd": null,
+      "createdAt": 1704153600000
+    },
+    {
+      "id": "task-cultural-1",
+      "taskType": "CULTURAL_EXPLORATION",
+      "difficulty": "HARD",
+      "title": "文化探索：大觀園的建築布局",
+      "description": "探討大觀園的建築設計與中國傳統園林文化的關係。",
+      "baseXP": 80,
+      "content": "{\"culturalElement\":\"大觀園建築\",\"question\":\"大觀園的建築布局體現了哪些中國傳統文化理念？\",\"hints\":[\"山水布局\",\"詩情畫意\",\"天人合一\"]}",
+      "sourceChapter": 17,
+      "sourceVerseStart": null,
+      "sourceVerseEnd": null,
+      "createdAt": 1704153600000
+    }
+  ]
+}

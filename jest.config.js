@@ -47,9 +47,6 @@ const config = {
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@/context/(.*)$': '<rootDir>/src/context/$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    // Mock genkit to avoid ES module issues
-    '^genkit$': '<rootDir>/tests/mocks/genkit.js',
-    '^@genkit-ai/(.*)$': '<rootDir>/tests/mocks/genkit.js',
     // Mock lucide-react icons to avoid ES module issues
     'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
     // Mock all Radix UI React primitives to simple components
@@ -102,9 +99,9 @@ const config = {
     '<rootDir>/dist/',
   ],
   
-  // Transform ignore patterns  
+  // Transform ignore patterns
   transformIgnorePatterns: [
-    'node_modules/(?!(@testing-library|genkit|@genkit-ai|yaml|dotprompt)/)',
+    'node_modules/(?!(@testing-library|yaml)/)',
   ],
   
   // Verbose output for detailed test results

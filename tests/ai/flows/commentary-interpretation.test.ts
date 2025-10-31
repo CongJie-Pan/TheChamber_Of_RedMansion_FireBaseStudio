@@ -14,23 +14,30 @@
  * The tests use mock AI responses to avoid actual API calls.
  */
 
-// Mock the AI imports to avoid actual API calls during testing
-jest.mock('@/ai/genkit', () => ({
-  ai: {
-    defineFlow: jest.fn((config, handler) => handler),
-    definePrompt: jest.fn(() => jest.fn(() => ({
-      output: {
-        score: 78,
-        insightLevel: 'moderate',
-        literarySensitivity: 72,
-        keyInsightsCaptured: ['伏筆', '象徵意義'],
-        keyInsightsMissed: ['人物命運暗示', '文本深層含義'],
-        feedback: '您的解讀把握了脂批的部分要點，能夠理解基本的象徵意義。建議深入思考人物命運的伏筆和文本的深層含義。',
-        detailedAnalysis: '## 脂批解讀評析\n\n您成功識別了脂批中的**伏筆手法**和**象徵意義**，這很好。\n\n可以深化的角度：\n- 人物命運的暗示\n- 文本多層次含義',
-        commentaryExplanation: '## 脂批正解\n\n此處脂硯齋的批語揭示了曹雪芹的寫作意圖，暗示了後文情節發展和人物命運走向。'
+// Mock OpenAI client to avoid actual API calls during testing
+jest.mock('@/lib/openai-client', () => ({
+  getOpenAIClient: jest.fn(() => ({
+    chat: {
+      completions: {
+        create: jest.fn(async () => ({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                score: 78,
+                insightLevel: 'moderate',
+                literarySensitivity: 72,
+                keyInsightsCaptured: ['伏筆', '象徵意義'],
+                keyInsightsMissed: ['人物命運暗示', '文本深層含義'],
+                feedback: '您的解讀把握了脂批的部分要點，能夠理解基本的象徵意義。建議深入思考人物命運的伏筆和文本的深層含義。',
+                detailedAnalysis: '## 脂批解讀評析\n\n您成功識別了脂批中的**伏筆手法**和**象徵意義**，這很好。\n\n可以深化的角度：\n- 人物命運的暗示\n- 文本多層次含義',
+                commentaryExplanation: '## 脂批正解\n\n此處脂硯齋的批語揭示了曹雪芹的寫作意圖，暗示了後文情節發展和人物命運走向。'
+              })
+            }
+          }]
+        }))
       }
-    }))),
-  },
+    }
+  }))
 }));
 
 // Import the function to test after mocking
@@ -46,7 +53,7 @@ describe('Commentary Interpretation AI Flow Tests', () => {
   });
 
   afterEach(() => {
-    jest.restoreMocks();
+    jest.restoreAllMocks();
   });
 
   describe('Input Validation', () => {

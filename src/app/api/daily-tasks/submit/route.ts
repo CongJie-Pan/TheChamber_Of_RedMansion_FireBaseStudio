@@ -17,7 +17,8 @@ import {
   DailyTask,
   TaskCompletionResult,
 } from '@/lib/types/daily-task'
-import { verifyAuthHeader } from '@/lib/firebase-admin'
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isLlmOnlyMode } from '@/lib/env'
 import { simpleTierScore } from '@/lib/task-evaluator'
 
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
   // Parse body once and reuse for both success and fallback paths
   const body = await request.json()
   const { userId, taskId, userResponse, task } = body || {}
-  const verifiedUid = await verifyAuthHeader(request.headers.get('authorization'))
+  const session = await getServerSession(authOptions)
+  const verifiedUid = session?.user?.id || null
 
   if (typeof userId !== 'string' || !userId.trim()) {
     // Allow missing userId in LLM-only mode
@@ -51,11 +53,10 @@ export async function POST(request: NextRequest) {
   // LLM-only mode: no Firestore; score + feedback only
   if (isLlmOnlyMode()) {
     try {
-      const effectiveUid = (await verifyAuthHeader(request.headers.get('authorization'))) || userId || 'guest'
+      const effectiveUid = session?.user?.id || userId || 'guest'
       const text = String(userResponse || '').trim()
       const content = (task?.content || task || {}) as DailyTask['content'] | undefined
       const type: DailyTaskType = (task?.type || task?.taskType ||
-        (content as any)?.poem ? DailyTaskType.POETRY :
         (content as any)?.character ? DailyTaskType.CHARACTER_INSIGHT :
         (content as any)?.culturalElement ? DailyTaskType.CULTURAL_EXPLORATION :
         (content as any)?.commentary ? DailyTaskType.COMMENTARY_DECODE :
@@ -111,7 +112,6 @@ export async function POST(request: NextRequest) {
       const text = String(userResponse || '').trim()
       const content = (task?.content || task || {}) as DailyTask['content'] | undefined
       const type: DailyTaskType = (task?.type || task?.taskType ||
-        (content as any)?.poem ? DailyTaskType.POETRY :
         (content as any)?.character ? DailyTaskType.CHARACTER_INSIGHT :
         (content as any)?.culturalElement ? DailyTaskType.CULTURAL_EXPLORATION :
         (content as any)?.commentary ? DailyTaskType.COMMENTARY_DECODE :

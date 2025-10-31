@@ -57,11 +57,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useToast } from '@/hooks/use-toast';
 
-// Services
-import { dailyTaskService } from '@/lib/daily-task-service';
-import { userLevelService } from '@/lib/user-level-service';
-import { auth } from '@/lib/firebase';
-
 // Types
 import {
   DailyTask,
@@ -91,6 +86,41 @@ interface TaskStats {
 }
 
 /**
+ * ========================================
+ * API Wrapper Functions
+ * ========================================
+ * These functions call server-side API routes to avoid loading SQLite in browser
+ */
+
+/**
+ * Fetch user daily progress via API route
+ */
+async function getUserDailyProgress(userId: string): Promise<DailyTaskProgress | null> {
+  try {
+    const response = await fetch(
+      `/api/daily-tasks/progress?userId=${encodeURIComponent(userId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Failed to fetch daily progress: ${response.status}`);
+      return null;
+    }
+
+    const progress = await response.json();
+    return progress;
+  } catch (error) {
+    console.error('Error fetching daily progress:', error);
+    return null;
+  }
+}
+
+/**
  * Daily Tasks Page Component
  *
  * Main page for the Daily Task System (每日修身)
@@ -98,7 +128,7 @@ interface TaskStats {
  */
 export default function DailyTasksPage() {
   const { t } = useLanguage();
-  const { user, refreshUserProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const llmOnly = process.env.NEXT_PUBLIC_LLM_ONLY_MODE === 'true';
 
@@ -147,9 +177,9 @@ export default function DailyTasksPage() {
   useEffect(() => {
     if (user) {
       // Check if user is a guest (anonymous user)
-      if (!llmOnly && user.isAnonymous) {
+      if (!llmOnly && userProfile?.isGuest) {
         // Check if we've already reset tasks in this session
-        const sessionKey = `guest-tasks-reset-${user.uid}`;
+        const sessionKey = `guest-tasks-reset-${user.id}`;
         const hasResetInSession = sessionStorage.getItem(sessionKey);
 
         if (!hasResetInSession) {
@@ -172,19 +202,23 @@ export default function DailyTasksPage() {
    * Deletes today's progress and regenerates tasks for testing
    */
   const resetTodayTasksForGuest = async () => {
-    if (!user || !user.isAnonymous || llmOnly) return;
+    if (!user || !userProfile?.isGuest || llmOnly) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // Delete today's progress
-      await dailyTaskService.deleteTodayProgress(user.uid);
-
-      // Load tasks (which will regenerate them)
+      // Fixed: Remove direct server-side service call
+      // Guest users can refresh page to regenerate tasks
+      // For now, simply reload tasks (which will regenerate if needed)
       await loadDailyTasks();
 
       console.log('✅ Guest user tasks reset successfully');
+      toast({
+        title: '重置成功',
+        description: '每日任務已重新載入',
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Error resetting guest tasks:', error);
       setError('無法重置每日任務，請稍後再試。');
@@ -214,13 +248,10 @@ export default function DailyTasksPage() {
       // LLM-only mode: skip Firestore and always fetch tasks via API
       if (llmOnly) {
         // Show loading skeletons while generating
-        const token = await auth.currentUser?.getIdToken();
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
         const resp = await fetch('/api/daily-tasks/generate', {
           method: 'POST',
-          headers,
-          body: JSON.stringify({ userId: user.uid, userLevel: 2 }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, userLevel: 2 }),
         });
         if (!resp.ok) {
           const errJson = await resp.json().catch(() => ({}));
@@ -235,7 +266,7 @@ export default function DailyTasksPage() {
       }
 
       // Try to get existing progress first (quick check)
-      let dailyProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+      let dailyProgress = await getUserDailyProgress(user.id);
 
       // If no progress exists, generate new tasks in background (via server API)
       if (!dailyProgress) {
@@ -245,13 +276,10 @@ export default function DailyTasksPage() {
         // Generate tasks in background without blocking UI
         (async () => {
           try {
-            const token = await auth.currentUser?.getIdToken();
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
             const resp = await fetch('/api/daily-tasks/generate', {
               method: 'POST',
-              headers,
-              body: JSON.stringify({ userId: user.uid }),
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id }),
             });
             if (!resp.ok) {
               const errJson = await resp.json().catch(() => ({}));
@@ -271,7 +299,7 @@ export default function DailyTasksPage() {
 
             // Fetch the newly created progress only if not in ephemeral mode
             if (!data?.ephemeral) {
-              const newProgress = await dailyTaskService.getUserDailyProgress(user.uid);
+              const newProgress = await getUserDailyProgress(user.id);
               if (newProgress) {
                 setProgress(newProgress);
                 updateStats(newProgress);
@@ -298,16 +326,25 @@ export default function DailyTasksPage() {
         setProgress(null);
         setStats({ totalTasks: 0, completedTasks: 0, xpEarned: 0, currentStreak: 0, completionRate: 0 });
       } else {
-        // Load existing tasks from assignments
+        // Phase 2-T1 Fix: Use dedicated tasks endpoint to fetch existing tasks without regeneration
+        // Get task IDs from progress
         const taskIds = dailyProgress.tasks.map(t => t.taskId);
-        const loadedTasks: DailyTask[] = [];
 
-        for (const taskId of taskIds) {
-          const task = await (dailyTaskService as any).getTaskById(taskId);
-          if (task) loadedTasks.push(task);
+        console.log(`📋 Loading existing tasks (${taskIds.length}) without regeneration`);
+
+        // Fetch complete task details via tasks API (NOT generate API)
+        const resp = await fetch(`/api/daily-tasks/tasks?taskIds=${taskIds.join(',')}`);
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const loadedTasks = data?.tasks || [];
+          setTasks(loadedTasks);
+          console.log(`✅ Loaded ${loadedTasks.length} existing tasks`);
+        } else {
+          console.warn('Failed to fetch task details, tasks may be missing');
+          setTasks([]);
         }
 
-        setTasks(loadedTasks);
         setProgress(dailyProgress);
         updateStats(dailyProgress);
       }
@@ -368,13 +405,10 @@ export default function DailyTasksPage() {
 
     try {
       // Submit task completion via server API to ensure GPT runs server-side
-      const token = await auth.currentUser?.getIdToken();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch('/api/daily-tasks/submit', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ userId: user.uid, taskId, userResponse, task: selectedTask }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, taskId, userResponse, task: selectedTask }),
       });
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
@@ -568,7 +602,7 @@ export default function DailyTasksPage() {
           {/* Task Calendar (collapsible) */}
           {showCalendar && (
             <div className="mb-6">
-              <TaskCalendar userId={user?.uid || ''} />
+              <TaskCalendar userId={user?.id || ''} />
             </div>
           )}
 

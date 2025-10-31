@@ -13,7 +13,6 @@ This module provides the primary layout structure for the authenticated sections
     * `@/components/ui/dropdown-menu`: For user and language selection menus.
     * `@/hooks/useAuth`: To access user authentication state.
     * `@/hooks/useLanguage`: To manage internationalization.
-    * `@/lib/firebase`: For Firebase authentication services.
     * `@/lib/daily-task-service`: To check for incomplete daily tasks.
     * `@/lib/translations`: For language definitions.
     * `@/lib/utils`: For utility functions like `cn`.
@@ -22,7 +21,10 @@ This module provides the primary layout structure for the authenticated sections
     * `next/link`: For client-side navigation.
     * `next/navigation`: To access routing information like the current pathname.
     * `lucide-react`: For icons.
-    * `firebase/auth`: For authentication functions like `signOut`.
+    * `next-auth/react`: For NextAuth authentication functions like `signOut`.
+* **Removed Dependencies (SQLITE-024):**
+    * ~~`@/lib/firebase`~~ - Firebase auth services removed, now using NextAuth.js
+    * ~~`firebase/auth`~~ - Firebase auth functions removed, now using `next-auth/react`
 
 ## 3. Public API / Exports
 
@@ -32,10 +34,10 @@ This module provides the primary layout structure for the authenticated sections
 
 ### 4.1. `AppShell.tsx`
 
-* **Purpose:** This file defines the `AppShell` component, which is the main layout for authenticated users. It integrates a responsive sidebar for navigation, a header with language selection, and a user profile dropdown with a logout option. It also includes a notification system for pending daily tasks.
+* **Purpose:** This file defines the `AppShell` component, which is the main layout for authenticated users. It integrates a responsive sidebar for navigation, a header with language selection, and a user profile dropdown with a logout option. It also includes a notification system for pending daily tasks. **Updated in SQLITE-024** to use NextAuth.js for authentication instead of Firebase Auth.
 * **Functions:**
     * `AppShell({ children: ReactNode })`: The main component function that renders the entire application shell. It takes page content as `children` and places it within the main content area.
-    * `handleLogout(): Promise<void>` - Signs the user out using Firebase authentication and redirects them to the `/login` page. It logs any errors to the console.
+    * `handleLogout(): Promise<void>` - **Updated in SQLITE-024**: Signs the user out using NextAuth.js `signOut()` function with automatic redirect to `/login` via `callbackUrl` parameter. Previously used Firebase authentication. Logs any errors to the console.
 * **Key Classes / Constants / Variables:**
     * `navItems`: A constant array of objects that defines the structure of the main navigation menu. Each object contains a path (`href`), a translation key for the label (`labelKey`), an `icon`, and an optional `badge` for notifications.
     * `hasIncompleteTasks`: A state variable (`boolean`) that tracks whether the currently logged-in user has any pending daily tasks. This is used to display a notification dot on the "Daily Tasks" navigation item.
@@ -60,11 +62,11 @@ flowchart TD
     
     subgraph "User Interaction"
         K[User Clicks Logout] --> L[Call `handleLogout()`];
-        L --> M[Sign Out from Firebase];
-        M --> N[Redirect to /login];
-        
+        L --> M[Call NextAuth signOut with callbackUrl];
+        M --> N[NextAuth clears session & redirects to /login];
+
         O[User Clicks Nav Item] --> P[Use Next.js Link to Navigate];
-        
+
         Q[User Changes Language] --> R[Call `setLanguage()`];
         R --> S[Re-render UI with New Translations];
     end

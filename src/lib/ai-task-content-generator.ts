@@ -321,39 +321,75 @@ function parseAndValidateContent(
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Basic auto-fix for common issues
+    // Enhanced validation with required field checks
     switch (taskType) {
       case DailyTaskType.CULTURAL_EXPLORATION:
         // Support both culturalElement and culturalKnowledge
         const cultural = parsed.culturalElement || parsed.culturalKnowledge;
         if (cultural) {
-          // Auto-fix: Convert number correctAnswer to string
-          if (cultural.questions && Array.isArray(cultural.questions)) {
-            cultural.questions = cultural.questions.map((q: any) => ({
-              ...q,
-              correctAnswer: typeof q.correctAnswer === 'number'
-                ? q.options?.[q.correctAnswer] || String(q.correctAnswer)
-                : q.correctAnswer,
-            }));
+          // Validate required fields
+          if (!cultural.questions || !Array.isArray(cultural.questions) || cultural.questions.length === 0) {
+            console.warn('⚠️ AI generated CULTURAL_EXPLORATION without questions array');
+            return null; // Trigger fallback
           }
+
+          // Auto-fix: Convert number correctAnswer to string
+          cultural.questions = cultural.questions.map((q: any) => ({
+            ...q,
+            correctAnswer: typeof q.correctAnswer === 'number'
+              ? q.options?.[q.correctAnswer] || String(q.correctAnswer)
+              : q.correctAnswer,
+          }));
           return { culturalElement: cultural };
         }
         break;
 
       case DailyTaskType.MORNING_READING:
-        if (parsed.textPassage) return { textPassage: parsed.textPassage };
+        if (parsed.textPassage) {
+          // Validate required fields
+          if (!parsed.textPassage.text || !parsed.textPassage.question) {
+            console.warn('⚠️ AI generated MORNING_READING without text or question');
+            return null; // Trigger fallback
+          }
+          if (parsed.textPassage.text.trim().length < 20) {
+            console.warn('⚠️ AI generated MORNING_READING with text too short');
+            return null;
+          }
+          return { textPassage: parsed.textPassage };
+        }
         break;
 
       case DailyTaskType.POETRY:
-        if (parsed.poem) return { poem: parsed.poem };
+        if (parsed.poem) {
+          // Validate required fields
+          if (!parsed.poem.title || !parsed.poem.content) {
+            console.warn('⚠️ AI generated POETRY without title or content');
+            return null; // Trigger fallback
+          }
+          return { poem: parsed.poem };
+        }
         break;
 
       case DailyTaskType.CHARACTER_INSIGHT:
-        if (parsed.character) return { character: parsed.character };
+        if (parsed.character) {
+          // Validate required fields
+          if (!parsed.character.characterName || !parsed.character.description) {
+            console.warn('⚠️ AI generated CHARACTER_INSIGHT without characterName or description');
+            return null; // Trigger fallback
+          }
+          return { character: parsed.character };
+        }
         break;
 
       case DailyTaskType.COMMENTARY_DECODE:
-        if (parsed.commentary) return { commentary: parsed.commentary };
+        if (parsed.commentary) {
+          // Validate required fields
+          if (!parsed.commentary.originalText || !parsed.commentary.interpretation) {
+            console.warn('⚠️ AI generated COMMENTARY_DECODE without originalText or interpretation');
+            return null; // Trigger fallback
+          }
+          return { commentary: parsed.commentary };
+        }
         break;
     }
 

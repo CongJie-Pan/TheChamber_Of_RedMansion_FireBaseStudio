@@ -75,43 +75,43 @@ export default function HomePage() {
   const features = [
     {
       icon: Brain,
-      title: 'AI 智能分析',
-      description: '運用先進AI技術，深度解析文本含義、人物性格與情節發展',
+      title: t('page.feature1Title'),
+      description: t('page.feature1Desc'),
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
     {
       icon: Users,
-      title: '人物關係圖譜',
-      description: '互動式人物關係圖，清晰呈現複雜的人物脈絡與情感糾葛',
+      title: t('page.feature2Title'),
+      description: t('page.feature2Desc'),
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
     {
       icon: BookOpen,
-      title: '智能註解系統',
-      description: '逐句詳細註解，文言文白話對照，降低閱讀理解門檻',
+      title: t('page.feature3Title'),
+      description: t('page.feature3Desc'),
       color: 'text-green-600',
       bgColor: 'bg-green-50',
     },
     {
       icon: MessageCircle,
-      title: '學習社群交流',
-      description: '與同好分享心得，參與討論，在交流中加深理解',
+      title: t('page.feature4Title'),
+      description: t('page.feature4Desc'),
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
     },
     {
       icon: BarChart3,
-      title: '學習進度追蹤',
-      description: '個人化學習儀表板，追蹤閱讀進度與理解深度',
+      title: t('page.feature5Title'),
+      description: t('page.feature5Desc'),
       color: 'text-red-600',
       bgColor: 'bg-red-50',
     },
     {
       icon: Sparkles,
-      title: '詩詞意境探索',
-      description: '深入品味作品中的詩詞歌賦，感受古典文學之美',
+      title: t('page.feature6Title'),
+      description: t('page.feature6Desc'),
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
     },
@@ -119,37 +119,37 @@ export default function HomePage() {
 
   // Learning statistics
   const stats = [
-    { number: '1,200+', label: '活躍學習者', icon: Users },
-    { number: '120', label: '詳細章節解析', icon: BookOpen },
-    { number: '400+', label: '人物深度剖析', icon: Crown },
-    { number: '85%', label: '學習完成率', icon: TrendingUp },
+    { number: t('page.stat1Number'), label: t('page.stat1Label'), icon: Users },
+    { number: t('page.stat2Number'), label: t('page.stat2Label'), icon: BookOpen },
+    { number: t('page.stat3Number'), label: t('page.stat3Label'), icon: Crown },
+    { number: t('page.stat4Number'), label: t('page.stat4Label'), icon: TrendingUp },
   ];
 
   // Content preview sections
   const contentPreviews = [
     {
-      title: '人物花園',
-      subtitle: '探索紅樓人物世界',
-      description: '在虛擬園林中邂逅林黛玉、賈寶玉等經典人物，了解他們的性格特點與人生軌跡',
-      image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&h=400&fit=crop',
+      title: t('page.preview1Title'),
+      subtitle: t('page.preview1Subtitle'),
+      description: t('page.preview1Desc'),
+      image: '/images/Hongloumeng_Tuyong_Jia_Yingchun.jpg',
       href: '/characters',
-      badge: '人物關係',
+      badge: t('page.preview1Badge'),
     },
     {
-      title: '章節導覽',
-      subtitle: '120回經典重現',
-      description: '跟隨故事脈絡，體驗從繁華到衰落的人生百態，感受曹雪芹筆下的世情冷暖',
-      image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&h=400&fit=crop',
+      title: t('page.preview2Title'),
+      subtitle: t('page.preview2Subtitle'),
+      description: t('page.preview2Desc'),
+      image: '/images/Jia_Baoyu_Hongloumeng_Tuyong_lookingLaptop.png',
       href: '/chapters',
-      badge: '故事情節',
+      badge: t('page.preview2Badge'),
     },
     {
-      title: '詩詞賞析',
-      subtitle: '古典文學精華',
-      description: '品味紅樓夢中的詩詞歌賦，從文學角度深度理解人物內心與時代背景',
-      image: 'https://images.unsplash.com/photo-1485988843227-72ba07e5339f?w=600&h=400&fit=crop',
+      title: t('page.preview3Title'),
+      subtitle: t('page.preview3Subtitle'),
+      description: t('page.preview3Desc'),
+      image: '/images/inChung_lookingLaptop.png',
       href: '/poetry',
-      badge: '詩詞文學',
+      badge: t('page.preview3Badge'),
     },
   ];
 
@@ -159,11 +159,17 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
-            <ScrollText className="h-8 w-8 text-primary" />
+          <Link href="/" className="flex items-center space-x-5 pl-6">
+            <Image
+              src="/images/logo_circle.png"
+              alt="紅樓慧讀 Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
             <div className="text-left">
               <div className="text-xl font-bold text-foreground">紅樓慧讀</div>
-              <div className="text-xs text-muted-foreground">Red Mansions Study</div>
+              <div className="text-xs text-muted-foreground">HongLou WiseRead</div>
             </div>
           </Link>
 
@@ -192,25 +198,25 @@ export default function HomePage() {
 
             {/* Action Buttons */}
             <Button variant="ghost" asChild>
-              <Link href="/login">登入</Link>
+              <Link href="/login">{t('page.navLogin')}</Link>
             </Button>
             <Button asChild>
               <Link href="/dashboard">
                 <Compass className="w-4 h-4 mr-2" />
-                開始探索
+                {t('page.navStartExplore')}
               </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section with NPM Taiwan Header Image */}
+      {/* Hero Section with Local Header Image */}
       <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <Image
-            src="https://theme.npm.edu.tw/Attachments/WebSitePictures/913/Header_913_3843.jpg"
-            alt="故宮經典藝術背景"
+            src="/images/introImage/introPageImage.JPG"
+            alt="首頁封面照"
             fill
             className="object-cover"
             priority
@@ -223,27 +229,26 @@ export default function HomePage() {
         <div className={`relative z-10 text-center max-w-4xl mx-auto px-6 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="space-y-6">
             <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
-              <span className="block">智能引航，重煥</span>
-              <span className="block text-red-400 mt-2">紅樓之夢</span>
+              <span className="block">{t('page.heroTitlePart1')}</span>
+              <span className="block text-red-400 mt-2">{t('page.heroTitleHighlight')}{t('page.heroTitlePart2')}</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
-              深入探索《紅樓夢》的宏大世界<br />
-              借助 AI 賦能的智慧分析，開啟您的經典文學之旅
+              {t('page.heroSubtitle')}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
               <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg" asChild>
                 <Link href="/dashboard">
                   <BookOpen className="mr-2 h-5 w-5" />
-                  立即開始學習
+                  {t('page.btnStartLearning')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
 
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-black px-8 py-4 text-lg">
                 <Eye className="mr-2 h-5 w-5" />
-                了解更多功能
+                {t('page.btnLearnMore')}
               </Button>
             </div>
           </div>
@@ -262,10 +267,10 @@ export default function HomePage() {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              核心功能特色
+              {t('page.featuresTitle')}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              結合傳統文學與現代科技，為您打造前所未有的經典閱讀體驗
+              {t('page.featuresSubtitle')}
             </p>
           </div>
 
@@ -286,14 +291,14 @@ export default function HomePage() {
       </section>
 
       {/* Content Preview Section */}
-      <section className="py-20">
+      <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              探索學習內容
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              {t('page.contentPreviewTitle')}
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              從人物到情節，從詩詞到文化，全方位深度學習紅樓夢
+            <p className="text-xl text-gray-200 max-w-2xl mx-auto">
+              {t('page.contentPreviewSubtitle')}
             </p>
           </div>
 
@@ -312,18 +317,18 @@ export default function HomePage() {
                   </Badge>
                 </div>
                 <CardHeader>
-                  <CardTitle className="text-xl">{content.title}</CardTitle>
-                  <CardDescription className="text-gray-600 font-medium">
+                  <CardTitle className="text-xl text-white">{content.title}</CardTitle>
+                  <CardDescription className="text-gray-200 font-medium">
                     {content.subtitle}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 leading-relaxed mb-4">
+                  <p className="text-gray-100 leading-relaxed mb-4">
                     {content.description}
                   </p>
                   <Button variant="outline" className="w-full group-hover:bg-red-600 group-hover:text-white transition-colors" asChild>
                     <Link href={content.href}>
-                      立即探索
+                      {t('page.btnExplore')}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
@@ -334,53 +339,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Statistics Section */}
-      <section className="py-20 bg-red-50">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              學習成果展現
-            </h2>
-            <p className="text-xl text-gray-600">
-              與千名學習者一同探索經典文學的魅力
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="w-8 h-8" />
-                </div>
-                <div className="text-3xl md:text-4xl font-bold text-red-600 mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-gray-600 font-medium">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Call to Action Section */}
       <section className="py-20 bg-gray-900 text-white">
         <div className="container mx-auto px-6 text-center">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              開啟您的紅樓夢學習之旅
+              {t('page.ctaTitle')}
             </h2>
             <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-              加入我們的學習社群，與志同道合的朋友一起深入探索中國古典文學的瑰寶。
-              無論您是初學者還是資深愛好者，都能在這裡找到適合的學習內容。
+              {t('page.ctaSubtitle')}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" className="bg-red-600 hover:bg-red-700 px-8 py-4 text-lg" asChild>
                 <Link href="/register">
                   <Star className="mr-2 h-5 w-5" />
-                  免費開始學習
+                  {t('page.btnFreeStart')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -388,14 +362,14 @@ export default function HomePage() {
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-black px-8 py-4 text-lg" asChild>
                 <Link href="/dashboard">
                   <Globe className="mr-2 h-5 w-5" />
-                  探索學習社群
+                  {t('page.btnExploreCommunity')}
                 </Link>
               </Button>
             </div>
 
             <div className="mt-12 pt-8 border-t border-gray-700">
               <p className="text-gray-400 text-sm">
-                已有超過 1,200 名學習者選擇了我們的平台
+                {t('page.ctaStats')}
               </p>
             </div>
           </div>
@@ -407,15 +381,21 @@ export default function HomePage() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <ScrollText className="h-8 w-8 text-red-400" />
+              <Image
+                src="/images/logo_circle.png"
+                alt="紅樓慧讀 Logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
               <div>
                 <div className="text-xl font-bold">紅樓慧讀</div>
-                <div className="text-sm text-gray-400">Red Mansions Study Platform</div>
+                <div className="text-sm text-gray-400">HongLou WiseRead</div>
               </div>
             </div>
 
             <div className="text-sm text-gray-400 text-center md:text-right">
-              <p>© 2024 紅樓慧讀平台. 致力於傳承中華古典文學.</p>
+              <p>{t('page.footerRights')}</p>
             </div>
           </div>
         </div>

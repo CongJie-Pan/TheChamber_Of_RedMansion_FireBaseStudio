@@ -58,3 +58,8 @@ GEMINI.md
 .gemini/commands
 >>>>>>> feature/GAME-001-user-level-system
 
+scripts/obsolete-migrations/
+tests/obsolete-firebase-tests/
+.env.local.firebase_backup_*
+*.env.backup
+data/backups/*.db

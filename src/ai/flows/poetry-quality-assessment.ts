@@ -1,4 +1,11 @@
 /**
+ * ⚠️ DEPRECATED - Module Removed from Active Use
+ *
+ * Status: This module has been deprecated
+ * Deprecation Date: 2025-10-30
+ * Reason: Poetry recitation tasks removed from daily task system due to inability to prevent copy-paste cheating
+ *
+ * Original Purpose:
  * @fileOverview Poetry Quality Assessment AI Flow
  *
  * This AI flow evaluates user recitations or compositions of poetry from
@@ -13,17 +20,21 @@
  * - Constructive feedback in Traditional Chinese
  * - Literary analysis and appreciation guidance
  *
- * Usage: Called by DailyTaskService when users submit poetry task answers
+ * Original Usage: Called by DailyTaskService when users submit poetry task answers
  *
  * @phase Phase 2.2 - AI Integration & Scoring System
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
+ * @deprecated 2025-10-30 - Poetry tasks removed, this module is no longer actively used
+ *
+ * Note: This file is kept for historical reference. Do not use in new code.
  */
 
 'use server'; // Required for server-side AI processing
 
-// Import the configured AI instance from GenKit
-import { ai } from '@/ai/genkit';
+// Import OpenAI client for AI processing
+import { getOpenAIClient } from '@/lib/openai-client';
 // Import Zod for schema validation and type inference
-import { z } from 'genkit';
+import { z } from 'zod';
 
 /**
  * Input schema for poetry quality assessment
@@ -68,27 +79,23 @@ const PoetryQualityOutputSchema = z.object({
 export type PoetryQualityOutput = z.infer<typeof PoetryQualityOutputSchema>;
 
 /**
- * Define the AI prompt for poetry quality assessment
- * 定義詩詞質量評估的 AI 提示
+ * Build the assessment prompt for OpenAI
+ * 構建 OpenAI 評估提示
  */
-const poetryQualityPrompt = ai.definePrompt({
-  name: 'poetryQualityPrompt',
-  input: { schema: PoetryQualityInputSchema },
-  output: { schema: PoetryQualityOutputSchema },
-  prompt: `你是一位資深的中國古典詩詞專家，正在評估學生對《紅樓夢》詩詞的背誦或默寫質量。
+function buildPoetryAssessmentPrompt(input: PoetryQualityInput): string {
+  const authorSection = input.author ? `\n**作者/吟詠者：** ${input.author}` : '';
 
-**詩詞標題：** {{poemTitle}}
-{{#if author}}
-**作者/吟詠者：** {{author}}
-{{/if}}
+  return `你是一位資深的中國古典詩詞專家，正在評估學生對《紅樓夢》詩詞的背誦或默寫質量。
+
+**詩詞標題：** ${input.poemTitle}${authorSection}
 
 **原詩正確版本：**
-{{{originalPoem}}}
+${input.originalPoem}
 
 **學生背誦/默寫版本：**
-{{{userRecitation}}}
+${input.userRecitation}
 
-**任務難度：** {{difficulty}}
+**任務難度：** ${input.difficulty}
 
 請仔細比對學生的版本與原詩，提供詳細的評估：
 
@@ -106,69 +113,81 @@ const poetryQualityPrompt = ai.definePrompt({
 - **incorrect**: 寫錯的字詞
 - **extra**: 多餘的內容
 
-請提供：
-1. **準確度百分比 (accuracy)**: 0-100
-2. **完整度百分比 (completeness)**: 0-100
-3. **綜合評分 (overallScore)**: 0-100
-4. **錯誤列表 (mistakes)**: 每個錯誤包含行號、預期內容、實際內容和錯誤類型
-5. **反饋 (feedback)**: 80-120字的鼓勵性反饋，指出優點和改進方向
-6. **文學賞析 (literaryAnalysis)**: 200-300字的詩詞賞析，使用 Markdown 格式，包含：
-   - 詩詞的主題和意境（用 **粗體** 強調關鍵詞）
-   - 修辭手法和藝術特色（用列表格式）
-   - 在《紅樓夢》故事中的意義
+請以 JSON 格式回應，包含以下欄位：
+{
+  "accuracy": 0-100的準確度百分比,
+  "completeness": 0-100的完整度百分比,
+  "overallScore": 0-100的綜合評分,
+  "mistakes": [
+    {
+      "line": 行號(從1開始),
+      "expected": "正確的文字",
+      "actual": "學生寫的文字",
+      "type": "missing/incorrect/extra"
+    }
+  ],
+  "feedback": "80-120字的鼓勵性反饋，指出優點和改進方向",
+  "literaryAnalysis": "200-300字的詩詞賞析，使用 Markdown 格式，包含：詩詞的主題和意境（用 **粗體** 強調關鍵詞）、修辭手法和藝術特色（用列表格式）、在《紅樓夢》故事中的意義"
+}
 
-請以繁體中文回應，語氣專業且富有鼓勵性。`,
-});
+請以繁體中文回應，語氣專業且富有鼓勵性。確保回覆格式為有效的 JSON。`;
+}
 
 /**
- * Define the AI flow for poetry quality assessment
- * 定義詩詞質量評估的 AI 流程
+ * Parse OpenAI response and validate schema
+ * 解析 OpenAI 回應並驗證結構
  */
-const poetryQualityFlow = ai.defineFlow(
-  {
-    name: 'poetryQualityFlow',
-    inputSchema: PoetryQualityInputSchema,
-    outputSchema: PoetryQualityOutputSchema,
-  },
-  async (input) => {
-    try {
-      const { output } = await poetryQualityPrompt(input);
+function parsePoetryAssessmentResponse(responseText: string): PoetryQualityOutput {
+  try {
+    // Try to parse JSON response
+    const parsed = JSON.parse(responseText);
 
-      // Validate output completeness
-      if (!output || typeof output.overallScore !== 'number') {
-        console.error('AI flow poetryQualityFlow produced incomplete output:', output);
-        throw new Error('AI 模型未能生成有效的詩詞質量評估。');
-      }
+    // Validate and sanitize scores
+    const accuracy = typeof parsed.accuracy === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.accuracy)))
+      : 0;
 
-      // Ensure scores are within valid range
-      const validatedOutput = {
-        accuracy: Math.max(0, Math.min(100, Math.round(output.accuracy || 0))),
-        completeness: Math.max(0, Math.min(100, Math.round(output.completeness || 0))),
-        overallScore: Math.max(0, Math.min(100, Math.round(output.overallScore))),
-        mistakes: output.mistakes || [],
-        feedback: output.feedback || '感謝您的詩詞背誦，請繼續努力！',
-        literaryAnalysis: output.literaryAnalysis || '# 詩詞賞析\n\n這是一首優美的詩詞作品。',
-      };
+    const completeness = typeof parsed.completeness === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.completeness)))
+      : 0;
 
-      return validatedOutput;
-    } catch (error) {
-      // Log error only in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Error in poetryQualityFlow:', error);
-      }
+    const overallScore = typeof parsed.overallScore === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.overallScore)))
+      : 50;
 
-      // Return fallback assessment
-      return {
-        accuracy: 50,
-        completeness: 50,
-        overallScore: 50,
-        mistakes: [],
-        feedback: '很抱歉，AI 評分系統暫時無法使用。您的詩詞背誦已記錄，我們會盡快人工審核。',
-        literaryAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細賞析。',
-      };
-    }
+    // Validate and sanitize mistakes array
+    const mistakes = Array.isArray(parsed.mistakes)
+      ? parsed.mistakes.map((m: any) => ({
+          line: typeof m.line === 'number' ? m.line : 1,
+          expected: typeof m.expected === 'string' ? m.expected : '',
+          actual: typeof m.actual === 'string' ? m.actual : '',
+          type: ['missing', 'incorrect', 'extra'].includes(m.type) ? m.type : 'incorrect',
+        }))
+      : [];
+
+    // Validate and sanitize text fields
+    const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
+      ? parsed.feedback
+      : '感謝您的詩詞背誦，請繼續努力！';
+
+    const literaryAnalysis = typeof parsed.literaryAnalysis === 'string' && parsed.literaryAnalysis.length > 0
+      ? parsed.literaryAnalysis
+      : '# 詩詞賞析\n\n這是一首優美的詩詞作品。';
+
+    return {
+      accuracy,
+      completeness,
+      overallScore,
+      mistakes,
+      feedback,
+      literaryAnalysis,
+    };
+  } catch (error) {
+    // If JSON parsing fails, throw error
+    console.error('Failed to parse OpenAI response as JSON:', error);
+    throw new Error('AI response parsing failed');
   }
-);
+}
 
 /**
  * Main exported function for poetry quality assessment
@@ -180,5 +199,55 @@ const poetryQualityFlow = ai.defineFlow(
 export async function assessPoetryQuality(
   input: PoetryQualityInput
 ): Promise<PoetryQualityOutput> {
-  return poetryQualityFlow(input);
+  try {
+    // Get OpenAI client
+    const openai = getOpenAIClient();
+
+    // Build assessment prompt
+    const prompt = buildPoetryAssessmentPrompt(input);
+
+    // Call OpenAI API with GPT-4-mini
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-mini',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位資深的中國古典詩詞專家，擅長評估學生的詩詞背誦質量。請以 JSON 格式回應。',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }, // Request JSON response
+    });
+
+    // Extract response content
+    const responseText = completion.choices[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error('OpenAI returned empty response');
+    }
+
+    // Parse and validate response
+    return parsePoetryAssessmentResponse(responseText);
+
+  } catch (error) {
+    // Log error only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Error in assessPoetryQuality:', error);
+    }
+
+    // Return fallback assessment
+    return {
+      accuracy: 50,
+      completeness: 50,
+      overallScore: 50,
+      mistakes: [],
+      feedback: '很抱歉，AI 評分系統暫時無法使用。您的詩詞背誦已記錄，我們會盡快人工審核。',
+      literaryAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細賞析。',
+    };
+  }
 }

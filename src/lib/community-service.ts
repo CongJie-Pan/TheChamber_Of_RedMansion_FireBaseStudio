@@ -1,130 +1,89 @@
 /**
- * @fileOverview Community Service for Firebase Firestore Operations
- * 
+ * @fileOverview Community Service with SQLite-Only Architecture
+ *
  * This service handles all community-related database operations including:
  * - Creating, reading, updating, and deleting forum posts
  * - Managing comments and replies on posts
- * - Handling user interactions (likes, views)
- * - Real-time updates for community engagement
+ * - Handling user interactions (likes, views, bookmarks)
  * - Content moderation and validation
- * 
+ *
+ * ARCHITECTURE:
+ * - **Database**: SQLite (local database, fast, server-side only)
+ * - **Pattern**: Direct SQLite repository calls with server-side enforcement
+ *
  * Database Structure:
- * - posts: Main forum posts collection
- * - comments: Sub-collection under each post for threaded discussions
- * - users: User profiles and authentication data
- * - categories: Post categorization system
- * 
+ * - SQLite: Flat tables (posts, comments) with foreign keys
+ *
  * Features implemented:
- * - Real-time data synchronization with Firestore
- * - Optimistic UI updates for better user experience
+ * - SQLite-only data access with server-side enforcement
  * - Content validation and sanitization
- * - Error handling and retry mechanisms
- * - Support for pagination and infinite scrolling
+ * - Error handling and validation
+ * - Support for pagination and filtering
  * - Like/unlike functionality with user tracking
+ * - Bookmark functionality for user collections
  * - Threaded comment system with nested replies
+ *
+ * @phase Phase 3 - SQLITE-017 - Community Service Migration
+ * @phase Phase 5 - SQLITE-025 - Firebase Removal (Complete SQLite migration)
  */
 
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDocs, 
-  getDoc,
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  orderBy, 
-  where, 
-  limit, 
-  startAfter,
-  increment,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-  onSnapshot,
-  Timestamp,
-  QuerySnapshot,
-  QueryDocumentSnapshot,
-  DocumentData
-} from 'firebase/firestore';
-import { runTransaction } from 'firebase/firestore';
-import { db } from './firebase';
 import { contentFilterService, ModerationAction } from './content-filter-service';
 
+// ============================================================================
+// SQLite Repository Imports (Phase 3 - SQLITE-014, SQLITE-015)
+// ============================================================================
+import {
+  createPost as sqliteCreatePost,
+  getPostById as sqliteGetPostById,
+  getPosts as sqliteGetPosts,
+  updatePost as sqliteUpdatePost,
+  deletePost as sqliteDeletePost,
+  likePost as sqliteLikePost,
+  unlikePost as sqliteUnlikePost,
+  bookmarkPost as sqliteBookmarkPost,
+  unbookmarkPost as sqliteUnbookmarkPost,
+  getBookmarkedPostsByUser as sqliteGetBookmarkedPosts,
+  incrementViewCount as sqliteIncrementViewCount,
+  type CommunityPost as SQLiteCommunityPost,
+} from './repositories/community-repository';
+
+import {
+  createComment as sqliteCreateComment,
+  getCommentsByPost as sqliteGetCommentsByPost,
+  deleteComment as sqliteDeleteComment,
+  buildCommentTree,
+  type Comment as SQLiteComment,
+  type CommentTreeNode,
+} from './repositories/comment-repository';
+
+import { toUnixTimestamp, fromUnixTimestamp } from './sqlite-db';
+import { randomUUID } from 'crypto';
+
+// Import shared type definitions (safe for client-side imports)
+import type {
+  CreatePostData,
+  CreateCommentData,
+  PostFilters,
+} from '@/types/community';
+
+// ============================================================================
+// Server-Side SQLite Enforcement
+// ============================================================================
+
+/**
+ * SQLite is only available on the server-side (Node.js environment).
+ * Client-side code should use API routes to access community data.
+ */
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined';
+
 // Type definitions for community data structures
-export interface CommunityPost {
-  id: string;
-  authorId: string;
-  authorName: string;
-  title?: string;
-  content: string;
-  tags: string[];
-  likes: number;
-  likedBy: string[];
-  commentCount: number;
-  viewCount: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  isEdited: boolean;
-  category?: string;
-  status: 'active' | 'hidden' | 'deleted';
-  /**
-   * Array of user IDs who have bookmarked this post.
-   * Used for user-specific post collections (favorites/bookmarks).
-   */
-  bookmarkedBy: string[];
-  /**
-   * Content moderation fields for tracking filtering and review status
-   */
-  moderationAction?: ModerationAction;
-  originalContent?: string; // Store original content before filtering
-  moderationWarning?: string; // Warning message if content was filtered
-}
+// These types are re-exported from SQLite repositories for API compatibility
+export type CommunityPost = SQLiteCommunityPost;
+export type PostComment = SQLiteComment;
+export type { CommentTreeNode };
 
-export interface PostComment {
-  id: string;
-  postId: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  likes: number;
-  likedBy: string[];
-  parentCommentId?: string; // For nested replies
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  isEdited: boolean;
-  status: 'active' | 'hidden' | 'deleted';
-  /**
-   * Content moderation fields for comments
-   */
-  moderationAction?: ModerationAction;
-  originalContent?: string;
-  moderationWarning?: string;
-}
-
-export interface CreatePostData {
-  authorId: string;
-  authorName: string;
-  title?: string;
-  content: string;
-  tags: string[];
-  category?: string;
-}
-
-export interface CreateCommentData {
-  postId: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  parentCommentId?: string;
-}
-
-export interface PostFilters {
-  category?: string;
-  tags?: string[];
-  authorId?: string;
-  searchText?: string;
-}
+// Re-export shared types for backward compatibility
+export type { CreatePostData, CreateCommentData, PostFilters };
 
 /**
  * Result interface for content creation operations
@@ -138,254 +97,193 @@ export interface CreateContentResult {
 
 // Community Service Class
 export class CommunityService {
-  private postsCollection = collection(db, 'posts');
-  
   /**
    * Create a new forum post with automated content filtering
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postData - Data for the new post
    * @returns Promise with the created post ID and moderation action
    */
   async createPost(postData: CreatePostData): Promise<CreateContentResult> {
-    try {
-      // Apply content filtering to the post content
-      const contentToFilter = `${postData.title || ''} ${postData.content}`.trim();
-      const filterResult = await contentFilterService.processContent(
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot create post: SQLite only available server-side');
+    }
+
+    // Apply content filtering to the post content
+    const contentToFilter = `${postData.title || ''} ${postData.content}`.trim();
+    const filterResult = await contentFilterService.processContent(
+      contentToFilter,
+      'temp-post-id', // Temporary ID, will be replaced with actual ID
+      'post',
+      postData.authorId
+    );
+
+    // Check if content should be blocked
+    if (filterResult.shouldBlock) {
+      console.log(`[CommunityService] Post creation blocked due to content violation: ${filterResult.action}`);
+      throw new Error(filterResult.warningMessage || 'Your post contains inappropriate content and cannot be published.');
+    }
+
+    // Create the post with filtered content if necessary
+    const filteredPostData = { ...postData };
+    if (filterResult.processedContent !== contentToFilter) {
+      // Content was filtered, store both original and filtered versions
+      const titleLength = postData.title?.length || 0;
+      if (titleLength > 0 && filterResult.processedContent.length > titleLength) {
+        // Split filtered content back into title and content
+        filteredPostData.title = filterResult.processedContent.substring(0, titleLength);
+        filteredPostData.content = filterResult.processedContent.substring(titleLength).trim();
+      } else {
+        filteredPostData.content = filterResult.processedContent;
+      }
+    }
+
+    const postId = randomUUID();
+    const createdPost = await sqliteCreatePost({
+      id: postId,
+      authorId: filteredPostData.authorId,
+      authorName: filteredPostData.authorName,
+      title: filteredPostData.title,
+      content: filteredPostData.content,
+      tags: filteredPostData.tags,
+      category: filteredPostData.category,
+      moderationAction: filterResult.action,
+      originalContent: filterResult.processedContent !== contentToFilter ? contentToFilter : undefined,
+      moderationWarning: filterResult.warningMessage || undefined,
+    });
+
+    // Update the moderation log with the actual post ID
+    if (filterResult.action !== 'allow') {
+      console.log(`[CommunityService] Post created with moderation action: ${filterResult.action}, ID: ${postId}`);
+      // Re-process to update the log with correct post ID
+      await contentFilterService.processContent(
         contentToFilter,
-        'temp-post-id', // Temporary ID, will be replaced with actual ID
+        postId,
         'post',
         postData.authorId
       );
-
-      // Check if content should be blocked
-      if (filterResult.shouldBlock) {
-        console.log(`Post creation blocked due to content violation: ${filterResult.action}`);
-        throw new Error(filterResult.warningMessage || 'Your post contains inappropriate content and cannot be published.');
-      }
-
-      // Create the post with filtered content if necessary
-      const filteredPostData = { ...postData };
-      if (filterResult.processedContent !== contentToFilter) {
-        // Content was filtered, store both original and filtered versions
-        const titleLength = postData.title?.length || 0;
-        if (titleLength > 0 && filterResult.processedContent.length > titleLength) {
-          // Split filtered content back into title and content
-          filteredPostData.title = filterResult.processedContent.substring(0, titleLength);
-          filteredPostData.content = filterResult.processedContent.substring(titleLength).trim();
-        } else {
-          filteredPostData.content = filterResult.processedContent;
-        }
-      }
-
-      const newPost = {
-        ...filteredPostData,
-        likes: 0,
-        likedBy: [],
-        commentCount: 0,
-        viewCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        isEdited: false,
-        status: 'active' as const,
-        /**
-         * Initialize bookmarkedBy as an empty array for new posts.
-         * This allows users to bookmark posts later.
-         */
-        bookmarkedBy: [],
-        /**
-         * Add content moderation fields
-         */
-        moderationAction: filterResult.action,
-        originalContent: filterResult.processedContent !== contentToFilter ? contentToFilter : '',
-        moderationWarning: filterResult.warningMessage || ''
-      };
-
-      const docRef = await addDoc(this.postsCollection, newPost);
-      
-      // Update the moderation log with the actual post ID
-      if (filterResult.action !== 'allow') {
-        console.log(`Post created with moderation action: ${filterResult.action}, ID: ${docRef.id}`);
-        // Re-process to update the log with correct post ID
-        await contentFilterService.processContent(
-          contentToFilter,
-          docRef.id,
-          'post',
-          postData.authorId
-        );
-      }
-
-      console.log('Post created successfully with ID:', docRef.id);
-      return {
-        id: docRef.id,
-        moderationAction: filterResult.action
-      };
-    } catch (error) {
-      console.error('Error creating post:', error);
-      // If error message is already user-friendly (from content filter), use it directly
-      if (error instanceof Error && error.message.includes('inappropriate content')) {
-        throw error;
-      }
-      throw new Error('Failed to create post. Please try again.');
+    } else {
+      console.log(`[CommunityService] Post created successfully, ID: ${postId}`);
     }
+
+    return {
+      id: postId,
+      moderationAction: filterResult.action,
+    };
   }
 
   /**
    * Get all posts with optional filtering and pagination
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param filters - Optional filters for posts
    * @param limitCount - Number of posts to fetch (default: 20)
-   * @param lastDoc - Last document for pagination
+   * @param lastDoc - Last document for pagination (not used in SQLite, kept for API compatibility)
    * @returns Promise with array of posts
    */
   async getPosts(
-    filters: PostFilters = {}, 
+    filters: PostFilters = {},
     limitCount: number = 20,
     lastDoc?: any
   ): Promise<CommunityPost[]> {
-    try {
-      let postsQuery = query(
-        this.postsCollection,
-        where('status', '==', 'active'),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-
-      // Add filters
-      if (filters.category) {
-        postsQuery = query(postsQuery, where('category', '==', filters.category));
-      }
-      
-      if (filters.authorId) {
-        postsQuery = query(postsQuery, where('authorId', '==', filters.authorId));
-      }
-
-      // Add pagination
-      if (lastDoc) {
-        postsQuery = query(postsQuery, startAfter(lastDoc));
-      }
-
-      const querySnapshot = await getDocs(postsQuery);
-      const posts: CommunityPost[] = [];
-
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        posts.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as CommunityPost);
-      });
-
-      // Apply text search filter on client side (for better performance with small datasets)
-      if (filters.searchText) {
-        const searchTerm = filters.searchText.toLowerCase();
-        return posts.filter(post => 
-          post.content.toLowerCase().includes(searchTerm) ||
-          post.authorName.toLowerCase().includes(searchTerm) ||
-          post.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-        );
-      }
-
-      return posts;
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      throw new Error('Failed to fetch posts. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot fetch posts: SQLite only available server-side');
     }
+
+    console.log('[CommunityService] Fetching posts with filters:', filters);
+
+    // SQLite repository handles filtering internally
+    const posts = await sqliteGetPosts({
+      category: filters.category,
+      tags: filters.tags, // SQLite accepts tags array
+      limit: limitCount,
+      sortBy: 'newest', // Default sorting
+    });
+
+    // Apply client-side text search if provided
+    let filteredPosts = posts;
+    if (filters.searchText) {
+      const searchTerm = filters.searchText.toLowerCase();
+      filteredPosts = filteredPosts.filter(post =>
+        post.content.toLowerCase().includes(searchTerm) ||
+        post.authorName.toLowerCase().includes(searchTerm) ||
+        post.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    console.log(`[CommunityService] Fetched ${filteredPosts.length} posts`);
+    return filteredPosts;
   }
 
   /**
    * Get a single post by ID
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - ID of the post to fetch
    * @returns Promise with the post data
    */
   async getPost(postId: string): Promise<CommunityPost | null> {
-    try {
-      const postDoc = await getDoc(doc(this.postsCollection, postId));
-      
-      if (!postDoc.exists()) {
-        return null;
-      }
-
-      const data = postDoc.data();
-      return {
-        id: postDoc.id,
-        ...data,
-        createdAt: data.createdAt || Timestamp.now(),
-        updatedAt: data.updatedAt || Timestamp.now()
-      } as CommunityPost;
-    } catch (error) {
-      console.error('Error fetching post:', error);
-      throw new Error('Failed to fetch post. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot fetch post: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Fetching post ${postId}...`);
+
+    const post = await sqliteGetPostById(postId);
+    if (!post) {
+      console.log(`[CommunityService] Post ${postId} not found`);
+      return null;
+    }
+
+    console.log(`[CommunityService] Post ${postId} fetched successfully`);
+    return post;
   }
 
   /**
    * Update a post's like status for a user
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - ID of the post to like/unlike
    * @param userId - ID of the user performing the action
    * @param isLiking - Whether the user is liking (true) or unliking (false)
    * @returns Promise with success status
    */
   async togglePostLike(postId: string, userId: string, isLiking: boolean): Promise<boolean> {
-    try {
-      const postRef = doc(this.postsCollection, postId);
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot toggle like: SQLite only available server-side');
+    }
 
-      const changed = await runTransaction(db, async (tx) => {
-        const snap = await tx.get(postRef as any);
-        if (!snap.exists()) {
-          throw new Error('Post not found');
-        }
+    console.log(`[CommunityService] ${isLiking ? 'Liking' : 'Unliking'} post ${postId} for user ${userId}...`);
 
-        const data = snap.data() as any;
-        const likedBy: string[] = Array.isArray(data.likedBy) ? data.likedBy : [];
-        const isCurrentlyLiked = likedBy.includes(userId);
-
-        if (isLiking) {
-          // Only add like if not already liked by this user
-          if (!isCurrentlyLiked) {
-            tx.update(postRef as any, {
-              likes: increment(1),
-              likedBy: arrayUnion(userId),
-              updatedAt: serverTimestamp(),
-            });
-            return true;
-          }
-          return false;
-        } else {
-          // Only remove like if currently liked by this user
-          if (isCurrentlyLiked) {
-            tx.update(postRef as any, {
-              likes: increment(-1),
-              likedBy: arrayRemove(userId),
-              updatedAt: serverTimestamp(),
-            });
-            return true;
-          }
-          return false;
-        }
-      });
-
-      return changed;
-    } catch (error) {
-      console.error('Error toggling post like:', error);
-      throw new Error('Failed to update like status. Please try again.');
+    if (isLiking) {
+      const updatedPost = await sqliteLikePost(postId, userId);
+      // Check if like was actually added (likedBy array changed)
+      const wasLiked = updatedPost.likedBy.includes(userId);
+      console.log(`[CommunityService] ${wasLiked ? 'Liked' : 'Already liked'} post ${postId}`);
+      return wasLiked;
+    } else {
+      const updatedPost = await sqliteUnlikePost(postId, userId);
+      // Check if unlike was actually removed (likedBy array changed)
+      const wasUnliked = !updatedPost.likedBy.includes(userId);
+      console.log(`[CommunityService] ${wasUnliked ? 'Unliked' : 'Was not liked'} post ${postId}`);
+      return wasUnliked;
     }
   }
 
   /**
    * Increment post view count
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - ID of the post being viewed
    * @returns Promise with success status
    */
   async incrementViewCount(postId: string): Promise<boolean> {
+    if (!SQLITE_SERVER_ENABLED) {
+      // Don't throw error for view count as it's not critical
+      return false;
+    }
+
     try {
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        viewCount: increment(1),
-        updatedAt: serverTimestamp()
-      });
+      await sqliteIncrementViewCount(postId);
+      // No detailed logging for view count (performance optimization)
       return true;
     } catch (error) {
-      console.error('Error incrementing view count:', error);
+      console.error(`[CommunityService] Error incrementing view count for post ${postId}:`, error);
       // Don't throw error for view count as it's not critical
       return false;
     }
@@ -393,328 +291,289 @@ export class CommunityService {
 
   /**
    * Add a comment to a post with automated content filtering
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param commentData - Data for the new comment
    * @returns Promise with the created comment ID and moderation action
    */
   async addComment(commentData: CreateCommentData): Promise<CreateContentResult> {
-    try {
-      // Apply content filtering to the comment content
-      const filterResult = await contentFilterService.processContent(
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot add comment: SQLite only available server-side');
+    }
+
+    // Apply content filtering to the comment content
+    const filterResult = await contentFilterService.processContent(
+      commentData.content,
+      'temp-comment-id', // Temporary ID, will be replaced with actual ID
+      'comment',
+      commentData.authorId
+    );
+
+    // Check if content should be blocked
+    if (filterResult.shouldBlock) {
+      console.log(`[CommunityService] Comment creation blocked due to content violation: ${filterResult.action}`);
+      throw new Error(filterResult.warningMessage || 'Your comment contains inappropriate content and cannot be published.');
+    }
+
+    // Create comment with filtered content if necessary
+    const filteredCommentData = { ...commentData };
+    if (filterResult.processedContent !== commentData.content) {
+      filteredCommentData.content = filterResult.processedContent;
+    }
+
+    console.log(`[CommunityService] Adding comment to post ${commentData.postId}...`);
+
+    // Generate UUID upfront for consistency with createPost()
+    const commentId = randomUUID();
+    const createdComment = await sqliteCreateComment({
+      id: commentId,
+      postId: filteredCommentData.postId,
+      authorId: filteredCommentData.authorId,
+      authorName: filteredCommentData.authorName,
+      content: filteredCommentData.content,
+      parentCommentId: filteredCommentData.parentCommentId,
+      moderationAction: filterResult.action,
+      originalContent: filterResult.processedContent !== commentData.content ? commentData.content : undefined,
+      moderationWarning: filterResult.warningMessage || undefined,
+    });
+
+    // Update the moderation log with the actual comment ID
+    if (filterResult.action !== 'allow') {
+      console.log(`[CommunityService] Comment created with moderation action: ${filterResult.action}, ID: ${commentId}`);
+      await contentFilterService.processContent(
         commentData.content,
-        'temp-comment-id', // Temporary ID, will be replaced with actual ID
+        commentId,
         'comment',
         commentData.authorId
       );
-
-      // Check if content should be blocked
-      if (filterResult.shouldBlock) {
-        console.log(`Comment creation blocked due to content violation: ${filterResult.action}`);
-        throw new Error(filterResult.warningMessage || 'Your comment contains inappropriate content and cannot be published.');
-      }
-
-      const commentsCollection = collection(db, 'posts', commentData.postId, 'comments');
-      
-      // Create comment with filtered content if necessary
-      const filteredCommentData = { ...commentData };
-      if (filterResult.processedContent !== commentData.content) {
-        filteredCommentData.content = filterResult.processedContent;
-      }
-      
-      const newComment = {
-        ...filteredCommentData,
-        likes: 0,
-        likedBy: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        isEdited: false,
-        status: 'active' as const,
-        /**
-         * Add content moderation fields
-         */
-        moderationAction: filterResult.action,
-        originalContent: filterResult.processedContent !== commentData.content ? commentData.content : '',
-        moderationWarning: filterResult.warningMessage || ''
-      };
-
-      const docRef = await addDoc(commentsCollection, newComment);
-      
-      // Update the moderation log with the actual comment ID
-      if (filterResult.action !== 'allow') {
-        console.log(`Comment created with moderation action: ${filterResult.action}, ID: ${docRef.id}`);
-        // Re-process to update the log with correct comment ID
-        await contentFilterService.processContent(
-          commentData.content,
-          docRef.id,
-          'comment',
-          commentData.authorId
-        );
-      }
-
-      // Update comment count on the parent post
-      const postRef = doc(this.postsCollection, commentData.postId);
-      await updateDoc(postRef, {
-        commentCount: increment(1),
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('Comment added successfully with ID:', docRef.id);
-      return {
-        id: docRef.id,
-        moderationAction: filterResult.action
-      };
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      // If error message is already user-friendly (from content filter), use it directly
-      if (error instanceof Error && error.message.includes('inappropriate content')) {
-        throw error;
-      }
-      throw new Error('Failed to add comment. Please try again.');
+    } else {
+      console.log(`[CommunityService] Comment added successfully, ID: ${commentId}`);
     }
+
+    return {
+      id: commentId,
+      moderationAction: filterResult.action,
+    };
   }
 
   /**
    * Get comments for a specific post
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - ID of the post to get comments for
-   * @param limitCount - Number of comments to fetch (default: 50)
+   * @param limitCount - Number of comments to fetch (default: 50, not used in SQLite but kept for API compatibility)
    * @returns Promise with array of comments
    */
   async getComments(postId: string, limitCount: number = 50): Promise<PostComment[]> {
-    try {
-      const commentsCollection = collection(db, 'posts', postId, 'comments');
-      const commentsQuery = query(
-        commentsCollection,
-        where('status', '==', 'active'),
-        orderBy('createdAt', 'asc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(commentsQuery);
-      const comments: PostComment[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        comments.push({
-          id: doc.id,
-          postId,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as PostComment);
-      });
-
-      return comments;
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      throw new Error('Failed to fetch comments. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot fetch comments: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Fetching comments for post ${postId}...`);
+
+    const comments = await sqliteGetCommentsByPost(postId);
+
+    console.log(`[CommunityService] Fetched ${comments.length} comments for post ${postId}`);
+    return comments;
   }
 
   /**
    * Setup real-time listener for posts
+   *
+   * ⚠️ **NOT AVAILABLE IN SQLITE-ONLY MODE** - Real-time updates removed with Firebase
+   *
+   * MIGRATION STRATEGY:
+   * - This method has been removed with Firebase removal
+   * - For real-time updates, implement polling using `getPosts()` method
+   * - Recommended polling interval: 5-10 seconds
+   * - Use React Query or similar for automatic polling
+   *
+   * Example polling implementation:
+   * ```typescript
+   * // React Query approach
+   * const { data: posts } = useQuery({
+   *   queryKey: ['posts', filters],
+   *   queryFn: () => communityService.getPosts(filters),
+   *   refetchInterval: 5000, // Poll every 5 seconds
+   * });
+   *
+   * // Manual polling approach
+   * useEffect(() => {
+   *   const interval = setInterval(async () => {
+   *     const posts = await communityService.getPosts(filters);
+   *     setPosts(posts);
+   *   }, 5000);
+   *   return () => clearInterval(interval);
+   * }, [filters]);
+   * ```
+   *
+   * @deprecated Use polling with getPosts() instead
    * @param callback - Callback function to handle post updates
    * @param filters - Optional filters for posts
-   * @returns Unsubscribe function
+   * @returns Unsubscribe function (no-op in SQLite-only mode)
    */
   setupPostsListener(
     callback: (posts: CommunityPost[]) => void,
     filters: PostFilters = {}
   ): () => void {
-    let postsQuery = query(
-      this.postsCollection,
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
-
-    // Add filters
-    if (filters.category) {
-      postsQuery = query(postsQuery, where('category', '==', filters.category));
-    }
-
-    return onSnapshot(postsQuery, (querySnapshot: QuerySnapshot<DocumentData>) => {
-      const posts: CommunityPost[] = [];
-      
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        posts.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as CommunityPost);
-      });
-
-      callback(posts);
-    }, (error: Error) => {
-      console.error('Error in posts listener:', error);
-    });
+    console.warn('[CommunityService] setupPostsListener is deprecated in SQLite-only mode. Use polling with getPosts() instead.');
+    // Return no-op unsubscribe function for API compatibility
+    return () => {};
   }
 
   /**
    * Setup real-time listener for comments
+   *
+   * ⚠️ **NOT AVAILABLE IN SQLITE-ONLY MODE** - Real-time updates removed with Firebase
+   *
+   * MIGRATION STRATEGY:
+   * - This method has been removed with Firebase removal
+   * - For real-time updates, implement polling using `getComments()` method
+   * - Recommended polling interval: 5-10 seconds
+   * - Use React Query or similar for automatic polling
+   *
+   * Example polling implementation:
+   * ```typescript
+   * // React Query approach
+   * const { data: comments } = useQuery({
+   *   queryKey: ['comments', postId],
+   *   queryFn: () => communityService.getComments(postId),
+   *   refetchInterval: 5000, // Poll every 5 seconds
+   * });
+   *
+   * // Manual polling approach
+   * useEffect(() => {
+   *   const interval = setInterval(async () => {
+   *     const comments = await communityService.getComments(postId);
+   *     setComments(comments);
+   *   }, 5000);
+   *   return () => clearInterval(interval);
+   * }, [postId]);
+   * ```
+   *
+   * @deprecated Use polling with getComments() instead
    * @param postId - ID of the post to listen for comments
    * @param callback - Callback function to handle comment updates
-   * @returns Unsubscribe function
+   * @returns Unsubscribe function (no-op in SQLite-only mode)
    */
   setupCommentsListener(
     postId: string,
     callback: (comments: PostComment[]) => void
   ): () => void {
-    const commentsCollection = collection(db, 'posts', postId, 'comments');
-    const commentsQuery = query(
-      commentsCollection,
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'asc')
-    );
-
-    return onSnapshot(commentsQuery, (querySnapshot: QuerySnapshot<DocumentData>) => {
-      const comments: PostComment[] = [];
-      
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        comments.push({
-          id: doc.id,
-          postId,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as PostComment);
-      });
-
-      callback(comments);
-    }, (error: Error) => {
-      console.error('Error in comments listener:', error);
-    });
+    console.warn('[CommunityService] setupCommentsListener is deprecated in SQLite-only mode. Use polling with getComments() instead.');
+    // Return no-op unsubscribe function for API compatibility
+    return () => {};
   }
 
   /**
    * Add a bookmark for a post by a user.
-   * This will add the user's ID to the post's bookmarkedBy array.
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to bookmark
    * @param userId - The ID of the user bookmarking the post
    */
   async addBookmark(postId: string, userId: string): Promise<void> {
-    try {
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        bookmarkedBy: arrayUnion(userId),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error adding bookmark:', error);
-      throw new Error('Failed to add bookmark. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot add bookmark: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Adding bookmark for post ${postId}, user ${userId}...`);
+
+    await sqliteBookmarkPost(postId, userId);
+    console.log(`[CommunityService] Bookmark added successfully`);
   }
 
   /**
    * Remove a bookmark for a post by a user.
-   * This will remove the user's ID from the post's bookmarkedBy array.
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to unbookmark
    * @param userId - The ID of the user removing the bookmark
    */
   async removeBookmark(postId: string, userId: string): Promise<void> {
-    try {
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        bookmarkedBy: arrayRemove(userId),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error removing bookmark:', error);
-      throw new Error('Failed to remove bookmark. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot remove bookmark: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Removing bookmark for post ${postId}, user ${userId}...`);
+
+    await sqliteUnbookmarkPost(postId, userId);
+    console.log(`[CommunityService] Bookmark removed successfully`);
   }
 
   /**
    * Get all posts bookmarked by a specific user.
-   * This queries posts where bookmarkedBy array contains the userId.
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param userId - The ID of the user whose bookmarks to fetch
    * @returns Array of CommunityPost
    */
   async getBookmarkedPosts(userId: string): Promise<CommunityPost[]> {
-    try {
-      const postsQuery = query(
-        this.postsCollection,
-        where('bookmarkedBy', 'array-contains', userId),
-        where('status', '==', 'active'),
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(postsQuery);
-      const posts: CommunityPost[] = [];
-      querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const data = doc.data();
-        posts.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt || Timestamp.now(),
-          updatedAt: data.updatedAt || Timestamp.now()
-        } as CommunityPost);
-      });
-      return posts;
-    } catch (error) {
-      console.error('Error fetching bookmarked posts:', error);
-      throw new Error('Failed to fetch bookmarked posts. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot fetch bookmarked posts: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Fetching bookmarked posts for user ${userId}...`);
+
+    const posts = await sqliteGetBookmarkedPosts(userId);
+
+    console.log(`[CommunityService] Fetched ${posts.length} bookmarked posts`);
+    return posts;
   }
 
   /**
    * Update the status of a post (for moderation/approval).
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * Only admin or authorized users should call this method.
    * @param postId - The ID of the post to update
    * @param status - The new status ('active', 'hidden', 'deleted')
    */
   async updatePostStatus(postId: string, status: 'active' | 'hidden' | 'deleted'): Promise<void> {
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot update post status: SQLite only available server-side');
+    }
+
     try {
-      const postRef = doc(this.postsCollection, postId);
-      await updateDoc(postRef, {
-        status,
-        updatedAt: serverTimestamp()
-      });
+      await sqliteUpdatePost(postId, { status });
+      console.log(`[CommunityService] Post ${postId} status updated to ${status}`);
     } catch (error) {
-      console.error('Error updating post status:', error);
+      console.error(`[CommunityService] Error updating post status:`, error);
       throw new Error('Failed to update post status. Please try again.');
     }
   }
 
   /**
-   * Permanently delete a post from Firestore (cannot be recovered).
-   * This will remove the post document entirely from the 'posts' collection.
+   * Permanently delete a post (cannot be recovered).
+   * SQLite-ONLY: Server-side only, uses SQLite repository
    * @param postId - The ID of the post to delete
    */
   async deletePost(postId: string): Promise<void> {
-    try {
-      const postRef = doc(this.postsCollection, postId);
-      await deleteDoc(postRef);
-      // Note: This does NOT delete sub-collections (e.g., comments) automatically.
-      // If you want to also delete all comments, you need to recursively delete them.
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      throw new Error('Failed to delete post. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot delete post: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Deleting post ${postId}...`);
+
+    await sqliteDeletePost(postId);
+    console.log(`[CommunityService] Post ${postId} deleted successfully`);
   }
 
   /**
-   * Permanently delete a comment from Firestore (cannot be recovered).
-   * This will remove the comment document entirely from the 'comments' sub-collection under the specified post.
-   * @param postId - The ID of the post containing the comment
+   * Permanently delete a comment (cannot be recovered).
+   * SQLite-ONLY: Server-side only, uses SQLite repository
+   * @param postId - The ID of the post containing the comment (kept for API compatibility)
    * @param commentId - The ID of the comment to delete
    */
   async deleteComment(postId: string, commentId: string): Promise<void> {
-    try {
-      const commentRef = doc(db, 'posts', postId, 'comments', commentId);
-      await deleteDoc(commentRef);
-      // After deleting the comment, decrement the commentCount on the parent post
-      const postRef = doc(db, 'posts', postId);
-      await updateDoc(postRef, {
-        commentCount: increment(-1),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      throw new Error('Failed to delete comment. Please try again.');
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[CommunityService] Cannot delete comment: SQLite only available server-side');
     }
+
+    console.log(`[CommunityService] Deleting comment ${commentId} from post ${postId}...`);
+
+    await sqliteDeleteComment(commentId);
+    // SQLite repository handles comment count decrement automatically
+    console.log(`[CommunityService] Comment ${commentId} deleted successfully`);
   }
 }
 
 // Export singleton instance
-export const communityService = new CommunityService(); 
+export const communityService = new CommunityService();
+
+// Re-export utility functions from repositories for API convenience
+export { buildCommentTree }; 

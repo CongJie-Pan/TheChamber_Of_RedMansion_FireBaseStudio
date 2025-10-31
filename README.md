@@ -29,9 +29,11 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 
 ## 📁 Detailed File Structure & Purpose
 
-### 🤖 AI Integration (`/src/ai/`)
-- **`genkit.ts`** - Core AI configuration using Google's GenKit framework for integrating Gemini 2.0 Flash model. This file sets up the AI plugin and model configuration for all AI-powered features.
-- **`dev.ts`** - Development server configuration for AI features. Used for testing and developing AI flows in isolation.
+### 🤖 AI Integration (`/src/ai/`) - Updated Architecture (2025-10-30)
+**Migration:** Transitioned from GenKit/Gemini to direct OpenAI + Perplexity integration
+- **Scoring Engine:** OpenAI GPT-4-mini for evaluation tasks (reading comprehension, poetry, quizzes)
+- **Analysis Engine:** Perplexity Sonar for Q&A and context analysis
+- **Benefits:** Simplified architecture, no framework overhead, flexible AI provider selection
 - **`flows/`** - Contains specific AI workflow implementations:
   - **`explain-text-selection.ts`** - AI flow that provides contextual explanations for selected text passages from the novel using traditional Chinese. Analyzes user questions about specific text snippets within chapter context.
   - **`context-aware-analysis.ts`** - Provides intelligent analysis based on reading context and user progress.
@@ -48,7 +50,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **`layout.tsx`** - Root layout component that wraps the entire application with authentication, language providers, and global styling. Defines metadata and includes necessary fonts.
 - **`page.tsx`** - Homepage component featuring hero section, challenges identification, solutions presentation, and call-to-action areas with multilingual support.
 - **`globals.css`** - Global CSS styles including dark theme variables, font imports (Noto Serif SC for Chinese text), and base styling for the application.
-- **`login/page.tsx`** - Secure login page with Firebase Authentication, form validation, error handling, and multilingual support for user signin.
+- **`login/page.tsx`** - Secure login page with NextAuth authentication, form validation, error handling, and multilingual support for user signin.
 - **`register/page.tsx`** - Multi-step registration wizard with user profile setup, learning preferences, and personalized onboarding experience.
 - **`(main)/layout.tsx`** - Protected area layout with authentication guards, adaptive layout rendering, and conditional display for different page contexts.
 - **`(main)/`** - Main application routes including:
@@ -84,7 +86,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
     - **`popover.tsx`**, **`scroll-area.tsx`** - Interactive overlay and scrolling components
 
 ### 🔄 Context Providers (`/src/context/`)
-- **`AuthContext.tsx`** - Firebase authentication state management with loading states and user session handling. Provides authentication status across the entire application.
+- **`AuthContext.tsx`** - NextAuth authentication state management with loading states and user session handling. Provides authentication status across the entire application.
 - **`LanguageContext.tsx`** - Internationalization context supporting Traditional Chinese, Simplified Chinese, and English with localStorage persistence and dynamic language switching.
 
 ### 🪝 Custom Hooks (`/src/hooks/`)
@@ -94,14 +96,14 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **`use-mobile.tsx`** - Responsive design hook for detecting mobile devices and adjusting UI accordingly.
 
 ### 📚 Library & Utilities (`/src/lib/`)
-- **`firebase.ts`** - Firebase configuration and initialization including authentication setup with debugging logs for development.
+- **`db.ts`** - SQLite database configuration and initialization with better-sqlite3 for local data persistence.
 - **`translations.ts`** - Comprehensive translation system supporting multiple languages with 1000+ translation keys for complete internationalization.
 - **`utils.ts`** - Common utility functions including class name merging and helper functions used throughout the application.
 - **`content-filter-service.ts`** - **✅ COMPLETED** - Enterprise-grade automated content filtering system with multi-language support (Traditional Chinese & English). Features real-time profanity detection, hate speech identification, spam filtering, personal information masking, and intelligent moderation actions.
-- **`community-service.ts`** - **✅ COMPLETED** - Comprehensive community management service with integrated content filtering. Handles posts, comments, likes, bookmarks, and user interactions with automatic content moderation and Firebase integration.
+- **`community-service.ts`** - **✅ COMPLETED** - Comprehensive community management service with integrated content filtering. Handles posts, comments, likes, bookmarks, and user interactions with automatic content moderation and SQLite integration.
 
 ### ⚙️ Configuration Files
-- **`package.json`** - Project dependencies including Next.js 15, React 18, Firebase 11, GenKit AI, Radix UI components, and development tools.
+- **`package.json`** - Project dependencies including Next.js 15, React 18, better-sqlite3, NextAuth, OpenAI SDK, Radix UI components, and development tools.
 - **`package-lock.json`** - Locked dependency versions ensuring consistent installations across different environments.
 - **`next.config.ts`** - Next.js configuration with TypeScript support, image optimization for multiple domains, and webpack customization for Node.js modules.
 - **`tailwind.config.ts`** - Tailwind CSS configuration with custom color schemes, Chinese font integration, animations, and design system tokens.
@@ -121,12 +123,14 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **Tailwind CSS** - Utility-first CSS framework enabling rapid UI development with consistent design systems. Perfect for maintaining visual consistency across complex educational interfaces.
 - **Lucide React** - Comprehensive icon library providing consistent iconography throughout the application.
 
-### Authentication & Backend
-- **Firebase Authentication** - Reliable, scalable authentication service with social login support. Chosen for its ease of integration and robust security features needed for user accounts in educational platforms.
-- **Firebase SDK 11** - Latest version providing improved performance and TypeScript support for better developer experience.
+### Authentication & Database (Updated 2025-10-30)
+- **NextAuth.js v4** - Modern authentication solution with session management and credential-based authentication. Provides flexible authentication with server-side session handling.
+- **SQLite + better-sqlite3** - Local database solution for data persistence. Chosen for simplicity, performance, and zero cloud dependencies. Ideal for development and single-instance deployments.
 
-### AI Integration
-- **Google GenKit with Gemini 2.0 Flash** - Advanced AI framework specifically designed for building AI-powered applications. Gemini 2.0 Flash provides excellent Chinese language understanding crucial for analyzing classical Chinese literature.
+### AI Integration (Updated 2025-10-30)
+- **OpenAI GPT-4-mini** - Powers scoring and grading tasks with JSON-structured responses. Excellent performance for evaluative AI tasks with cost efficiency.
+- **Perplexity Sonar** - Handles Q&A and analysis tasks with web search grounding capabilities. Ideal for contextual literary analysis requiring external knowledge.
+- **Direct API Integration** - Removed framework dependencies (GenKit) for simpler, more maintainable codebase.
 - **Zod Schema Validation** - Ensures type-safe AI inputs and outputs, critical for reliable AI interactions in educational contexts.
 
 ### Internationalization
@@ -149,49 +153,37 @@ TheChamber_Of_RedMansion_FireBaseStudio/
    ```
 
 2. **Environment Setup**
-   Create a `.env.local` file with Firebase configuration:
+   Create a `.env.local` file with required configuration:
    ```
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-   ```
+   # AI API Keys
+   OPENAI_API_KEY=your_openai_api_key
+   PERPLEXITYAI_API_KEY=your_perplexity_api_key
 
-   Add SQLite toggle (defaults to enabled):
-   ```
+   # NextAuth Configuration
+   NEXTAUTH_SECRET=your_nextauth_secret
+   NEXTAUTH_URL=http://localhost:3001
+
+   # Database (SQLite - enabled by default)
    USE_SQLITE=1
    ```
 
 3. **Verify Native SQLite Build (Windows/macOS/Linux)**
    ```bash
-   pnpm doctor:sqlite
-   pnpm rebuild:sqlite
+   npm run doctor:sqlite
+   npm run rebuild:sqlite
    ```
 
-4. **Optional: Firestore → SQLite Migration**
-   Provide Firebase Admin credentials via `FIREBASE_SERVICE_ACCOUNT_JSON` or default application credentials, then run:
+4. **Development Server**
    ```bash
-   pnpm migrate:firestore
+   npm run dev
    ```
 
-5. **Development Server**
+5. **Run Tests**
    ```bash
-   pnpm dev
+   npm test
    ```
 
-6. **AI Development Server** (for testing AI flows)
-   ```bash
-   pnpm genkit:dev
-   ```
-
-7. **Run Tests**
-   ```bash
-   pnpm test
-   ```
-
-8. **Run Tests with Coverage**
+6. **Run Tests with Coverage**
    ```bash
    pnpm test -- --coverage
    ```

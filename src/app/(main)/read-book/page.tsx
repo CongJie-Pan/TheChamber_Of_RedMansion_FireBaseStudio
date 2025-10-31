@@ -31,8 +31,9 @@
 // React imports for state management and lifecycle
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-// Next.js navigation for routing
+// Next.js navigation and dynamic loading for routing and performance
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
 // UI component imports from design system
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,22 @@ import ReactMarkdown from 'react-markdown'; // For rendering AI response markdow
 // Custom components and utilities
 import { cn } from "@/lib/utils";
 import { SimulatedKnowledgeGraph } from '@/components/SimulatedKnowledgeGraph';
-import KnowledgeGraphViewer from '@/components/KnowledgeGraphViewer';
+
+// Phase 4-T3: Lazy load KnowledgeGraphViewer (D3.js is heavy ~200KB)
+const KnowledgeGraphViewer = dynamic(
+  () => import('@/components/KnowledgeGraphViewer'),
+  {
+    ssr: false, // Disable server-side rendering for client-only component
+    loading: () => (
+      <div className="flex items-center justify-center h-[600px] bg-muted/20 rounded-lg">
+        <div className="text-center space-y-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="text-sm text-muted-foreground">載入知識圖譜...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 // AI integration for text analysis
 // Note: legacy Genkit explainTextSelection not used in unified QA flow
@@ -108,19 +124,20 @@ import { classifyError, formatErrorForUser, logError } from '@/lib/perplexity-er
 // Custom hooks for application functionality
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from '@/hooks/useLanguage';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Utility for text transformation based on language
-import { saveNote, getNotesByUserAndChapter, Note, deleteNoteById, updateNote, updateNoteVisibility } from '@/lib/notes-service';
-import { communityService, type CreatePostData } from '@/lib/community-service';
+import type { Note } from '@/types/notes-api';
+import type { CreatePostData, CreatePostResponse } from '@/types/community';
 import { useAuth } from '@/hooks/useAuth';
 
-// XP Integration for gamification
-import { userLevelService, XP_REWARDS } from '@/lib/user-level-service';
+// XP Integration for gamification (using shared types, not service directly)
+import { XP_REWARDS } from '@/types/user-level-api';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
-// Firebase imports for welcome bonus flag update
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+// Development logging control - 僅在明確啟用時才輸出分頁除錯日誌
+const DEBUG_PAGINATION = typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PAGINATION === 'true';
+
 
 interface Annotation {
   text: string;
@@ -271,11 +288,204 @@ const highlightText = (text: string, highlight: string): React.ReactNode[] => {
   return result.length > 0 ? result : [text];
 };
 
+/**
+ * ========================================
+ * API Wrapper Functions
+ * ========================================
+ * These functions call server-side API routes to avoid loading SQLite in browser
+ */
+
+/**
+ * Award XP to user via API route
+ */
+async function awardXP(
+  userId: string,
+  amount: number,
+  reason: string,
+  source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
+  sourceId?: string
+) {
+  // Phase 3-T3: Client-side validation before API call
+  if (!userId || userId.trim() === '') {
+    throw new Error('Invalid userId: must be non-empty string');
+  }
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error(`Invalid amount: must be positive integer, got ${amount}`);
+  }
+  if (!reason || reason.length === 0 || reason.length > 200) {
+    throw new Error(`Invalid reason: must be 1-200 characters, got ${reason.length} characters`);
+  }
+
+  // Phase 3-T3: Enhanced logging for debugging
+  console.log(`[XP Award] Request params:`, {
+    userId: userId.substring(0, 8) + '...',
+    amount,
+    reason: reason.substring(0, 50) + (reason.length > 50 ? '...' : ''),
+    source,
+    sourceId: sourceId || '(none)'
+  });
+
+  const response = await fetch('/api/user-level/award-xp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userId,
+      amount,
+      reason,
+      source,
+      sourceId,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error(`[XP Award] API error (${response.status}):`, errorData);
+    throw new Error(errorData.error || `Failed to award XP (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    console.error(`[XP Award] Service error:`, result);
+    throw new Error(result.error || 'Failed to award XP');
+  }
+
+  console.log(`[XP Award] Success:`, { newTotalXP: result.newTotalXP, leveledUp: result.leveledUp });
+  return result;
+}
+
+/**
+ * Fetch notes for user and chapter via API route
+ */
+async function fetchNotes(userId: string, chapterId: number): Promise<Note[]> {
+  const response = await fetch(
+    `/api/notes?userId=${encodeURIComponent(userId)}&chapterId=${chapterId}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to fetch notes (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch notes');
+  }
+
+  return result.notes || [];
+}
+
+/**
+ * Save note via API route
+ */
+async function saveNoteAPI(note: Omit<Note, 'id' | 'createdAt'>): Promise<string> {
+  const response = await fetch('/api/notes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(note),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to save note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to save note');
+  }
+
+  return result.noteId;
+}
+
+/**
+ * Update note via API route
+ */
+async function updateNoteAPI(id: string, content: string): Promise<void> {
+  const response = await fetch('/api/notes', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, content }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to update note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to update note');
+  }
+}
+
+/**
+ * Delete note via API route
+ */
+async function deleteNoteAPI(id: string): Promise<void> {
+  const response = await fetch(`/api/notes?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to delete note (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete note');
+  }
+}
+
+/**
+ * Update note visibility via API route
+ */
+async function updateNoteVisibilityAPI(id: string, isPublic: boolean): Promise<void> {
+  const response = await fetch('/api/notes/visibility', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, isPublic }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `Failed to update note visibility (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to update note visibility');
+  }
+}
 
 export default function ReadBookPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const isMobile = useIsMobile();
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   // Removed vernacular toggle per product decision
@@ -370,6 +580,16 @@ export default function ReadBookPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  // Refs to store latest pagination values (避免 useCallback dependencies 導致函數重新創建)
+  const currentPageRef = useRef<number>(1);
+  const totalPagesRef = useRef<number>(1);
+
+  // Sync state to refs for use in stable callbacks
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+    totalPagesRef.current = totalPages;
+  }, [currentPage, totalPages]);
+
   const selectedTheme = themes[activeThemeKey];
 
   // Storage keys (new sessions model + legacy migration)
@@ -402,6 +622,40 @@ export default function ReadBookPage() {
     setSessions(prev => [...prev, newSession]);
     setActiveSessionId(newSession.id);
     return newSession.id;
+  };
+
+  /**
+   * Share note to community via API route
+   *
+   * This function calls the server-side API to create a community post.
+   * Replaces direct communityService.createPost() calls to avoid
+   * client-side imports of SQLite dependencies.
+   *
+   * @param postData - Post data to share
+   * @returns Promise that resolves when post is created
+   * @throws Error if API request fails
+   */
+  const shareToCommunity = async (postData: CreatePostData): Promise<void> => {
+    const response = await fetch('/api/community/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `Failed to share note to community (${response.status})`);
+    }
+
+    const result: CreatePostResponse = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create community post');
+    }
+
+    console.log(`✅ Community post created successfully: ${result.postId}`);
   };
 
   // Load sessions (with legacy migration)
@@ -559,15 +813,29 @@ export default function ReadBookPage() {
 
   // Enable pagination automatically for double-column layout
   useEffect(() => {
-    const enable = columnLayout === 'double';
+    const enable = columnLayout === 'double' && !isMobile;
     setIsPaginationMode(enable);
     // Reset to first page when toggling mode
     setCurrentPage(1);
     // Recompute pages after multi-column layout finishes
     if (enable) {
-      requestAnimationFrame(() => requestAnimationFrame(() => computePagination()))
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        computePagination();
+
+        // Auto-focus the viewport for keyboard navigation
+        const viewportEl =
+          (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
+          (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
+
+        if (viewportEl) {
+          viewportEl.focus();
+          if (DEBUG_PAGINATION) console.log('[Pagination] Viewport focused for keyboard navigation');
+        } else {
+          if (DEBUG_PAGINATION) console.warn('[Pagination] Could not find viewport element to focus');
+        }
+      }));
     }
-  }, [columnLayout, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey]);
+  }, [columnLayout, isMobile, currentChapterIndex, currentNumericFontSize, activeFontFamilyKey, activeThemeKey, computePagination]);
 
   const handleMouseUp = useCallback((event: globalThis.MouseEvent) => {
     const targetElement = event.target as HTMLElement;
@@ -665,46 +933,81 @@ export default function ReadBookPage() {
 
   const goNextPage = useCallback(() => {
     if (!isPaginationMode) return;
-    const next = Math.min(totalPages, currentPage + 1);
-    if (next !== currentPage) goToPage(next);
-  }, [currentPage, totalPages, isPaginationMode, goToPage]);
+    // 使用 ref 避免因 currentPage/totalPages 變化導致函數重新創建
+    const next = Math.min(totalPagesRef.current, currentPageRef.current + 1);
+    if (next !== currentPageRef.current) goToPage(next);
+  }, [isPaginationMode, goToPage]);
 
   const goPrevPage = useCallback(() => {
     if (!isPaginationMode) return;
-    const prev = Math.max(1, currentPage - 1);
-    if (prev !== currentPage) goToPage(prev);
-  }, [currentPage, isPaginationMode, goToPage]);
+    // 使用 ref 避免因 currentPage 變化導致函數重新創建
+    const prev = Math.max(1, currentPageRef.current - 1);
+    if (prev !== currentPageRef.current) goToPage(prev);
+  }, [isPaginationMode, goToPage]);
 
   // Keyboard navigation for pagination:
   // - Left/Right = prev/next page
   // - Up/Down/PageUp/PageDown/Space: prevent vertical scroll; map Up/PageUp to prev, Down/PageDown/Space to next
   useEffect(() => {
-    if (!isPaginationMode) return;
+    if (!isPaginationMode) {
+      if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard navigation disabled: isPaginationMode =', isPaginationMode);
+      return;
+    }
+
+    if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard navigation enabled for dual-column mode');
+
     const onKeyDown = (e: KeyboardEvent) => {
+      // Skip if event already handled
+      if (e.defaultPrevented) {
+        if (DEBUG_PAGINATION) console.log('[Pagination] Event already prevented, skipping');
+        return;
+      }
+
       // Do not intercept when typing in inputs or editable areas
       const target = e.target as HTMLElement | null;
       const tag = (target?.tagName || '').toUpperCase();
       const isEditable = !!target && (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
-      if (isEditable) return;
+      if (isEditable) {
+        if (DEBUG_PAGINATION) console.log('[Pagination] Skipping keyboard event in editable element:', tag);
+        return;
+      }
 
+      let handled = false;
       if (e.key === 'ArrowRight') {
         e.preventDefault();
+        if (DEBUG_PAGINATION) console.log('[Pagination] ArrowRight pressed - going to next page');
         goNextPage();
+        handled = true;
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
+        if (DEBUG_PAGINATION) console.log('[Pagination] ArrowLeft pressed - going to previous page');
         goPrevPage();
+        handled = true;
       } else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
+        if (DEBUG_PAGINATION) console.log('[Pagination] Down/PageDown/Space pressed - going to next page');
         goNextPage();
+        handled = true;
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
+        if (DEBUG_PAGINATION) console.log('[Pagination] Up/PageUp pressed - going to previous page');
         goPrevPage();
+        handled = true;
+      }
+
+      if (!handled && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' '].includes(e.key)) {
+        if (DEBUG_PAGINATION) console.log('[Pagination] Key pressed but not handled:', e.key, 'currentPage:', currentPageRef.current, 'totalPages:', totalPagesRef.current);
       }
     };
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
-  }, [isPaginationMode, goNextPage, goPrevPage]);
+    if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard event listener attached');
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
+      if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard event listener removed');
+    };
+  }, [isPaginationMode, goNextPage, goPrevPage]); // 移除 currentPage, totalPages 避免頻繁重新綁定
 
   /**
    * Global scroll lock and wheel interception for dual-column pagination
@@ -1071,15 +1374,15 @@ export default function ReadBookPage() {
           setActiveSessionMessages(prev => [...prev, userMessage]);
 
           // Award XP for first AI question (one-time achievement)
-          if (user?.uid) {
+          if (user?.id) {
             try {
               console.log(`🎯 Attempting to award first AI question achievement...`);
 
-              const result = await userLevelService.awardXP(
-                user.uid,
+              const result = await awardXP(
+                user.id,
                 XP_REWARDS.AI_FIRST_QUESTION_ACHIEVEMENT,
                 '心有疑，隨札記 - First AI question asked',
-                'ai_interaction',
+                'achievement',
                 'achievement-first-ai-question' // Fixed sourceId for one-time achievement
               );
 
@@ -1773,7 +2076,7 @@ export default function ReadBookPage() {
   const getColumnClass = () => {
     switch (columnLayout) {
       case 'single': return 'columns-1';
-      case 'double': return 'md:columns-2'; // Two-column layout for horizontal reading (left to right)
+      case 'double': return 'md:columns-2'; // Two-column layout for horizontal reading on medium+ screens; mobile falls back to single column
       default: return 'columns-1';
     }
   };
@@ -1830,40 +2133,65 @@ export default function ReadBookPage() {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const [userNotes, setUserNotes] = useState<Note[]>([]);
 
+  // Phase 3-T1: Track welcome bonus attempt to prevent repeated API calls in same session
+  const welcomeBonusAttemptedRef = useRef(false);
+
   useEffect(() => {
-    if (user?.uid && currentChapter) {
-      getNotesByUserAndChapter(user.uid, currentChapter.id).then(setUserNotes);
+    if (user?.id && currentChapter) {
+      fetchNotes(user.id, currentChapter.id).then(setUserNotes);
     } else {
       setUserNotes([]);
     }
-  }, [user?.uid, currentChapter.id]);
+  }, [user?.id, currentChapter.id]);
 
   // One-time welcome bonus for new users entering reading page
   useEffect(() => {
-    if (!user?.uid || !userProfile) return;
+    if (!user?.id || !userProfile) return;
+
+    // Phase 3-T1: Check if we've already attempted welcome bonus in this session
+    if (welcomeBonusAttemptedRef.current) {
+      return; // Already attempted in this session, skip to prevent polling
+    }
 
     // Check if user has already received welcome bonus
     if (userProfile.hasReceivedWelcomeBonus) {
+      welcomeBonusAttemptedRef.current = true; // Mark as checked
       return; // User already received bonus, skip
     }
 
     const awardWelcomeBonus = async () => {
+      // Phase 3-T1: Mark as attempted immediately to prevent retry loops
+      welcomeBonusAttemptedRef.current = true;
+
       try {
-        const result = await userLevelService.awardXP(
-          user.uid,
+        console.log('[Welcome Bonus] Attempting to award welcome bonus');
+        const result = await awardXP(
+          user.id,
           XP_REWARDS.NEW_USER_WELCOME_BONUS,
           'Welcome to reading! First-time reader bonus',
           'reading',
-          `welcome-bonus-${user.uid}` // Unique ID per user to prevent duplicates
+          `welcome-bonus-${user.id}` // Unique ID per user to prevent duplicates
         );
 
-        // Update hasReceivedWelcomeBonus flag in user profile
-        if (result.success && !result.isDuplicate) {
-          const userRef = doc(db, 'users', user.uid);
-          await updateDoc(userRef, {
-            hasReceivedWelcomeBonus: true,
-          });
-        }
+        console.log('[Welcome Bonus] XP award result:', {
+          success: result.success,
+          isDuplicate: result.isDuplicate
+        });
+
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //         // Update hasReceivedWelcomeBonus flag in user profile
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           //         if (result.success && !result.isDuplicate) {
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           //           const userRef = doc(db, 'users', user.id);
+          //           // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           await updateDoc(userRef, {
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //             hasReceivedWelcomeBonus: true,
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //           });
+          // SQLITE-025: Firebase removed - TODO: Use user-repository to update hasReceivedWelcomeBonus
+          //         }
 
         await refreshUserProfile();
 
@@ -1876,27 +2204,28 @@ export default function ReadBookPage() {
           });
         }
       } catch (error) {
-        console.error('Error awarding welcome bonus:', error);
+        console.error('[Welcome Bonus] Error awarding welcome bonus:', error);
+        // Phase 3-T1: Don't retry on error - ref already marked as attempted
       }
     };
 
     // Award welcome bonus immediately
     awardWelcomeBonus();
-  }, [user?.uid, userProfile, refreshUserProfile]);
+  }, [user?.id, userProfile, refreshUserProfile]);
 
   // Reading time tracking - award 3 XP every 15 minutes
   useEffect(() => {
-    if (!user?.uid || !userProfile) return;
+    if (!user?.id || !userProfile) return;
 
     // Award reading time XP function
     const awardReadingTimeXP = async () => {
       try {
         // Generate timestamp-based sourceId to prevent duplicate awards
         const timestamp = Date.now();
-        const sourceId = `reading-time-${user.uid}-${timestamp}`;
+        const sourceId = `reading-time-${user.id}-${timestamp}`;
 
-        const result = await userLevelService.awardXP(
-          user.uid,
+        const result = await awardXP(
+          user.id,
           XP_REWARDS.READING_TIME_15MIN,
           'Reading for 15 minutes',
           'reading',
@@ -1935,7 +2264,7 @@ export default function ReadBookPage() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [user?.uid, userProfile, refreshUserProfile, t, toast]);
+  }, [user?.id, userProfile, refreshUserProfile, t, toast]);
 
   // Sync completedChapters from userProfile to local state
   // This ensures we don't show achievement notifications for already-completed chapters
@@ -1947,7 +2276,7 @@ export default function ReadBookPage() {
 
   // Chapter completion tracking - award XP when navigating to new chapter
   useEffect(() => {
-    if (!user?.uid || !currentChapter) {
+    if (!user?.id || !currentChapter) {
       // Clear timer if user logs out or chapter disappears
       if (chapterTimerRef.current) {
         clearTimeout(chapterTimerRef.current);
@@ -1975,7 +2304,7 @@ export default function ReadBookPage() {
     const awardChapterXP = async () => {
       try {
         // Double-check user and chapter still exist
-        if (!user?.uid || !currentChapter) return;
+        if (!user?.id || !currentChapter) return;
 
         // Check again if already completed (from persistent data or local state)
         // This handles cases where state changed during the 5-second timer
@@ -1992,8 +2321,8 @@ export default function ReadBookPage() {
         const isFirstChapter = currentChapter.id === 1;
         const xpAmount = isFirstChapter ? XP_REWARDS.FIRST_CHAPTER_COMPLETED : XP_REWARDS.CHAPTER_COMPLETED;
 
-          const result = await userLevelService.awardXP(
-            user.uid,
+          const result = await awardXP(
+            user.id,
             xpAmount,
             `Completed chapter ${currentChapter.id}`,
           'reading',
@@ -2052,22 +2381,22 @@ export default function ReadBookPage() {
         chapterTimerRef.current = null;
       }
     };
-  }, [user?.uid, currentChapter?.id, completedChapters]);
+  }, [user?.id, currentChapter?.id, completedChapters]);
 
   const handleSaveNote = async () => {
-    if (!user?.uid || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
+    if (!user?.id || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
 
     try {
       const selectedTextContent = noteSelectedText || toolbarInfo?.text || selectedTextInfo?.text || '';
 
       if (currentNoteObj?.id) {
         // Update existing note - no XP for updates
-        await updateNote(currentNoteObj.id, currentNote);
+        await updateNoteAPI(currentNoteObj.id, currentNote);
 
         // Update visibility if changed
         const previousPublicStatus = currentNoteObj.isPublic || false;
         if (isNotePublic !== previousPublicStatus) {
-          await updateNoteVisibility(currentNoteObj.id, isNotePublic);
+          await updateNoteVisibilityAPI(currentNoteObj.id, isNotePublic);
 
           // If changed from private to public, share to community
           if (isNotePublic && !previousPublicStatus) {
@@ -2083,14 +2412,14 @@ ${selectedTextContent}
 來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
 
               const postData: CreatePostData = {
-                authorId: user.uid,
-                authorName: user.displayName || '匿名讀者',
+                authorId: user.id,
+                authorName: user.name || '匿名讀者',
                 content: postContent,
                 tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
                 category: 'discussion'
               };
 
-              await communityService.createPost(postData);
+              await shareToCommunity(postData);
               console.log(`✅ Updated note shared to community`);
             } catch (communityError) {
               console.error('Error sharing updated note to community:', communityError);
@@ -2102,14 +2431,14 @@ ${selectedTextContent}
       } else {
         // Create new note
         const noteToSave: Omit<Note, 'id' | 'createdAt'> = {
-          userId: user.uid,
+          userId: user.id,
           chapterId: currentChapter.id, // Use number, not string
           selectedText: selectedTextContent,
           note: currentNote,
           isPublic: isNotePublic,
         };
-        const noteId = await saveNote(noteToSave);
-        console.log(`📝 Note saved to Firestore with ID: ${noteId}, content length: ${currentNote.length} chars, isPublic: ${isNotePublic}`);
+        const noteId = await saveNoteAPI(noteToSave);
+        console.log(`📝 Note saved with ID: ${noteId}, content length: ${currentNote.length} chars, isPublic: ${isNotePublic}`);
 
         // If note is public, share it to community
         if (isNotePublic) {
@@ -2126,14 +2455,14 @@ ${selectedTextContent}
 來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
 
             const postData: CreatePostData = {
-              authorId: user.uid,
-              authorName: user.displayName || '匿名讀者',
+              authorId: user.id,
+              authorName: user.name || '匿名讀者',
               content: postContent,
               tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
               category: 'discussion'
             };
 
-            await communityService.createPost(postData);
+            await shareToCommunity(postData);
             console.log(`✅ Public note shared to community`);
           } catch (communityError) {
             console.error('Error sharing note to community:', communityError);
@@ -2161,11 +2490,11 @@ ${selectedTextContent}
           const contentHash = simpleHash(noteSelectedText || toolbarInfo?.text || selectedTextInfo?.text || '');
           const sourceId = `note-ch${currentChapter.id}-${contentHash}`;
 
-          const result = await userLevelService.awardXP(
-            user.uid,
+          const result = await awardXP(
+            user.id,
             xpAmount,
             isQualityNote ? 'Created quality note' : 'Created note',
-            'reading',
+            'note',
             sourceId
           );
 
@@ -2225,10 +2554,10 @@ ${selectedTextContent}
   };
 
   const handleDeleteNote = async () => {
-    if (!user?.uid || !currentNoteObj?.id) return;
+    if (!user?.id || !currentNoteObj?.id) return;
 
     try {
-      await deleteNoteById(currentNoteObj.id);
+      await deleteNoteAPI(currentNoteObj.id);
       await fetchNotesForChapter(); // Refresh notes from the database
 
       // Close sheet and reset states
@@ -2390,8 +2719,8 @@ ${selectedTextContent}
     : null;
 
   const fetchNotesForChapter = useCallback(async () => {
-    if (user?.uid && currentChapter) {
-      const notes = await getNotesByUserAndChapter(user.uid, currentChapter.id);
+    if (user?.id && currentChapter) {
+      const notes = await fetchNotes(user.id, currentChapter.id);
       setUserNotes(notes);
     }
   }, [user, currentChapter]);
@@ -2626,8 +2955,13 @@ ${selectedTextContent}
         ref={scrollAreaRef as any}
         viewportProps={{
           id: 'chapter-content-viewport',
-          style: isPaginationMode ? ({ overscrollBehavior: 'contain' } as React.CSSProperties) : undefined,
-          onWheel: (e) => {
+          tabIndex: isPaginationMode ? 0 : -1, // Enable keyboard focus in pagination mode
+          style: isPaginationMode ? ({
+            overscrollBehavior: 'contain',
+            outline: 'none' // Remove default focus outline, use custom styling if needed
+          } as React.CSSProperties) : undefined,
+          'aria-label': isPaginationMode ? '雙欄閱讀模式 - 使用左右方向鍵翻頁' : undefined,
+          onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
             if (!isPaginationMode) return;
             if (e.defaultPrevented) return; // global handler already took over
             e.preventDefault();
@@ -2637,11 +2971,11 @@ ${selectedTextContent}
               goPrevPage();
             }
           },
-          onWheelCapture: (e) => {
+          onWheelCapture: (e: React.WheelEvent<HTMLDivElement>) => {
             if (!isPaginationMode) return;
             e.preventDefault();
           },
-        }}
+        } as any}
       >
         <div
           ref={chapterContentRef}
@@ -2658,9 +2992,8 @@ ${selectedTextContent}
             // Enhanced column settings for better horizontal reading experience
             ...(columnLayout === 'double' && isPaginationMode ? {
               columnGap: '3rem', // Wider gap between columns for better readability
-              columnFill: 'balance', // Balance columns to avoid blank second column
+              columnFill: 'auto', // Allow natural flow to ensure pagination measures full height
               minHeight: '100%', // Ensure each page is at least viewport height
-              height: '100%',
             } : {})
           }}
         >

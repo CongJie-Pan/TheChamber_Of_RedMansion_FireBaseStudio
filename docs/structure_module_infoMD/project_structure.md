@@ -9,15 +9,20 @@ The Chamber of Red Mansion is an AI-powered educational web platform designed to
 This project follows a **Component-Driven Architecture with AI Enhancement** pattern, organized around the following core principles:
 
 * **Layered Architecture with Clear Separation of Concerns:**
-  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using Google GenKit framework. This separation allows AI capabilities to evolve independently without affecting UI or business logic.
+  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using direct OpenAI GPT-4-mini and Perplexity Sonar API integration. This separation allows AI capabilities to evolve independently without affecting UI or business logic, with simplified architecture removing framework overhead.
   * **Presentation Layer** (`/src/app/`, `/src/components/`): Next.js 15 App Router with React Server Components for optimal performance and SEO. UI components are isolated in `/src/components/` following atomic design principles.
   * **Business Logic Layer** (`/src/lib/`): Core services handling authentication, content filtering, task management, and user progression. This layer acts as the bridge between UI and data/AI layers.
-  * **Data Layer**: Firebase Authentication and Firestore for user management and real-time data synchronization.
+  * **Data Layer - Dual-Mode Architecture** (`/src/lib/repositories/`, Firebase): Hybrid data persistence using SQLite for local-first operations with Firebase Firestore fallback for cloud synchronization. Services attempt SQLite operations first for optimal performance, automatically falling back to Firebase if SQLite is unavailable or fails, ensuring reliability while maintaining backward compatibility.
 
 * **Service-Oriented Architecture for Business Logic:**
   * Each service in `/src/lib/` is a self-contained module with a single responsibility (e.g., `daily-task-service.ts`, `community-service.ts`, `content-filter-service.ts`).
   * Services communicate through well-defined interfaces and are independently testable.
   * This modularity enables parallel development and easier maintenance.
+
+* **Repository Pattern for Data Access:**
+  * Data access logic is isolated in repository modules (`/src/lib/repositories/`) separating database operations from business logic.
+  * Repositories use prepared statements for SQL injection prevention and provide consistent CRUD interfaces across different data types.
+  * This abstraction enables database migrations, simplifies testing with in-memory SQLite, and allows services to remain agnostic of underlying storage implementation.
 
 * **AI-First Design Philosophy:**
   * AI capabilities are not bolted on but deeply integrated into the core user experience.
@@ -25,9 +30,9 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
   * AI is used for content generation, assessment, and personalization throughout the platform.
 
 * **Test-Driven Quality Assurance:**
-  * Comprehensive test coverage (77.37% overall, 100% pass rate with 71 tests) ensures reliability.
+  * Comprehensive test coverage (77.37% overall services, 100% pass rate with 146+ tests including repository layer) ensures reliability.
   * Tests mirror the `/src` structure in `/tests`, making it easy to locate and maintain test files.
-  * Critical services like content filtering and community management have extensive test suites.
+  * Critical services like content filtering, community management, and data repositories have extensive test suites with 75+ repository-specific tests.
 
 * **Internationalization by Design:**
   * Multi-language support (Traditional Chinese, Simplified Chinese, English) is built into the architecture from the ground up.
@@ -49,9 +54,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   ├── setup/                       # Setup and deployment guides
 │   └── *.md                         # System overviews and planning documents
 ├── src/                       # Main application source code
-│   ├── ai/                    # AI orchestration and GenKit flows
-│   │   ├── genkit.ts          # Core AI configuration (Gemini 2.0 Flash setup)
-│   │   ├── dev.ts             # AI development server entry point
+│   ├── ai/                    # AI orchestration with direct API integration
 │   │   ├── perplexity-config.ts    # Perplexity API integration config
 │   │   └── flows/             # Isolated AI workflow implementations
 │   │       ├── explain-text-selection.ts        # Contextual text analysis
@@ -108,6 +111,10 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   ├── env.ts             # Environment variable validation
 │   │   ├── translations.ts    # 1000+ translation keys (i18n system)
 │   │   ├── utils.ts           # Common utility functions
+│   │   ├── constants/         # Centralized constant values (Phase 4-T1)
+│   │   │   └── guest-account.ts  # Guest account constants (IDs, XP, task IDs)
+│   │   ├── middleware/        # Middleware functions (Phase 4-T1)
+│   │   │   └── guest-account.ts  # Guest detection and configuration utilities
 │   │   ├── content-filter-service.ts      # Automated content moderation (91.51% coverage)
 │   │   ├── community-service.ts           # Community management (62.96% coverage)
 │   │   ├── daily-task-service.ts          # Task lifecycle management
@@ -116,13 +123,17 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   ├── task-evaluator.ts              # Task submission evaluation
 │   │   ├── task-difficulty-adapter.ts     # Adaptive difficulty system
 │   │   ├── user-level-service.ts          # XP and leveling system
-│   │   ├── notes-service.ts               # Note-taking functionality
-│   │   ├── highlight-service.ts           # Text highlighting
+│   │   ├── notes-service.ts               # Note-taking functionality (dual-mode: SQLite + Firebase)
+│   │   ├── highlight-service.ts           # Text highlighting (dual-mode: SQLite + Firebase)
 │   │   ├── openai-client.ts               # OpenAI API integration
 │   │   ├── perplexity-client.ts           # Perplexity API integration
 │   │   ├── perplexity-error-handler.ts    # Error handling for external APIs
 │   │   ├── citation-processor.ts          # Citation parsing and formatting
 │   │   ├── terminal-logger.ts             # Development logging utility
+│   │   ├── repositories/      # Data access layer (SQLite operations)
+│   │   │   ├── highlight-repository.ts    # Highlight CRUD operations (270 lines, 8 functions)
+│   │   │   ├── note-repository.ts         # Note CRUD operations (470 lines, 14 functions)
+│   │   │   └── [future repositories]      # Progress, task, user repositories (Phase 3+)
 │   │   └── config/            # Configuration schemas
 │   │       └── daily-task-schema.ts       # Task data validation
 │   ├── context/               # React Context providers (global state)
@@ -138,22 +149,45 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   └── qa-module.css      # Q&A module styles
 │   └── data/                  # Static data and fixtures
 │       └── chapterGraph/      # Knowledge graph data
-├── tests/                     # Test suite (71 tests, 100% pass rate)
+├── tests/                     # Test suite (164+ tests, 100% pass rate)
 │   ├── lib/                   # Service layer tests (mirrors /src/lib/)
 │   │   ├── content-filter-service.test.ts     # Content moderation tests
 │   │   ├── community-service.test.ts          # Community feature tests
 │   │   ├── openai-client.test.ts              # OpenAI integration tests
 │   │   ├── ai-task-content-generator.test.ts  # Task generation tests
-│   │   └── ai-feedback-generator.test.ts      # Feedback generation tests
+│   │   ├── ai-feedback-generator.test.ts      # Feedback generation tests
+│   │   ├── middleware/        # Middleware tests (Phase 4-T1)
+│   │   │   └── guest-account.test.ts          # Guest account middleware (13 tests, 100% pass)
+│   │   └── repositories/      # Repository layer tests (75+ tests)
+│   │       ├── highlight-repository.test.ts   # Highlight repo tests (25+ tests, 420 lines)
+│   │       └── note-repository.test.ts        # Note repo tests (50+ tests, 700 lines)
+│   ├── scripts/               # Script tests (Phase 4-T1)
+│   │   └── seed-guest-account.test.ts         # Guest seeding tests (5 tests)
+│   ├── performance/           # Performance tests (Phase 4-T3)
+│   │   └── lazy-loading.test.tsx              # Lazy loading and build config tests (9 tests)
+│   ├── integration/           # Integration tests (Phase 4-T1)
+│   │   └── guest-account-api.test.ts          # Guest API integration (5 tests)
+│   ├── components/            # Component tests (Phase 4-T1)
+│   │   └── dashboard-guest-badge.test.tsx     # Guest badge UI tests (6 tests)
+│   ├── instrumentation.test.ts # Instrumentation hook tests (Phase 4-T1, 6 tests)
 │   └── setup/                 # Test configuration
 │       └── jest.setup.js      # Jest configuration and mocks
 ├── coverage/                  # Test coverage reports (HTML & JSON)
 │   ├── lcov-report/           # Human-readable coverage report
 │   └── coverage-final.json    # Machine-readable coverage data
 ├── test-output/               # Automated test results and logs
+├── instrumentation.ts         # Next.js instrumentation hook (Phase 4-T1: guest account auto-seed)
 ├── scripts/                   # Development and maintenance scripts
-│   └── test-ai-logging.ts     # AI logging validation script
+│   ├── test-ai-logging.ts     # AI logging validation script
+│   ├── seed-guest-account.ts  # Phase 4-T1: Guest account seeding script (fixed 70 XP, 2 tasks)
+│   └── migrations/            # Data migration scripts (Firebase → SQLite)
+│       ├── base-migrator.ts       # Reusable migration framework (abstract class)
+│       ├── migrate-highlights.ts  # Highlight migration (200+ lines, batch processing)
+│       ├── migrate-notes.ts       # Note migration (280+ lines, feature preservation)
+│       └── fix-moderation-action-format.ts  # Community moderation data standardization
 ├── community-backend/         # Backend service for community features
+├── sqlite/                    # SQLite database files (gitignored)
+│   └── local.db               # Local SQLite database (highlights, notes, future: all user data)
 ├── logs/                      # Application logs (development)
 ├── temp/                      # Temporary files (gitignored)
 ├── types/                     # Global TypeScript declarations
@@ -177,29 +211,39 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### AI Orchestration Modules (`/src/ai/`)
 
-**genkit.ts** - Configures the core AI framework using Google GenKit with Gemini 2.0 Flash model for all AI operations in the platform. This module serves as the central AI initialization point that all other AI flows depend on for model access and configuration.
+**[DEPRECATED] genkit.ts** - ⚠️ Removed on 2025-10-30. Previously configured Google GenKit with Gemini 2.0 Flash. Replaced by direct OpenAI and Perplexity API integration.
 
-**perplexity-config.ts** - Provides configuration and setup for integrating Perplexity API to access external knowledge sources beyond the classical text. This enables users to ask questions that require contemporary scholarly research and real-time information retrieval.
+**[DEPRECATED] dev.ts** - ⚠️ Removed on 2025-10-30. Previously served as GenKit development server entry point. AI flows are now tested through standard Jest unit tests.
 
-### AI Flow Modules (`/src/ai/flows/`)
+**perplexity-config.ts** - Provides configuration and setup for integrating Perplexity Sonar API to access external knowledge sources beyond the classical text. This enables users to ask questions that require contemporary scholarly research and real-time information retrieval with web search capabilities.
 
-**explain-text-selection.ts** - Provides contextual AI-powered explanations for user-selected text passages from the novel using traditional Chinese analysis. This flow analyzes the literary context, historical background, and linguistic nuances to help readers understand complex classical Chinese prose.
+### AI Flow Modules (`/src/ai/flows/`) - Updated 2025-10-30
 
-**context-aware-analysis.ts** - Delivers intelligent analysis that adapts based on the user's current reading position, progress level, and historical interaction patterns. This module personalizes the learning experience by considering what the user has already learned and their comprehension level.
+**Migration Note:** All AI flows migrated from GenKit/Gemini to direct API integration on 2025-10-30. Scoring flows use OpenAI GPT-4-mini; analysis flows use Perplexity Sonar.
 
-**interactive-character-relationship-map.ts** - Generates dynamic AI insights about character relationships, motivations, and development arcs throughout the novel's 120 chapters. This flow helps readers navigate the complex web of over 400 characters by highlighting key relationships and their evolution.
+**explain-text-selection.ts** [Perplexity Sonar] - Provides contextual AI-powered explanations for user-selected text passages from the novel using traditional Chinese analysis with web search capabilities. This flow analyzes the literary context, historical background, and linguistic nuances to help readers understand complex classical Chinese prose.
 
-**daily-reading-comprehension.ts** - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
+**context-aware-analysis.ts** [Perplexity Sonar] - Delivers intelligent analysis that adapts based on the user's current reading position, progress level, and historical interaction patterns with web search integration. This module personalizes the learning experience by considering what the user has already learned and their comprehension level.
 
-**poetry-quality-assessment.ts** - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
+**interactive-character-relationship-map.ts** [Perplexity Sonar] - Generates dynamic AI insights about character relationships, motivations, and development arcs throughout the novel's 120 chapters with contemporary scholarly references. This flow helps readers navigate the complex web of over 400 characters by highlighting key relationships and their evolution.
 
-**character-analysis-scoring.ts** - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
+**daily-reading-comprehension.ts** [OpenAI GPT-4-mini] - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria with JSON-structured responses. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
 
-**cultural-quiz-grading.ts** - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
+**poetry-quality-assessment.ts** [OpenAI GPT-4-mini] - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards with structured JSON output. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
 
-**commentary-interpretation.ts** - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
+**character-analysis-scoring.ts** [OpenAI GPT-4-mini] - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth with JSON-formatted results. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
 
-**perplexity-red-chamber-qa.ts** - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
+**cultural-quiz-grading.ts** [OpenAI GPT-4-mini] - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context with structured JSON responses. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
+
+**commentary-interpretation.ts** [OpenAI GPT-4-mini] - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars with JSON-structured feedback. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
+
+**perplexity-red-chamber-qa.ts** [Perplexity Sonar] - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research with web search capabilities. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
+
+### Application Pages (`/src/app/`)
+
+**page.tsx (Homepage)** - Public landing page featuring a fully internationalized marketing interface with AI-enhanced classical literature learning. This module implements a comprehensive homepage with hero section (National Palace Museum imagery), 6 core feature cards (AI analysis, character maps, annotations, community, progress tracking, poetry), 3 content preview sections (character garden, chapter navigation, poetry appreciation), learning statistics display, and call-to-action sections. All text content uses the translation system (`t()` function) to support dynamic language switching between Traditional Chinese, Simplified Chinese, and English. Images are sourced from National Palace Museum (theme.npm.edu.tw) for cultural authenticity and reliability, replacing previous Unsplash dependencies that had loading issues. The page leverages `useLanguage` hook for real-time language switching without page reload, with all UI elements (buttons, headings, descriptions, stats) responding immediately to language changes. Implementation uses data-driven approach with `features`, `stats`, and `contentPreviews` arrays that pull translated content from `translations.ts` (60+ translation keys under `page.*` namespace). The component follows responsive design principles with mobile-first approach, featuring animated loading transitions, scroll indicators, and hover effects for enhanced user engagement.
+
+**layout.tsx (Root)** - Root layout component wrapping the entire application with essential providers including AuthProvider for authentication state, LanguageProvider for multilingual support, and global styling configuration. This module sets up HTML document structure with language attributes that update dynamically based on user preference, includes Font Awesome CDN for icons, and configures metadata for SEO optimization.
 
 ### Core Service Modules (`/src/lib/`)
 
@@ -213,9 +257,15 @@ This section provides a complete listing of all modules in the codebase with two
 
 **utils.ts** - Provides common utility functions including className merging (cn), date formatting, string manipulation, and other shared helper functions. This module promotes code reuse and consistency by centralizing frequently-used operations that span multiple features.
 
+### Type Definition Modules (`/src/types/`)
+
+**chinese-window.ts** - Defines TypeScript types and configurations for traditional Chinese window frame shapes used in navigation components (~120 lines). Provides WindowShape union type, WindowFrameConfig interface, and WINDOW_SHAPES constant mapping with cultural descriptions. Includes helper functions getWindowFrameConfig() and getWindowClipPath() for accessing shape configurations. Each shape includes Chinese name (月門, 六角窗, 八角窗, 四葉窗), cultural symbolism explanation, and CSS clip-path value for efficient rendering.
+
+**community.ts** - Provides shared type definitions for community features that are safe for both client-side and server-side code (61 lines, added 2025-10-30). Defines CreatePostData interface for post creation, CreateCommentData for commenting, PostFilters for query parameters, and CreatePostResponse for API responses. This separation enables client components to import types without triggering server-only dependencies (like better-sqlite3), solving webpack bundling issues and maintaining clean architecture between client and server layers.
+
 **content-filter-service.ts** - Implements enterprise-grade automated content moderation with real-time profanity detection, hate speech identification, spam filtering, and personal information masking. This module ensures community safety by automatically screening all user-generated content across posts, comments, and notes using multi-language pattern matching (Traditional Chinese and English) with 91.51% test coverage.
 
-**community-service.ts** - Manages all social learning features including post creation, commenting, reactions, bookmarking, and user interactions with integrated content filtering. This module serves as the central orchestrator for community features, automatically applying content moderation to maintain a safe and scholarly discussion environment with 62.96% test coverage.
+**community-service.ts** - Manages all social learning features with **dual-mode architecture (SQLite-first with Firebase fallback)** including post creation, commenting, reactions, bookmarking, and user interactions with integrated content filtering. This module uses **community-repository** and **comment-repository** for local SQLite operations (< 5ms performance), automatically falling back to Firebase when SQLite is unavailable, maintaining 100% backward compatibility while enabling offline capability. All 12 core methods (6 posts + 3 comments + 3 bookmarks) implement the dual-mode pattern with comprehensive logging (🗄️ SQLite, ☁️ Firebase). Real-time listeners remain Firebase-only with documented polling alternatives for SQLite mode. The service serves as the central orchestrator for community features, automatically applying content moderation to maintain a safe and scholarly discussion environment with 62.96% test coverage. **Updated 2025-10-30:** Now exports shared types from `/src/types/community.ts` for client-side safe imports, enabling proper client-server separation in Next.js 15 App Router architecture.
 
 **daily-task-service.ts** - Orchestrates the complete lifecycle of daily learning tasks including generation, distribution, submission, evaluation, and streak tracking. This module coordinates between AI task generation, user progress tracking, and the gamification system to provide personalized daily challenges that adapt to user skill levels.
 
@@ -229,11 +279,11 @@ This section provides a complete listing of all modules in the codebase with two
 
 **user-level-service.ts** - Manages the gamification system including XP calculation, level progression, achievement unlocking, and reward distribution. This module tracks all user accomplishments and translates them into tangible progression metrics that motivate continued platform engagement through visible achievement milestones.
 
-**notes-service.ts** - Provides note-taking functionality including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module enables users to build their personal scholarly knowledge base by capturing insights, questions, and analyses during reading sessions.
+**notes-service.ts** - Provides note-taking functionality with dual-mode architecture (SQLite-first with Firebase fallback) including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module integrates with note-repository for local SQLite operations, automatically falling back to Firebase when SQLite is unavailable, enabling users to build their personal scholarly knowledge base with optimal performance and reliability.
 
-**highlight-service.ts** - Manages text highlighting features allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module supports active reading by enabling visual annotation and organization of key textual moments for later reference and analysis.
+**highlight-service.ts** - Manages text highlighting features with dual-mode architecture (SQLite-first with Firebase fallback) allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for local SQLite operations while maintaining backward compatibility with Firebase, supporting active reading through visual annotation and organization of key textual moments.
 
-**openai-client.ts** - Provides a configured client for OpenAI API integration used for supplementary AI features beyond GenKit's capabilities. This module handles API key management, request formatting, error handling, and response parsing for OpenAI-powered features.
+**openai-client.ts** - Provides the primary configured client for OpenAI GPT-4-mini API integration, powering all scoring and grading tasks in the platform (updated 2025-10-30). This module handles API key management, request formatting, error handling, response parsing, and JSON-structured output for daily task evaluations including reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, and commentary interpretation.
 
 **perplexity-client.ts** - Implements the Perplexity API client for accessing external knowledge sources and contemporary scholarly research with streaming support. This module enables real-time question answering that goes beyond the novel's text by leveraging current academic discourse and research databases.
 
@@ -246,6 +296,34 @@ This section provides a complete listing of all modules in the codebase with two
 **task-generator.ts** - Coordinates the task generation pipeline by selecting appropriate task types, determining difficulty levels, and triggering AI content generation. This module implements the business logic for when and what types of tasks to generate based on user schedules, preferences, and learning objectives.
 
 **knowledgeGraphUtils.ts** - Provides utility functions for processing, transforming, and querying the chapter-level knowledge graph data that maps character appearances and relationships. This module enables the knowledge graph visualization features by preparing data structures that represent narrative connections across chapters.
+
+### Guest Account System Modules (`/src/lib/constants/`, `/src/lib/middleware/` - Phase 4-T1)
+
+**constants/guest-account.ts** - Centralizes all guest account configuration constants including fixed user ID (`guest-test-user-00000000`), email (`guest@redmansion.test`), username (訪客測試帳號), fixed XP (70), level (1), and task IDs for the two predefined tasks (reading comprehension and character analysis). This module ensures production-safe imports by keeping constants in the src/ directory rather than scripts/, preventing runtime errors when the application bundle is built. Constants are used across middleware, seed scripts, API routes, and UI components to maintain consistency.
+
+**middleware/guest-account.ts** - Provides utility functions for detecting and handling guest account behavior including `isGuestAccount()` to check if a user ID matches the guest account, `getGuestTaskIds()` to retrieve the fixed task IDs, `isGuestModeEnabled()` to verify environment-based enabling (development or explicit flag), `getGuestConfig()` to return complete guest configuration, and `logGuestAction()` for debugging guest account operations. This middleware enables special rules for guest users: fixed tasks instead of dynamic generation, XP reset to 70 on server restart, and AI grading enabled for all tasks. Fully tested with 13/13 unit tests passing (100% coverage).
+
+### Repository Modules (`/src/lib/repositories/`)
+
+**highlight-repository.ts** - Implements SQLite data access layer for highlights with comprehensive CRUD operations (create, get, delete, batch) using prepared statements for SQL injection prevention. This module provides 8 functions (270 lines) including batch operations for efficient bulk inserts, count queries for statistics, and proper error handling. All operations use parameterized queries and are fully tested with 25+ unit tests covering normal operations, edge cases, and error scenarios.
+
+**note-repository.ts** - Implements SQLite data access layer for notes with full CRUD operations and advanced querying capabilities including tags (JSON arrays), public/private visibility, and user-specific filtering. This module provides 14 functions (470 lines) with automatic word count calculation, comprehensive tag support, batch operations for migration efficiency, and conditional queries (by user, by chapter, by tags, public visibility). All operations use prepared statements and are validated through 50+ comprehensive unit tests.
+
+### Migration Script Modules (`/scripts/migrations/`)
+
+**base-migrator.ts** - Provides an abstract migration framework implementing reusable patterns for Firebase-to-SQLite data migrations including batch processing, validation, dry-run mode, integrity checks, and progress logging. This base class enables consistent migration implementations by providing configurable batch sizes (default: 500 records), validation callbacks, error handling with statistics tracking, and migration summary reporting.
+
+**migrate-highlights.ts** - Implements Firebase-to-SQLite migration for highlight records using the BaseMigrator framework with batch processing, validation, and integrity verification. This script (200+ lines) fetches all highlights from Firestore, validates required fields (userId, chapterId, text, color), transforms timestamps to Unix format, performs batch inserts using highlight-repository, and verifies data integrity with count checks. Supports --dry-run, --verbose, and --no-validate flags for flexible migration execution.
+
+**migrate-notes.ts** - Implements Firebase-to-SQLite migration for note records with feature preservation including tags (JSON arrays), visibility settings, word counts, and note types. This script (280+ lines) extends BaseMigrator to handle complex note features, provides detailed feature statistics (tags usage, public notes percentage, average word count), validates all note fields including optional features, and performs comprehensive verification of feature preservation after migration (tags, visibility, types).
+
+### Guest Account Script Modules (`/scripts/` - Phase 4-T1)
+
+**seed-guest-account.ts** - Implements guest test account seeding functionality that creates a consistent baseline account for development and testing with fixed state (user ID: `guest-test-user-00000000`, XP: 70, level: 1, 2 predefined daily tasks). This script provides the `seedGuestAccount()` function with reset flag support, creates database records using SQLite transactions for atomicity, deletes existing guest data when reset=true, inserts guest user with fixed attributes, creates two fixed daily tasks (reading comprehension 50 XP medium, character analysis 30 XP easy), and initializes daily progress with 0 completed tasks. Includes comprehensive error handling with transaction rollback on failures. Script is executed automatically on server startup via instrumentation hook in development environment to ensure guest account is always available with predictable state.
+
+### Server Instrumentation Module (`/instrumentation.ts` - Phase 4-T1)
+
+**instrumentation.ts** - Implements Next.js 15 instrumentation hook that runs on server startup to perform initialization tasks before the application accepts requests. This module provides the `register()` function that executes in development environment only (checking `process.env.NODE_ENV === 'development'`), automatically seeds the guest test account by calling `seedGuestAccount(true)` with reset flag to ensure fresh state on every server restart, includes comprehensive error handling to prevent server startup failures if seeding fails, and logs all operations with `[Instrumentation]` prefix for debugging. This hook enables the guest account system requirement that XP and tasks reset to fixed baseline (70 XP, 2 tasks) whenever the development server restarts, providing developers with a consistent testing environment without manual intervention. Configured in `next.config.ts` with `experimental.instrumentationHook: true`.
 
 ### Configuration Modules (`/src/lib/config/`)
 
@@ -268,6 +346,8 @@ This section provides a complete listing of all modules in the codebase with two
 ### UI Component Modules (`/src/components/ui/`)
 
 **Core UI Components** - Provides 33+ reusable interface components built on Radix UI primitives including buttons, cards, dialogs, inputs, selects, and form controls. These components ensure consistent styling, accessibility, and behavior across the entire application through a centralized component library based on the Shadcn/ui design system.
+
+**chinese-window-nav-button.tsx** - Specialized navigation button component featuring traditional Chinese window frame effects on hover. Implements geometric frames (月門 moon gate, 六角窗 hexagonal, 八角窗 octagonal, 四葉窗 quatrefoil) using CSS clip-path with smooth animations (~200 lines). Designed for AppShell sidebar navigation, provides cultural authenticity through "borrowed scenery" (借景) aesthetic principles while maintaining modern UX standards with full keyboard navigation and accessibility support.
 
 **AI Interaction Components** - Includes specialized components like AIMessageBubble, ConversationFlow, StructuredQAResponse, and ThinkingProcessIndicator for displaying AI responses and managing chat interfaces. These components handle the unique requirements of AI-powered features including streaming responses, structured data display, and loading states.
 
@@ -297,7 +377,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### Layout Component Modules (`/src/components/layout/`)
 
-**AppShell.tsx** - Implements the main application shell with navigation sidebar, header, responsive menu, and content area layout for all protected pages. This component provides consistent navigation structure and ensures authenticated users have access to all platform features through a unified interface.
+**AppShell.tsx** - Implements the main application shell with navigation sidebar featuring traditional Chinese window frame effects, header, responsive menu, and content area layout for all protected pages. This component provides consistent navigation structure with cultural aesthetics through ChineseWindowNavButton components, ensuring authenticated users have access to all platform features through a unified, visually enhanced interface. Each navigation item is configured with symbolic window shapes (circular for completeness, hexagonal for exploration, octagonal for challenge, quatrefoil for cycles) that activate on hover with elegant CSS animations.
 
 ### Specialized Feature Components (`/src/components/`)
 
@@ -335,6 +415,8 @@ This section provides a complete listing of all modules in the codebase with two
 
 **chapters/** - Provides REST endpoints for retrieving chapter text, metadata, and associated knowledge graph data for the reading interface. These routes serve the core reading content and enable chapter navigation, search, and contextual information retrieval.
 
+**community/posts/** [Added 2025-10-30] - Implements server-side API endpoint for community post operations with NextAuth session authentication and Zod validation (172 lines). POST endpoint handles post creation with author ID verification, content moderation integration via community-service, and comprehensive error handling for database, validation, and moderation failures. This route solves the client-server architecture issue where client components cannot directly import SQLite-dependent services, providing a proper REST API layer that maintains security and modularity.
+
 **daily-tasks/** - Implements API endpoints for daily task generation, submission, evaluation, and history retrieval with AI integration. These routes orchestrate the complete task workflow by coordinating between the task service, AI evaluation flows, and user progress tracking.
 
 **perplexity-qa-stream/** - Exposes server-sent events (SSE) streaming endpoint for real-time AI question answering using Perplexity API. This route enables responsive chat-like interactions where answers stream token-by-token to the client, providing immediate feedback and maintaining user engagement.
@@ -353,14 +435,23 @@ This section provides a complete listing of all modules in the codebase with two
 
 **ai-feedback-generator.test.ts** - Tests AI feedback generation for accuracy, constructiveness, tone appropriateness, and personalization based on user context. This test suite ensures feedback enhances learning by being encouraging, specific, and actionable.
 
+### Repository Test Modules (`/tests/lib/repositories/`)
+
+**highlight-repository.test.ts** - Contains 25+ comprehensive unit tests (420 lines) validating all highlight repository operations including CRUD operations, batch processing, error handling, and edge cases. This test suite uses in-memory SQLite databases for isolation and speed, testing create operations (single and batch), retrieval by user and chapter, deletion with verification, count queries for statistics, error handling for missing fields and invalid data, Chinese character support, and transaction rollback scenarios ensuring data integrity.
+
+**note-repository.test.ts** - Implements 50+ comprehensive unit tests (700 lines) validating all note repository operations including full CRUD, tag management, visibility controls, and advanced queries. This test suite covers create operations with automatic word count calculation, tag storage as JSON arrays, batch operations for migration efficiency, retrieval by user/chapter/tags/visibility, update operations preserving data integrity, deletion with cascade handling, public note queries, tag-based filtering, error handling for constraint violations, and feature preservation (tags, isPublic, noteType) across all operations.
+
 ## 5. Common Developer Workflows
 
-### To add a new AI feature:
-1. **Define the AI flow** in `/src/ai/flows/new-feature.ts` using GenKit's `defineFlow` API.
-2. **Test the flow** using `npm run genkit:dev` to access the GenKit development UI.
-3. **Create the API route** in `/src/app/api/new-feature/route.ts` to expose the flow via HTTP.
-4. **Build the UI component** in `/src/components/` that calls the API endpoint.
-5. **Write tests** in `/tests/lib/` for any new service logic.
+### To add a new AI feature (Updated 2025-10-30):
+1. **Define the AI flow** in `/src/ai/flows/new-feature.ts` using direct OpenAI or Perplexity API calls:
+   - Use `getOpenAIClient()` from `/src/lib/openai-client.ts` for scoring/grading tasks
+   - Use `perplexityRedChamberQA()` from `/src/ai/flows/perplexity-red-chamber-qa.ts` for analysis/Q&A tasks
+2. **Write unit tests first** in `/tests/ai/flows/new-feature.test.ts` with mocked API responses to define expected interface and behavior.
+3. **Implement the flow logic** with proper Zod schema validation for inputs/outputs and error handling.
+4. **Create the API route** in `/src/app/api/new-feature/route.ts` to expose the flow via HTTP.
+5. **Build the UI component** in `/src/components/` that calls the API endpoint.
+6. **Run tests** using `npm test -- tests/ai/flows/new-feature.test.ts` to verify functionality.
 
 ### To add a new page/route:
 1. **Create the page file** in `/src/app/(main)/new-page/page.tsx` for protected routes or `/src/app/new-page/page.tsx` for public routes.
@@ -383,6 +474,66 @@ This section provides a complete listing of all modules in the codebase with two
 5. **Build UI component** in `/src/components/daily-tasks/` for task display and submission.
 6. **Test end-to-end** by generating, displaying, submitting, and grading the new task type.
 
+### To create a new repository for SQLite data access:
+1. **Create repository file** in `/src/lib/repositories/new-entity-repository.ts` with CRUD operations.
+2. **Use prepared statements** for all SQL queries to prevent SQL injection (e.g., `db.prepare('SELECT * FROM table WHERE id = ?')`).
+3. **Implement core functions**: create (single), batchCreate, getById, getByUserId, update, delete, count.
+4. **Add error handling** with try-catch blocks and meaningful error messages for debugging.
+5. **Write comprehensive tests** in `/tests/lib/repositories/` with 25+ test cases covering CRUD, batch operations, error cases, and edge conditions.
+6. **Use in-memory SQLite** (`:memory:`) in tests for isolation and speed.
+7. **Verify with TypeScript** by running `npm run typecheck` to ensure type safety.
+
+### To migrate a service to dual-mode (SQLite + Firebase):
+1. **Create repository** following the workflow above for SQLite data access layer.
+2. **Update service file** to import and use the repository for SQLite operations.
+3. **Implement dual-mode pattern** with SQLite-first, Firebase-fallback using this template:
+   ```typescript
+   export async function serviceFunction(params) {
+     // Try SQLite first
+     if (checkSQLiteAvailability()) {
+       try {
+         const result = repository.function(params);
+         console.log('✅ SQLite operation successful');
+         return result;
+       } catch (error) {
+         console.error('❌ SQLite failed, falling back to Firebase:', error.message);
+       }
+     }
+     // Fallback to Firebase
+     const result = await firebaseOperation(params);
+     console.log('✅ Firebase operation successful');
+     return result;
+   }
+   ```
+4. **Create migration script** in `/scripts/migrations/` extending BaseMigrator for data transfer.
+5. **Add npm script** in `package.json` for migration execution (e.g., `"migrate:entity": "tsx scripts/migrations/migrate-entity.ts"`).
+6. **Run TypeScript check** (`npm run typecheck`) to verify UI compatibility - zero errors expected.
+7. **Test migration** with `--dry-run` flag first, then execute actual migration.
+8. **Verify data integrity** by comparing counts and sampling data between Firebase and SQLite.
+
+### To run data migrations:
+* **Dry run (test):** `npm run migrate:highlights -- --dry-run` or `npm run migrate:notes -- --dry-run`
+* **Verbose output:** `npm run migrate:highlights -- --verbose`
+* **Actual migration:** `npm run migrate:highlights` (after dry run verification)
+* **Migrate all Phase 2:** `npm run migrate:all-phase2` (highlights + notes)
+* **Skip validation:** `npm run migrate:notes -- --no-validate` (not recommended)
+
+### To use guest account for testing (Phase 4-T1):
+1. **Automatic seeding** on development server start (via instrumentation hook in `instrumentation.ts`)
+2. **Manual seeding** with reset: `tsx scripts/seed-guest-account.ts --reset`
+3. **Login** with User ID: `guest-test-user-00000000` (or email: `guest@redmansion.test`)
+4. **Verify** dashboard shows 🧪 測試帳號 badge with "固定 70 XP • 2 個每日任務"
+5. **Check fixed tasks**: Navigate to daily tasks page - should show 2 predefined tasks
+6. **Test AI grading**: Complete tasks to verify AI evaluation works correctly
+7. **Reset testing**: Restart development server - guest account resets to 70 XP and 0 completed tasks
+* **Guest account features**:
+  - Fixed user ID, email, username (never changes)
+  - Always 70 XP and level 1 on server restart
+  - 2 fixed daily tasks (reading comprehension 50 XP, character analysis 30 XP)
+  - No dynamic task generation (returns fixed tasks from database)
+  - AI grading enabled for comprehensive testing
+  - Disabled in production environment (development only)
+
 ### To run tests:
 * **All tests:** `npm test`
 * **Watch mode:** `npm test -- --watch`
@@ -392,7 +543,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### To develop and debug:
 * **Development server:** `npm run dev` (runs on port 3001)
-* **AI development:** `npm run genkit:dev` (opens GenKit UI for testing AI flows)
+* **AI testing:** `npm test -- tests/ai/flows/` (run all AI flow tests with mocked API responses)
 * **Type checking:** `npm run typecheck`
 * **Linting:** `npm run lint`
 * **Production build:** `npm run build`
@@ -415,23 +566,36 @@ This section provides a complete listing of all modules in the codebase with two
 * **docs/testing/** - Test strategies, coverage analysis, and quality assurance reports
 * **docs/improvement_report/** - Enhancement proposals and implementation reports
 * **docs/setup/** - Deployment guides and environment configuration
+* **docs/firebaseToSQLlite/** - Firebase→SQLite migration project documentation
+  * **PHASE2-COMPLETION-REPORT.md** - Comprehensive Phase 2 completion report (highlights & notes migration)
+  * **TASK.md** - Detailed migration task tracking with 25 tasks across 5 phases
+  * **planningSpec.md** - Migration strategy and architectural planning
 
 ### API Documentation
-* **GenKit Development UI** - Access at `http://localhost:3100` after running `npm run genkit:dev`
 * **API Routes** - All endpoints are defined in `/src/app/api/` with Next.js route handlers
+* **AI Flow Testing** - Test AI flows through Jest unit tests in `/tests/ai/flows/` with mocked API responses
 * **Firebase Console** - Authentication and Firestore database management
+* **OpenAI API** - Direct integration with GPT-4-mini for scoring tasks
+* **Perplexity API** - Direct integration with Sonar for analysis and Q&A tasks
 
 ### Development Resources
 * **Next.js 15 Documentation** - https://nextjs.org/docs
-* **GenKit Framework** - https://firebase.google.com/docs/genkit
+* **OpenAI API Documentation** - https://platform.openai.com/docs/api-reference
+* **Perplexity API Documentation** - https://docs.perplexity.ai/
 * **Radix UI Components** - https://www.radix-ui.com/primitives/docs/overview/introduction
 * **Tailwind CSS** - https://tailwindcss.com/docs
 * **Firebase** - https://firebase.google.com/docs
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
+**Document Version:** 1.4
+**Last Updated:** 2025-10-31
 **Maintained By:** Development Team
+**Change Log:**
+* **v1.4 (2025-10-31):** Phase 4 Completion - Guest Account System (fixed test environment with 70 XP baseline, server auto-reset, 13/13 tests passing), Login Logo Update (replaced ScrollText with official logo_circle.png), Performance Optimization (build time 126s → 59s, 53% improvement via SWC minification, lazy loading, CSS optimization). Fixed 2 critical bugs: import path issue (scripts → src/lib/constants) and repository import pattern (object → direct function).
+* **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-4-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
+* **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
+* **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests
+* **v1.0 (2025-10-27):** Initial comprehensive project structure documentation
 
 This document serves as the architectural map for onboarding new engineers and understanding the project's structure and design philosophy.

@@ -1,16 +1,20 @@
 /**
- * @fileOverview Service functions for saving and retrieving user notes in Firestore.
+ * @fileOverview Service functions for saving and retrieving user notes.
  *
  * This module provides functions to save a note and fetch notes for a specific user and chapter.
  * It is designed for integration with the Red Mansion reading system's note-taking feature.
+ *
+ * **SQLITE-025**: Migrated to SQLite-only (Firebase removed)
+ * - Uses SQLite database exclusively via note-repository
+ * - No Firebase/Firestore fallback
+ *
+ * @phase Phase 2 - SQLITE-006 - Simple Services Migration (Notes)
+ * @updated SQLITE-025 - Firebase removal
  */
-
-import { db } from './firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 
 // Type definition for a user note
 export interface Note {
-  id?: string; // Firestore document ID
+  id?: string; // Generated ID from SQLite
   userId: string; // User's unique ID
   chapterId: number; // Chapter number
   selectedText: string; // The text user selected
@@ -21,6 +25,26 @@ export interface Note {
   wordCount?: number; // Calculated word count of note content
   lastModified?: Date; // Last modification timestamp
   noteType?: string; // Optional categorization (general, vocabulary, character, theme, question)
+}
+
+// SQLite Database Integration
+// Conditional import: only load SQLite modules on server-side
+// Avoid loading better-sqlite3 native module on client-side (browser)
+let noteRepository: any;
+
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined';
+
+if (SQLITE_SERVER_ENABLED) {
+  try {
+    noteRepository = require('./repositories/note-repository');
+    console.log('✅ [NotesService] SQLite modules loaded successfully');
+  } catch (error: any) {
+    console.error('❌ [NotesService] Failed to load SQLite modules');
+    console.error('   Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.');
+    throw new Error(
+      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to diagnose the environment.'
+    );
+  }
 }
 
 /**
@@ -34,132 +58,134 @@ function calculateWordCount(text: string): number {
 }
 
 /**
- * Save a note to Firestore for a user and chapter.
+ * Save a note for a user and chapter.
+ * SQLite-only operation.
+ *
  * @param note - Note object without id and createdAt
- * @returns The Firestore document ID of the saved note
+ * @returns The document ID of the saved note
  */
 export async function saveNote(note: Omit<Note, 'id' | 'createdAt'>) {
-  const now = Timestamp.now();
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot save note: SQLite only available server-side');
+  }
 
-  // Add a new document to the 'notes' collection with auto-calculated fields
-  const docRef = await addDoc(collection(db, 'notes'), {
-    ...note,
-    createdAt: now,
-    lastModified: now,
-    wordCount: calculateWordCount(note.note),
-    tags: note.tags || [],
-    isPublic: note.isPublic || false,
-  });
-  return docRef.id;
+  const noteId = noteRepository.createNote(note);
+  console.log(`✅ [NotesService] Saved note to SQLite: ${noteId}`);
+  return noteId;
 }
 
 /**
- * Update an existing note in Firestore.
- * @param id - The Firestore document ID of the note to update
+ * Update an existing note.
+ * SQLite-only operation.
+ *
+ * @param id - The document ID of the note to update
  * @param content - The new content of the note
  */
 export async function updateNote(id: string, content: string) {
-  const noteRef = doc(db, 'notes', id);
-  await updateDoc(noteRef, {
-    note: content,
-    wordCount: calculateWordCount(content),
-    lastModified: Timestamp.now(),
-  });
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot update note: SQLite only available server-side');
+  }
+
+  noteRepository.updateNoteContent(id, content);
+  console.log(`✅ [NotesService] Updated note in SQLite: ${id}`);
 }
 
 /**
- * Fetch all notes for a user and chapter from Firestore.
+ * Fetch all notes for a user and chapter.
+ * SQLite-only operation.
+ *
  * @param userId - The user's unique ID
  * @param chapterId - The chapter number
  * @returns Array of Note objects
  */
 export async function getNotesByUserAndChapter(userId: string, chapterId: number): Promise<Note[]> {
-  const q = query(
-    collection(db, 'notes'),
-    where('userId', '==', userId),
-    where('chapterId', '==', chapterId)
-  );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt.toDate(),
-  } as Note));
-}
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot get notes: SQLite only available server-side');
+  }
 
-export async function deleteNoteById(id: string) {
-  await deleteDoc(doc(db, 'notes', id));
+  const notes = noteRepository.getNotesByUserAndChapter(userId, chapterId);
+  console.log(`✅ [NotesService] Retrieved ${notes.length} notes from SQLite (user: ${userId}, chapter: ${chapterId})`);
+  return notes;
 }
 
 /**
- * Fetch all notes for a user across all chapters from Firestore.
+ * Delete a note by ID.
+ * SQLite-only operation.
+ *
+ * @param id - The note ID
+ */
+export async function deleteNoteById(id: string) {
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot delete note: SQLite only available server-side');
+  }
+
+  noteRepository.deleteNote(id);
+  console.log(`✅ [NotesService] Deleted note from SQLite: ${id}`);
+}
+
+/**
+ * Fetch all notes for a user across all chapters.
+ * SQLite-only operation.
  * Used for the notes dashboard page.
+ *
  * @param userId - The user's unique ID
  * @returns Array of Note objects sorted by creation date (newest first)
  */
 export async function getAllNotesByUser(userId: string): Promise<Note[]> {
-  const q = query(
-    collection(db, 'notes'),
-    where('userId', '==', userId)
-  );
-  const querySnapshot = await getDocs(q);
-  const notes = querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt.toDate(),
-    lastModified: doc.data().lastModified?.toDate() || doc.data().createdAt.toDate(),
-  } as Note));
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot get notes: SQLite only available server-side');
+  }
 
-  // Sort by creation date, newest first
-  return notes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const notes = noteRepository.getAllNotesByUser(userId);
+  console.log(`✅ [NotesService] Retrieved ${notes.length} notes from SQLite (user: ${userId})`);
+  return notes;
 }
 
 /**
  * Update the visibility (public/private) of a note.
- * @param noteId - The Firestore document ID of the note
+ * SQLite-only operation.
+ *
+ * @param noteId - The document ID of the note
  * @param isPublic - Whether the note should be public
  */
 export async function updateNoteVisibility(noteId: string, isPublic: boolean) {
-  const noteRef = doc(db, 'notes', noteId);
-  await updateDoc(noteRef, {
-    isPublic,
-    lastModified: Timestamp.now(),
-  });
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot update note visibility: SQLite only available server-side');
+  }
+
+  noteRepository.updateNoteVisibility(noteId, isPublic);
+  console.log(`✅ [NotesService] Updated note visibility in SQLite: ${noteId} (public: ${isPublic})`);
 }
 
 /**
  * Fetch public notes from all users for the community feed.
+ * SQLite-only operation.
+ *
  * @param limit - Maximum number of notes to fetch (default: 50)
  * @returns Array of public Note objects sorted by creation date (newest first)
  */
 export async function getPublicNotes(limit: number = 50): Promise<Note[]> {
-  const q = query(
-    collection(db, 'notes'),
-    where('isPublic', '==', true)
-  );
-  const querySnapshot = await getDocs(q);
-  const notes = querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt.toDate(),
-    lastModified: doc.data().lastModified?.toDate() || doc.data().createdAt.toDate(),
-  } as Note));
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot get public notes: SQLite only available server-side');
+  }
 
-  // Sort by creation date, newest first, and limit results
-  return notes
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, limit);
+  const notes = noteRepository.getPublicNotes(limit);
+  console.log(`✅ [NotesService] Retrieved ${notes.length} public notes from SQLite`);
+  return notes;
 }
 
 /**
  * Update note tags.
- * @param noteId - The Firestore document ID of the note
+ * SQLite-only operation.
+ *
+ * @param noteId - The document ID of the note
  * @param tags - Array of tag strings
  */
 export async function updateNoteTags(noteId: string, tags: string[]) {
-  const noteRef = doc(db, 'notes', noteId);
-  await updateDoc(noteRef, {
-    tags,
-    lastModified: Timestamp.now(),
-  });
-} 
+  if (!SQLITE_SERVER_ENABLED) {
+    throw new Error('[NotesService] Cannot update note tags: SQLite only available server-side');
+  }
+
+  noteRepository.updateNoteTags(noteId, tags);
+  console.log(`✅ [NotesService] Updated note tags in SQLite: ${noteId} (${tags.length} tags)`);
+}

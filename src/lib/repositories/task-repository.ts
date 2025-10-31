@@ -295,19 +295,35 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
 
       const now = Date.now();
 
-      stmt.run(
-        id,
-        taskType,
-        difficulty,
-        title,
-        description || null,
-        baseXP,
-        JSON.stringify(contentFields),
-        sourceChapter || null,
-        sourceVerseStart || null,
-        sourceVerseEnd || null,
-        createdAt ? toUnixTimestamp(createdAt) : now
-      );
+      // Enhanced: Robust null-safety with comprehensive fallback values
+      const safeTitle = title || `${taskType} 任務`;
+      const safeDescription = description || `請完成此 ${taskType} 類型的學習任務`;
+      // Use nullish coalescing (??) to preserve 0 values, with fallback of 10 XP
+      const safeBaseXP = baseXP ?? 10;
+
+      try {
+        stmt.run(
+          id,
+          taskType,
+          difficulty,
+          safeTitle,
+          safeDescription,
+          safeBaseXP,
+          JSON.stringify(contentFields),
+          sourceChapter || null,
+          sourceVerseStart || null,
+          sourceVerseEnd || null,
+          createdAt ? toUnixTimestamp(createdAt) : now
+        );
+      } catch (error) {
+        // Enhanced error logging to identify problematic field
+        console.error(`❌ [TaskRepository] SQLite constraint error for task ${id}:`);
+        console.error(`   Task Type: ${taskType}, Difficulty: ${difficulty}`);
+        console.error(`   Title: ${safeTitle}, Description: ${safeDescription}, BaseXP: ${safeBaseXP}`);
+        console.error(`   Error:`, error);
+        console.error(`   Full Task Data:`, JSON.stringify(task, null, 2));
+        throw error;
+      }
     }
   });
 

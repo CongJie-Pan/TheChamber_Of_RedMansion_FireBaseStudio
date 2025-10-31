@@ -13,28 +13,35 @@
  * The tests use mock AI responses to avoid actual API calls.
  */
 
-// Mock the AI imports to avoid actual API calls during testing
-jest.mock('@/ai/genkit', () => ({
-  ai: {
-    defineFlow: jest.fn((config, handler) => handler),
-    definePrompt: jest.fn(() => jest.fn(() => ({
-      output: {
-        accuracy: 95,
-        completeness: 90,
-        overallScore: 92,
-        mistakes: [
-          {
-            line: 2,
-            expected: '花謝花飛花滿天',
-            actual: '花謝花飛滿天',
-            type: 'missing',
-          }
-        ],
-        feedback: '您的背誦整體很好，只有個別字詞有遺漏。建議多加練習，注意每個字的準確性。',
-        literaryAnalysis: '## 詩詞賞析\n\n這首詩是《紅樓夢》中**林黛玉**的代表作品《葬花吟》，表達了對花落的感傷。'
+// Mock OpenAI client to avoid actual API calls during testing
+jest.mock('@/lib/openai-client', () => ({
+  getOpenAIClient: jest.fn(() => ({
+    chat: {
+      completions: {
+        create: jest.fn(async () => ({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                accuracy: 95,
+                completeness: 90,
+                overallScore: 92,
+                mistakes: [
+                  {
+                    line: 2,
+                    expected: '花謝花飛花滿天',
+                    actual: '花謝花飛滿天',
+                    type: 'missing',
+                  }
+                ],
+                feedback: '您的背誦整體很好，只有個別字詞有遺漏。建議多加練習，注意每個字的準確性。',
+                literaryAnalysis: '## 詩詞賞析\n\n這首詩是《紅樓夢》中**林黛玉**的代表作品《葬花吟》，表達了對花落的感傷。'
+              })
+            }
+          }]
+        }))
       }
-    }))),
-  },
+    }
+  }))
 }));
 
 // Import the function to test after mocking
@@ -50,7 +57,7 @@ describe('Poetry Quality Assessment AI Flow Tests', () => {
   });
 
   afterEach(() => {
-    jest.restoreMocks();
+    jest.restoreAllMocks();
   });
 
   describe('Input Validation', () => {

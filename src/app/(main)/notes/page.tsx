@@ -92,7 +92,7 @@ export default function NotesPage() {
    */
   useEffect(() => {
     const fetchNotes = async () => {
-      if (!user?.uid) {
+      if (!user?.id) {
         setLoading(false);
         return;
       }
@@ -100,7 +100,7 @@ export default function NotesPage() {
       try {
         setLoading(true);
         setError(null);
-        const userNotes = await getAllNotesByUser(user.uid);
+        const userNotes = await getAllNotesByUser(user.id);
         setNotes(userNotes);
         setFilteredNotes(userNotes);
       } catch (err) {
@@ -117,7 +117,7 @@ export default function NotesPage() {
     };
 
     fetchNotes();
-  }, [user?.uid, t, toast]);
+  }, [user?.id, t, toast]);
 
   // Handle note deletion
   const handleDeleteNote = async (noteId: string) => {

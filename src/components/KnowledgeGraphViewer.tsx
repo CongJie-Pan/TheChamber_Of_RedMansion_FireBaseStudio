@@ -364,16 +364,18 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   // Refs for D3.js integration
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<KnowledgeGraphNode, KnowledgeGraphLink> | null>(null);
-  
+  const isInitialMount = useRef(true); // Track if this is the first render for initial zoom
+
   // Component state
   const [isPlaying, setIsPlaying] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  
-  // D3.js zoom behavior
+
+  // Phase 3-T2: D3.js zoom behavior with persistent transform state
   const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const currentTransformRef = useRef<d3.ZoomTransform | null>(null); // Preserve zoom across re-renders
 
   // Initialize D3.js visualization
   useEffect(() => {
@@ -385,48 +387,119 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     // Create main group for zooming and panning
     const g = svg.append("g").attr("class", "main-group");
 
-    // Define gradients for enhanced visual appeal
+    // Define gradients for enhanced visibility
     const defs = svg.append("defs");
-    
-    // Gradient for links
+
+    // Enhanced gradient for links with higher opacity for better visibility
     const linkGradient = defs.append("linearGradient")
       .attr("id", "link-gradient")
       .attr("gradientUnits", "userSpaceOnUse");
     linkGradient.append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", "#DC2626")
-      .attr("stop-opacity", 0.6);
+      .attr("stop-color", "#DC2626") // Red start for better visibility
+      .attr("stop-opacity", 0.9); // Increased from 0.4 for better visibility
     linkGradient.append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", "#EAB308")
-      .attr("stop-opacity", 0.3);
+      .attr("stop-color", "#EAB308") // Yellow end for gradient effect
+      .attr("stop-opacity", 0.7); // Increased from 0.3 for better visibility
 
-    // Create force simulation
+    // Create force simulation with enhanced spacing parameters to prevent node overlap
+    // Reason: Users reported nodes overlapping - need stronger repulsion and larger distances
     const simulation = d3.forceSimulation<KnowledgeGraphNode>(graphData.nodes)
       .force("link", d3.forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(graphData.links)
         .id(d => d.id)
-        .distance(d => d.distance)
-        .strength(d => d.strength * 0.3))
+        .distance(d => d.distance * 2.0) // Doubled from 1.3x: 120-240px spacing for clarity
+        .strength(d => d.strength * 0.2)) // Reduced from 0.3 to allow more spreading
       .force("charge", d3.forceManyBody()
-        .strength(-800)
-        .distanceMax(400))
+        .strength(-2500) // Increased from -1200: much stronger repulsion to prevent overlap
+        .distanceMax(600)) // Increased from 500: wider repulsion range
       .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force("collision", d3.forceCollide()
-        .radius(d => (d as KnowledgeGraphNode).radius + 8)
-        .strength(0.7));
+        .radius(d => (d as KnowledgeGraphNode).radius + 30) // Doubled from +15: larger personal space
+        .strength(1.0)) // Maximum strength (was 0.85): strict collision prevention
+      .alphaDecay(0.02) // Faster decay to stop sooner (default: 0.0228)
+      .velocityDecay(0.4) // Increased friction to reduce jitter (default: 0.4)
+      .alphaMin(0.001); // Stop simulation when alpha drops below this threshold
 
     simulationRef.current = simulation;
 
-    // Create links
+    // Phase 3-T2: Force stop simulation after 5 seconds to prevent infinite jitter
+    const simulationTimeout = setTimeout(() => {
+      console.log('[KnowledgeGraph] Forcing simulation stop after 5 seconds');
+      simulation.stop();
+      setIsPlaying(false);
+    }, 5000);
+
+    // Create links with enhanced visibility
+    // Reason for changes:
+    // - Increased stroke-width from Math.sqrt(d.strength) * 3 to * 5 + 2 for thicker lines
+    // - Increased stroke-opacity from 0.6 to 0.9 for better visibility
+    // - Enhanced drop-shadow for clearer edge definition
     const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
       .data(graphData.links)
       .enter().append("line")
       .attr("stroke", "url(#link-gradient)")
-      .attr("stroke-width", d => Math.sqrt(d.strength) * 3)
-      .attr("stroke-opacity", 0.6)
-      .style("filter", "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))");
+      .attr("stroke-width", d => Math.sqrt(d.strength) * 5 + 2) // Increased from * 3, now 3.7-5.7px instead of 2.1-3px
+      .attr("stroke-opacity", 0.9) // Increased from 0.6 for better visibility
+      .style("filter", "drop-shadow(0px 2px 6px rgba(220,38,38,0.4))"); // Enhanced shadow with red tint
+
+    // Helper function to truncate text based on node radius
+    // Reason: Long entity names need to be truncated to fit within nodes
+    // Formula: maxChars ≈ radius / 3.5 (inverse of the radius calculation in knowledgeGraphUtils.ts)
+    const truncateText = (text: string, radius: number): string => {
+      const maxChars = Math.floor(radius / 3.5);
+      if (text.length <= maxChars) return text;
+      return text.substring(0, maxChars - 1) + '…';
+    };
+
+    // Create relationship labels with background boxes for improved readability
+    // Reason: Muted design requires softer labels with backgrounds instead of heavy shadows
+    const linkLabelGroup = g.append("g")
+      .attr("class", "link-labels");
+
+    const linkLabel = linkLabelGroup.selectAll("g")
+      .data(graphData.links)
+      .enter().append("g")
+      .attr("class", "link-label-group");
+
+    // Add background rectangles for labels
+    linkLabel.append("rect")
+      .attr("class", "link-label-bg")
+      .attr("fill", "rgba(250, 250, 245, 0.9)") // Off-white with 90% opacity
+      .attr("stroke", "rgba(200, 200, 200, 0.4)") // Subtle border
+      .attr("stroke-width", 0.5)
+      .attr("rx", 3) // Rounded corners
+      .attr("ry", 3)
+      .style("pointer-events", "none");
+
+    // Add text labels
+    const linkText = linkLabel.append("text")
+      .attr("class", "link-label-text")
+      .text(d => d.relationship) // Display relationship type from data
+      .attr("font-size", "18px") // Increased from 14px for better readability at smaller zoom
+      .attr("font-weight", "600") // Slightly bolder for better visibility
+      .attr("fill", "#2C2C2C") // Darker gray for better contrast
+      .attr("text-anchor", "middle")
+      .attr("dy", ".35em")
+      .style("pointer-events", "none")
+      .style("font-family", "'Noto Serif SC', serif") // Match Chinese font
+      .style("letter-spacing", "0.5px") // Improve readability
+      .style("filter", "drop-shadow(1px 1px 2px rgba(0,0,0,0.3))"); // Slightly stronger shadow for clarity
+
+    // Calculate and set background rectangle dimensions
+    linkLabel.each(function(d) {
+      const text = d3.select(this).select("text").node() as SVGTextElement;
+      const bbox = text?.getBBox();
+      if (bbox) {
+        d3.select(this).select("rect")
+          .attr("x", bbox.x - 4)
+          .attr("y", bbox.y - 2)
+          .attr("width", bbox.width + 8)
+          .attr("height", bbox.height + 4);
+      }
+    });
 
     // Create nodes
     const node = g.append("g")
@@ -452,35 +525,50 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           d.fy = null;
         }));
 
-    // Add circular backgrounds for nodes
+    // Add circular backgrounds for nodes with visual hierarchy
+    // Reason: Differentiate importance levels through stroke width and opacity
     node.append("circle")
       .attr("r", d => d.radius)
       .attr("fill", d => d.color)
       .attr("stroke", "#ffffff")
-      .attr("stroke-width", 3)
-      .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.2))")
-      .style("opacity", 0.9);
+      .attr("stroke-width", d => {
+        // Visual hierarchy through stroke weight
+        if (d.importance === 'primary') return 4; // Most prominent
+        if (d.importance === 'secondary') return 2.5; // Medium prominence
+        return 1.5; // Tertiary - subtle
+      })
+      .style("filter", "drop-shadow(0px 3px 6px rgba(0,0,0,0.12))") // Softer shadow
+      .style("opacity", d => {
+        // Visual hierarchy through opacity
+        if (d.importance === 'primary') return 1.0; // Fully opaque
+        if (d.importance === 'secondary') return 0.85; // Slightly faded
+        return 0.7; // Tertiary - more faded
+      });
 
-    // Add inner circles for depth
+    // Add inner circles for depth with softer styling
     node.append("circle")
       .attr("r", d => d.radius - 5)
       .attr("fill", "none")
-      .attr("stroke", "rgba(255,255,255,0.5)")
-      .attr("stroke-width", 1);
+      .attr("stroke", "rgba(245,245,235,0.35)") // Warmer, softer cream tone
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2,2"); // Decorative dashed pattern
 
-    // Add text labels
+    // Add text labels with truncation and softer styling
+    // Reason: Apply truncation to prevent text overflow, lighter weight for elegance
     node.append("text")
-      .text(d => d.name)
+      .text(d => truncateText(d.name, d.radius)) // Apply truncation based on node radius
       .attr("text-anchor", "middle")
       .attr("dy", ".35em")
       .style("font-family", "'Noto Serif SC', serif")
       .style("font-size", d => `${Math.max(12, d.radius / 2.2)}px`)
-      .style("font-weight", "600")
+      .style("font-weight", "500") // Lighter weight (was 600)
       .style("fill", "#ffffff")
-      .style("text-shadow", "1px 1px 2px rgba(0,0,0,0.7)")
-      .style("pointer-events", "none");
+      .style("text-shadow", "1px 1px 3px rgba(0,0,0,0.4)") // Softer shadow
+      .style("pointer-events", "none")
+      .append("title") // Add tooltip to show full text on hover
+      .text(d => d.name);
 
-    // Node interaction handlers
+    // Node interaction handlers with smooth animations
     node
       .on("click", (event, d) => {
         setSelectedNode(d.id);
@@ -488,35 +576,105 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       })
       .on("mouseenter", (event, d) => {
         setHoveredNode(d.id);
-        
-        // Highlight connected links
-        link.style("stroke-opacity", l => 
-          (l.source as KnowledgeGraphNode).id === d.id || 
-          (l.target as KnowledgeGraphNode).id === d.id ? 1 : 0.2);
-        
-        // Highlight connected nodes
+
+        // Smooth transitions for all interactions
+        const transitionDuration = 150;
+
+        // Scale up hovered node with smooth animation
+        d3.select(event.currentTarget)
+          .select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .attr("r", (d as KnowledgeGraphNode).radius * 1.08); // Subtle 8% growth
+
+        // Highlight connected links with fade effect
+        link
+          .transition()
+          .duration(transitionDuration)
+          .style("stroke-opacity", l =>
+            (l.source as KnowledgeGraphNode).id === d.id ||
+            (l.target as KnowledgeGraphNode).id === d.id ? 0.8 : 0.15); // Brighter for connected
+
+        // Highlight connected relationship labels
+        linkLabel
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", l =>
+            (l.source as KnowledgeGraphNode).id === d.id ||
+            (l.target as KnowledgeGraphNode).id === d.id ? 1.0 : 0.3);
+
+        // Dim unconnected nodes
         node.select("circle")
+          .transition()
+          .duration(transitionDuration)
           .style("opacity", n => {
-            if (n.id === d.id) return 1;
-            return graphData.links.some(l => 
+            if (n.id === d.id) return 1.0;
+            return graphData.links.some(l =>
               ((l.source as KnowledgeGraphNode).id === d.id && (l.target as KnowledgeGraphNode).id === n.id) ||
               ((l.target as KnowledgeGraphNode).id === d.id && (l.source as KnowledgeGraphNode).id === n.id)
-            ) ? 0.8 : 0.3;
+            ) ? 0.75 : 0.25;
           });
       })
-      .on("mouseleave", () => {
+      .on("mouseleave", (event) => {
         setHoveredNode(null);
-        link.style("stroke-opacity", 0.6);
-        node.select("circle").style("opacity", 0.9);
+
+        const transitionDuration = 150;
+
+        // Reset node size
+        d3.select(event.currentTarget)
+          .select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .attr("r", (d: KnowledgeGraphNode) => d.radius);
+
+        // Reset link opacity
+        link
+          .transition()
+          .duration(transitionDuration)
+          .style("stroke-opacity", 0.5);
+
+        // Reset label opacity
+        linkLabel
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", 1.0);
+
+        // Reset node opacity based on importance
+        node.select("circle")
+          .transition()
+          .duration(transitionDuration)
+          .style("opacity", (d: KnowledgeGraphNode) => {
+            if (d.importance === 'primary') return 1.0;
+            if (d.importance === 'secondary') return 0.85;
+            return 0.7;
+          });
       });
 
     // Update positions on simulation tick
     simulation.on("tick", () => {
+      // Phase 3-T2: Check for convergence and stop simulation when stable
+      const alpha = simulation.alpha();
+      if (alpha < 0.01) {
+        console.log(`[KnowledgeGraph] Simulation converged (alpha=${alpha.toFixed(4)}), stopping`);
+        simulation.stop();
+        setIsPlaying(false);
+        return; // Stop updating positions once converged
+      }
+
       link
         .attr("x1", d => (d.source as KnowledgeGraphNode).x!)
         .attr("y1", d => (d.source as KnowledgeGraphNode).y!)
         .attr("x2", d => (d.target as KnowledgeGraphNode).x!)
         .attr("y2", d => (d.target as KnowledgeGraphNode).y!);
+
+      // Position relationship label groups (background + text) at edge midpoints
+      // Reason: Labels should appear centered between source and target nodes
+      linkLabel
+        .attr("transform", d => {
+          const midX = ((d.source as KnowledgeGraphNode).x! + (d.target as KnowledgeGraphNode).x!) / 2;
+          const midY = ((d.source as KnowledgeGraphNode).y! + (d.target as KnowledgeGraphNode).y!) / 2;
+          return `translate(${midX},${midY})`;
+        });
 
       node.attr("transform", d => `translate(${d.x},${d.y})`);
     });
@@ -528,16 +686,47 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
         const { transform } = event;
         g.attr("transform", transform);
         setZoomLevel(transform.k);
+        // Phase 3-T2: Save current transform to preserve zoom across re-renders
+        currentTransformRef.current = transform;
       });
 
     zoomBehavior.current = zoom;
     svg.call(zoom);
 
+    // Phase 3-T2: Restore saved zoom transform if exists (prevents zoom reset)
+    if (currentTransformRef.current && !isInitialMount.current) {
+      console.log('[KnowledgeGraph] Restoring zoom transform:', currentTransformRef.current);
+      svg.call(zoom.transform, currentTransformRef.current);
+    }
+
+    // Note: Initial zoom is set in separate useEffect to prevent reset on dimensions change
+
     // Cleanup function
     return () => {
       simulation.stop();
+      clearTimeout(simulationTimeout); // Phase 3-T2: Clear timeout to prevent memory leak
     };
   }, [graphData, dimensions.width, dimensions.height, onNodeClick]);
+
+  // Set initial zoom only once on first mount (separate from main useEffect)
+  // Reason: Prevents zoom reset when dimensions change, allowing user to freely zoom
+  useEffect(() => {
+    if (!svgRef.current || !zoomBehavior.current || !isInitialMount.current) return;
+
+    // Set initial zoom to 0.5x for better overview (only on first mount)
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate(dimensions.width / 2, dimensions.height / 2)
+      .scale(initialScale)
+      .translate(-dimensions.width / 2, -dimensions.height / 2);
+
+    const svg = d3.select(svgRef.current);
+    svg.call(zoomBehavior.current.transform, initialTransform);
+    setZoomLevel(initialScale);
+
+    // Mark as initialized to prevent re-execution
+    isInitialMount.current = false;
+  }, [dimensions.width, dimensions.height]); // Only depends on dimensions for initial calculation
 
   // Search functionality
   useEffect(() => {
@@ -565,12 +754,19 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   // Control functions
   const resetView = useCallback(() => {
     if (!svgRef.current || !zoomBehavior.current) return;
-    
+
+    // Reset to initial 0.5x zoom for better overview
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate(dimensions.width / 2, dimensions.height / 2)
+      .scale(initialScale)
+      .translate(-dimensions.width / 2, -dimensions.height / 2);
+
     d3.select(svgRef.current)
       .transition()
       .duration(750)
-      .call(zoomBehavior.current.transform, d3.zoomIdentity);
-  }, []);
+      .call(zoomBehavior.current.transform, initialTransform);
+  }, [dimensions.width, dimensions.height]);
 
   const toggleSimulation = useCallback(() => {
     if (!simulationRef.current) return;
@@ -659,29 +855,37 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           </div>
         </div>
 
-        {/* Floating legend for fullscreen */}
+        {/* Floating legend for fullscreen - Updated to match actual node colors */}
         <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-sm rounded-lg p-4 text-white">
           <h4 className="font-semibold text-sm mb-3">圖例</h4>
           <div className="space-y-2 text-xs">
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B6F47' }}></div>
               <span>神話人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span>世俗人物</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5B7C8D' }}></div>
+              <span>主要人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-              <span>神仙</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#9B8B7E' }}></div>
+              <span>次要人物</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span>神器/文學</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#6B7FA3' }}></div>
+              <span>神話地點</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <span>地點</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B8B73' }}></div>
+              <span>世俗地點</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#A68A5C' }}></div>
+              <span>重要物品/文獻</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7A8E92' }}></div>
+              <span>哲學概念</span>
             </div>
           </div>
         </div>
@@ -768,29 +972,37 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100"
         />
         
-        {/* Legend */}
+        {/* Legend - Updated to match actual node colors */}
         <div className="absolute top-4 right-4 bg-white/95 rounded-lg p-3 shadow-lg border">
           <h4 className="font-semibold text-sm mb-2 text-gray-800">圖例</h4>
           <div className="space-y-1 text-xs">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-red-600"></div>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B6F47' }}></div>
               <span>神話人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-green-600"></div>
-              <span>世俗人物</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5B7C8D' }}></div>
+              <span>主要人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-              <span>神仙</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#9B8B7E' }}></div>
+              <span>次要人物</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-600"></div>
-              <span>神器/文學</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#6B7FA3' }}></div>
+              <span>神話地點</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-amber-600"></div>
-              <span>地點</span>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B8B73' }}></div>
+              <span>世俗地點</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#A68A5C' }}></div>
+              <span>重要物品/文獻</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7A8E92' }}></div>
+              <span>哲學概念</span>
             </div>
           </div>
         </div>

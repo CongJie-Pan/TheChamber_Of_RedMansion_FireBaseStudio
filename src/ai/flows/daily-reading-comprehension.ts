@@ -15,14 +15,15 @@
  * Usage: Called by DailyTaskService when users submit morning reading task answers
  *
  * @phase Phase 2.1 - AI Integration & Scoring System
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
  */
 
 'use server'; // Required for server-side AI processing
 
-// Import the configured AI instance from GenKit
-import { ai } from '@/ai/genkit';
+// Import OpenAI client for AI processing
+import { getOpenAIClient } from '@/lib/openai-client';
 // Import Zod for schema validation and type inference
-import { z } from 'genkit';
+import { z } from 'zod';
 
 /**
  * Input schema for reading comprehension assessment
@@ -61,30 +62,27 @@ const ReadingComprehensionOutputSchema = z.object({
 export type ReadingComprehensionOutput = z.infer<typeof ReadingComprehensionOutputSchema>;
 
 /**
- * Define the AI prompt for reading comprehension assessment
- * 定義晨讀理解評估的 AI 提示
+ * Build the assessment prompt for OpenAI
+ * 構建 OpenAI 評估提示
  */
-const readingComprehensionPrompt = ai.definePrompt({
-  name: 'readingComprehensionPrompt',
-  input: { schema: ReadingComprehensionInputSchema },
-  output: { schema: ReadingComprehensionOutputSchema },
-  prompt: `你是一位專業的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
+function buildAssessmentPrompt(input: ReadingComprehensionInput): string {
+  const keywordsList = input.expectedKeywords.map(k => `- ${k}`).join('\n');
+
+  return `你是一位專業的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
 
 **閱讀段落：**
-{{{passage}}}
+${input.passage}
 
 **問題：**
-{{{question}}}
+${input.question}
 
 **學生回答：**
-{{{userAnswer}}}
+${input.userAnswer}
 
 **預期關鍵詞：**
-{{#each expectedKeywords}}
-- {{this}}
-{{/each}}
+${keywordsList}
 
-**任務難度：** {{difficulty}}
+**任務難度：** ${input.difficulty}
 
 請根據以下標準評估學生的回答：
 
@@ -98,66 +96,62 @@ const readingComprehensionPrompt = ai.definePrompt({
 - **中等難度 (medium)**: 需要回答準確、涵蓋多數關鍵詞、有一定分析深度，才能給予 70+ 分
 - **困難難度 (hard)**: 需要深入分析、全面涵蓋關鍵詞、展現文學洞察，才能給予 70+ 分
 
-請提供：
-1. **分數 (score)**: 0-100 的整數分數
-2. **反饋 (feedback)**: 鼓勵性的簡短反饋 (50-100字)，指出優點和改進方向
-3. **已涵蓋要點 (keyPointsCovered)**: 學生成功提到的關鍵詞列表
-4. **遺漏要點 (keyPointsMissed)**: 學生未提到但應該包含的關鍵詞列表
-5. **詳細分析 (detailedAnalysis)**: 200-300字的詳細評析，使用 Markdown 格式，包含：
-   - 回答的亮點（用 **粗體** 標註）
-   - 具體的改進建議（用列表格式）
-   - 延伸閱讀建議（如適用）
+請以 JSON 格式回應，包含以下欄位：
+{
+  "score": 0-100的整數分數,
+  "feedback": "鼓勵性的簡短反饋 (50-100字)，指出優點和改進方向",
+  "keyPointsCovered": ["學生成功提到的關鍵詞1", "關鍵詞2"],
+  "keyPointsMissed": ["學生未提到但應該包含的關鍵詞1", "關鍵詞2"],
+  "detailedAnalysis": "200-300字的詳細評析，使用 Markdown 格式，包含：回答的亮點（用 **粗體** 標註）、具體的改進建議（用列表格式）、延伸閱讀建議（如適用）"
+}
 
-請以繁體中文回應，語氣友善且富有教育性。`,
-});
+請以繁體中文回應，語氣友善且富有教育性。確保回覆格式為有效的 JSON。`;
+}
 
 /**
- * Define the AI flow for reading comprehension assessment
- * 定義晨讀理解評估的 AI 流程
+ * Parse OpenAI response and validate schema
+ * 解析 OpenAI 回應並驗證結構
  */
-const readingComprehensionFlow = ai.defineFlow(
-  {
-    name: 'readingComprehensionFlow',
-    inputSchema: ReadingComprehensionInputSchema,
-    outputSchema: ReadingComprehensionOutputSchema,
-  },
-  async (input) => {
-    try {
-      const { output } = await readingComprehensionPrompt(input);
+function parseAssessmentResponse(responseText: string, input: ReadingComprehensionInput): ReadingComprehensionOutput {
+  try {
+    // Try to parse JSON response
+    const parsed = JSON.parse(responseText);
 
-      // Validate output completeness
-      if (!output || typeof output.score !== 'number' || !output.feedback) {
-        console.error('AI flow readingComprehensionFlow produced incomplete output:', output);
-        throw new Error('AI 模型未能生成有效的閱讀理解評估。');
-      }
+    // Validate and sanitize score
+    const score = typeof parsed.score === 'number'
+      ? Math.max(0, Math.min(100, Math.round(parsed.score)))
+      : 50;
 
-      // Ensure score is within valid range
-      const validatedScore = Math.max(0, Math.min(100, Math.round(output.score)));
+    // Validate and sanitize other fields
+    const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
+      ? parsed.feedback
+      : '感謝您的回答，請繼續努力！';
 
-      return {
-        score: validatedScore,
-        feedback: output.feedback || '感謝您的回答，請繼續努力！',
-        keyPointsCovered: output.keyPointsCovered || [],
-        keyPointsMissed: output.keyPointsMissed || [],
-        detailedAnalysis: output.detailedAnalysis || '# 評估分析\n\n您的回答已收到，請繼續學習。',
-      };
-    } catch (error) {
-      // Log error only in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Error in readingComprehensionFlow:', error);
-      }
+    const keyPointsCovered = Array.isArray(parsed.keyPointsCovered)
+      ? parsed.keyPointsCovered.filter((k: any): k is string => typeof k === 'string')
+      : [];
 
-      // Return fallback assessment
-      return {
-        score: 50,
-        feedback: '很抱歉，AI 評分系統暫時無法使用。您的回答已記錄，我們會盡快人工審核。',
-        keyPointsCovered: [],
-        keyPointsMissed: input.expectedKeywords,
-        detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細反饋。',
-      };
-    }
+    const keyPointsMissed = Array.isArray(parsed.keyPointsMissed)
+      ? parsed.keyPointsMissed.filter((k: any): k is string => typeof k === 'string')
+      : input.expectedKeywords;
+
+    const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
+      ? parsed.detailedAnalysis
+      : '# 評估分析\n\n您的回答已收到，請繼續學習。';
+
+    return {
+      score,
+      feedback,
+      keyPointsCovered,
+      keyPointsMissed,
+      detailedAnalysis,
+    };
+  } catch (error) {
+    // If JSON parsing fails, return fallback response
+    console.error('Failed to parse OpenAI response as JSON:', error);
+    throw new Error('AI response parsing failed');
   }
-);
+}
 
 /**
  * Main exported function for reading comprehension assessment
@@ -169,5 +163,54 @@ const readingComprehensionFlow = ai.defineFlow(
 export async function assessReadingComprehension(
   input: ReadingComprehensionInput
 ): Promise<ReadingComprehensionOutput> {
-  return readingComprehensionFlow(input);
+  try {
+    // Get OpenAI client
+    const openai = getOpenAIClient();
+
+    // Build assessment prompt
+    const prompt = buildAssessmentPrompt(input);
+
+    // Call OpenAI API with GPT-4-mini
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4-mini',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一位專業的《紅樓夢》文學教師，擅長評估學生的閱讀理解能力。請以 JSON 格式回應。',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' }, // Request JSON response
+    });
+
+    // Extract response content
+    const responseText = completion.choices[0]?.message?.content;
+
+    if (!responseText) {
+      throw new Error('OpenAI returned empty response');
+    }
+
+    // Parse and validate response
+    return parseAssessmentResponse(responseText, input);
+
+  } catch (error) {
+    // Log error only in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('Error in assessReadingComprehension:', error);
+    }
+
+    // Return fallback assessment
+    return {
+      score: 50,
+      feedback: '很抱歉，AI 評分系統暫時無法使用。您的回答已記錄，我們會盡快人工審核。',
+      keyPointsCovered: [],
+      keyPointsMissed: input.expectedKeywords,
+      detailedAnalysis: '## 系統提示\n\n評分系統暫時無法使用，請稍後查看詳細反饋。',
+    };
+  }
 }

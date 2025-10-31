@@ -49,18 +49,28 @@ function ensureDbDirectory(): void {
 function initializeSchema(db: Database.Database): void {
   console.log('🔧 [SQLite] Initializing database schema...');
 
-  // Users table
+  // Users table (Phase 3 - SQLITE-016: Extended for user-level-service compatibility)
+  // Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
+  // Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL,
-      email TEXT,
-      currentLevel INTEGER DEFAULT 1,
+      email TEXT UNIQUE, -- UNIQUE constraint for email uniqueness (Phase 4 - SQLITE-019)
+      passwordHash TEXT, -- bcrypt hashed password for NextAuth.js (Phase 4 - SQLITE-019)
+      isGuest INTEGER DEFAULT 0, -- 0=false (regular user), 1=true (guest account) (Phase 4 - SQLITE-021)
+      currentLevel INTEGER DEFAULT 0,
       currentXP INTEGER DEFAULT 0,
       totalXP INTEGER DEFAULT 0,
       attributes TEXT, -- JSON format for user attributes
+      completedTasks TEXT, -- JSON array of completed task IDs
+      unlockedContent TEXT, -- JSON array of unlocked content IDs
+      completedChapters TEXT, -- JSON array of completed chapter numbers
+      hasReceivedWelcomeBonus INTEGER DEFAULT 0, -- 0=false, 1=true
+      stats TEXT, -- JSON object with user statistics (chaptersCompleted, totalReadingTimeMinutes, etc.)
       createdAt INTEGER NOT NULL,
-      updatedAt INTEGER NOT NULL
+      updatedAt INTEGER NOT NULL,
+      lastActivityAt INTEGER -- Last user activity timestamp
     );
   `);
 
@@ -155,6 +165,88 @@ function initializeSchema(db: Database.Database): void {
     );
   `);
 
+  // Highlights table (Phase 2 - SQLITE-005)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS highlights (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      chapterId INTEGER NOT NULL,
+      selectedText TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+  `);
+
+  // Notes table (Phase 2 - SQLITE-006)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      chapterId INTEGER NOT NULL,
+      selectedText TEXT NOT NULL,
+      note TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      lastModified INTEGER NOT NULL,
+      tags TEXT, -- JSON array
+      isPublic INTEGER DEFAULT 0,
+      wordCount INTEGER DEFAULT 0,
+      noteType TEXT,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+  `);
+
+  // Posts table (Phase 3 - SQLITE-014)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id TEXT PRIMARY KEY,
+      authorId TEXT NOT NULL,
+      authorName TEXT NOT NULL,
+      title TEXT,
+      content TEXT NOT NULL,
+      tags TEXT, -- JSON array
+      category TEXT,
+      likes INTEGER DEFAULT 0,
+      likedBy TEXT, -- JSON array of userIds
+      bookmarkedBy TEXT, -- JSON array of userIds
+      commentCount INTEGER DEFAULT 0,
+      viewCount INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active', -- 'active', 'hidden', 'deleted'
+      isEdited INTEGER DEFAULT 0,
+      moderationAction TEXT,
+      originalContent TEXT,
+      moderationWarning TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      FOREIGN KEY (authorId) REFERENCES users(id)
+    );
+  `);
+
+  // Comments table (Phase 3 - SQLITE-015)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      postId TEXT NOT NULL,
+      authorId TEXT NOT NULL,
+      authorName TEXT NOT NULL,
+      content TEXT NOT NULL,
+      parentCommentId TEXT, -- NULL for root comments, commentId for nested replies
+      depth INTEGER DEFAULT 0, -- 0 for root, 1 for first-level reply, etc.
+      replyCount INTEGER DEFAULT 0,
+      likes INTEGER DEFAULT 0,
+      likedBy TEXT, -- JSON array of userIds
+      status TEXT DEFAULT 'active', -- 'active', 'hidden', 'deleted'
+      isEdited INTEGER DEFAULT 0,
+      moderationAction TEXT,
+      originalContent TEXT,
+      moderationWarning TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      FOREIGN KEY (postId) REFERENCES posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (authorId) REFERENCES users(id),
+      FOREIGN KEY (parentCommentId) REFERENCES comments(id) ON DELETE CASCADE
+    );
+  `);
+
   // Create indexes for better query performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_daily_progress_user_date
@@ -171,6 +263,42 @@ function initializeSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_level_ups_user
     ON level_ups(userId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_highlights_user_chapter
+    ON highlights(userId, chapterId);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_user_chapter
+    ON notes(userId, chapterId);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_user
+    ON notes(userId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_notes_public
+    ON notes(isPublic, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_author
+    ON posts(authorId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_category
+    ON posts(category, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_status
+    ON posts(status, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_posts_trending
+    ON posts(likes DESC, viewCount DESC, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_postId
+    ON comments(postId, createdAt ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_authorId
+    ON comments(authorId, createdAt DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_parentId
+    ON comments(parentCommentId, createdAt ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_comments_status
+    ON comments(status);
   `);
 
   console.log('✅ [SQLite] Database schema initialized');
@@ -273,13 +401,94 @@ export function isSQLiteAvailable(): boolean {
 }
 
 /**
+ * Health check for database connection
+ *
+ * @returns Object with health status and details
+ */
+export function checkDatabaseHealth(): {
+  healthy: boolean;
+  initialized: boolean;
+  accessible: boolean;
+  error?: string;
+} {
+  const result = {
+    healthy: false,
+    initialized: Boolean(dbInstance),
+    accessible: false,
+    error: undefined as string | undefined,
+  };
+
+  if (!dbInstance) {
+    result.error = 'Database not initialized';
+    return result;
+  }
+
+  try {
+    // Simple query to test database accessibility
+    const stmt = dbInstance.prepare('SELECT 1 as test');
+    const row = stmt.get() as { test: number };
+    result.accessible = row.test === 1;
+    result.healthy = result.accessible;
+  } catch (error: any) {
+    result.error = error.message;
+    result.accessible = false;
+  }
+
+  return result;
+}
+
+/**
+ * Get database statistics
+ *
+ * @returns Database statistics object
+ */
+export function getDatabaseStats(): {
+  size: number;
+  pageCount: number;
+  pageSize: number;
+  tables: number;
+} | null {
+  if (!dbInstance) {
+    return null;
+  }
+
+  try {
+    const sizeQuery = `SELECT page_count * page_size as size, page_count, page_size
+                       FROM pragma_page_count(), pragma_page_size()`;
+    const sizeRow = dbInstance.prepare(sizeQuery).get() as {
+      size: number;
+      page_count: number;
+      page_size: number;
+    };
+
+    const tablesQuery = `SELECT COUNT(*) as count FROM sqlite_master
+                         WHERE type='table' AND name NOT LIKE 'sqlite_%'`;
+    const tablesRow = dbInstance.prepare(tablesQuery).get() as { count: number };
+
+    return {
+      size: sizeRow.size,
+      pageCount: sizeRow.page_count,
+      pageSize: sizeRow.page_size,
+      tables: tablesRow.count,
+    };
+  } catch (error: any) {
+    console.error('❌ [SQLite] Failed to get database stats:', error.message);
+    return null;
+  }
+}
+
+/**
  * Close database connection
  */
 export function closeDatabase(): void {
   if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
-    console.log('✅ [SQLite] Database connection closed');
+    try {
+      dbInstance.close();
+      dbInstance = null;
+      console.log('✅ [SQLite] Database connection closed');
+    } catch (error: any) {
+      console.error('❌ [SQLite] Error closing database:', error.message);
+    }
   }
 }
 
@@ -316,11 +525,27 @@ export function toUnixTimestamp(timestamp?: { seconds?: number; toMillis?: () =>
 /**
  * Utility function to create Timestamp-like object from Unix timestamp
  */
-export function fromUnixTimestamp(unixMs: number): { seconds: number; nanoseconds: number; toMillis: () => number } {
+export function fromUnixTimestamp(unixMs: number): {
+  seconds: number;
+  nanoseconds: number;
+  toMillis: () => number;
+  toDate: () => Date;
+  isEqual: (other: any) => boolean;
+  toJSON: () => object;
+} {
   return {
     seconds: Math.floor(unixMs / 1000),
     nanoseconds: (unixMs % 1000) * 1000000,
     toMillis: () => unixMs,
+    toDate: () => new Date(unixMs),
+    isEqual: (other: any) => {
+      if (!other || typeof other.toMillis !== 'function') return false;
+      return other.toMillis() === unixMs;
+    },
+    toJSON: () => ({
+      seconds: Math.floor(unixMs / 1000),
+      nanoseconds: (unixMs % 1000) * 1000000,
+    }),
   };
 }
 
@@ -330,3 +555,35 @@ export function fromUnixTimestamp(unixMs: number): { seconds: number; nanosecond
 export const SQLITE_CONFIG = {
   ...DB_CONFIG,
 } as const;
+
+/**
+ * Graceful shutdown handler
+ * Closes database connection on process termination signals
+ */
+function setupGracefulShutdown(): void {
+  // Only setup handlers in server environment
+  if (typeof window !== 'undefined') {
+    return;
+  }
+
+  const shutdownHandler = (signal: string) => {
+    console.log(`\n📴 [SQLite] Received ${signal}, closing database connection...`);
+    closeDatabase();
+    process.exit(0);
+  };
+
+  // Register handlers for termination signals
+  process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+  process.on('SIGINT', () => shutdownHandler('SIGINT'));
+
+  // Handle uncaught exceptions
+  process.on('beforeExit', () => {
+    if (dbInstance) {
+      console.log('📴 [SQLite] Process exiting, closing database connection...');
+      closeDatabase();
+    }
+  });
+}
+
+// Setup graceful shutdown handlers
+setupGracefulShutdown();

@@ -47,7 +47,7 @@ import { Loader2, AlertTriangle, RotateCcw, User, Mail } from "lucide-react";
  * - Regular users: Account information and preferences (coming soon)
  */
 export default function AccountSettingsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
   const router = useRouter();
@@ -64,7 +64,7 @@ export default function AccountSettingsPage() {
    * 4. Reloads the page on success
    */
   const handleResetGuestData = async () => {
-    if (!user || !user.isAnonymous) {
+    if (!user || !userProfile?.isGuest) {
       toast({
         title: t('accountSettings.resetError'),
         description: 'Only guest users can reset their data.',
@@ -78,8 +78,8 @@ export default function AccountSettingsPage() {
 
     try {
       const result = await userLevelService.resetGuestUserData(
-        user.uid,
-        user.displayName || 'Guest User',
+        user.id,
+        user.name || 'Guest User',
         user.email || 'guest@example.com'
       );
 
@@ -131,7 +131,7 @@ export default function AccountSettingsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('accountSettings.pageTitle')}</h1>
         <p className="mt-2 text-muted-foreground">
-          {user.isAnonymous
+          {userProfile?.isGuest
             ? t('accountSettings.guestUserDescription')
             : t('accountSettings.regularUserDescription')}
         </p>
@@ -140,7 +140,7 @@ export default function AccountSettingsPage() {
       <Separator />
 
       {/* Guest User Section */}
-      {user.isAnonymous ? (
+      {userProfile?.isGuest ? (
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function AccountSettingsPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{user.displayName || t('community.anonymousUser')}</span>
+                <span className="font-medium">{user.name || t('community.anonymousUser')}</span>
               </div>
               {user.email && (
                 <div className="flex items-center gap-3 text-sm">
@@ -244,7 +244,7 @@ export default function AccountSettingsPage() {
               <div className="flex items-center gap-3">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">{user.displayName}</p>
+                  <p className="text-sm font-medium">{user.name}</p>
                   <p className="text-xs text-muted-foreground">Display Name</p>
                 </div>
               </div>

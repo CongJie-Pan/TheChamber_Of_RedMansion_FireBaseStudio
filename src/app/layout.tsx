@@ -15,17 +15,22 @@
  * - Set initial HTML language attribute for accessibility
  * 
  * Provider hierarchy (from outer to inner):
- * 1. AuthProvider - Manages user authentication state
- * 2. LanguageProvider - Manages language selection and translations
- * 3. Page content + Toaster notifications
+ * 1. SessionProvider - NextAuth.js session management (Phase 4 - SQLITE-022)
+ * 2. AuthProvider - Enhanced auth state with user profile from SQLite
+ * 3. LanguageProvider - Manages language selection and translations
+ * 4. Page content + Toaster notifications
  */
 
 // Import Next.js metadata type for SEO configuration
 import type { Metadata } from 'next';
+// Import Next.js font optimization for Google Fonts
+import { Noto_Serif_SC } from 'next/font/google';
 // Import global CSS styles (Tailwind, fonts, custom styles)
 import './globals.css';
 // Import toast notification component for user feedback
 import { Toaster } from "@/components/ui/toaster";
+// Import NextAuth session provider (Phase 4 - SQLITE-022)
+import { SessionProvider } from '@/components/providers/SessionProvider';
 // Import authentication context provider
 import { AuthProvider } from '@/context/AuthContext';
 // Import language/internationalization context provider
@@ -35,7 +40,14 @@ import HydrationDebugger from '@/components/HydrationDebugger';
 // Import chunk error boundary for handling dynamic import failures
 import ChunkErrorBoundary from '@/components/ChunkErrorBoundary';
 
-// Note: Noto Serif SC (Chinese serif font) is imported in globals.css for classical literature display
+// Configure Noto Serif SC (思源宋體) for classical Chinese typography
+// Using Next.js font optimization for better performance and reliability
+const notoSerifSC = Noto_Serif_SC({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-noto-serif-sc',
+});
 
 /**
  * Application metadata configuration
@@ -83,30 +95,33 @@ export default function RootLayout({
         />
       </head>
       
-      {/* Body with font-sans class for consistent typography */}
-      <body className="font-sans">
-        {/* Authentication Provider - Manages user login/logout state for entire app */}
-        <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-          <AuthProvider>
-            {/* Language Provider - Manages multilingual support and translations */}
-            <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-              <LanguageProvider>
-                {/* All page content is rendered here */}
-                {children}
+      {/* Body with Noto Serif SC (思源宋體) for classical Chinese typography */}
+      <body className={`${notoSerifSC.variable} font-sans`}>
+        {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
+        <SessionProvider>
+          {/* Authentication Provider - Manages user login/logout state for entire app */}
+          <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+            <AuthProvider>
+              {/* Language Provider - Manages multilingual support and translations */}
+              <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+                <LanguageProvider>
+                  {/* All page content is rendered here */}
+                  {children}
 
-                {/* Toast notification system for user feedback messages */}
-                <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
-                  <Toaster />
-                </ChunkErrorBoundary>
+                  {/* Toast notification system for user feedback messages */}
+                  <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
+                    <Toaster />
+                  </ChunkErrorBoundary>
 
-                {/* Development-only hydration debugger */}
-                <ChunkErrorBoundary>
-                  <HydrationDebugger />
-                </ChunkErrorBoundary>
-              </LanguageProvider>
-            </ChunkErrorBoundary>
-          </AuthProvider>
-        </ChunkErrorBoundary>
+                  {/* Development-only hydration debugger */}
+                  <ChunkErrorBoundary>
+                    <HydrationDebugger />
+                  </ChunkErrorBoundary>
+                </LanguageProvider>
+              </ChunkErrorBoundary>
+            </AuthProvider>
+          </ChunkErrorBoundary>
+        </SessionProvider>
       </body>
     </html>
   );

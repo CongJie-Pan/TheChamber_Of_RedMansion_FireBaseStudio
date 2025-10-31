@@ -80,7 +80,20 @@
       "WebFetch(domain:docs.aimlapi.com)",
       "Bash(echo:*)",
       "Read(//mnt/c/**)",
-      "Bash(python3 /tmp/fix-api-test.py)"
+      "Bash(python3 /tmp/fix-api-test.py)",
+      "Bash(sqlite3:*)",
+      "Bash(sudo apt-get update:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(npm run doctor:sqlite:*)",
+      "Bash(tee:*)",
+      "Bash(tsx scripts/verify-sqlite-schema.ts:*)",
+      "Bash(npx tsx:*)",
+      "Bash(chmod:*)",
+      "Bash(openssl rand:*)",
+      "Bash(git diff:*)",
+      "Read(//tmp/**)",
+      "Bash(npx eslint src --ext .ts,.tsx --max-warnings 0)",
+      "Bash(time npm run build)"
     ]
   },
   "outputStyle": "default"

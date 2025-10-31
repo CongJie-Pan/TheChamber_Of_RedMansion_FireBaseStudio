@@ -13,22 +13,29 @@
  * The tests use mock AI responses to avoid actual API calls.
  */
 
-// Mock the AI imports to avoid actual API calls during testing
-jest.mock('@/ai/genkit', () => ({
-  ai: {
-    defineFlow: jest.fn((config, handler) => handler),
-    definePrompt: jest.fn(() => jest.fn(() => ({
-      output: {
-        qualityScore: 82,
-        depth: 'moderate',
-        insight: 75,
-        themesCovered: ['性格特點', '人物關係'],
-        themesMissed: ['命運發展'],
-        feedback: '您的分析有一定深度，能夠把握人物的主要特點。建議進一步探討人物的命運發展和象徵意義。',
-        detailedAnalysis: '## 人物分析評價\n\n您的分析展現了對人物**性格特點**的準確把握，觀察到了關鍵的人物關係。\n\n可以深化的角度：\n- 人物命運的發展軌跡\n- 象徵意義和文學價值'
+// Mock OpenAI client to avoid actual API calls during testing
+jest.mock('@/lib/openai-client', () => ({
+  getOpenAIClient: jest.fn(() => ({
+    chat: {
+      completions: {
+        create: jest.fn(async () => ({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                qualityScore: 82,
+                depth: 'moderate',
+                insight: 75,
+                themesCovered: ['性格特點', '人物關係'],
+                themesMissed: ['命運發展'],
+                feedback: '您的分析有一定深度，能夠把握人物的主要特點。建議進一步探討人物的命運發展和象徵意義。',
+                detailedAnalysis: '## 人物分析評價\n\n您的分析展現了對人物**性格特點**的準確把握，觀察到了關鍵的人物關係。\n\n可以深化的角度：\n- 人物命運的發展軌跡\n- 象徵意義和文學價值'
+              })
+            }
+          }]
+        }))
       }
-    }))),
-  },
+    }
+  }))
 }));
 
 // Import the function to test after mocking
@@ -44,7 +51,7 @@ describe('Character Analysis Scoring AI Flow Tests', () => {
   });
 
   afterEach(() => {
-    jest.restoreMocks();
+    jest.restoreAllMocks();
   });
 
   describe('Input Validation', () => {
