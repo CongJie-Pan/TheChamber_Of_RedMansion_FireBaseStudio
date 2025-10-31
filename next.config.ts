@@ -14,16 +14,17 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   // Phase 4-T3: Performance Optimizations
-  swcMinify: true, // Enable SWC minification for faster builds
+  // Note: swcMinify is now enabled by default in Next.js 15
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
       exclude: ['error', 'warn'],
     } : false,
   },
   experimental: {
-    optimizeCss: true, // Enable CSS optimization
+    // optimizeCss requires 'critters' package - install with: npm install --save-dev critters
+    // optimizeCss: true, // Temporarily disabled to fix build
     optimizePackageImports: ['lucide-react', 'd3', '@radix-ui/react-icons'], // Tree-shake specific packages
-    instrumentationHook: true, // Phase 4-T1: Enable instrumentation for guest account seeding
+    // Note: instrumentationHook is now enabled by default in Next.js 15
   },
   images: {
     remotePatterns: [
