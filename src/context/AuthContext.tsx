@@ -217,9 +217,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           <div
             className="absolute w-40 h-40 rounded-full animate-spin"
             style={{
-              background: 'conic-gradient(from 0deg, transparent, hsl(var(--primary)))',
-              WebkitMask: 'radial-gradient(circle, transparent 68%, black 68%)',
-              mask: 'radial-gradient(circle, transparent 68%, black 68%)'
+              background: 'conic-gradient(from 0deg, rgba(255,255,255,0.1), rgba(255,255,255,0.9), hsl(var(--primary)))',
+              WebkitMask: 'radial-gradient(circle, transparent 65%, black 65%)',
+              mask: 'radial-gradient(circle, transparent 65%, black 65%)'
             }}
           />
 
