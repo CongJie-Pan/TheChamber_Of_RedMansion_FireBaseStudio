@@ -364,7 +364,8 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   // Refs for D3.js integration
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<KnowledgeGraphNode, KnowledgeGraphLink> | null>(null);
-  
+  const isInitialMount = useRef(true); // Track if this is the first render for initial zoom
+
   // Component state
   const [isPlaying, setIsPlaying] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -414,7 +415,10 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .force("center", d3.forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force("collision", d3.forceCollide()
         .radius(d => (d as KnowledgeGraphNode).radius + 30) // Doubled from +15: larger personal space
-        .strength(1.0)); // Maximum strength (was 0.85): strict collision prevention
+        .strength(1.0)) // Maximum strength (was 0.85): strict collision prevention
+      .alphaDecay(0.02) // Faster decay to stop sooner (default: 0.0228)
+      .velocityDecay(0.4) // Increased friction to reduce jitter (default: 0.4)
+      .alphaMin(0.001); // Stop simulation when alpha drops below this threshold
 
     simulationRef.current = simulation;
 
@@ -670,20 +674,33 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     zoomBehavior.current = zoom;
     svg.call(zoom);
 
-    // Set initial zoom to 0.5x for better overview
-    const initialScale = 0.5;
-    const initialTransform = d3.zoomIdentity
-      .translate(dimensions.width / 2, dimensions.height / 2)
-      .scale(initialScale)
-      .translate(-dimensions.width / 2, -dimensions.height / 2);
-    svg.call(zoom.transform, initialTransform);
-    setZoomLevel(initialScale);
+    // Note: Initial zoom is set in separate useEffect to prevent reset on dimensions change
 
     // Cleanup function
     return () => {
       simulation.stop();
     };
   }, [graphData, dimensions.width, dimensions.height, onNodeClick]);
+
+  // Set initial zoom only once on first mount (separate from main useEffect)
+  // Reason: Prevents zoom reset when dimensions change, allowing user to freely zoom
+  useEffect(() => {
+    if (!svgRef.current || !zoomBehavior.current || !isInitialMount.current) return;
+
+    // Set initial zoom to 0.5x for better overview (only on first mount)
+    const initialScale = 0.5;
+    const initialTransform = d3.zoomIdentity
+      .translate(dimensions.width / 2, dimensions.height / 2)
+      .scale(initialScale)
+      .translate(-dimensions.width / 2, -dimensions.height / 2);
+
+    const svg = d3.select(svgRef.current);
+    svg.call(zoomBehavior.current.transform, initialTransform);
+    setZoomLevel(initialScale);
+
+    // Mark as initialized to prevent re-execution
+    isInitialMount.current = false;
+  }, [dimensions.width, dimensions.height]); // Only depends on dimensions for initial calculation
 
   // Search functionality
   useEffect(() => {
