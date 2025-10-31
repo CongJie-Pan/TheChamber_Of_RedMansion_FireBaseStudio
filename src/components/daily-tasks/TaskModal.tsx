@@ -375,59 +375,112 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-artistic flex items-center gap-2">
-            {task.type === DailyTaskType.MORNING_READING && <BookOpen className="h-6 w-6 text-primary" />}
-            {task.type === DailyTaskType.POETRY && <Feather className="h-6 w-6 text-primary" />}
-            {task.type === DailyTaskType.CHARACTER_INSIGHT && <Users className="h-6 w-6 text-primary" />}
-            {task.type === DailyTaskType.CULTURAL_EXPLORATION && <Landmark className="h-6 w-6 text-primary" />}
-            {task.type === DailyTaskType.COMMENTARY_DECODE && <BookMarked className="h-6 w-6 text-primary" />}
-            {task.title}
-          </DialogTitle>
-          <DialogDescription>{task.description}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-artistic flex items-center gap-2">
+              {task.type === DailyTaskType.MORNING_READING && <BookOpen className="h-6 w-6 text-primary" />}
+              {task.type === DailyTaskType.POETRY && <Feather className="h-6 w-6 text-primary" />}
+              {task.type === DailyTaskType.CHARACTER_INSIGHT && <Users className="h-6 w-6 text-primary" />}
+              {task.type === DailyTaskType.CULTURAL_EXPLORATION && <Landmark className="h-6 w-6 text-primary" />}
+              {task.type === DailyTaskType.COMMENTARY_DECODE && <BookMarked className="h-6 w-6 text-primary" />}
+              {task.title}
+            </DialogTitle>
+            <DialogDescription>{task.description}</DialogDescription>
+          </DialogHeader>
 
-        <div className="py-4">
-          {renderTaskContent()}
-        </div>
+          <div className="py-4">
+            {renderTaskContent()}
+          </div>
 
-        {/* Word Count */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>已輸入 {wordCount} 字</span>
-          {task.gradingCriteria?.minLength && (
-            <span>最少需要 {task.gradingCriteria.minLength} 字</span>
-          )}
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !userResponse.trim()}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                提交中...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                提交答案
-              </>
+          {/* Word Count */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>已輸入 {wordCount} 字</span>
+            {task.gradingCriteria?.minLength && (
+              <span>最少需要 {task.gradingCriteria.minLength} 字</span>
             )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting || !userResponse.trim()}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  提交中...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  提交答案
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🎨 AI GRADING ANIMATION OVERLAY - Full-screen loading animation during AI evaluation */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md mx-4 text-center space-y-6">
+            {/* Animated AI Icon */}
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                <div className="relative bg-primary/10 rounded-full p-6">
+                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                </div>
+              </div>
+            </div>
+
+            {/* AI Grading Status */}
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                AI 批改中
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                GPT-4-mini 正在分析你的答案...
+              </p>
+            </div>
+
+            {/* Grading Criteria Reminder */}
+            <div className="bg-primary/5 rounded-lg p-4 text-left space-y-2">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                📊 評分標準：
+              </p>
+              <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                <li>• 內容無關：20 分（無獎勵）</li>
+                <li>• 內容符合題意：80 分（基本獎勵）</li>
+                <li>• 寫得多且有想法：100 分（1.5 倍獎勵）</li>
+              </ul>
+            </div>
+
+            {/* Progress Dots Animation */}
+            <div className="flex justify-center gap-2">
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+
+            {/* Wait Message */}
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              請稍候，通常需要 5-10 秒...
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

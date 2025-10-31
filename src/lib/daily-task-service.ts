@@ -35,6 +35,7 @@
 import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
 import { isGuestAccount, logGuestAction } from './middleware/guest-account';
+import { getGuestTaskIdsArray } from './constants/guest-account';
 
 // SQLite Database Integration (Server-side only)
 // Conditional import: Load SQLite modules only on server-side
@@ -263,6 +264,59 @@ export class DailyTaskService {
         console.log(`✅ Tasks already generated for user ${userId} on ${targetDate}`);
         // Return the existing tasks
         return this.getTasksFromAssignments(existingProgress.tasks);
+      }
+
+      // 🔧 GUEST ACCOUNT FIX: Use fixed tasks instead of AI generation
+      // Guest accounts always get the same 2 predefined tasks
+      if (isGuestAccount(userId)) {
+        logGuestAction('Fetching fixed guest tasks', { date: targetDate });
+
+        // Fetch the fixed guest tasks from database
+        const guestTaskIds = getGuestTaskIdsArray();
+        const fixedTasks: DailyTask[] = [];
+
+        for (const taskId of guestTaskIds) {
+          const task = taskRepository.getTaskById(taskId);
+          if (task) {
+            fixedTasks.push(task);
+          } else {
+            console.warn(`⚠️ [GuestAccount] Fixed task not found: ${taskId}`);
+          }
+        }
+
+        if (fixedTasks.length === 0) {
+          throw new Error('Guest account fixed tasks not found. Please run seed script.');
+        }
+
+        // Create task assignments for guest account
+        const now = fromUnixTimestamp(Date.now());
+        const assignments: DailyTaskAssignment[] = fixedTasks.map((task) => ({
+          taskId: task.id,
+          assignedAt: now,
+          status: TaskStatus.NOT_STARTED,
+        }));
+
+        // Create progress record for guest account
+        const progressId = `${userId}_${targetDate}`;
+        const progressData: DailyTaskProgress = {
+          id: progressId,
+          userId,
+          date: targetDate,
+          tasks: assignments,
+          completedTaskIds: [],
+          skippedTaskIds: [],
+          totalXPEarned: 0,
+          totalAttributeGains: {},
+          usedSourceIds: [],
+          streak: await this.calculateStreak(userId, targetDate),
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        progressRepository.createProgress(progressData);
+
+        console.log(`✅ [GuestAccount] Assigned ${fixedTasks.length} fixed tasks for date ${targetDate}`);
+        return fixedTasks;
       }
 
       // Get user profile to determine difficulty
@@ -632,9 +686,27 @@ export class DailyTaskService {
         updatedProgress.streak = await this.updateStreak(userId, todayDate);
       }
 
-      // Update progress using repository
+      // 🔧 ENHANCED: Update progress with validation and verification
       try {
         const progressId = `${userId}_${todayDate}`;
+
+        // Pre-update validation: ensure all required fields are present
+        if (!updatedProgress.completedTaskIds || updatedProgress.completedTaskIds.length === 0) {
+          throw new Error('Invalid progress update: completedTaskIds is empty');
+        }
+        if (updatedProgress.totalXPEarned === undefined || updatedProgress.totalXPEarned < 0) {
+          throw new Error('Invalid progress update: totalXPEarned is invalid');
+        }
+        if (!updatedProgress.tasks || updatedProgress.tasks.length === 0) {
+          throw new Error('Invalid progress update: tasks array is empty');
+        }
+
+        console.log(`📝 [Progress] Updating progress for ${userId}:`, {
+          completedTaskIds: updatedProgress.completedTaskIds,
+          totalXPEarned: updatedProgress.totalXPEarned,
+          tasksCount: updatedProgress.tasks.length,
+        });
+
         const existingProgress = progressRepository.getProgress(userId, todayDate);
 
         if (existingProgress) {
@@ -660,8 +732,31 @@ export class DailyTaskService {
           progressRepository.createProgress(newProgress);
           console.log(`✅ [SQLite] Created progress: ${progressId}`);
         }
+
+        // 🔧 VERIFICATION: Read back the progress to ensure write succeeded
+        const verifiedProgress = progressRepository.getProgress(userId, todayDate);
+        if (!verifiedProgress) {
+          throw new Error('Progress verification failed: Progress not found after update');
+        }
+
+        // Verify completedTaskIds was persisted
+        if (!verifiedProgress.completedTaskIds.includes(taskId)) {
+          throw new Error(`Progress verification failed: taskId ${taskId} not in completedTaskIds`);
+        }
+
+        // Verify totalXPEarned was persisted
+        if (verifiedProgress.totalXPEarned !== (updatedProgress.totalXPEarned || 0)) {
+          console.warn(`⚠️ [Progress] XP mismatch: expected ${updatedProgress.totalXPEarned}, got ${verifiedProgress.totalXPEarned}`);
+        }
+
+        console.log(`✅ [Progress] Verification passed:`, {
+          completedTasks: verifiedProgress.completedTaskIds.length,
+          totalXP: verifiedProgress.totalXPEarned,
+        });
       } catch (e: any) {
-        console.warn('SQLite Update progress failed:', e?.message || e);
+        console.error('❌ [SQLite] Progress update FAILED:', e?.message || e);
+        // Re-throw the error to notify the frontend that progress update failed
+        throw new Error(`Failed to update progress: ${e?.message || 'Unknown error'}`);
       }
 
       // 14. Record in history

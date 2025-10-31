@@ -30,7 +30,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -137,6 +137,10 @@ export default function DailyTasksPage() {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 🔧 PREVENT REPEATED TASK GENERATION: Track if tasks have been loaded
+  const hasLoadedTasksRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
+
   // Task data
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [progress, setProgress] = useState<DailyTaskProgress | null>(null);
@@ -171,31 +175,50 @@ export default function DailyTasksPage() {
   };
 
   /**
-   * Load daily tasks and progress on component mount
+   * 🔧 ENHANCED: Load daily tasks and progress on component mount with duplicate prevention
    * For guest users: Reset today's tasks ONLY on first login (not on page refresh)
+   * Prevents repeated task generation by tracking load state
    */
   useEffect(() => {
-    if (user) {
-      // Check if user is a guest (anonymous user)
-      if (!llmOnly && userProfile?.isGuest) {
-        // Check if we've already reset tasks in this session
-        const sessionKey = `guest-tasks-reset-${user.id}`;
-        const hasResetInSession = sessionStorage.getItem(sessionKey);
+    if (!user) return;
 
-        if (!hasResetInSession) {
-          console.log('🧪 Guest user first login - resetting today\'s tasks...');
-          resetTodayTasksForGuest();
-          // Mark as reset in current session
-          sessionStorage.setItem(sessionKey, 'true');
-        } else {
-          console.log('🧪 Guest user session active - loading existing tasks...');
-          loadDailyTasks();
-        }
+    // 🔧 PREVENT REPEATED LOADS: Check if tasks already loaded for this user
+    if (hasLoadedTasksRef.current && currentUserIdRef.current === user.id) {
+      console.log('✅ [DailyTasks] Tasks already loaded for this user, skipping...');
+      return;
+    }
+
+    // 🔧 RESET FLAGS: If user changed, reset the loaded flag
+    if (currentUserIdRef.current !== user.id) {
+      console.log('🔄 [DailyTasks] User changed, resetting load flags');
+      hasLoadedTasksRef.current = false;
+      currentUserIdRef.current = user.id;
+    }
+
+    console.log(`📋 [DailyTasks] Loading tasks for user: ${user.id}`);
+
+    // Check if user is a guest (anonymous user)
+    if (!llmOnly && userProfile?.isGuest) {
+      // Check if we've already reset tasks in this session
+      const sessionKey = `guest-tasks-reset-${user.id}`;
+      const hasResetInSession = sessionStorage.getItem(sessionKey);
+
+      if (!hasResetInSession) {
+        console.log('🧪 Guest user first login - resetting today\'s tasks...');
+        resetTodayTasksForGuest();
+        // Mark as reset in current session
+        sessionStorage.setItem(sessionKey, 'true');
       } else {
+        console.log('🧪 Guest user session active - loading existing tasks...');
         loadDailyTasks();
       }
+    } else {
+      loadDailyTasks();
     }
-  }, [user]);
+
+    // 🔧 MARK AS LOADED: Prevent repeated calls
+    hasLoadedTasksRef.current = true;
+  }, [user, user?.id]); // Added user.id to dependencies for better tracking
 
   /**
    * Reset today's tasks for guest users
@@ -426,7 +449,10 @@ export default function DailyTasksPage() {
 
       // Reload progress only when not in ephemeral mode
       if (!ephemeralMode && !llmOnly) {
+        // 🔧 RESET LOAD FLAG: Allow reload to fetch updated progress
+        hasLoadedTasksRef.current = false;
         await loadDailyTasks();
+        hasLoadedTasksRef.current = true;
         // Refresh user profile so XP/等級在所有顯示處即時更新
         await refreshUserProfile();
       }
