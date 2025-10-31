@@ -94,7 +94,9 @@
       "Read(//tmp/**)",
       "Bash(npx eslint src --ext .ts,.tsx --max-warnings 0)",
       "Bash(time npm run build)",
-      "Bash(jobs)"
+      "Bash(jobs)",
+      "Bash(then echo \"✅ .env.local exists\")",
+      "Bash(else echo \"❌ .env.local not found\")"
     ]
   },
   "outputStyle": "default"

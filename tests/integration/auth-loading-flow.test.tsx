@@ -111,9 +111,9 @@ describe('AuthContext Loading Flow - Integration Tests', () => {
       const logo = screen.getByAltText('紅樓慧讀');
       expect(logo).toBeInTheDocument();
 
-      // Assert: Loading state is true
-      const loadingState = screen.getByTestId('loading-state');
-      expect(loadingState).toHaveTextContent('loading');
+      // Assert: TestConsumer is NOT rendered during loading (children are hidden)
+      const loadingState = screen.queryByTestId('loading-state');
+      expect(loadingState).not.toBeInTheDocument();
 
       // Arrange: Simulate successful login
       const mockUser = {
