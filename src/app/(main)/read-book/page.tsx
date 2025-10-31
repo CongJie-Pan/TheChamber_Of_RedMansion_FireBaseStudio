@@ -119,6 +119,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { XP_REWARDS } from '@/types/user-level-api';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
+// Development logging control - 僅在明確啟用時才輸出分頁除錯日誌
+const DEBUG_PAGINATION = typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PAGINATION === 'true';
+
 
 interface Annotation {
   text: string;
@@ -538,6 +541,16 @@ export default function ReadBookPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  // Refs to store latest pagination values (避免 useCallback dependencies 導致函數重新創建)
+  const currentPageRef = useRef<number>(1);
+  const totalPagesRef = useRef<number>(1);
+
+  // Sync state to refs for use in stable callbacks
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+    totalPagesRef.current = totalPages;
+  }, [currentPage, totalPages]);
+
   const selectedTheme = themes[activeThemeKey];
 
   // Storage keys (new sessions model + legacy migration)
@@ -777,9 +790,9 @@ export default function ReadBookPage() {
 
         if (viewportEl) {
           viewportEl.focus();
-          console.log('[Pagination] Viewport focused for keyboard navigation');
+          if (DEBUG_PAGINATION) console.log('[Pagination] Viewport focused for keyboard navigation');
         } else {
-          console.warn('[Pagination] Could not find viewport element to focus');
+          if (DEBUG_PAGINATION) console.warn('[Pagination] Could not find viewport element to focus');
         }
       }));
     }
@@ -881,31 +894,33 @@ export default function ReadBookPage() {
 
   const goNextPage = useCallback(() => {
     if (!isPaginationMode) return;
-    const next = Math.min(totalPages, currentPage + 1);
-    if (next !== currentPage) goToPage(next);
-  }, [currentPage, totalPages, isPaginationMode, goToPage]);
+    // 使用 ref 避免因 currentPage/totalPages 變化導致函數重新創建
+    const next = Math.min(totalPagesRef.current, currentPageRef.current + 1);
+    if (next !== currentPageRef.current) goToPage(next);
+  }, [isPaginationMode, goToPage]);
 
   const goPrevPage = useCallback(() => {
     if (!isPaginationMode) return;
-    const prev = Math.max(1, currentPage - 1);
-    if (prev !== currentPage) goToPage(prev);
-  }, [currentPage, isPaginationMode, goToPage]);
+    // 使用 ref 避免因 currentPage 變化導致函數重新創建
+    const prev = Math.max(1, currentPageRef.current - 1);
+    if (prev !== currentPageRef.current) goToPage(prev);
+  }, [isPaginationMode, goToPage]);
 
   // Keyboard navigation for pagination:
   // - Left/Right = prev/next page
   // - Up/Down/PageUp/PageDown/Space: prevent vertical scroll; map Up/PageUp to prev, Down/PageDown/Space to next
   useEffect(() => {
     if (!isPaginationMode) {
-      console.log('[Pagination] Keyboard navigation disabled: isPaginationMode =', isPaginationMode);
+      if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard navigation disabled: isPaginationMode =', isPaginationMode);
       return;
     }
 
-    console.log('[Pagination] Keyboard navigation enabled for dual-column mode');
+    if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard navigation enabled for dual-column mode');
 
     const onKeyDown = (e: KeyboardEvent) => {
       // Skip if event already handled
       if (e.defaultPrevented) {
-        console.log('[Pagination] Event already prevented, skipping');
+        if (DEBUG_PAGINATION) console.log('[Pagination] Event already prevented, skipping');
         return;
       }
 
@@ -914,46 +929,46 @@ export default function ReadBookPage() {
       const tag = (target?.tagName || '').toUpperCase();
       const isEditable = !!target && (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
       if (isEditable) {
-        console.log('[Pagination] Skipping keyboard event in editable element:', tag);
+        if (DEBUG_PAGINATION) console.log('[Pagination] Skipping keyboard event in editable element:', tag);
         return;
       }
 
       let handled = false;
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        console.log('[Pagination] ArrowRight pressed - going to next page');
+        if (DEBUG_PAGINATION) console.log('[Pagination] ArrowRight pressed - going to next page');
         goNextPage();
         handled = true;
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        console.log('[Pagination] ArrowLeft pressed - going to previous page');
+        if (DEBUG_PAGINATION) console.log('[Pagination] ArrowLeft pressed - going to previous page');
         goPrevPage();
         handled = true;
       } else if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
-        console.log('[Pagination] Down/PageDown/Space pressed - going to next page');
+        if (DEBUG_PAGINATION) console.log('[Pagination] Down/PageDown/Space pressed - going to next page');
         goNextPage();
         handled = true;
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
-        console.log('[Pagination] Up/PageUp pressed - going to previous page');
+        if (DEBUG_PAGINATION) console.log('[Pagination] Up/PageUp pressed - going to previous page');
         goPrevPage();
         handled = true;
       }
 
       if (!handled && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' '].includes(e.key)) {
-        console.log('[Pagination] Key pressed but not handled:', e.key, 'currentPage:', currentPage, 'totalPages:', totalPages);
+        if (DEBUG_PAGINATION) console.log('[Pagination] Key pressed but not handled:', e.key, 'currentPage:', currentPageRef.current, 'totalPages:', totalPagesRef.current);
       }
     };
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
-    console.log('[Pagination] Keyboard event listener attached');
+    if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard event listener attached');
 
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
-      console.log('[Pagination] Keyboard event listener removed');
+      if (DEBUG_PAGINATION) console.log('[Pagination] Keyboard event listener removed');
     };
-  }, [isPaginationMode, goNextPage, goPrevPage, currentPage, totalPages]);
+  }, [isPaginationMode, goNextPage, goPrevPage]); // 移除 currentPage, totalPages 避免頻繁重新綁定
 
   /**
    * Global scroll lock and wheel interception for dual-column pagination
