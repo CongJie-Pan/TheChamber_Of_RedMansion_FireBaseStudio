@@ -30,8 +30,8 @@ import type { Session } from 'next-auth';
 // Import React types and hooks for context management
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-// Import UI component for loading state display
-import { Skeleton } from '@/components/ui/skeleton';
+// Import Next.js Image component for optimized logo display
+import Image from 'next/image';
 // Import level system types
 import type { UserProfile } from '@/lib/types/user-level';
 
@@ -204,19 +204,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Loading state UI
-   * 
-   * Displays a full-screen loading interface with skeleton components
-   * while Firebase verifies authentication status. This prevents flash
+   *
+   * Displays a full-screen loading interface with logo and spinning ring
+   * while NextAuth verifies authentication status. This prevents flash
    * of unauthenticated content and provides better user experience.
    */
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="space-y-4 p-8 rounded-lg shadow-xl bg-card w-full max-w-md">
-          <Skeleton className="h-12 w-1/2 mx-auto" />
-          <Skeleton className="h-8 w-3/4 mx-auto" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
+        <div className="relative flex items-center justify-center">
+          {/* Spinning ring animation around logo */}
+          <div className="absolute w-40 h-40 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+
+          {/* Logo in center */}
+          <div className="relative w-28 h-28 rounded-full overflow-hidden bg-white/10 backdrop-blur-sm">
+            <Image
+              src="/images/logo_circle.png"
+              alt="紅樓慧讀"
+              width={112}
+              height={112}
+              priority
+              className="object-cover"
+            />
+          </div>
         </div>
       </div>
     );

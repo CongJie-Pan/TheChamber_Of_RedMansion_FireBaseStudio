@@ -76,7 +76,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Parse and validate request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid JSON in request body',
+          details: [{ message: 'Request body must be valid JSON' }],
+        },
+        { status: 400 }
+      );
+    }
 
     const validationResult = CreatePostSchema.safeParse(body);
 
@@ -85,7 +97,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         { status: 400 }
       );
@@ -107,16 +119,33 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Create post via community service
     // Note: Content moderation is handled within communityService.createPost()
-    const createdPost = await communityService.createPost(postData);
+    const createResult = await communityService.createPost(postData);
 
-    console.log(`✅ [API] Community post created successfully: ${createdPost.id}`);
+    console.log(`✅ [API] Community post created successfully: ${createResult.id}`);
 
-    // Step 5: Return success response
+    // Step 5: Fetch the complete post object to return
+    // createPost only returns {id, moderationAction}, we need full post data
+    const fullPost = await communityService.getPost(createResult.id);
+
+    if (!fullPost) {
+      console.error(`❌ [API] Failed to fetch created post: ${createResult.id}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Post created but failed to fetch data',
+        },
+        { status: 500 }
+      );
+    }
+
+    // Step 6: Return success response with full post data
     return NextResponse.json(
       {
         success: true,
-        postId: createdPost.id,
-        post: createdPost,
+        postId: createResult.id, // For backward compatibility with tests
+        id: createResult.id,
+        moderationAction: createResult.moderationAction,
+        post: fullPost,
       },
       { status: 201 }
     );
@@ -279,6 +308,7 @@ export async function DELETE(request: NextRequest) {
         {
           success: false,
           error: 'Missing postId parameter',
+          details: [{ message: 'postId query parameter is required' }],
         },
         { status: 400 }
       );

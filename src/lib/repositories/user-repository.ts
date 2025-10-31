@@ -5,10 +5,12 @@
  * replacing Firebase Firestore user operations.
  *
  * @phase Phase 3 - Core Systems Migration
+ * Phase 4-T1: Added guest account protection to prevent XP modifications
  */
 
 import { getDatabase } from '../sqlite-db';
 import type { AttributePoints } from '../types/user-level';
+import { isGuestAccount } from '../middleware/guest-account';
 
 /**
  * User statistics interface
@@ -358,6 +360,8 @@ export function getUserById(userId: string): UserProfile | null {
 /**
  * Update user profile
  *
+ * Phase 4-T1: Added guest account protection for XP/Level modifications
+ *
  * @param userId - User ID
  * @param updates - Partial user profile updates
  * @returns Updated user profile
@@ -368,6 +372,28 @@ export function updateUser(
 ): UserProfile {
   const db = getDatabase();
   const now = Date.now();
+
+  // Guest account protection: prevent XP/Level modifications
+  if (isGuestAccount(userId)) {
+    // Filter out XP and level updates for guest accounts
+    const { currentXP, totalXP, currentLevel, ...allowedUpdates } = updates;
+
+    if (currentXP !== undefined || totalXP !== undefined || currentLevel !== undefined) {
+      console.log(`🧪 [UserRepository] Guest account protection: blocked XP/Level updates`);
+    }
+
+    // Continue with only allowed updates (non-XP/Level fields)
+    updates = allowedUpdates;
+
+    // If no updates remain after filtering, return current user
+    if (Object.keys(updates).length === 0) {
+      const currentUser = getUserById(userId);
+      if (!currentUser) {
+        throw new Error(`User not found: ${userId}`);
+      }
+      return currentUser;
+    }
+  }
 
   // Build dynamic update query
   const updateFields: string[] = [];
@@ -462,6 +488,9 @@ export function updateUser(
 /**
  * Award XP to user
  *
+ * Phase 4-T1: Guest account protection added
+ * Guest accounts maintain fixed 70 XP regardless of task completion
+ *
  * @param userId - User ID
  * @param xpAmount - Amount of XP to award
  * @returns Updated user profile
@@ -470,6 +499,12 @@ export function awardXP(userId: string, xpAmount: number): UserProfile {
   const user = getUserById(userId);
   if (!user) {
     throw new Error(`User not found: ${userId}`);
+  }
+
+  // Guest account protection: maintain fixed 70 XP
+  if (isGuestAccount(userId)) {
+    console.log(`🧪 [UserRepository] Guest account XP is fixed at 70, skipping award of ${xpAmount} XP`);
+    return user;
   }
 
   const newCurrentXP = user.currentXP + xpAmount;

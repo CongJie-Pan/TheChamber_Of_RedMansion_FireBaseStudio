@@ -158,6 +158,7 @@ export const MOCK_POST = {
   viewCount: 42,
   status: 'active' as const,
   isEdited: false,
+  moderationAction: 'allow' as const, // Added for content moderation tests
   createdAt: {
     toDate: () => new Date('2025-10-30T10:00:00Z'),
     toMillis: () => 1730282400000,

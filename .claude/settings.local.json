@@ -93,7 +93,8 @@
       "Bash(git diff:*)",
       "Read(//tmp/**)",
       "Bash(npx eslint src --ext .ts,.tsx --max-warnings 0)",
-      "Bash(time npm run build)"
+      "Bash(time npm run build)",
+      "Bash(jobs)"
     ]
   },
   "outputStyle": "default"

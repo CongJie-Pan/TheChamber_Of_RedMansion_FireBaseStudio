@@ -48,6 +48,7 @@ jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
 // Mock community service
 const mockCommunityService = {
   createPost: jest.fn(),
+  getPost: jest.fn(), // Added for fetching full post after creation
   getPosts: jest.fn(),
   deletePost: jest.fn(),
 };
@@ -87,6 +88,16 @@ describe('Community Posts API Route', () => {
   });
 
   describe('POST /api/community/posts', () => {
+    // Common setup for POST tests: mock createPost to return {id, moderationAction}
+    // and mock getPost to return full post data
+    beforeEach(() => {
+      mockCommunityService.createPost.mockResolvedValue({
+        id: MOCK_POST.id,
+        moderationAction: 'allow',
+      });
+      mockCommunityService.getPost.mockResolvedValue(MOCK_POST);
+    });
+
     describe('Authentication', () => {
       it('should return 401 when no session exists', async () => {
         mockGetServerSession.mockResolvedValue(null);
@@ -116,7 +127,6 @@ describe('Community Posts API Route', () => {
 
       it('should accept valid authenticated session', async () => {
         mockGetServerSession.mockResolvedValue(MOCK_SESSIONS.user1);
-        mockCommunityService.createPost.mockResolvedValue(MOCK_POST);
 
         const req = createMockRequest(CLEAN_POST_DATA);
         const res = await POST(req);
@@ -162,8 +172,6 @@ describe('Community Posts API Route', () => {
       });
 
       it('should accept minimal valid post data', async () => {
-        mockCommunityService.createPost.mockResolvedValue(MOCK_POST);
-
         const minimalData = {
           authorId: TEST_USERS.user1.id,
           authorName: TEST_USERS.user1.name,
@@ -180,8 +188,6 @@ describe('Community Posts API Route', () => {
       });
 
       it('should accept post with all optional fields', async () => {
-        mockCommunityService.createPost.mockResolvedValue(MOCK_POST);
-
         const req = createMockRequest(CLEAN_POST_DATA);
         const res = await POST(req);
 

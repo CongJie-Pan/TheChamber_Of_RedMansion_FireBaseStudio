@@ -120,21 +120,49 @@ type LocalComment = {
 
 // Constants for content validation
 const MAX_POST_LENGTH = 5000;
-const CONTENT_TRUNCATE_LENGTH = 150; 
+const CONTENT_TRUNCATE_LENGTH = 150;
 
-// Utility function to format Firestore timestamps
-const formatTimestamp = (timestamp: Timestamp): string => {
+/**
+ * Helper function to convert serialized timestamp to Date
+ * After JSON serialization, Timestamp objects lose their methods (toDate, toMillis)
+ * This function reconstructs a Date from the {seconds, nanoseconds} structure
+ */
+const timestampToDate = (timestamp: any): Date => {
+  if (!timestamp) return new Date();
+
+  // If it's already a Date object
+  if (timestamp instanceof Date) return timestamp;
+
+  // If it has toDate method (unlikely after JSON serialization, but check anyway)
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+
+  // Handle serialized timestamp {seconds, nanoseconds}
+  if (timestamp.seconds !== undefined) {
+    return new Date(timestamp.seconds * 1000);
+  }
+
+  // Fallback: return current time
+  return new Date();
+};
+
+/**
+ * Utility function to format timestamps for display
+ * Fixed: Now handles JSON-serialized timestamps from API responses
+ */
+const formatTimestamp = (timestamp: any): string => {
   if (!timestamp) return '剛剛';
-  
+
   const now = new Date();
-  const postTime = timestamp.toDate();
+  const postTime = timestampToDate(timestamp);
   const diffInSeconds = Math.floor((now.getTime() - postTime.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return '剛剛';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}分鐘前`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}小時前`;
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}天前`;
-  
+
   return postTime.toLocaleDateString('zh-TW');
 };
 
@@ -744,8 +772,17 @@ async function deletePostAPI(postId: string): Promise<void> {
 
 /**
  * Toggle post like via API route
+ * Fixed: Added validation and better error messages
  */
 async function togglePostLikeAPI(postId: string, userId: string, isLiking: boolean): Promise<boolean> {
+  // Validate inputs
+  if (!postId || !userId) {
+    console.error('❌ Invalid like parameters:', { postId, userId });
+    throw new Error('Invalid post ID or user ID');
+  }
+
+  console.log(`${isLiking ? '👍' : '👎'} Toggling like for post ${postId}`);
+
   if (isLiking) {
     // Like the post
     const response = await fetch(`/api/community/posts/${postId}/like`, {
@@ -757,15 +794,19 @@ async function togglePostLikeAPI(postId: string, userId: string, isLiking: boole
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to like post (${response.status})`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error(`❌ Failed to like post ${postId}:`, response.status, errorData);
+      throw new Error(errorData.error || `Failed to like post (${response.status})`);
     }
 
     const result = await response.json();
 
     if (!result.success) {
+      console.error(`❌ Like API returned error for post ${postId}:`, result.error);
       throw new Error(result.error || 'Failed to like post');
     }
 
+    console.log(`✅ Successfully liked post ${postId}, changed: ${result.likeChanged}`);
     return result.likeChanged;
   } else {
     // Unlike the post
@@ -777,15 +818,19 @@ async function togglePostLikeAPI(postId: string, userId: string, isLiking: boole
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to unlike post (${response.status})`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error(`❌ Failed to unlike post ${postId}:`, response.status, errorData);
+      throw new Error(errorData.error || `Failed to unlike post (${response.status})`);
     }
 
     const result = await response.json();
 
     if (!result.success) {
+      console.error(`❌ Unlike API returned error for post ${postId}:`, result.error);
       throw new Error(result.error || 'Failed to unlike post');
     }
 
+    console.log(`✅ Successfully unliked post ${postId}`);
     return true; // Always return true for unlike
   }
 }
@@ -819,8 +864,17 @@ async function fetchComments(postId: string, limit?: number): Promise<PostCommen
 
 /**
  * Add comment via API route
+ * Fixed: Added validation and better error messages
  */
 async function addCommentAPI(commentData: CreateCommentData) {
+  // Validate inputs
+  if (!commentData.postId || !commentData.authorId || !commentData.content) {
+    console.error('❌ Invalid comment parameters:', commentData);
+    throw new Error('Invalid comment data: missing required fields');
+  }
+
+  console.log(`💬 Adding comment to post ${commentData.postId}`);
+
   const response = await fetch(`/api/community/posts/${commentData.postId}/comments`, {
     method: 'POST',
     headers: {
@@ -831,15 +885,18 @@ async function addCommentAPI(commentData: CreateCommentData) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error(`❌ Failed to add comment to post ${commentData.postId}:`, response.status, errorData);
     throw new Error(errorData.error || `Failed to add comment (${response.status})`);
   }
 
   const result = await response.json();
 
   if (!result.success) {
+    console.error(`❌ Comment API returned error for post ${commentData.postId}:`, result.error);
     throw new Error(result.error || 'Failed to add comment');
   }
 
+  console.log(`✅ Successfully added comment to post ${commentData.postId}, comment ID: ${result.commentId}`);
   return result;
 }
 

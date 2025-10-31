@@ -70,6 +70,8 @@ const nextConfig: NextConfig = {
     config: any,
     { isServer, dev }: { isServer: boolean; dev: boolean }
   ) => {
+    const enableDevChunkTuning = process.env.ENABLE_DEV_CHUNK_TUNING === 'true';
+
     if (!isServer) {
       // Prevent bundling of Node.js specific modules on the client
       config.resolve.fallback = {
@@ -89,8 +91,8 @@ const nextConfig: NextConfig = {
       };
 
       // Add chunk loading error handling and retry logic
-      if (dev) {
-        // Development-specific optimizations for chunk loading
+      if (dev && enableDevChunkTuning) {
+        // Development-specific optimizations for chunk loading guarded by env flag
         config.optimization = {
           ...config.optimization,
           // Improve chunk splitting for better loading reliability
@@ -122,7 +124,7 @@ const nextConfig: NextConfig = {
       }
 
       // Improved chunk loading configuration for development
-      if (dev) {
+      if (dev && enableDevChunkTuning) {
         // Add better error handling for chunk loading
         config.output = {
           ...config.output,

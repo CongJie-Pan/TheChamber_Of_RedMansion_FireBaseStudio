@@ -145,7 +145,20 @@ export async function POST(
     }
 
     // Step 2: Parse and validate request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid JSON in request body',
+          details: [{ message: 'Request body must be valid JSON' }],
+        },
+        { status: 400 }
+      );
+    }
+
     const validationResult = CreateCommentSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -153,7 +166,7 @@ export async function POST(
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         },
         { status: 400 }
       );
@@ -281,6 +294,7 @@ export async function DELETE(
         {
           success: false,
           error: 'Missing commentId parameter',
+          details: [{ message: 'commentId query parameter is required' }],
         },
         { status: 400 }
       );

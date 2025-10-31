@@ -2,6 +2,7 @@
  * @fileOverview Daily Task Service for Gamification System (SQLite-only)
  *
  * SQLITE-025: Migrated from Firebase to SQLite-only implementation
+ * Phase 4-T1: Added guest account protection for XP awards
  *
  * This service manages the Daily Task System (每日修身) operations:
  * - Task generation and assignment
@@ -33,6 +34,7 @@
 
 import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
+import { isGuestAccount, logGuestAction } from './middleware/guest-account';
 
 // SQLite Database Integration (Server-side only)
 // Conditional import: Load SQLite modules only on server-side
@@ -525,34 +527,59 @@ export class DailyTaskService {
       console.log(`   🎯 最終經驗值: ${finalXP} XP\n`);
 
       // 9. Award XP through SQLite repository
-      // Use content-based sourceId to prevent duplicate rewards across systems
+      // Phase 4-T1: Guest account protection - record score but don't award XP
       const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
 
       let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean; fromLevel?: number };
 
-      try {
-        // Ensure user exists in SQLite database
-        let user = userRepository.getUserById(userId);
-        if (!user) {
-          // Create user if doesn't exist
-          user = userRepository.createUser(userId, userId, undefined);
-        }
+      // Guest account special handling: record AI evaluation but maintain fixed 70 XP
+      if (isGuestAccount(userId)) {
+        logGuestAction('Task submission evaluated', {
+          taskId,
+          score,
+          feedback: feedback.substring(0, 50) + '...',
+          message: 'XP award skipped (guest account maintains fixed 70 XP)',
+        });
 
-        const beforeLevel = user.currentLevel;
-
-        // Award XP
-        const updatedUser = userRepository.awardXP(userId, finalXP);
         xpResult = {
           success: true,
-          newTotalXP: updatedUser.totalXP,
-          newLevel: updatedUser.currentLevel,
-          fromLevel: beforeLevel,
-          leveledUp: updatedUser.currentLevel > beforeLevel,
+          newTotalXP: 70, // Guest account fixed XP
+          newLevel: 1,    // Guest account fixed level
+          fromLevel: 1,
+          leveledUp: false,
         };
-        console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
-      } catch (e: any) {
-        console.warn('SQLite Award XP failed, continuing:', e?.message || e);
-        xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
+
+        console.log(`🧪 [Guest Account] Task evaluated successfully:`);
+        console.log(`   📝 Task: ${task.title}`);
+        console.log(`   ⭐ Score: ${score}/100`);
+        console.log(`   💬 Feedback: ${feedback.substring(0, 80)}...`);
+        console.log(`   💎 XP remains at 70 (guest account protection active)`);
+      } else {
+        // Regular user: award XP normally
+        try {
+          // Ensure user exists in SQLite database
+          let user = userRepository.getUserById(userId);
+          if (!user) {
+            // Create user if doesn't exist
+            user = userRepository.createUser(userId, userId, undefined);
+          }
+
+          const beforeLevel = user.currentLevel;
+
+          // Award XP
+          const updatedUser = userRepository.awardXP(userId, finalXP);
+          xpResult = {
+            success: true,
+            newTotalXP: updatedUser.totalXP,
+            newLevel: updatedUser.currentLevel,
+            fromLevel: beforeLevel,
+            leveledUp: updatedUser.currentLevel > beforeLevel,
+          };
+          console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
+        } catch (e: any) {
+          console.warn('SQLite Award XP failed, continuing:', e?.message || e);
+          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
+        }
       }
 
       // 10. Award attribute points
