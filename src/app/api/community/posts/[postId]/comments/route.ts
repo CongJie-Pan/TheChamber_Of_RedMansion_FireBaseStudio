@@ -72,6 +72,14 @@ export async function GET(
   } catch (error: any) {
     console.error('❌ [API] Error fetching comments:', error);
 
+    // 🔍 Enhanced error logging for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[DEBUG] Error stack:', error.stack);
+      console.error('[DEBUG] Error name:', error.name);
+      console.error('[DEBUG] Error message:', error.message);
+      console.error('[DEBUG] Post ID:', postId);
+    }
+
     if (error.message?.toLowerCase().includes('not found')) {
       return NextResponse.json(
         {
