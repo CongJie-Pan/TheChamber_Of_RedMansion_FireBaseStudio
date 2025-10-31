@@ -524,8 +524,14 @@ export function toUnixTimestamp(timestamp?: { seconds?: number; toMillis?: () =>
 
 /**
  * Utility function to create Timestamp-like object from Unix timestamp
+ *
+ * @param unixMs - Unix timestamp in milliseconds (can be null/undefined)
+ * @returns Timestamp-like object with methods (toDate, toMillis, etc.)
+ *
+ * Fixed: Handle null/undefined timestamps by using current time as fallback
+ * This prevents NaN errors when database fields are null
  */
-export function fromUnixTimestamp(unixMs: number): {
+export function fromUnixTimestamp(unixMs: number | null | undefined): {
   seconds: number;
   nanoseconds: number;
   toMillis: () => number;
@@ -533,18 +539,27 @@ export function fromUnixTimestamp(unixMs: number): {
   isEqual: (other: any) => boolean;
   toJSON: () => object;
 } {
+  // 🛡️ Defensive check: handle null/undefined timestamps
+  // Use current time as fallback to prevent NaN errors
+  const validUnixMs = unixMs ?? Date.now();
+
+  // Log warning in development mode to help identify data integrity issues
+  if (process.env.NODE_ENV === 'development' && (unixMs === null || unixMs === undefined)) {
+    console.warn('[fromUnixTimestamp] Received null/undefined timestamp, using current time as fallback');
+  }
+
   return {
-    seconds: Math.floor(unixMs / 1000),
-    nanoseconds: (unixMs % 1000) * 1000000,
-    toMillis: () => unixMs,
-    toDate: () => new Date(unixMs),
+    seconds: Math.floor(validUnixMs / 1000),
+    nanoseconds: (validUnixMs % 1000) * 1000000,
+    toMillis: () => validUnixMs,
+    toDate: () => new Date(validUnixMs),
     isEqual: (other: any) => {
       if (!other || typeof other.toMillis !== 'function') return false;
-      return other.toMillis() === unixMs;
+      return other.toMillis() === validUnixMs;
     },
     toJSON: () => ({
-      seconds: Math.floor(unixMs / 1000),
-      nanoseconds: (unixMs % 1000) * 1000000,
+      seconds: Math.floor(validUnixMs / 1000),
+      nanoseconds: (validUnixMs % 1000) * 1000000,
     }),
   };
 }
