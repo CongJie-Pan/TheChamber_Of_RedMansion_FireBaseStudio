@@ -509,6 +509,9 @@ export default function ReadBookPage() {
   const [readingStartTime, setReadingStartTime] = useState<number>(Date.now());
   const [completedChapters, setCompletedChapters] = useState<Set<number>>(new Set());
   const chapterTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Chapter scroll completion tracking - user must scroll to bottom before chapter is marked complete
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const SCROLL_COMPLETION_THRESHOLD = 0.9; // 90% scroll required to mark chapter as read
 
   // AI Interface States
   const [isAiSheetOpen, setIsAiSheetOpen] = useState(false);
@@ -766,7 +769,7 @@ export default function ReadBookPage() {
     setSelectedTextInfo(null);
     setIsNoteSheetOpen(false);
     setCurrentNote("");
-    setIsAiSheetOpen(false); 
+    setIsAiSheetOpen(false);
     setTextExplanation(null);
     setUserQuestionInput('');
     setAiInteractionState('asking');
@@ -775,6 +778,8 @@ export default function ReadBookPage() {
     setCurrentSearchTerm("");
     setIsSearchPopoverOpen(false);
     setIsToolbarVisible(true);
+    // Reset chapter scroll completion state when changing chapters
+    setHasScrolledToBottom(false);
     // Scroll to top of chapter content when chapter changes
     if (chapterContentRef.current) {
       const viewportEl =
@@ -893,6 +898,35 @@ export default function ReadBookPage() {
     handleInteraction();
   }, [selectedTextInfo, activeHighlightInfo, handleInteraction]);
 
+  /**
+   * Check if user has scrolled to the bottom of the chapter
+   * This is required before awarding chapter completion XP
+   * Fix: Prevent premature chapter completion when user stays at top
+   */
+  const checkChapterScrollCompletion = useCallback(() => {
+    // Skip if already marked as scrolled to bottom
+    if (hasScrolledToBottom) return;
+
+    const scrollAreaElement =
+      (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
+      (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
+
+    if (!scrollAreaElement) return;
+
+    const scrollTop = scrollAreaElement.scrollTop;
+    const scrollHeight = scrollAreaElement.scrollHeight;
+    const clientHeight = scrollAreaElement.clientHeight;
+
+    // Calculate scroll percentage (0.0 to 1.0)
+    const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+    // If scrolled beyond 90%, mark as completed
+    if (scrollPercentage >= SCROLL_COMPLETION_THRESHOLD) {
+      console.log(`✅ User scrolled to bottom of chapter (${(scrollPercentage * 100).toFixed(1)}%)`);
+      setHasScrolledToBottom(true);
+    }
+  }, [hasScrolledToBottom, SCROLL_COMPLETION_THRESHOLD]);
+
 
   useEffect(() => {
     document.addEventListener('mouseup', handleMouseUp);
@@ -900,15 +934,18 @@ export default function ReadBookPage() {
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     scrollAreaElement?.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    // Add chapter scroll completion detection
+    scrollAreaElement?.addEventListener('scroll', checkChapterScrollCompletion, { passive: true, capture: true });
     document.addEventListener('mousemove', handleInteraction, { passive: true, capture: true });
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       scrollAreaElement?.removeEventListener('scroll', handleScroll, { capture: true });
+      scrollAreaElement?.removeEventListener('scroll', checkChapterScrollCompletion, { capture: true });
       document.removeEventListener('mousemove', handleInteraction, { capture: true });
       if (toolbarTimeoutRef.current) clearTimeout(toolbarTimeoutRef.current);
     };
-  }, [handleInteraction, handleMouseUp, handleScroll]);
+  }, [handleInteraction, handleMouseUp, handleScroll, checkChapterScrollCompletion]);
 
   // Recompute pagination on resize (after layout has flushed)
   useEffect(() => {
@@ -1375,10 +1412,13 @@ export default function ReadBookPage() {
 
           // Award XP for first AI question (one-time achievement)
           if (user?.id) {
+            let xpResult: any = null;
+            let xpError: any = null;
+
             try {
               console.log(`🎯 Attempting to award first AI question achievement...`);
 
-              const result = await awardXP(
+              xpResult = await awardXP(
                 user.id,
                 XP_REWARDS.AI_FIRST_QUESTION_ACHIEVEMENT,
                 '心有疑，隨札記 - First AI question asked',
@@ -1386,39 +1426,53 @@ export default function ReadBookPage() {
                 'achievement-first-ai-question' // Fixed sourceId for one-time achievement
               );
 
-              // Only show achievement toast if this is the first time
-              if (!result.isDuplicate) {
+              // Only refresh profile if not duplicate
+              if (!xpResult.isDuplicate) {
                 console.log(`🏆 Achievement unlocked: 心有疑，隨札記 (+20 XP)`);
                 await refreshUserProfile();
-
-                // Show achievement unlocked toast
-                toast({
-                  title: `🏆 ${t('achievements.achievementUnlocked')}`,
-                  description: `${t('achievements.firstAIQuestion.name')} | +20 XP`,
-                  variant: 'default',
-                  duration: 5000,
-                });
-
-                // Show level-up modal if leveled up
-                if (result.leveledUp) {
-                  setLevelUpData({
-                    show: true,
-                    fromLevel: result.fromLevel!,
-                    toLevel: result.newLevel,
-                  });
-                }
               } else {
                 console.log(`ℹ️ User has already unlocked this achievement, no XP awarded`);
-                // Inform user achievement already unlocked, no duplicate XP
-                toast({
-                  title: t('成就已解鎖') ?? '成就已解鎖',
-                  description: `${t('achievements.firstAIQuestion.name')} 已獲得過，未重複加分`,
-                  duration: 4000,
+              }
+            } catch (error) {
+              console.error('Error awarding AI interaction XP:', error);
+              xpError = error;
+              // Continue with question processing even if XP fails
+            }
+
+            // Show toast notification OUTSIDE try-catch to ensure it always displays
+            // This prevents toast from being blocked by any errors in XP award process
+            if (xpResult && !xpResult.isDuplicate && !xpError) {
+              // First time unlocking achievement - show success toast
+              toast({
+                title: `🏆 ${t('achievements.achievementUnlocked')}`,
+                description: `${t('achievements.firstAIQuestion.name')} | +20 XP`,
+                variant: 'default',
+                duration: 6000, // Increased from 5s to 6s for better visibility
+              });
+
+              // Show level-up modal if leveled up
+              if (xpResult.leveledUp) {
+                setLevelUpData({
+                  show: true,
+                  fromLevel: xpResult.fromLevel!,
+                  toLevel: xpResult.newLevel,
                 });
               }
-            } catch (xpError) {
-              console.error('Error awarding AI interaction XP:', xpError);
-              // Continue with question processing even if XP fails
+            } else if (xpResult && xpResult.isDuplicate) {
+              // Achievement already unlocked - inform user
+              toast({
+                title: t('成就已解鎖') ?? '成就已解鎖',
+                description: `${t('achievements.firstAIQuestion.name')} 已獲得過，未重複加分`,
+                duration: 5000,
+              });
+            } else if (xpError) {
+              // Error occurred while awarding XP - show error toast
+              toast({
+                title: '成就獎勵異常',
+                description: '無法獲得成就 XP，但問答功能正常運作',
+                variant: 'destructive',
+                duration: 4000,
+              });
             }
           }
 
@@ -1820,21 +1874,29 @@ export default function ReadBookPage() {
                       setStreamingProgress(Math.round(progress));
                     }
 
-                    // Prefer server-extracted thinking content from <think> tags
+                    // Extract and separate thinking content from answer content
+                    // Fix: Always clean fullContent to prevent thinking duplication in answer area
                     let extractedThinkingText: string | null = null;
+                    let extractedThinkingFromContent: string | null = null;
+
+                    // Step 1: Always clean fullContent first to remove any thinking content
+                    if (chunk.fullContent) {
+                      const { cleanContent, thinkingText } = splitThinkingFromContent(chunk.fullContent);
+                      (chunk as any).fullContent = cleanContent;  // Unified cleanup - prevents duplication
+                      extractedThinkingFromContent = thinkingText || null;
+                    }
+
+                    // Step 2: Prefer server-extracted thinking content from <think> tags
                     if ((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0) {
                       extractedThinkingText = (chunk as any).thinkingContent.trim();
-                      if (extractedThinkingText && extractedThinkingText !== thinkingContent) {
-                        setThinkingContent(extractedThinkingText);
-                      }
-                    } else if (chunk.fullContent) {
-                      // Fallback: attempt client-side split if server didn't provide it
-                      const { cleanContent, thinkingText } = splitThinkingFromContent(chunk.fullContent);
-                      if (thinkingText && thinkingText !== thinkingContent) {
-                        extractedThinkingText = thinkingText;
-                        setThinkingContent(thinkingText);
-                      }
-                      (chunk as any).fullContent = cleanContent;
+                    } else if (extractedThinkingFromContent) {
+                      // Fallback: use client-side extracted thinking if server didn't provide it
+                      extractedThinkingText = extractedThinkingFromContent;
+                    }
+
+                    // Step 3: Update thinking state if we have new thinking content
+                    if (extractedThinkingText && extractedThinkingText !== thinkingContent) {
+                      setThinkingContent(extractedThinkingText);
                     }
 
                     // Update existing AI placeholder message (Fix Issue #2 - no duplicate creation)
@@ -2300,6 +2362,12 @@ export default function ReadBookPage() {
       return; // Already completed, no need to set timer
     }
 
+    // Check if user has scrolled to bottom - required before awarding chapter completion
+    if (!hasScrolledToBottom) {
+      console.log(`⏳ Chapter ${currentChapter.id}: Waiting for user to scroll to bottom before awarding completion XP`);
+      return; // Not scrolled to bottom yet, don't start timer
+    }
+
     // Award XP function
     const awardChapterXP = async () => {
       try {
@@ -2371,8 +2439,9 @@ export default function ReadBookPage() {
       }
     };
 
-    // Set timer: Award XP after user has been on chapter for 5 seconds
-    chapterTimerRef.current = setTimeout(awardChapterXP, 5000);
+    // Set timer: Award XP after user has scrolled to bottom AND stayed for 2 seconds
+    // Reduced from 5s to 2s since user already demonstrated intent by scrolling to bottom
+    chapterTimerRef.current = setTimeout(awardChapterXP, 2000);
 
     // Cleanup function
     return () => {
@@ -2381,7 +2450,7 @@ export default function ReadBookPage() {
         chapterTimerRef.current = null;
       }
     };
-  }, [user?.id, currentChapter?.id, completedChapters]);
+  }, [user?.id, currentChapter?.id, completedChapters, hasScrolledToBottom]);
 
   const handleSaveNote = async () => {
     if (!user?.id || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
@@ -3336,7 +3405,7 @@ ${selectedTextContent}
                   {aiMode === 'new-conversation' && '開啟新對話'}
                   {aiMode === 'book-sources' && '書籍引源 · 11'}
                   {aiMode === 'ai-analysis' && `AI 問書 《紅樓夢》`}
-                  {aiMode === 'perplexity-qa' && `Perplexity 智慧問答`}
+                  {aiMode === 'perplexity-qa' && `問 AI`}
                 </SheetTitle>
                 <SheetDescription>
                   {aiMode === 'new-conversation' && '請選擇您想了解的內容或直接提問'}

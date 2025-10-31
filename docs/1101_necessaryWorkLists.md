@@ -247,7 +247,7 @@ Next.js version: 15.5.6 (Webpack)
 
 2025/10/31 bug-2
 ---
-1.
+1. ok
 
 當進去閱讀頁面後，會出現以下錯誤訊息:
 
@@ -286,7 +286,7 @@ Next.js version: 15.5.6 (Webpack)
 
 (1)
 
-我點到每日修身，為何今日任務清單，只有顯示一個已經完成的，另一個沒有出現。(應該有兩個總今日任務)。原本給ai改的需求是: "每日任務 會持續的進行任務輸出，是不是沒有個限制，就只要兩個任務就好。希望的話可以把系統開啟後，就自動進行任務產出工作，否則不要讓用戶等太久。也不要每次開啟該頁面就是要重刷重產出一次。" 但是為何改成現在這樣子 ? 問題也沒解決，node終端也沒發生其他問題。然後 這個任務，下方寫"Recovered from task ID" 和 "Revovered from task ID"
+[x] 我點到每日修身，為何今日任務清單，只有顯示一個已經完成的，另一個沒有出現。(應該有兩個總今日任務)。原本給ai改的需求是: "每日任務 會持續的進行任務輸出，是不是沒有個限制，就只要兩個任務就好。希望的話可以把系統開啟後，就自動進行任務產出工作，否則不要讓用戶等太久。也不要每次開啟該頁面就是要重刷重產出一次。" 但是為何改成現在這樣子 ? 問題也沒解決，node終端也沒發生其他問題。然後 這個任務，下方寫"Recovered from task ID" 和 "Revovered from task ID"
 
 ❌ [TaskRepository] SQLite constraint error for task character_insight_easy_2025-10-31_jfaq43_1761917983702:
    Task Type: undefined, Difficulty: easy
@@ -376,11 +376,19 @@ Generate daily tasks failed, falling back to ephemeral tasks: Error: Failed to g
 - 針對一般用戶: 每日任務 會持續的進行任務輸出，是不是沒有個限制，就只要兩個任務就好。希望的話可以把系統開啟後，就自動進行任務產出工作，否則不要讓用戶等太久。也不要每次開啟該頁面就是要重刷重產出一次。評分和評價一樣給ai。
 - 針對測試帳號(訪客帳號) :  任務內容請固定為兩個(不要讓ai產出)，評分和評價給ai就好。
 
+(3)
+
+每日任務請設計成:
+1) 點了提交按鈕後，需要在中間出現 AI(GPT-5-mini)批改中的輸入動畫，提醒用戶目前ai正在批改，以免因為覺得卡在提交按鈕而覺得壞掉。
+2) 評分標準: 內容無關: 20分；內容有符合題意: 80分；寫得多且很有想法: 100分
+3) 當兩個任務完成後，反倒頁面顯示兩個任務未完成。xp也顯示為0。
+每日任務bug較多 請多檢查其邏輯正確與否。
+
 ---
 
-3. 進入紅學社之後，會出現以下錯誤:
+1. [x] 進入紅學社之後，會出現以下錯誤:
 
-(1)
+(1) ok
 
 """
 無法載入貼文，請稍後再試。
@@ -409,7 +417,7 @@ timestamp.toDate is not a function
 
 Next.js version: 15.5.6 (Webpack)
 
-(2)
+(2) ok
 
 當發文時，會出現以下錯誤:
 
@@ -438,7 +446,7 @@ Check the render method of `CommunityPage`. See https://react.dev/link/warning-k
 Next.js version: 15.5.6 (Webpack)
 
 
-(3)
+(3) ok
 
 當按讚時會出現以下錯誤:
 
@@ -474,23 +482,23 @@ Next.js version: 15.5.6 (Webpack)
 Console Error
 
 ## Error Message
-Failed to add comment
+Failed to fetch comments (500)
 
 
-    at addCommentAPI (src\app\(main)\community\page.tsx:834:11)
-    at async handleComment (src\app\(main)\community\page.tsx:1072:22)
-    at async handleSubmitComment (src\app\(main)\community\page.tsx:365:7)
+    at fetchComments (src\app\(main)\community\page.tsx:853:11)
+    at async PostCard.useEffect.loadCommentsData (src\app\(main)\community\page.tsx:308:34)
 
 ## Code Frame
-  832 |   if (!response.ok) {
-  833 |     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-> 834 |     throw new Error(errorData.error || `Failed to add comment (${response.status})`);
+  851 |
+  852 |   if (!response.ok) {
+> 853 |     throw new Error(`Failed to fetch comments (${response.status})`);
       |           ^
-  835 |   }
-  836 |
-  837 |   const result = await response.json();
+  854 |   }
+  855 |
+  856 |   const result = await response.json();
 
 Next.js version: 15.5.6 (Webpack)
+
 
 ---
 
@@ -500,9 +508,11 @@ Next.js version: 15.5.6 (Webpack)
 
 ---
 
+5. 閱讀頁面需要用戶滑到閱讀頁面最底 才算讀完。目前發現用戶只是在閱讀頁面最頭，就讀完觸發成就了。還有ai問答好像沒有觸發toast通知，也有觸發成就嗎?
+
 [] 提高每頁compliling的效率時間 提升至3-5秒內完成
 
-[] 簡報ui畫面還要修改過。
+[] 簡報ui畫面還要修改過、新增一張後續規劃。(ui畫面帶過即可)
 
 
 [] 最後測試 (Smoking Test)

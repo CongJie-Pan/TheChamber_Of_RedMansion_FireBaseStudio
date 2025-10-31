@@ -96,7 +96,9 @@
       "Bash(time npm run build)",
       "Bash(jobs)",
       "Bash(then echo \"✅ .env.local exists\")",
-      "Bash(else echo \"❌ .env.local not found\")"
+      "Bash(else echo \"❌ .env.local not found\")",
+      "Bash(jobs:*)",
+      "Bash(xargs:*)"
     ]
   },
   "outputStyle": "default"

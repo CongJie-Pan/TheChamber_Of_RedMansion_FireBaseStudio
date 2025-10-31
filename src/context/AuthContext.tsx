@@ -213,8 +213,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="relative flex items-center justify-center">
-          {/* Spinning ring animation around logo */}
-          <div className="absolute w-40 h-40 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          {/* Gradient spinning ring animation around logo */}
+          <div
+            className="absolute w-40 h-40 rounded-full animate-spin"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent, hsl(var(--primary)))',
+              WebkitMask: 'radial-gradient(circle, transparent 68%, black 68%)',
+              mask: 'radial-gradient(circle, transparent 68%, black 68%)'
+            }}
+          />
 
           {/* Logo in center */}
           <div className="relative w-28 h-28 rounded-full overflow-hidden bg-white/10 backdrop-blur-sm">

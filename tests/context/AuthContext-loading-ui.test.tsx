@@ -278,8 +278,9 @@ describe('AuthContext Loading UI - Unit Tests', () => {
      * Test 3.1: Spinning ring has animation class
      *
      * Behavior: The ring div should include the 'animate-spin' Tailwind class.
+     * Updated: Now uses gradient ring instead of border ring.
      */
-    it('should apply animate-spin class to spinning ring', () => {
+    it('should apply animate-spin class to gradient spinning ring', () => {
       // Arrange
       (useSession as jest.Mock).mockReturnValue({
         data: null,
@@ -293,7 +294,12 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Assert: Find the spinning ring by its distinctive classes
       const spinningRing = container.querySelector('.animate-spin');
       expect(spinningRing).toBeInTheDocument();
-      expect(spinningRing).toHaveClass('border-4', 'rounded-full', 'w-40', 'h-40');
+      expect(spinningRing).toHaveClass('rounded-full', 'w-40', 'h-40', 'absolute');
+
+      // Assert: Ring uses gradient background (inline style)
+      expect(spinningRing).toHaveStyle({
+        background: expect.stringContaining('conic-gradient')
+      });
     });
 
     /**
@@ -342,11 +348,12 @@ describe('AuthContext Loading UI - Unit Tests', () => {
     });
 
     /**
-     * Test 3.4: Spinning ring has correct border styling
+     * Test 3.4: Spinning ring uses gradient styling
      *
-     * Behavior: Ring should have transparent border with solid top.
+     * Behavior: Ring should use conic-gradient for smooth color transition.
+     * Updated: Now uses gradient instead of borders.
      */
-    it('should apply correct border styles to spinning ring', () => {
+    it('should apply gradient styles to spinning ring', () => {
       // Arrange
       (useSession as jest.Mock).mockReturnValue({
         data: null,
@@ -357,11 +364,14 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Act
       const { container } = renderAuthProvider();
 
-      // Assert: Ring has border classes
+      // Assert: Ring has gradient background
       const spinningRing = container.querySelector('.animate-spin');
-      expect(spinningRing).toHaveClass('border-4');
-      // Note: Testing for border-primary/30 and border-t-primary requires checking computed styles
-      // which is complex in jsdom. We verify the classes are present instead.
+      expect(spinningRing).toBeInTheDocument();
+
+      // Assert: Ring uses inline styles for gradient and mask effect
+      const style = spinningRing?.getAttribute('style');
+      expect(style).toContain('mask');
+      expect(style).toContain('radial-gradient');
     });
   });
 
