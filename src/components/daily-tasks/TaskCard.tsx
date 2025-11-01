@@ -260,7 +260,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
             {/* Attribute Rewards */}
             <div className="flex items-center gap-3">
-              {Object.entries(task.attributeRewards).map(([attr, value]) => (
+              {/* Phase 4-T1: Added defensive null check to prevent TypeError */}
+              {Object.entries(task.attributeRewards || {}).map(([attr, value]) => (
                 value > 0 && (
                   <div key={attr} className="flex items-center gap-1" title={getAttributeName(attr)}>
                     {getAttributeIcon(attr)}

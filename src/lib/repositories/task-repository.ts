@@ -9,6 +9,7 @@
 
 import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 import type { DailyTask, TaskType, TaskDifficulty } from '../types/daily-task';
+import { XP_REWARD_TABLE, ATTRIBUTE_REWARD_TABLE } from '../task-generator';
 
 /**
  * Task data interface for database operations
@@ -29,17 +30,45 @@ interface TaskRow {
 
 /**
  * Convert database row to DailyTask
+ *
+ * Phase 4-T1: Enhanced to auto-generate xpReward and attributeRewards
+ * from REWARD_TABLEs when not present in database content JSON.
+ * This ensures backward compatibility with existing tasks that only have baseXP.
  */
 function rowToTask(row: TaskRow): DailyTask {
   const content = row.content ? JSON.parse(row.content) : {};
 
+  // Extract type and difficulty for reward calculation
+  const taskType = row.taskType as TaskType;
+  const difficulty = row.difficulty as TaskDifficulty;
+
+  // Generate xpReward: Priority order
+  // 1. content.xpReward (if exists)
+  // 2. row.baseXP (fallback for legacy tasks)
+  // 3. XP_REWARD_TABLE lookup (if type/difficulty valid)
+  // 4. Default to 10 XP (safety fallback)
+  const xpReward = content.xpReward
+    ?? row.baseXP
+    ?? XP_REWARD_TABLE[taskType]?.[difficulty]
+    ?? 10;
+
+  // Generate attributeRewards: Priority order
+  // 1. content.attributeRewards (if exists)
+  // 2. ATTRIBUTE_REWARD_TABLE lookup (if type valid)
+  // 3. Empty object {} (safety fallback)
+  const attributeRewards = content.attributeRewards
+    ?? ATTRIBUTE_REWARD_TABLE[taskType]
+    ?? {};
+
   return {
     id: row.id,
-    type: row.taskType as TaskType, // DailyTask interface uses 'type', database uses 'taskType'
-    difficulty: row.difficulty as TaskDifficulty,
+    type: taskType,
+    difficulty: difficulty,
     title: row.title,
     description: row.description || undefined,
     baseXP: row.baseXP,
+    xpReward,           // ✅ Auto-generated from baseXP or REWARD_TABLE
+    attributeRewards,   // ✅ Auto-generated from ATTRIBUTE_REWARD_TABLE
     ...content,
     sourceChapter: row.sourceChapter || undefined,
     sourceVerseStart: row.sourceVerseStart || undefined,

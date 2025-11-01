@@ -62,8 +62,9 @@ const TASK_GENERATION_CONFIG = {
 
 /**
  * XP rewards by task type and difficulty
+ * Exported for use in task-repository.ts rowToTask() conversion
  */
-const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
+export const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
   [DailyTaskType.MORNING_READING]: {
     [TaskDifficulty.EASY]: 8,
     [TaskDifficulty.MEDIUM]: 12,
@@ -89,8 +90,9 @@ const XP_REWARD_TABLE: Record<DailyTaskType, Record<TaskDifficulty, number>> = {
 /**
  * Attribute rewards by task type
  * Aligned with user-level.ts AttributePoints interface
+ * Exported for use in task-repository.ts rowToTask() conversion
  */
-const ATTRIBUTE_REWARD_TABLE: Record<DailyTaskType, Partial<AttributePoints>> = {
+export const ATTRIBUTE_REWARD_TABLE: Record<DailyTaskType, Partial<AttributePoints>> = {
   [DailyTaskType.MORNING_READING]: {
     analyticalThinking: 1,
     culturalKnowledge: 1,
