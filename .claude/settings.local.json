@@ -98,7 +98,8 @@
       "Bash(then echo \"✅ .env.local exists\")",
       "Bash(else echo \"❌ .env.local not found\")",
       "Bash(jobs:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(tsx scripts/seed-guest-account.ts:*)"
     ]
   },
   "outputStyle": "default"

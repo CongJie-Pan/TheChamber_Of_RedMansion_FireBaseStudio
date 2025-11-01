@@ -116,6 +116,7 @@ import type { ThinkingStatus } from '@/components/ui/ThinkingProcessIndicator';
 import { ConversationFlow } from '@/components/ui/ConversationFlow';
 import type { ConversationMessage, MessageRole } from '@/components/ui/ConversationFlow';
 import { AIMessageBubble } from '@/components/ui/AIMessageBubble';
+import { sanitizeThinkingContent, splitThinkingFromContent } from '@/lib/perplexity-thinking-utils';
 
 // Citation and Error Handling Utilities
 // Citation processing handled within AI bubble components
@@ -1534,66 +1535,8 @@ export default function ReadBookPage() {
             let timeoutError: Error | null = null;
             // Capture latest thinking text from server-extracted <think> content
             let latestThinkingText: string = '';
-            const sanitizeThinking = (text: string) => {
-              try {
-                if (!text) return '';
-                let t = text.replace(/\r\n/g, '\n');
-                t = t
-                  .split('\n')
-                  .map((l) => l.replace(/\s+$/g, ''))
-                  .join('\n')
-                  .trim();
-                t = t.replace(/\n{3,}/g, '\n\n');
-                return t;
-              } catch {
-                return text || '';
-              }
-            };
 
             console.log('[QA Module] Starting stream processing with timeout protection');
-
-            // Utility: split thinking section from generated content
-            const splitThinkingFromContent = (text: string) => {
-              try {
-                if (!text) return { cleanContent: text, thinkingText: '' };
-                // 1) Explicit markers (preferred)
-                const markerPattern = /(\*\*\s*💭\s*思考過程[^*]*\*\*|^#+\s*思考過程\s*$|^\s*💭\s*思考過程\s*:?[\t ]*)([\s\S]*?)(?:\n\s*-{3,}\s*\n|\n##\s|\n\*\*|$)/m;
-                const markerMatch = text.match(markerPattern);
-                if (markerMatch) {
-                  const thinkingText = (markerMatch[2] || '').trim();
-                  const cleanContent = text.replace(markerMatch[0], '').trim();
-                  return { cleanContent, thinkingText };
-                }
-                // 2) Heuristic preface detection (common LLM prefaces without labels)
-                const answerStartMarkers = [
-                  '好的，這是', '好的，這是一個', '以下為', '以下是', '以下將',
-                  '下面是', '總結', '結論', '綜上', '接下來', '為您整理', '綜合來看'
-                ];
-                let earliest = -1;
-                for (const m of answerStartMarkers) {
-                  // prefer matches at line starts to reduce false positives
-                  const re = new RegExp(`(^|\n)\s*${m}`);
-                  const found = text.search(re);
-                  if (found !== -1 && (earliest === -1 || found < earliest)) {
-                    earliest = found === 0 ? 0 : found + (text[found] === '\n' ? 1 : 0);
-                  }
-                }
-                if (earliest > 60) {
-                  const preface = text.slice(0, earliest).trim();
-                  // require at least one paragraph break and some analytical cue to avoid over-cutting
-                  const hasPara = /\n\s*\n/.test(preface);
-                  const analyticalCue = /(首先|還要|需要|因此|最後|總之|綜合|建議|分析|思考)/.test(preface);
-                  if (hasPara && analyticalCue) {
-                    const rest = text.slice(earliest).trim();
-                    return { cleanContent: rest, thinkingText: preface };
-                  }
-                }
-                return { cleanContent: text, thinkingText: '' };
-              } catch {
-                return { cleanContent: text, thinkingText: '' };
-              }
-            };
-
             // Setup watchdog timer to detect stream stalls
             watchdogInterval = setInterval(() => {
               if (!isStreamActive) {
@@ -1645,7 +1588,11 @@ export default function ReadBookPage() {
                     const combinedRaw = last.fullContent && last.fullContent.length > 0
                       ? last.fullContent
                       : chunks.map(c => c.content).join('');
-                    const { cleanContent: combined } = splitThinkingFromContent(combinedRaw);
+                    const combinedSplit = splitThinkingFromContent(combinedRaw);
+                    const combined = combinedSplit.cleanContent;
+                    if (!latestThinkingText && combinedSplit.thinkingText) {
+                      latestThinkingText = combinedSplit.thinkingText;
+                    }
                     if (latestThinkingText && latestThinkingText !== thinkingContent) {
                       setThinkingContent(latestThinkingText);
                     }
@@ -1747,7 +1694,11 @@ export default function ReadBookPage() {
                       const combinedRaw = last.fullContent && last.fullContent.length > 0
                         ? last.fullContent
                         : chunks.map(c => c.content).join('');
-                      const { cleanContent: combined } = splitThinkingFromContent(combinedRaw);
+                      const combinedSplit = splitThinkingFromContent(combinedRaw);
+                      const combined = combinedSplit.cleanContent;
+                      if (!latestThinkingText && combinedSplit.thinkingText) {
+                        latestThinkingText = combinedSplit.thinkingText;
+                      }
                       if (latestThinkingText && latestThinkingText !== thinkingContent) {
                         setThinkingContent(latestThinkingText);
                       }
@@ -1835,6 +1786,7 @@ export default function ReadBookPage() {
                     if (chunk.searchQueries && chunk.searchQueries.length > 0) {
                       const sq = `搜尋查詢: ${chunk.searchQueries.join(', ')}`;
                       setThinkingContent(sq);
+                      latestThinkingText = sq;
                       if (streamingAIMessageIdRef.current) {
                         const msgId = streamingAIMessageIdRef.current;
                         setActiveSessionMessages(prev => prev.map(m => {
@@ -1872,15 +1824,18 @@ export default function ReadBookPage() {
 
                     // Step 2: Prefer server-extracted thinking content from <think> tags
                     if ((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0) {
-                      extractedThinkingText = (chunk as any).thinkingContent.trim();
+                      extractedThinkingText = sanitizeThinkingContent((chunk as any).thinkingContent.trim());
                     } else if (extractedThinkingFromContent) {
                       // Fallback: use client-side extracted thinking if server didn't provide it
-                      extractedThinkingText = extractedThinkingFromContent;
+                      extractedThinkingText = sanitizeThinkingContent(extractedThinkingFromContent);
                     }
 
                     // Step 3: Update thinking state if we have new thinking content
-                    if (extractedThinkingText && extractedThinkingText !== thinkingContent) {
-                      setThinkingContent(extractedThinkingText);
+                    if (extractedThinkingText) {
+                      latestThinkingText = extractedThinkingText;
+                      if (extractedThinkingText !== thinkingContent) {
+                        setThinkingContent(extractedThinkingText);
+                      }
                     }
 
                     if (streamingAIMessageIdRef.current) {
@@ -1901,8 +1856,10 @@ export default function ReadBookPage() {
                           newThinking = extractedThinkingText.trim();
                         } else if (incrementalThinking && incrementalThinking.trim().length > 0) {
                           const base = newThinking;
-                          if (!base) newThinking = incrementalThinking.trim();
-                          else if (!base.includes(incrementalThinking.trim())) newThinking = `${base}\n\n${incrementalThinking.trim()}`;
+                          const incrementalSanitized = incrementalThinking.trim();
+                          if (!base) newThinking = incrementalSanitized;
+                          else if (!base.includes(incrementalSanitized)) newThinking = `${base}\n\n${incrementalSanitized}`;
+                          latestThinkingText = incrementalSanitized;
                         }
                         return {
                           ...m,
@@ -1941,7 +1898,9 @@ export default function ReadBookPage() {
                       setStreamingProgress(100);
 
                       // Create final response from last chunk (cleaned of thinking section)
-                      const finalServerThinking = (chunk as any).thinkingContent ? sanitizeThinking((chunk as any).thinkingContent) : '';
+                      const finalServerThinking = (chunk as any).thinkingContent
+                        ? sanitizeThinkingContent((chunk as any).thinkingContent)
+                        : '';
                       const cleaned = splitThinkingFromContent(chunk.fullContent || '').cleanContent || chunk.fullContent || '';
                       const finalResponse: PerplexityQAResponse = {
                         question: questionText,
@@ -2833,6 +2792,11 @@ ${selectedTextContent}
     return contentNodes;
   };
 
+  const activeSessionMessages = getActiveSession()?.messages || [];
+  const hasStreamingAiMessage = activeSessionMessages.some(
+    (message) => message.role === 'ai' && message.isStreaming
+  );
+
   return (
     <div className="h-full flex flex-col">
       <div
@@ -3529,8 +3493,8 @@ ${selectedTextContent}
                 <div className="space-y-4 qa-module">
                   {/* Conversation Flow with Integrated Thinking Process */}
                   <ConversationFlow
-                    messages={getActiveSession()?.messages || []}
-                    showNewConversationSeparator={(getActiveSession()?.messages?.length || 0) > 0}
+                    messages={activeSessionMessages}
+                    showNewConversationSeparator={activeSessionMessages.length > 0}
                     onNewConversation={() => {
                       // Start new session (do not delete history)
                       startNewSession();
@@ -3568,7 +3532,7 @@ ${selectedTextContent}
                                 window.open(citation.url, '_blank');
                               }
                             }}
-                            showThinkingInline={false}
+                            showThinkingInline={true}
                           />
                         );
                       }
@@ -3614,8 +3578,8 @@ ${selectedTextContent}
                     </div>
                   )}
 
-                  {/* Show standalone thinking indicator only when no messages yet */}
-                  {(getActiveSession()?.messages.length || 0) === 0 && thinkingStatus === 'thinking' && (
+                  {/* Show standalone thinking indicator while waiting for first AI tokens */}
+                  {thinkingStatus === 'thinking' && !hasStreamingAiMessage && (
                     <ThinkingProcessIndicator
                       status={thinkingStatus}
                       content={thinkingContent}
