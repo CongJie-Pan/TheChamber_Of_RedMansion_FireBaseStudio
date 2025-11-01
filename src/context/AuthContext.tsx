@@ -71,6 +71,57 @@ interface AuthProviderProps {
 }
 
 /**
+ * Shared loading screen component for authentication states.
+ *
+ * Provides a consistent visual spinner with optional messaging so that
+ * other modules (e.g. guarded layouts) can render the same experience
+ * without duplicating markup. The design ensures the spinner remains
+ * visible against the deep red background defined in globals.css.
+ */
+export interface AuthLoadingScreenProps {
+  message?: string;
+  subMessage?: string;
+}
+
+export function AuthLoadingScreen({ message, subMessage }: AuthLoadingScreenProps) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background/95 to-background px-6 text-center text-foreground">
+      <div className="relative mb-6 flex items-center justify-center">
+        {/* High-contrast spinner ring for visibility on dark backgrounds */}
+        <div
+          className="absolute h-44 w-44 rounded-full border-4 border-primary/30 border-t-primary animate-spin"
+          aria-hidden="true"
+        />
+
+        {/* Logo container with subtle blur to highlight brand mark */}
+        <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/20">
+          <Image
+            src="/images/logo_circle.png"
+            alt="紅樓慧讀"
+            width={120}
+            height={120}
+            priority
+            className="h-28 w-28 rounded-full object-cover"
+          />
+        </div>
+      </div>
+
+      {message && (
+        <p className="text-lg font-semibold tracking-wide text-foreground">
+          {message}
+        </p>
+      )}
+
+      {subMessage && (
+        <p className="mt-2 max-w-sm text-sm text-foreground/80">
+          {subMessage}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Authentication Provider Component
  *
  * This component wraps the entire application and provides authentication state
@@ -210,33 +261,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * of unauthenticated content and provides better user experience.
    */
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="relative flex items-center justify-center">
-          {/* Gradient spinning ring animation around logo */}
-          <div
-            className="absolute w-40 h-40 rounded-full animate-spin"
-            style={{
-              background: 'conic-gradient(from 0deg, rgba(255,255,255,0.1), rgba(255,255,255,0.9), hsl(var(--primary)))',
-              WebkitMask: 'radial-gradient(circle, transparent 65%, black 65%)',
-              mask: 'radial-gradient(circle, transparent 65%, black 65%)'
-            }}
-          />
-
-          {/* Logo in center */}
-          <div className="relative w-28 h-28 rounded-full overflow-hidden bg-white/10 backdrop-blur-sm">
-            <Image
-              src="/images/logo_circle.png"
-              alt="紅樓慧讀"
-              width={112}
-              height={112}
-              priority
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </div>
-    );
+    return <AuthLoadingScreen />;
   }
 
   /**

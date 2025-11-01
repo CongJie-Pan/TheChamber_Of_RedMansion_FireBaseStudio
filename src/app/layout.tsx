@@ -97,31 +97,34 @@ export default function RootLayout({
       
       {/* Body with Noto Serif SC (思源宋體) for classical Chinese typography */}
       <body className={`${notoSerifSC.variable} font-sans`}>
-        {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
-        <SessionProvider>
-          {/* Authentication Provider - Manages user login/logout state for entire app */}
-          <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-            <AuthProvider>
-              {/* Language Provider - Manages multilingual support and translations */}
-              <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
-                <LanguageProvider>
-                  {/* All page content is rendered here */}
-                  {children}
+        {/* Top-level chunk boundary to handle layout chunk failures */}
+        <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
+          {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
+          <SessionProvider>
+            {/* Authentication Provider - Manages user login/logout state for entire app */}
+            <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+              <AuthProvider>
+                {/* Language Provider - Manages multilingual support and translations */}
+                <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
+                  <LanguageProvider>
+                    {/* All page content is rendered here */}
+                    {children}
 
-                  {/* Toast notification system for user feedback messages */}
-                  <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
-                    <Toaster />
-                  </ChunkErrorBoundary>
+                    {/* Toast notification system for user feedback messages */}
+                    <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
+                      <Toaster />
+                    </ChunkErrorBoundary>
 
-                  {/* Development-only hydration debugger */}
-                  <ChunkErrorBoundary>
-                    <HydrationDebugger />
-                  </ChunkErrorBoundary>
-                </LanguageProvider>
-              </ChunkErrorBoundary>
-            </AuthProvider>
-          </ChunkErrorBoundary>
-        </SessionProvider>
+                    {/* Development-only hydration debugger */}
+                    <ChunkErrorBoundary>
+                      <HydrationDebugger />
+                    </ChunkErrorBoundary>
+                  </LanguageProvider>
+                </ChunkErrorBoundary>
+              </AuthProvider>
+            </ChunkErrorBoundary>
+          </SessionProvider>
+        </ChunkErrorBoundary>
       </body>
     </html>
   );

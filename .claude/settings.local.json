@@ -99,7 +99,8 @@
       "Bash(else echo \"❌ .env.local not found\")",
       "Bash(jobs:*)",
       "Bash(xargs:*)",
-      "Bash(tsx scripts/seed-guest-account.ts:*)"
+      "Bash(tsx scripts/seed-guest-account.ts:*)",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/api/community/comments-route.test.ts 2>&1 | findstr /C:\"Test Suites\" /C:\"Tests:\"\")"
     ]
   },
   "outputStyle": "default"

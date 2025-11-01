@@ -41,6 +41,7 @@ import { AppShell } from '@/components/layout/AppShell';
 
 // Custom hooks for authentication state management
 import { useAuth } from '@/hooks/useAuth';
+import { AuthLoadingScreen } from '@/context/AuthContext';
 
 // Utility functions (imported but not used in this component)
 import { cn } from '@/lib/utils';
@@ -71,7 +72,7 @@ export default function MainAppLayout({ children }: { children: ReactNode }) {
    */
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/login'); // Redirect to login for unauthenticated users
+      router.replace('/login'); // Redirect to login for unauthenticated users without history stacking
     }
   }, [user, isLoading, router]);
 
@@ -82,7 +83,16 @@ export default function MainAppLayout({ children }: { children: ReactNode }) {
    * to prevent flash of unauthenticated content and provide smooth transitions.
    */
   if (isLoading || !user) {
-    return null; // Could be enhanced with a loading spinner component
+    if (isLoading) {
+      return <AuthLoadingScreen />;
+    }
+
+    return (
+      <AuthLoadingScreen
+        message="Redirecting to login..."
+        subMessage="Please wait while we route you to the login page to continue your journey."
+      />
+    );
   }
 
   // Determine current page context for layout selection
