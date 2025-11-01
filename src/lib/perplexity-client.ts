@@ -539,7 +539,7 @@ export class PerplexityClient {
           const isComplete = chunk.choices[0].finish_reason !== null;
 
           yield {
-            content,
+            content: this.cleanResponse(content, false),  // Fix: Clean incremental content to remove <think> tags
             fullContent: this.cleanResponse(fullContent, input.showThinkingProcess),
             thinkingContent,
             timestamp: new Date().toISOString(),

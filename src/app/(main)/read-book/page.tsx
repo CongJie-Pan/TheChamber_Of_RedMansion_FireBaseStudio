@@ -1871,7 +1871,16 @@ export default function ReadBookPage() {
                       }));
                     } else {
                       // Create streaming message once actual answer tokens arrive
-                      const initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
+                      let initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
+
+                      // Fix: Defensively clean initial content to ensure no <think> tags leak through
+                      // This protects against any server-side cleaning failures or edge cases
+                      if (initialContent && initialContent.trim().length > 0) {
+                        const { cleanContent } = splitThinkingFromContent(initialContent);
+                        initialContent = cleanContent;
+                      }
+
+                      // Only create message if we have actual answer content after cleaning
                       if (initialContent && initialContent.trim().length > 0) {
                         console.log('[QA Module] Creating streaming AI message after first answer tokens');
                         const aiMsgId = `ai-stream-${Date.now()}`;
