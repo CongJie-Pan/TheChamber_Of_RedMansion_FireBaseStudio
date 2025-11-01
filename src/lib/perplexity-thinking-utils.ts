@@ -79,6 +79,11 @@ export function sanitizeThinkingContent(raw: string | null | undefined): string 
 
 /**
  * Attempts to split thinking content from answer text using a hierarchy of heuristics.
+ *
+ * Priority order:
+ * 1. <think> XML tags (Perplexity API format)
+ * 2. Explicit markers (💭, 思考過程)
+ * 3. Analytical preface detection
  */
 export function splitThinkingFromContent(text: string | null | undefined): ThinkingSplitResult {
   if (!text) {
@@ -86,6 +91,48 @@ export function splitThinkingFromContent(text: string | null | undefined): Think
   }
 
   const normalised = text.replace(/\r\n/g, '\n');
+
+  // 0) PRIORITY: Extract and remove <think> tags (Perplexity API format)
+  // This should be handled by the server, but we double-check here as a safety measure
+  const thinkTagRegex = /<think>([\s\S]*?)<\/think>/gi;
+  const thinkMatches = normalised.match(thinkTagRegex);
+
+  if (thinkMatches && thinkMatches.length > 0) {
+    // Extract all thinking tag content
+    let allThinkingText = '';
+    thinkMatches.forEach(match => {
+      const content = match.replace(/<\/?think>/gi, '').trim();
+      if (content) {
+        allThinkingText += content + '\n\n';
+      }
+    });
+
+    // Remove all <think>...</think> tags and their content from the answer
+    let cleanContent = normalised.replace(thinkTagRegex, '');
+
+    // Also handle incomplete tags (e.g., streaming)
+    const incompleteThinkPattern = /<think[^>]*>([\s\S]*?)(?=<(?!\/?think)|$)/gi;
+    cleanContent = cleanContent.replace(incompleteThinkPattern, '');
+
+    // Clean up multiple blank lines
+    cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n').trim();
+
+    // If we extracted thinking content, return it
+    if (allThinkingText.trim()) {
+      return {
+        cleanContent: cleanContent,
+        thinkingText: sanitizeThinkingContent(allThinkingText.trim()),
+      };
+    }
+
+    // If tags were present but empty, still return cleaned content
+    if (thinkMatches.length > 0) {
+      return {
+        cleanContent: cleanContent,
+        thinkingText: '',
+      };
+    }
+  }
 
   // 1) Explicit markers such as headings or decorative separators
   const lines = normalised.split('\n');

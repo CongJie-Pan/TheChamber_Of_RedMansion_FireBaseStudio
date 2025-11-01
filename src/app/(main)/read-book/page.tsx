@@ -3585,7 +3585,7 @@ ${selectedTextContent}
                       content={thinkingContent}
                       isExpandable={true}
                       defaultExpanded={true}
-                      progress={streamingProgress}
+                      // ✅ Removed progress prop to hide progress bar and percentage
                     />
                   )}
                 </div>
