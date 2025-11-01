@@ -349,8 +349,8 @@ function verifySchema(db: Database.Database): void {
 
     // Verify comments table structure (critical for this fix)
     console.log('🔍 [SQLite] Verifying comments table structure...');
-    const commentsInfo = db.pragma('table_info(comments)');
-    const commentColumns = commentsInfo.map((col: any) => col.name);
+    const commentsInfo = db.pragma('table_info(comments)') as Array<{ name: string }>;
+    const commentColumns = commentsInfo.map(col => col.name);
 
     console.log('📊 [SQLite] Comments table columns:', commentColumns.join(', '));
 
