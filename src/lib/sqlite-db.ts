@@ -305,6 +305,94 @@ function initializeSchema(db: Database.Database): void {
 }
 
 /**
+ * Verify database schema integrity
+ * Checks if all required tables exist and reports any issues
+ */
+function verifySchema(db: Database.Database): void {
+  console.log('🔍 [SQLite] Verifying database schema...');
+
+  const requiredTables = [
+    'users',
+    'daily_tasks',
+    'daily_progress',
+    'task_submissions',
+    'xp_transactions',
+    'xp_transaction_locks',
+    'level_ups',
+    'highlights',
+    'notes',
+    'posts',
+    'comments',
+  ];
+
+  try {
+    // Get all existing tables
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).all() as Array<{ name: string }>;
+
+    const existingTables = result.map(row => row.name);
+
+    console.log('📊 [SQLite] Existing tables:', existingTables.join(', '));
+
+    // Check for missing tables
+    const missingTables = requiredTables.filter(
+      table => !existingTables.includes(table)
+    );
+
+    if (missingTables.length > 0) {
+      console.error('❌ [SQLite] Missing tables:', missingTables.join(', '));
+      throw new Error(
+        `Database schema incomplete. Missing tables: ${missingTables.join(', ')}`
+      );
+    }
+
+    // Verify comments table structure (critical for this fix)
+    console.log('🔍 [SQLite] Verifying comments table structure...');
+    const commentsInfo = db.pragma('table_info(comments)');
+    const commentColumns = commentsInfo.map((col: any) => col.name);
+
+    console.log('📊 [SQLite] Comments table columns:', commentColumns.join(', '));
+
+    const requiredCommentsColumns = [
+      'id',
+      'postId',
+      'authorId',
+      'authorName',
+      'content',
+      'parentCommentId',
+      'depth',
+      'replyCount',
+      'likes',
+      'likedBy',
+      'status',
+      'isEdited',
+      'moderationAction',
+      'originalContent',
+      'moderationWarning',
+      'createdAt',
+      'updatedAt',
+    ];
+
+    const missingColumns = requiredCommentsColumns.filter(
+      col => !commentColumns.includes(col)
+    );
+
+    if (missingColumns.length > 0) {
+      console.error('❌ [SQLite] Missing columns in comments table:', missingColumns.join(', '));
+      throw new Error(
+        `Comments table structure incomplete. Missing columns: ${missingColumns.join(', ')}`
+      );
+    }
+
+    console.log('✅ [SQLite] Schema verification passed');
+  } catch (error: any) {
+    console.error('❌ [SQLite] Schema verification failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Flag to track if SQLite initialization has been attempted
  */
 let initializationAttempted = false;
@@ -358,6 +446,9 @@ export function getDatabase(): Database.Database {
     dbInstance.pragma('journal_mode = WAL');
 
     initializeSchema(dbInstance);
+
+    // Verify schema integrity after initialization
+    verifySchema(dbInstance);
 
     console.log('✅ [SQLite] Database connection established');
     console.log('━'.repeat(80) + '\n');

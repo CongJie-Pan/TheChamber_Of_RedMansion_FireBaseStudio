@@ -44,9 +44,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
 ) {
+  let postId: string = 'unknown';
+
   try {
     // Fixed: Await params in Next.js 15
-    const { postId } = await params;
+    const resolvedParams = await params;
+    postId = resolvedParams.postId;
 
     // Step 2: Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -70,16 +73,23 @@ export async function GET(
     );
 
   } catch (error: any) {
-    console.error('❌ [API] Error fetching comments:', error);
+    console.error('\n' + '━'.repeat(80));
+    console.error('❌ [API] Error fetching comments');
+    console.error('━'.repeat(80));
+    console.error('Error details:', error);
+    console.error('Post ID:', postId);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Error name:', error?.name);
+    console.error('Error code:', error?.code);
+    console.error('━'.repeat(80) + '\n');
 
     // 🔍 Enhanced error logging for debugging
     if (process.env.NODE_ENV === 'development') {
-      console.error('[DEBUG] Error stack:', error.stack);
-      console.error('[DEBUG] Error name:', error.name);
-      console.error('[DEBUG] Error message:', error.message);
-      console.error('[DEBUG] Post ID:', postId);
+      console.error('[DEBUG] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
 
+    // Database not found error
     if (error.message?.toLowerCase().includes('not found')) {
       return NextResponse.json(
         {
@@ -90,16 +100,42 @@ export async function GET(
       );
     }
 
-    if (error.message?.includes('SQLite')) {
+    // Database initialization/connection error
+    if (
+      error.message?.includes('SQLite') ||
+      error.message?.includes('Database') ||
+      error.message?.includes('better-sqlite3') ||
+      error.message?.includes('getDatabase')
+    ) {
+      console.error('⚠️  [API] Database initialization or connection error detected');
       return NextResponse.json(
         {
           success: false,
           error: 'Database error - Please try again later',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
         },
         { status: 503 }
       );
     }
 
+    // Schema/table missing error
+    if (
+      error.message?.includes('no such table') ||
+      error.message?.includes('no such column') ||
+      error.message?.includes('schema')
+    ) {
+      console.error('⚠️  [API] Database schema error detected');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database schema error - Please contact administrator',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        },
+        { status: 503 }
+      );
+    }
+
+    // Generic error
     return NextResponse.json(
       {
         success: false,

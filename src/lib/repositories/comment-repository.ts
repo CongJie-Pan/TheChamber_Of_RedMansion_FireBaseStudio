@@ -211,20 +211,58 @@ export function getCommentById(commentId: string): Comment | null {
  * @returns Array of comments
  */
 export function getCommentsByPost(postId: string, limit?: number): Comment[] {
-  const db = getDatabase();
+  console.log(`\n${'━'.repeat(80)}`);
+  console.log(`🔍 [CommentRepository] Getting comments for post: ${postId}`);
+  console.log(`📊 [CommentRepository] Limit: ${limit || 'unlimited'}`);
 
-  let query = 'SELECT * FROM comments WHERE postId = ? AND status = ? ORDER BY createdAt ASC';
-  const params: any[] = [postId, 'active'];
+  try {
+    // Step 1: Get database instance
+    console.log('🗄️  [CommentRepository] Getting database instance...');
+    const db = getDatabase();
+    console.log('✅ [CommentRepository] Database instance obtained successfully');
 
-  if (limit) {
-    query += ' LIMIT ?';
-    params.push(limit);
+    // Step 2: Prepare query
+    let query = 'SELECT * FROM comments WHERE postId = ? AND status = ? ORDER BY createdAt ASC';
+    const params: any[] = [postId, 'active'];
+
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(limit);
+    }
+
+    console.log('📝 [CommentRepository] Query:', query);
+    console.log('🔧 [CommentRepository] Params:', JSON.stringify(params));
+
+    // Step 3: Execute query
+    console.log('⚡ [CommentRepository] Executing query...');
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params) as CommentRow[];
+
+    console.log(`✅ [CommentRepository] Query executed successfully`);
+    console.log(`📊 [CommentRepository] Found ${rows.length} comments`);
+
+    // Step 4: Convert rows to Comment objects
+    const comments = rows.map(rowToComment);
+    console.log(`✅ [CommentRepository] Converted ${comments.length} comments to objects`);
+    console.log(`${'━'.repeat(80)}\n`);
+
+    return comments;
+  } catch (error: any) {
+    console.error(`\n${'━'.repeat(80)}`);
+    console.error('❌ [CommentRepository] Error in getCommentsByPost:');
+    console.error('━'.repeat(80));
+    console.error('Error details:', error);
+    console.error('Post ID:', postId);
+    console.error('Limit:', limit);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    console.error('Error code:', error?.code);
+    console.error('Error name:', error?.name);
+    console.error(`${'━'.repeat(80)}\n`);
+
+    // Re-throw with more context
+    throw new Error(`[CommentRepository] Failed to get comments for post ${postId}: ${error?.message || error}`);
   }
-
-  const stmt = db.prepare(query);
-  const rows = stmt.all(...params) as CommentRow[];
-
-  return rows.map(rowToComment);
 }
 
 /**
