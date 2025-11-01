@@ -178,6 +178,27 @@ TheChamber_Of_RedMansion_FireBaseStudio/
    npm run dev
    ```
 
+   **Important:** The development server automatically initializes the guest test account when starting. Look for this message in the console:
+   ```
+   ✅ [Instrumentation] Guest account seeded successfully
+   ```
+
+   **Troubleshooting Guest Account:**
+   - If you see "Guest account tasks not found" error when logging in as guest:
+     ```bash
+     npx tsx scripts/seed-guest-account.ts --reset
+     ```
+   - Verify the guest account exists:
+     ```bash
+     sqlite3 data/local-db/redmansion.db "SELECT id, username, currentXP FROM users WHERE id = 'guest-test-user-00000000'"
+     ```
+
+   **Testing with Guest Account:**
+   - User ID: `guest-test-user-00000000`
+   - Email: `guest@redmansion.test`
+   - Initial XP: 70 (resets on server restart)
+   - Fixed Daily Tasks: 2 predefined tasks (閱讀理解 50 XP + 人物分析 30 XP)
+
 5. **Run Tests**
    ```bash
    npm test
