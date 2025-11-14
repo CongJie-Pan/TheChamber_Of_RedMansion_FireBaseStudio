@@ -12,7 +12,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
   * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using direct OpenAI GPT-4-mini and Perplexity Sonar API integration. This separation allows AI capabilities to evolve independently without affecting UI or business logic, with simplified architecture removing framework overhead.
   * **Presentation Layer** (`/src/app/`, `/src/components/`): Next.js 15 App Router with React Server Components for optimal performance and SEO. UI components are isolated in `/src/components/` following atomic design principles.
   * **Business Logic Layer** (`/src/lib/`): Core services handling authentication, content filtering, task management, and user progression. This layer acts as the bridge between UI and data/AI layers.
-  * **Data Layer - Dual-Mode Architecture** (`/src/lib/repositories/`, Firebase): Hybrid data persistence using SQLite for local-first operations with Firebase Firestore fallback for cloud synchronization. Services attempt SQLite operations first for optimal performance, automatically falling back to Firebase if SQLite is unavailable or fails, ensuring reliability while maintaining backward compatibility.
+  * **Data Layer - SQLite Architecture** (`/src/lib/repositories/`): Local-first data persistence using SQLite as the primary and only database. The repository pattern provides a clean data access layer with prepared statements for SQL injection prevention, supporting all application features including user profiles, daily tasks, notes, highlights, and community posts.
 
 * **Service-Oriented Architecture for Business Logic:**
   * Each service in `/src/lib/` is a self-contained module with a single responsibility (e.g., `daily-task-service.ts`, `community-service.ts`, `content-filter-service.ts`).
@@ -106,8 +106,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   └── layout/            # Layout components
 │   │       └── AppShell.tsx   # Main app navigation and structure
 │   ├── lib/                   # Core business services and utilities
-│   │   ├── firebase.ts        # Firebase client configuration
-│   │   ├── firebase-admin.ts  # Firebase Admin SDK (server-side)
+│   │   ├── sqlite-db.ts       # SQLite database configuration and connection
 │   │   ├── env.ts             # Environment variable validation
 │   │   ├── translations.ts    # 1000+ translation keys (i18n system)
 │   │   ├── utils.ts           # Common utility functions
@@ -123,8 +122,8 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   ├── task-evaluator.ts              # Task submission evaluation
 │   │   ├── task-difficulty-adapter.ts     # Adaptive difficulty system
 │   │   ├── user-level-service.ts          # XP and leveling system
-│   │   ├── notes-service.ts               # Note-taking functionality (dual-mode: SQLite + Firebase)
-│   │   ├── highlight-service.ts           # Text highlighting (dual-mode: SQLite + Firebase)
+│   │   ├── notes-service.ts               # Note-taking functionality (SQLite-based)
+│   │   ├── highlight-service.ts           # Text highlighting (SQLite-based)
 │   │   ├── openai-client.ts               # OpenAI API integration
 │   │   ├── perplexity-client.ts           # Perplexity API integration
 │   │   ├── perplexity-error-handler.ts    # Error handling for external APIs
@@ -137,7 +136,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 │   │   └── config/            # Configuration schemas
 │   │       └── daily-task-schema.ts       # Task data validation
 │   ├── context/               # React Context providers (global state)
-│   │   ├── AuthContext.tsx    # Firebase authentication state
+│   │   ├── AuthContext.tsx    # NextAuth.js authentication state
 │   │   └── LanguageContext.tsx # i18n language state
 │   ├── hooks/                 # Custom React hooks
 │   │   ├── useAuth.ts         # Authentication hook
@@ -180,7 +179,7 @@ This project follows a **Component-Driven Architecture with AI Enhancement** pat
 ├── scripts/                   # Development and maintenance scripts
 │   ├── test-ai-logging.ts     # AI logging validation script
 │   ├── seed-guest-account.ts  # Phase 4-T1: Guest account seeding script (fixed 70 XP, 2 tasks)
-│   └── migrations/            # Data migration scripts (Firebase → SQLite)
+│   └── migrations/            # Historical: Data migration scripts (Firebase → SQLite, completed)
 │       ├── base-migrator.ts       # Reusable migration framework (abstract class)
 │       ├── migrate-highlights.ts  # Highlight migration (200+ lines, batch processing)
 │       ├── migrate-notes.ts       # Note migration (280+ lines, feature preservation)
@@ -247,9 +246,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### Core Service Modules (`/src/lib/`)
 
-**firebase.ts** - Initializes and configures Firebase client SDK for authentication, Firestore database access, and real-time data synchronization. This module provides the foundational connection to all backend services used throughout the application.
-
-**firebase-admin.ts** - Configures Firebase Admin SDK for privileged server-side operations including user management, database writes, and security rule enforcement. This module enables secure backend operations that require elevated permissions beyond client-side capabilities.
+**sqlite-db.ts** - Initializes and configures SQLite database with better-sqlite3, providing connection management, schema initialization, and transaction support. This module serves as the foundational data layer for all application features with automatic directory creation, foreign key enforcement, WAL journaling mode, and graceful shutdown handling. Includes health checks, database statistics, and comprehensive error handling for architecture mismatches.
 
 **env.ts** - Validates and type-checks all environment variables required for the application using Zod schemas to ensure runtime safety. This module prevents deployment failures by catching configuration errors early and providing clear error messages for missing or invalid environment variables.
 
@@ -265,7 +262,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 **content-filter-service.ts** - Implements enterprise-grade automated content moderation with real-time profanity detection, hate speech identification, spam filtering, and personal information masking. This module ensures community safety by automatically screening all user-generated content across posts, comments, and notes using multi-language pattern matching (Traditional Chinese and English) with 91.51% test coverage.
 
-**community-service.ts** - Manages all social learning features with **dual-mode architecture (SQLite-first with Firebase fallback)** including post creation, commenting, reactions, bookmarking, and user interactions with integrated content filtering. This module uses **community-repository** and **comment-repository** for local SQLite operations (< 5ms performance), automatically falling back to Firebase when SQLite is unavailable, maintaining 100% backward compatibility while enabling offline capability. All 12 core methods (6 posts + 3 comments + 3 bookmarks) implement the dual-mode pattern with comprehensive logging (🗄️ SQLite, ☁️ Firebase). Real-time listeners remain Firebase-only with documented polling alternatives for SQLite mode. The service serves as the central orchestrator for community features, automatically applying content moderation to maintain a safe and scholarly discussion environment with 62.96% test coverage. **Updated 2025-10-30:** Now exports shared types from `/src/types/community.ts` for client-side safe imports, enabling proper client-server separation in Next.js 15 App Router architecture.
+**community-service.ts** - Manages all social learning features including post creation, commenting, reactions, bookmarking, and user interactions with integrated content filtering. This module uses **community-repository** and **comment-repository** for SQLite operations with sub-5ms performance for local queries. All 12 core methods (6 posts + 3 comments + 3 bookmarks) provide comprehensive CRUD operations with automatic content moderation integration to maintain a safe and scholarly discussion environment. The service achieves 62.96% test coverage and exports shared types from `/src/types/community.ts` for client-side safe imports, enabling proper client-server separation in Next.js 15 App Router architecture.
 
 **daily-task-service.ts** - Orchestrates the complete lifecycle of daily learning tasks including generation, distribution, submission, evaluation, and streak tracking. This module coordinates between AI task generation, user progress tracking, and the gamification system to provide personalized daily challenges that adapt to user skill levels.
 
@@ -279,9 +276,9 @@ This section provides a complete listing of all modules in the codebase with two
 
 **user-level-service.ts** - Manages the gamification system including XP calculation, level progression, achievement unlocking, and reward distribution. This module tracks all user accomplishments and translates them into tangible progression metrics that motivate continued platform engagement through visible achievement milestones.
 
-**notes-service.ts** - Provides note-taking functionality with dual-mode architecture (SQLite-first with Firebase fallback) including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module integrates with note-repository for local SQLite operations, automatically falling back to Firebase when SQLite is unavailable, enabling users to build their personal scholarly knowledge base with optimal performance and reliability.
+**notes-service.ts** - Provides note-taking functionality including creation, editing, tagging, searching, highlighting association, and public/private visibility controls. This module integrates with note-repository for SQLite operations, enabling users to build their personal scholarly knowledge base with optimal performance. Features include automatic word count calculation, tag-based filtering, chapter association, and public note sharing for collaborative learning.
 
-**highlight-service.ts** - Manages text highlighting features with dual-mode architecture (SQLite-first with Firebase fallback) allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for local SQLite operations while maintaining backward compatibility with Firebase, supporting active reading through visual annotation and organization of key textual moments.
+**highlight-service.ts** - Manages text highlighting features allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for SQLite operations with batch processing support, supporting active reading through visual annotation and organization of key textual moments across chapters.
 
 **openai-client.ts** - Provides the primary configured client for OpenAI GPT-4-mini API integration, powering all scoring and grading tasks in the platform (updated 2025-10-30). This module handles API key management, request formatting, error handling, response parsing, and JSON-structured output for daily task evaluations including reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, and commentary interpretation.
 
@@ -309,13 +306,15 @@ This section provides a complete listing of all modules in the codebase with two
 
 **note-repository.ts** - Implements SQLite data access layer for notes with full CRUD operations and advanced querying capabilities including tags (JSON arrays), public/private visibility, and user-specific filtering. This module provides 14 functions (470 lines) with automatic word count calculation, comprehensive tag support, batch operations for migration efficiency, and conditional queries (by user, by chapter, by tags, public visibility). All operations use prepared statements and are validated through 50+ comprehensive unit tests.
 
-### Migration Script Modules (`/scripts/migrations/`)
+### Migration Script Modules (`/scripts/migrations/`) - Historical
 
-**base-migrator.ts** - Provides an abstract migration framework implementing reusable patterns for Firebase-to-SQLite data migrations including batch processing, validation, dry-run mode, integrity checks, and progress logging. This base class enables consistent migration implementations by providing configurable batch sizes (default: 500 records), validation callbacks, error handling with statistics tracking, and migration summary reporting.
+**Note:** These migration scripts are historical artifacts from the Firebase-to-SQLite migration completed in Phase 2. They are preserved for reference and potential future data migrations between systems.
 
-**migrate-highlights.ts** - Implements Firebase-to-SQLite migration for highlight records using the BaseMigrator framework with batch processing, validation, and integrity verification. This script (200+ lines) fetches all highlights from Firestore, validates required fields (userId, chapterId, text, color), transforms timestamps to Unix format, performs batch inserts using highlight-repository, and verifies data integrity with count checks. Supports --dry-run, --verbose, and --no-validate flags for flexible migration execution.
+**base-migrator.ts** - Provides an abstract migration framework implementing reusable patterns for data migrations including batch processing, validation, dry-run mode, integrity checks, and progress logging. This base class enables consistent migration implementations by providing configurable batch sizes (default: 500 records), validation callbacks, error handling with statistics tracking, and migration summary reporting.
 
-**migrate-notes.ts** - Implements Firebase-to-SQLite migration for note records with feature preservation including tags (JSON arrays), visibility settings, word counts, and note types. This script (280+ lines) extends BaseMigrator to handle complex note features, provides detailed feature statistics (tags usage, public notes percentage, average word count), validates all note fields including optional features, and performs comprehensive verification of feature preservation after migration (tags, visibility, types).
+**migrate-highlights.ts** - Historical: Implemented Firebase-to-SQLite migration for highlight records using the BaseMigrator framework with batch processing, validation, and integrity verification. This script (200+ lines) validated required fields, transformed timestamps to Unix format, performed batch inserts using highlight-repository, and verified data integrity with count checks.
+
+**migrate-notes.ts** - Historical: Implemented Firebase-to-SQLite migration for note records with feature preservation including tags (JSON arrays), visibility settings, word counts, and note types. This script (280+ lines) extended BaseMigrator to handle complex note features and performed comprehensive verification of feature preservation after migration.
 
 ### Guest Account Script Modules (`/scripts/` - Phase 4-T1)
 
@@ -331,7 +330,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### React Context Modules (`/src/context/`)
 
-**AuthContext.tsx** - Manages global authentication state using Firebase Authentication with React Context, providing user session data throughout the component tree. This module eliminates prop drilling by making authentication status, user profile, and auth methods accessible to any component that needs them.
+**AuthContext.tsx** - Manages global authentication state using NextAuth.js with React Context, providing user session data throughout the component tree. This module eliminates prop drilling by making authentication status, user profile from SQLite, and session refresh methods accessible to any component that needs them. Includes AuthLoadingScreen component for consistent authentication loading UI across the application.
 
 **LanguageContext.tsx** - Manages global language preference state with localStorage persistence, enabling dynamic language switching across the entire application. This module coordinates with the translation system to re-render all UI text when users change their preferred language between Traditional Chinese, Simplified Chinese, or English.
 
@@ -427,7 +426,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 **content-filter-service.test.ts** - Contains 42 comprehensive unit tests validating multi-language profanity detection, hate speech identification, spam filtering, and PII masking with 91.51% code coverage. This test suite ensures the content moderation system maintains high accuracy across Traditional Chinese and English violations.
 
-**community-service.test.ts** - Implements 29 integration tests validating post creation, commenting, reactions, content filtering integration, and Firebase operations with 62.96% coverage. This test suite ensures community features work correctly end-to-end and properly integrate with the moderation system.
+**community-service.test.ts** - Implements 29 integration tests validating post creation, commenting, reactions, content filtering integration, and SQLite repository operations with 62.96% coverage. This test suite ensures community features work correctly end-to-end and properly integrate with the moderation system using in-memory SQLite for test isolation.
 
 **openai-client.test.ts** - Tests OpenAI API integration including request formatting, response parsing, error handling, and retry logic for supplementary AI features. This test suite validates the OpenAI client's reliability and ensures graceful handling of API failures.
 
@@ -462,9 +461,9 @@ This section provides a complete listing of all modules in the codebase with two
 ### To implement a new gamification feature:
 1. **Update the user level system** in `/src/lib/user-level-service.ts` to add new XP calculations.
 2. **Create gamification components** in `/src/components/gamification/` for UI elements.
-3. **Integrate with Firebase** to persist user progress in Firestore.
+3. **Update repository** in `/src/lib/repositories/user-repository.ts` to persist user progress in SQLite.
 4. **Add visual feedback** using the existing `LevelUpModal.tsx` or create new celebration components.
-5. **Write tests** to ensure XP calculations and level progression work correctly.
+5. **Write tests** to ensure XP calculations and level progression work correctly with in-memory SQLite.
 
 ### To add a new daily task type:
 1. **Create an AI evaluation flow** in `/src/ai/flows/` for grading the task (e.g., `new-task-grading.ts`).
@@ -483,35 +482,25 @@ This section provides a complete listing of all modules in the codebase with two
 6. **Use in-memory SQLite** (`:memory:`) in tests for isolation and speed.
 7. **Verify with TypeScript** by running `npm run typecheck` to ensure type safety.
 
-### To migrate a service to dual-mode (SQLite + Firebase):
+### To add SQLite persistence to a new feature:
 1. **Create repository** following the workflow above for SQLite data access layer.
-2. **Update service file** to import and use the repository for SQLite operations.
-3. **Implement dual-mode pattern** with SQLite-first, Firebase-fallback using this template:
+2. **Update service file** to import and use the repository for data operations.
+3. **Implement service methods** using the repository pattern:
    ```typescript
    export async function serviceFunction(params) {
-     // Try SQLite first
-     if (checkSQLiteAvailability()) {
-       try {
-         const result = repository.function(params);
-         console.log('✅ SQLite operation successful');
-         return result;
-       } catch (error) {
-         console.error('❌ SQLite failed, falling back to Firebase:', error.message);
-       }
-     }
-     // Fallback to Firebase
-     const result = await firebaseOperation(params);
-     console.log('✅ Firebase operation successful');
+     const db = getDatabase();
+     const result = repository.function(db, params);
+     console.log('✅ SQLite operation successful');
      return result;
    }
    ```
-4. **Create migration script** in `/scripts/migrations/` extending BaseMigrator for data transfer.
-5. **Add npm script** in `package.json` for migration execution (e.g., `"migrate:entity": "tsx scripts/migrations/migrate-entity.ts"`).
-6. **Run TypeScript check** (`npm run typecheck`) to verify UI compatibility - zero errors expected.
-7. **Test migration** with `--dry-run` flag first, then execute actual migration.
-8. **Verify data integrity** by comparing counts and sampling data between Firebase and SQLite.
+4. **Add database schema** in `/src/lib/sqlite-db.ts` initializeSchema() function if new tables are needed.
+5. **Run TypeScript check** (`npm run typecheck`) to verify type safety - zero errors expected.
+6. **Write comprehensive tests** using in-memory SQLite for isolation and speed.
+7. **Verify data integrity** by testing CRUD operations and edge cases thoroughly.
 
-### To run data migrations:
+### To run data migrations (Historical - Firebase migration completed):
+**Note:** These commands are preserved for reference. The Firebase-to-SQLite migration was completed in Phase 2.
 * **Dry run (test):** `npm run migrate:highlights -- --dry-run` or `npm run migrate:notes -- --dry-run`
 * **Verbose output:** `npm run migrate:highlights -- --verbose`
 * **Actual migration:** `npm run migrate:highlights` (after dry run verification)
@@ -574,24 +563,26 @@ This section provides a complete listing of all modules in the codebase with two
 ### API Documentation
 * **API Routes** - All endpoints are defined in `/src/app/api/` with Next.js route handlers
 * **AI Flow Testing** - Test AI flows through Jest unit tests in `/tests/ai/flows/` with mocked API responses
-* **Firebase Console** - Authentication and Firestore database management
+* **Database Management** - SQLite database managed through better-sqlite3 with schema defined in `/src/lib/sqlite-db.ts`
 * **OpenAI API** - Direct integration with GPT-4-mini for scoring tasks
 * **Perplexity API** - Direct integration with Sonar for analysis and Q&A tasks
 
 ### Development Resources
 * **Next.js 15 Documentation** - https://nextjs.org/docs
+* **NextAuth.js Documentation** - https://next-auth.js.org/getting-started/introduction
+* **better-sqlite3 Documentation** - https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md
 * **OpenAI API Documentation** - https://platform.openai.com/docs/api-reference
 * **Perplexity API Documentation** - https://docs.perplexity.ai/
 * **Radix UI Components** - https://www.radix-ui.com/primitives/docs/overview/introduction
 * **Tailwind CSS** - https://tailwindcss.com/docs
-* **Firebase** - https://firebase.google.com/docs
 
 ---
 
-**Document Version:** 1.4
-**Last Updated:** 2025-10-31
+**Document Version:** 1.5
+**Last Updated:** 2025-11-14
 **Maintained By:** Development Team
 **Change Log:**
+* **v1.5 (2025-11-14):** Architecture Documentation Update - Removed all Firebase/Firestore references, confirmed SQLite as the sole database solution. Updated authentication references from Firebase Auth to NextAuth.js. Removed "dual-mode" and "fallback" architecture descriptions. Updated all module descriptions, workflows, and development resources to reflect current SQLite-only architecture. Marked Firebase-to-SQLite migration scripts as historical artifacts.
 * **v1.4 (2025-10-31):** Phase 4 Completion - Guest Account System (fixed test environment with 70 XP baseline, server auto-reset, 13/13 tests passing), Login Logo Update (replaced ScrollText with official logo_circle.png), Performance Optimization (build time 126s → 59s, 53% improvement via SWC minification, lazy loading, CSS optimization). Fixed 2 critical bugs: import path issue (scripts → src/lib/constants) and repository import pattern (object → direct function).
 * **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-4-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
 * **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
