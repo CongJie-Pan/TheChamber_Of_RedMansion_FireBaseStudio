@@ -104,24 +104,16 @@ export function usePrefetchComments() {
  */
 export function useCommentsInView(postId: string, elementRef: React.RefObject<HTMLElement>) {
   const queryClient = useQueryClient();
-  const hasP
-
-refetched = useRef(false);
+  const hasPrefetched = useRef(false);
 
   useEffect(() => {
-    if (!elementRef.current || hasP
-
-refetched.current) return;
+    if (!elementRef.current || hasPrefetched.current) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasP
-
-refetched.current) {
-            hasP
-
-refetched.current = true;
+          if (entry.isIntersecting && !hasPrefetched.current) {
+            hasPrefetched.current = true;
             queryClient.prefetchQuery({
               queryKey: ['comments', postId],
               queryFn: () => fetchComments(postId),
@@ -142,7 +134,5 @@ refetched.current = true;
     };
   }, [postId, elementRef, queryClient]);
 
-  return hasP
-
-refetched.current;
+  return hasPrefetched.current;
 }

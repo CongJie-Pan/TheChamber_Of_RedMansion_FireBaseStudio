@@ -52,7 +52,7 @@ Next.js version: 15.5.6 (Webpack)
 
 --> continue the debug in "To continue this session, run codex resume 019a8688-52fc-7cd0-83e1-3037064c4f2a"
 
-2. 點開評論，不要顯示載入評論的loading畫面。而是要像普通社群媒體一樣，點開就能直接看到了。(claude continue)
+2. [x] 點開評論，不要顯示載入評論的loading畫面。而是要像普通社群媒體一樣，點開就能直接看到了。(claude continue)
 
 3. [x] 解決按讚和評論時間過長的問題。按讚和評論，完成其功能都要等個5-10秒，非常奇怪。
 
