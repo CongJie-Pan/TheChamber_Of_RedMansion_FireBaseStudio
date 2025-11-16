@@ -24,12 +24,20 @@ jest.mock('@/lib/sqlite-db', () => {
             id TEXT PRIMARY KEY,
             username TEXT NOT NULL,
             email TEXT,
+            passwordHash TEXT,
+            isGuest INTEGER DEFAULT 0,
             currentLevel INTEGER DEFAULT 1,
             currentXP INTEGER DEFAULT 0,
             totalXP INTEGER DEFAULT 0,
             attributes TEXT DEFAULT '{}',
+            completedTasks TEXT DEFAULT '[]',
+            unlockedContent TEXT DEFAULT '[]',
+            completedChapters TEXT DEFAULT '[]',
+            hasReceivedWelcomeBonus INTEGER DEFAULT 0,
+            stats TEXT DEFAULT '{}',
             createdAt INTEGER NOT NULL,
-            updatedAt INTEGER NOT NULL
+            updatedAt INTEGER NOT NULL,
+            lastActivityAt INTEGER
           )
         `);
       }
@@ -61,10 +69,16 @@ describe('User Repository', () => {
 
       expect(user.userId).toBe('user_001');
       expect(user.username).toBe('Alice');
-      expect(user.currentLevel).toBe(1);
+      expect(user.currentLevel).toBe(0);
       expect(user.currentXP).toBe(0);
       expect(user.totalXP).toBe(0);
-      expect(user.attributes).toEqual({});
+      expect(user.attributes).toEqual({
+        poetrySkill: 0,
+        culturalKnowledge: 0,
+        analyticalThinking: 0,
+        socialInfluence: 0,
+        learningPersistence: 0,
+      });
       expect(user.createdAt).toBeInstanceOf(Date);
       expect(user.updatedAt).toBeInstanceOf(Date);
     });
@@ -185,6 +199,32 @@ describe('User Repository', () => {
         userRepository.updateUser('non_existent', { username: 'Test' });
       }).toThrow('Failed to retrieve updated user');
     });
+
+    test('should update password hash field', () => {
+      const created = userRepository.createUser('user_pw', 'SecureUser', 'secure@example.com');
+      expect(created.passwordHash).toBeUndefined();
+
+      const updated = userRepository.updateUser('user_pw', {
+        passwordHash: '$2b$10$dummydummydummydummydum',
+      });
+
+      expect(updated.passwordHash).toBe('$2b$10$dummydummydummydummydum');
+    });
+  });
+
+  describe('updateUserPasswordHash', () => {
+    test('should update hash via helper', () => {
+      userRepository.createUser('user_helper', 'Helper');
+      const result = userRepository.updateUserPasswordHash('user_helper', '$2b$10$helperhelperhelperhelpe');
+
+      expect(result.passwordHash).toBe('$2b$10$helperhelperhelperhelpe');
+    });
+
+    test('should throw if user missing', () => {
+      expect(() => {
+        userRepository.updateUserPasswordHash('missing-user', '$2b$10$missingmissingmissingmissi');
+      }).toThrow('User not found: missing-user');
+    });
   });
 
   describe('awardXP', () => {
@@ -233,7 +273,15 @@ describe('User Repository', () => {
         creativity: 3
       });
 
-      expect(updated.attributes).toEqual({ wisdom: 5, creativity: 3 });
+      expect(updated.attributes).toEqual({
+        poetrySkill: 0,
+        culturalKnowledge: 0,
+        analyticalThinking: 0,
+        socialInfluence: 0,
+        learningPersistence: 0,
+        wisdom: 5,
+        creativity: 3,
+      });
     });
 
     test('should increment existing attributes', () => {

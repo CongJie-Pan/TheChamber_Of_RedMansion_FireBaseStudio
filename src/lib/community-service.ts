@@ -44,6 +44,7 @@ import {
   unbookmarkPost as sqliteUnbookmarkPost,
   getBookmarkedPostsByUser as sqliteGetBookmarkedPosts,
   incrementViewCount as sqliteIncrementViewCount,
+  incrementCommentCount as sqliteIncrementCommentCount,
   type CommunityPost as SQLiteCommunityPost,
 } from './repositories/community-repository';
 
@@ -336,6 +337,9 @@ export class CommunityService {
       moderationWarning: filterResult.warningMessage || undefined,
     });
 
+    // Keep denormalized comment count on posts table in sync with actual comments.
+    sqliteIncrementCommentCount(filteredCommentData.postId, 1);
+
     // Update the moderation log with the actual comment ID
     if (filterResult.action !== 'allow') {
       console.log(`[CommunityService] Comment created with moderation action: ${filterResult.action}, ID: ${commentId}`);
@@ -567,7 +571,8 @@ export class CommunityService {
     console.log(`[CommunityService] Deleting comment ${commentId} from post ${postId}...`);
 
     await sqliteDeleteComment(commentId);
-    // SQLite repository handles comment count decrement automatically
+    // Keep denormalized comment count accurate when comments are removed.
+    sqliteIncrementCommentCount(postId, -1);
     console.log(`[CommunityService] Comment ${commentId} deleted successfully`);
   }
 }

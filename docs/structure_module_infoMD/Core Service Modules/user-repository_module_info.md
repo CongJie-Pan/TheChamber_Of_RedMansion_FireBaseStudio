@@ -2,7 +2,7 @@
 
 ## 1. Module Summary
 
-The `user-repository` module provides comprehensive user data management for the SQLite database, implementing the repository pattern for clean separation between data access and business logic. **Completed through SQLITE-011, SQLITE-012, SQLITE-013, and enhanced in SQLITE-016**, this 1385-line module now exports **29 functions** across 6 categories: Core CRUD (7 functions), XP Transaction Management (6 functions), XP Locking/Deduplication (4 functions), Level-Up Records (3 functions), Advanced XP Awarding (3 functions), and Helper Functions (6 functions). The centerpiece is `awardXPWithLevelUp()` (195 lines), which provides atomic XP transactions with chapter completion deduplication, zero XP handling, level-up detection, transaction logging, level-up recording, and unlocked content persistence—all within a single SQLite transaction for maximum data integrity.
+The `user-repository` module provides comprehensive user data management for the SQLite database, implementing the repository pattern for clean separation between data access and business logic. **Completed through SQLITE-011, SQLITE-012, SQLITE-013, and enhanced in SQLITE-016**, this 1385-line module now exports **30 functions** across 6 categories: Core CRUD (8 functions), XP Transaction Management (6 functions), XP Locking/Deduplication (4 functions), Level-Up Records (3 functions), Advanced XP Awarding (3 functions), and Helper Functions (6 functions). The centerpiece is `awardXPWithLevelUp()` (195 lines), which provides atomic XP transactions with chapter completion deduplication, zero XP handling, level-up detection, transaction logging, level-up recording, and unlocked content persistence—all within a single SQLite transaction for maximum data integrity.
 
 **Key Capabilities:**
 - Atomic XP transactions with double-check locking for deduplication
@@ -29,7 +29,7 @@ The `user-repository` module provides comprehensive user data management for the
 
 ## 3. Public API / Exports (29 Functions)
 
-### A. Core CRUD Operations (7 functions)
+### A. Core CRUD Operations (8 functions)
 * `createUser(userId: string, username: string, email: string): UserProfile` - Create new user with default attributes and stats
 * `getUserById(userId: string): UserProfile | null` - Fetch user profile by ID or return null
 * `updateUser(userId: string, updates: Partial<Omit<UserProfile, 'userId' | 'createdAt'>>): UserProfile` - Update user with partial data, automatic timestamp
@@ -37,6 +37,7 @@ The `user-repository` module provides comprehensive user data management for the
 * `userExists(userId: string): boolean` - Check if user exists (efficient COUNT query)
 * `getUserByEmail(email: string): UserProfile | null` - Find user by email address
 * `searchUsers(searchTerm: string, limitCount: number = 20): UserProfile[]` - Search users by username or email (LIKE query)
+* `updateUserPasswordHash(userId: string, passwordHash: string): UserProfile` - Dedicated helper for credential rotation without duplicating timestamp logic
 
 ### B. XP Transaction Management (6 functions)
 * `createXPTransaction(transaction: {...}): string` - Create XP transaction record for audit trail
@@ -477,6 +478,7 @@ levelUps.forEach(lu => {
 - **Database Layer**: `sqlite-db_module_info.md` (provides database instance and utilities)
 - **Types**: `@/lib/types/user-level` (UserProfile, XPTransaction, LevelUpRecord interfaces)
 - **Configuration**: `levels-config_module_info.md` (LEVELS_CONFIG, level thresholds)
+- **Operational Scripts**: `scripts/reset-user-password.ts` (uses `updateUserPasswordHash()` to rotate credentials securely)
 
 ## 10. Migration History
 

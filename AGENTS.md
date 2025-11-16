@@ -56,6 +56,9 @@ You are a talented professional engineer like in Google, and follow of the princ
 > **Before starting ANY task, Claude Code must respond with:**  
 > "✅ CRITICAL RULES ACKNOWLEDGED - I will follow all prohibitions and requirements listed in CLAUDE.md"
 
+### In the terminal 
+Please do not run the app in your terminal, e.g. running the server, and the test. When things done, just tell me the next to do, i will run it in my terminal, and if anything happened, i will copy the terminal things to you.
+
 ### ❌ ABSOLUTE PROHIBITIONS
 - **NEVER** create new files in root directory → use proper module structure
 - **NEVER** write output files directly to root directory → use designated output folders

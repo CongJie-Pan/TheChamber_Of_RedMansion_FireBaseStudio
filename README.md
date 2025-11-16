@@ -161,6 +161,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 
    # NextAuth Configuration
    NEXTAUTH_SECRET=your_nextauth_secret
+   # The dev launcher keeps this value in sync with the port it selects.
    NEXTAUTH_URL=http://localhost:3001
 
    # Database (SQLite - enabled by default)
@@ -177,6 +178,8 @@ TheChamber_Of_RedMansion_FireBaseStudio/
    ```bash
    npm run dev
    ```
+
+   The launcher automatically searches for an open port (prefers `3001`, then `3000`, `3002`, etc.) and updates `PORT`/`NEXTAUTH_URL` accordingly. Watch the console banner for the chosen port. Set the `PORT` env variable if you need to force a specific port.
 
    **Important:** The development server automatically initializes the guest test account when starting. Look for this message in the console:
    ```

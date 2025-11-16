@@ -72,7 +72,7 @@ function detectPackageManager() {
 
   // Try npm first (more reliable and commonly available)
   try {
-    const npmCheck = spawnSync(npmCommand, ['--version'], { stdio: 'pipe' });
+    const npmCheck = spawnSync(npmCommand, ['--version'], { stdio: 'pipe', shell: true });
     if (npmCheck.status === 0 && !npmCheck.error) {
       return { manager: 'npm', command: npmCommand };
     }
@@ -82,7 +82,7 @@ function detectPackageManager() {
 
   // Try pnpm as fallback
   try {
-    const pnpmCheck = spawnSync(pnpmCommand, ['--version'], { stdio: 'pipe' });
+    const pnpmCheck = spawnSync(pnpmCommand, ['--version'], { stdio: 'pipe', shell: true });
     if (pnpmCheck.status === 0 && !pnpmCheck.error) {
       return { manager: 'pnpm', command: pnpmCommand };
     }
@@ -157,6 +157,7 @@ function runRebuild() {
 
   const result = spawnSync(pm.command, ['rebuild', 'better-sqlite3'], {
     stdio: 'inherit',
+    shell: true,
   });
 
   if (result.error) {
@@ -210,7 +211,6 @@ if (require.main === module) {
 module.exports = {
   collectEnvironmentInfo,
   shouldSkipRebuild,
-  getPnpmCommand,
   runRebuild,
   run,
 };

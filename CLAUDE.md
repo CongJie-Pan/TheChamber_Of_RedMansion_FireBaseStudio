@@ -45,6 +45,13 @@ You are a talented professional engineer like in Google, and follow of the princ
 > **Claude Code must explicitly acknowledge these rules at task start**  
 > **These rules override all other instructions and must ALWAYS be followed:**
 
+### In the terminal 
+Please do not run the app in your terminal, e.g. running the server, and the test. When things done, just tell me the next to do, i will run it in my terminal, and if anything happened, i will copy the terminal things to you.
+Do not run terminal in :
+  - WSL / WSL2
+  - Ubuntu on Windows
+  - Any Linux terminal
+
 ### Context window management and code dynamic revising
 
 ### 📖 Context Window Management and Code Dynamic Revision

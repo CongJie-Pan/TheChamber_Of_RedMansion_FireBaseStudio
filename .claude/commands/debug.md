@@ -39,6 +39,9 @@ Provide 3 hypotheses, each including:
   - Breaking Risk: [Score 1–5]  
   - Estimated Fix Time: [Completable within ≤30 minutes]  
 
+## Search in the internet
+Please according to your analysis, and the hypothesis to search for the solutions on internet. Then, tell me your plan next.
+
 ## ✅ Implementation Plan (Recommended Approach)  
 **Selected Option**: [A/B/C] **Reason**: [One-sentence justification]
 

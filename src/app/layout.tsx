@@ -39,6 +39,8 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import HydrationDebugger from '@/components/HydrationDebugger';
 // Import chunk error boundary for handling dynamic import failures
 import ChunkErrorBoundary from '@/components/ChunkErrorBoundary';
+// Import React Query provider for data fetching and caching
+import { Providers } from '@/app/providers';
 
 // Configure Noto Serif SC (思源宋體) for classical Chinese typography
 // Using Next.js font optimization for better performance and reliability
@@ -99,8 +101,10 @@ export default function RootLayout({
       <body className={`${notoSerifSC.variable} font-sans`}>
         {/* Top-level chunk boundary to handle layout chunk failures */}
         <ChunkErrorBoundary enableAutoRetry={true} maxRetries={3}>
-          {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
-          <SessionProvider>
+          {/* React Query Provider for data fetching and caching (instant comment loading) */}
+          <Providers>
+            {/* NextAuth Session Provider - Phase 4 - SQLITE-022 */}
+            <SessionProvider>
             {/* Authentication Provider - Manages user login/logout state for entire app */}
             <ChunkErrorBoundary enableAutoRetry={true} maxRetries={2}>
               <AuthProvider>
@@ -124,6 +128,7 @@ export default function RootLayout({
               </AuthProvider>
             </ChunkErrorBoundary>
           </SessionProvider>
+          </Providers>
         </ChunkErrorBoundary>
       </body>
     </html>

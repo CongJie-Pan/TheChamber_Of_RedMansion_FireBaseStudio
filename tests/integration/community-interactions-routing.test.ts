@@ -25,9 +25,18 @@
 import Database from 'better-sqlite3';
 
 // Mock next-auth before imports
-jest.mock('next-auth', () => ({
-  getServerSession: jest.fn(),
-}));
+const mockGetServerSession = jest.fn();
+jest.mock('next-auth', () => {
+  const NextAuth = jest.fn(() => ({
+    GET: jest.fn(),
+    POST: jest.fn(),
+  }));
+  return {
+    __esModule: true,
+    getServerSession: mockGetServerSession,
+    default: NextAuth,
+  };
+});
 
 // Mock next/server
 jest.mock('next/server', () => ({
@@ -61,15 +70,19 @@ jest.mock('@/lib/sqlite-db', () => {
     getDatabase: () => {
       if (!db) {
         db = new Database(':memory:');
+        db.pragma('foreign_keys = ON');
         db.exec(`
-          CREATE TABLE IF NOT EXISTS community_posts (
+          CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
             authorId TEXT NOT NULL,
             authorName TEXT NOT NULL,
             title TEXT,
             content TEXT NOT NULL,
             tags TEXT,
-            likeCount INTEGER DEFAULT 0,
+            category TEXT,
+            likes INTEGER DEFAULT 0,
+            likedBy TEXT DEFAULT '[]',
+            bookmarkedBy TEXT DEFAULT '[]',
             commentCount INTEGER DEFAULT 0,
             viewCount INTEGER DEFAULT 0,
             status TEXT DEFAULT 'active',
@@ -81,28 +94,25 @@ jest.mock('@/lib/sqlite-db', () => {
             updatedAt INTEGER NOT NULL
           );
 
-          CREATE TABLE IF NOT EXISTS post_likes (
-            postId TEXT NOT NULL,
-            userId TEXT NOT NULL,
-            createdAt INTEGER NOT NULL,
-            PRIMARY KEY (postId, userId),
-            FOREIGN KEY (postId) REFERENCES community_posts(id)
-          );
-
           CREATE TABLE IF NOT EXISTS comments (
             id TEXT PRIMARY KEY,
             postId TEXT NOT NULL,
             authorId TEXT NOT NULL,
             authorName TEXT NOT NULL,
             content TEXT NOT NULL,
-            likeCount INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'active',
             parentCommentId TEXT,
+            depth INTEGER DEFAULT 0,
+            replyCount INTEGER DEFAULT 0,
+            likes INTEGER DEFAULT 0,
+            likedBy TEXT DEFAULT '[]',
+            status TEXT DEFAULT 'active',
+            isEdited INTEGER DEFAULT 0,
             moderationAction TEXT,
             originalContent TEXT,
+            moderationWarning TEXT,
             createdAt INTEGER NOT NULL,
             updatedAt INTEGER NOT NULL,
-            FOREIGN KEY (postId) REFERENCES community_posts(id)
+            FOREIGN KEY (postId) REFERENCES posts(id) ON DELETE CASCADE
           );
         `);
       }
@@ -126,6 +136,7 @@ describe('Community Interactions Routing Integration', () => {
   let CommentsGET: any;
   let CommentsPOST: any;
   let CommentsDELETE: any;
+  let CommentsRuntime: any;
 
   beforeAll(() => {
     // Import route handlers after mocking
@@ -137,6 +148,7 @@ describe('Community Interactions Routing Integration', () => {
     CommentsGET = commentsRoute.GET;
     CommentsPOST = commentsRoute.POST;
     CommentsDELETE = commentsRoute.DELETE;
+    CommentsRuntime = commentsRoute.runtime;
   });
 
   beforeEach(() => {
@@ -145,8 +157,7 @@ describe('Community Interactions Routing Integration', () => {
     // Clear database
     const { getDatabase } = require('@/lib/sqlite-db');
     const db = getDatabase();
-    db.exec('DELETE FROM community_posts');
-    db.exec('DELETE FROM post_likes');
+    db.exec('DELETE FROM posts');
     db.exec('DELETE FROM comments');
 
     // Enable SQLite mode
@@ -181,11 +192,40 @@ describe('Community Interactions Routing Integration', () => {
     const now = Date.now();
 
     db.prepare(`
-      INSERT INTO community_posts (
-        id, authorId, authorName, content, moderationAction, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(postId, authorId, 'Test Author', 'Test content', 'allow', now, now);
+      INSERT INTO posts (
+        id, authorId, authorName, title, content, tags, category,
+        likes, likedBy, bookmarkedBy, commentCount, viewCount,
+        status, isEdited, moderationAction, originalContent, moderationWarning,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      postId,
+      authorId,
+      'Test Author',
+      null,
+      'Test content',
+      JSON.stringify([]),
+      null,
+      0,
+      JSON.stringify([]),
+      JSON.stringify([]),
+      0,
+      0,
+      'active',
+      0,
+      'allow',
+      null,
+      null,
+      now,
+      now
+    );
   }
+
+  describe('Runtime configuration', () => {
+    it('forces Node.js runtime for SQLite-backed comments route', () => {
+      expect(CommentsRuntime).toBe('nodejs');
+    });
+  });
 
   describe('Test 1: Like operation with dynamic route parameter', () => {
     it('should add like with correct postId from route params', async () => {
@@ -212,12 +252,9 @@ describe('Community Interactions Routing Integration', () => {
       expect(response.status).toBe(200);
 
       // Verify in database
-      const { getDatabase } = require('@/lib/sqlite-db');
-      const db = getDatabase();
-      const like = db.prepare('SELECT * FROM post_likes WHERE postId = ? AND userId = ?')
-        .get('test-post-123', 'user-123');
-
-      expect(like).toBeDefined();
+      const post = communityRepository.getPostById('test-post-123');
+      expect(post?.likedBy).toContain('user-123');
+      expect(post?.likes).toBe(1);
     });
 
     it('should increment like count in post', async () => {
@@ -240,7 +277,7 @@ describe('Community Interactions Routing Integration', () => {
 
       // Assertion: Like count updated
       const post = communityRepository.getPostById('post-abc');
-      expect(post?.likeCount).toBe(1);
+      expect(post?.likes).toBe(1);
     });
 
     it('should handle multiple likes from different users', async () => {
@@ -273,7 +310,7 @@ describe('Community Interactions Routing Integration', () => {
 
       // Assertion: Like count is 2
       const post = communityRepository.getPostById('popular-post');
-      expect(post?.likeCount).toBe(2);
+      expect(post?.likes).toBe(2);
     });
   });
 
@@ -284,13 +321,8 @@ describe('Community Interactions Routing Integration', () => {
 
       const { getDatabase } = require('@/lib/sqlite-db');
       const db = getDatabase();
-      const now = Date.now();
-
-      db.prepare('INSERT INTO post_likes (postId, userId, createdAt) VALUES (?, ?, ?)')
-        .run('unliked-post', 'user-789', now);
-
-      // Update like count
-      db.prepare('UPDATE community_posts SET likeCount = 1 WHERE id = ?').run('unliked-post');
+      db.prepare('UPDATE posts SET likes = 1, likedBy = ? WHERE id = ?')
+        .run(JSON.stringify(['user-789']), 'unliked-post');
 
       (getServerSession as jest.Mock).mockResolvedValue({
         user: { id: 'user-789', email: 'delete@test.com' },
@@ -309,10 +341,9 @@ describe('Community Interactions Routing Integration', () => {
       expect(response.status).toBe(200);
 
       // Verify like removed from database
-      const like = db.prepare('SELECT * FROM post_likes WHERE postId = ? AND userId = ?')
-        .get('unliked-post', 'user-789');
-
-      expect(like).toBeUndefined();
+      const post = communityRepository.getPostById('unliked-post');
+      expect(post?.likedBy).not.toContain('user-789');
+      expect(post?.likes).toBe(0);
     });
 
     it('should decrement like count after unlike', async () => {
@@ -321,12 +352,8 @@ describe('Community Interactions Routing Integration', () => {
 
       const { getDatabase } = require('@/lib/sqlite-db');
       const db = getDatabase();
-      const now = Date.now();
-
-      db.prepare('INSERT INTO post_likes (postId, userId, createdAt) VALUES (?, ?, ?)')
-        .run('post-xyz', 'user-unlike', now);
-
-      db.prepare('UPDATE community_posts SET likeCount = 1 WHERE id = ?').run('post-xyz');
+      db.prepare('UPDATE posts SET likes = 1, likedBy = ? WHERE id = ?')
+        .run(JSON.stringify(['user-unlike']), 'post-xyz');
 
       (getServerSession as jest.Mock).mockResolvedValue({
         user: { id: 'user-unlike', email: 'unlike@test.com' },
@@ -341,7 +368,7 @@ describe('Community Interactions Routing Integration', () => {
 
       // Assertion: Like count decreased
       const post = communityRepository.getPostById('post-xyz');
-      expect(post?.likeCount).toBe(0);
+      expect(post?.likes).toBe(0);
     });
   });
 
@@ -445,9 +472,9 @@ describe('Community Interactions Routing Integration', () => {
       // Assertion: Comment deleted successfully
       expect(response.status).toBe(200);
 
-      // Verify deletion
-      const comment = db.prepare('SELECT * FROM comments WHERE id = ?').get('comment-123');
-      expect(comment).toBeUndefined();
+      // Verify deletion (soft delete should mark status as deleted)
+      const comment = db.prepare('SELECT status FROM comments WHERE id = ?').get('comment-123') as any;
+      expect(comment?.status).toBe('deleted');
     });
 
     it('should maintain database foreign key constraints', async () => {
@@ -471,7 +498,7 @@ describe('Community Interactions Routing Integration', () => {
       expect(comment.postId).toBe('fk-test-post');
 
       // Verify: Post exists
-      const post = db.prepare('SELECT id FROM community_posts WHERE id = ?')
+      const post = db.prepare('SELECT id FROM posts WHERE id = ?')
         .get('fk-test-post');
 
       expect(post).toBeDefined();
@@ -553,7 +580,7 @@ describe('Community Interactions Routing Integration', () => {
 
       // Verify: Like count is 3
       const post = communityRepository.getPostById('concurrent-post');
-      expect(post?.likeCount).toBe(3);
+      expect(post?.likes).toBe(3);
     });
   });
 });

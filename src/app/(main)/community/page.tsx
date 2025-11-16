@@ -45,7 +45,7 @@
 "use client"; // Required for interactive community features and state management
 
 // React hooks for component state and lifecycle management
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // UI component imports for community interface
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,11 @@ import {
 // Custom hooks for application functionality
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useComments, usePrefetchComments, useCommentsInView } from '@/hooks/useComments';
+import { useQueryClient } from '@tanstack/react-query';
+
+// Community components
+import { CommentSkeleton } from '@/components/community/CommentSkeleton';
 
 // Firebase community service for database operations
 // IMPORTANT: Only import types from services to avoid loading SQLite in browser
@@ -261,15 +266,15 @@ function NewPostForm({ onPostSubmit, t, isLoading }: {
   );
 }
 
-function PostCard({ 
-  post: initialPost, 
-  t, 
-  onLike, 
-  onComment, 
+function PostCard({
+  post: initialPost,
+  t,
+  onLike,
+  onComment,
   isLoading,
   onDelete
-}: { 
-  post: LocalPost; 
+}: {
+  post: LocalPost;
   t: (key: string) => string;
   onLike: (postId: string, isLiking: boolean) => Promise<boolean>;
   onComment: (postId: string, content: string) => Promise<void>;
@@ -286,10 +291,28 @@ function PostCard({
 
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState<LocalComment[]>(initialPost.comments || []);
   const [currentCommentsCount, setCurrentCommentsCount] = useState(initialPost.commentCount);
   const [isCommenting, setIsCommenting] = useState(false);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  // React Query hooks for instant comment loading
+  const queryClient = useQueryClient();
+  const prefetchComments = usePrefetchComments();
+  const { data: fetchedComments = [], isLoading: isLoadingComments } = useComments(
+    initialPost.id,
+    showCommentInput // Only fetch when comments are expanded
+  );
+
+  // Ref for Intersection Observer (mobile prefetching)
+  const postCardRef = useRef<HTMLDivElement>(null);
+  useCommentsInView(initialPost.id, postCardRef);
+
+  // Transform React Query data to LocalComment format
+  const comments: LocalComment[] = fetchedComments.map(comment => ({
+    id: comment.id,
+    author: comment.authorName,
+    text: comment.content,
+    timestamp: formatTimestamp(comment.createdAt)
+  }));
 
   // Update local state when post prop changes
   useEffect(() => {
@@ -298,36 +321,12 @@ function PostCard({
     setCurrentCommentsCount(initialPost.commentCount);
   }, [initialPost]);
 
-  // 輪詢機制：定期更新留言，當留言區展開時每10秒自動刷新
+  // Update comment count when comments are fetched
   useEffect(() => {
-    if (!showCommentInput) return;
-
-    // 立即加載一次留言
-    const loadCommentsData = async () => {
-      try {
-        const firebaseComments = await fetchComments(initialPost.id);
-        const localComments: LocalComment[] = firebaseComments.map(comment => ({
-          id: comment.id,
-          author: comment.authorName,
-          text: comment.content,
-          timestamp: formatTimestamp(comment.createdAt)
-        }));
-        setComments(localComments);
-        setCurrentCommentsCount(localComments.length); // 同步留言數
-      } catch (error) {
-        console.error('Error loading comments:', error);
-      }
-    };
-
-    // 立即執行一次
-    loadCommentsData();
-
-    // 設定輪詢：每10秒刷新一次
-    const intervalId = setInterval(loadCommentsData, 10000);
-
-    // 清理函數：組件卸載或留言區關閉時停止輪詢
-    return () => clearInterval(intervalId);
-  }, [showCommentInput, initialPost.id]);
+    if (comments.length > 0) {
+      setCurrentCommentsCount(comments.length);
+    }
+  }, [comments.length]);
 
   const handleLike = async () => {
     if (!user || isLiking) return;
@@ -356,33 +355,9 @@ function PostCard({
     }
   };
 
-  const loadComments = async () => {
-    if (comments.length > 0) return; // Already loaded
-    setIsLoadingComments(true);
-    try {
-      // 只在第一次展開時載入（即時監聽會自動更新）
-      const firebaseComments = await fetchComments(initialPost.id);
-      const localComments: LocalComment[] = firebaseComments.map(comment => ({
-        id: comment.id,
-        author: comment.authorName,
-        text: comment.content,
-        timestamp: formatTimestamp(comment.createdAt)
-      }));
-      setComments(localComments);
-    } catch (error) {
-      console.error('Error loading comments:', error);
-    } finally {
-      setIsLoadingComments(false);
-    }
-  };
-
   const handleToggleComments = () => {
-    const newShowState = !showCommentInput;
-    setShowCommentInput(newShowState);
-    // 第一次展開時載入一次，之後交給即時監聽
-    if (newShowState && comments.length === 0) {
-      loadComments();
-    }
+    setShowCommentInput(!showCommentInput);
+    // React Query will automatically fetch when showCommentInput becomes true
   };
 
   const handleSubmitComment = async () => {
@@ -391,8 +366,10 @@ function PostCard({
     setIsCommenting(true);
     try {
       await onComment(initialPost.id, newComment.trim());
-      setNewComment(''); // 只清空輸入框，不再 optimistic setComments
-      // Firestore 監聽會自動同步留言內容與數量
+      setNewComment(''); // 清空輸入框
+
+      // Invalidate and refetch comments using React Query
+      await queryClient.invalidateQueries({ queryKey: ['comments', initialPost.id] });
     } catch (error) {
       console.error('Error submitting comment:', error);
     } finally {
@@ -418,8 +395,8 @@ function PostCard({
     if (!window.confirm('確定要永久刪除此留言？此操作無法復原。')) return;
     try {
       await deleteCommentAPI(initialPost.id, commentId);
-      // 主動刷新一次留言，確保畫面立即更新
-      await loadComments();
+      // Invalidate and refetch comments using React Query
+      await queryClient.invalidateQueries({ queryKey: ['comments', initialPost.id] });
     } catch (error) {
       console.error('Error deleting comment:', error);
       alert('刪除留言失敗，請稍後再試。');
@@ -470,7 +447,7 @@ function PostCard({
   }
 
   return (
-    <Card className="shadow-lg overflow-hidden bg-card/70 hover:shadow-primary/10 transition-shadow">
+    <Card ref={postCardRef} className="shadow-lg overflow-hidden bg-card/70 hover:shadow-primary/10 transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3 mb-2">
           <i
@@ -559,10 +536,11 @@ function PostCard({
             )}
             {currentLikes}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleToggleComments} 
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleComments}
+            onMouseEnter={() => prefetchComments(initialPost.id)}
             className="flex items-center gap-1 hover:text-primary"
             disabled={isLoading}
           >
@@ -574,10 +552,7 @@ function PostCard({
       {showCommentInput && (
         <CardContent className="pt-4 border-t border-border/50 bg-muted/20">
           {isLoadingComments ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2 text-sm text-muted-foreground">載入留言中...</span>
-            </div>
+            <CommentSkeleton count={currentCommentsCount || 3} />
           ) : comments.length > 0 ? (
             <div className="mb-4 space-y-3">
               {comments.map((comment) => (

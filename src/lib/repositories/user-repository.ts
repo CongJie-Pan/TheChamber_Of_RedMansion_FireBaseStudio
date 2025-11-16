@@ -427,6 +427,11 @@ export function updateUser(
     updateValues.push(updates.email || null);
   }
 
+  if (updates.passwordHash !== undefined) {
+    updateFields.push('passwordHash = ?');
+    updateValues.push(updates.passwordHash || null);
+  }
+
   if (updates.currentLevel !== undefined) {
     updateFields.push('currentLevel = ?');
     updateValues.push(updates.currentLevel);
@@ -501,6 +506,28 @@ export function updateUser(
   }
 
   return updated;
+}
+
+/**
+ * Update a user's password hash.
+ *
+ * Provides a dedicated helper to update credential hashes while keeping all
+ * validation and timestamp logic within updateUser().
+ *
+ * @param userId - User ID
+ * @param passwordHash - bcrypt hash string to store
+ * @returns Updated user profile
+ */
+export function updateUserPasswordHash(
+  userId: string,
+  passwordHash: string
+): UserProfile {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+
+  return updateUser(userId, { passwordHash });
 }
 
 /**

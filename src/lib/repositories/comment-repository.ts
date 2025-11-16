@@ -87,6 +87,19 @@ export interface CommentTreeNode extends Comment {
  * Convert database row to Comment
  */
 function rowToComment(row: CommentRow): Comment {
+  // Helper: Parse moderationAction safely (handle both JSON object and plain string)
+  let parsedModerationAction: ModerationAction | undefined = undefined;
+  if (row.moderationAction) {
+    try {
+      // Try to parse as JSON first (for object format)
+      parsedModerationAction = JSON.parse(row.moderationAction);
+    } catch {
+      // If parsing fails, it's likely a plain string like "allow"
+      // Convert to ModerationAction format
+      parsedModerationAction = { action: row.moderationAction as any };
+    }
+  }
+
   return {
     id: row.id,
     postId: row.postId,
@@ -100,7 +113,7 @@ function rowToComment(row: CommentRow): Comment {
     likedBy: row.likedBy ? JSON.parse(row.likedBy) : [],
     status: row.status,
     isEdited: row.isEdited === 1,
-    moderationAction: row.moderationAction ? JSON.parse(row.moderationAction) : undefined,
+    moderationAction: parsedModerationAction,
     originalContent: row.originalContent || undefined,
     moderationWarning: row.moderationWarning || undefined,
     createdAt: fromUnixTimestamp(row.createdAt),
@@ -177,7 +190,7 @@ export function createComment(comment: {
     JSON.stringify([]), // likedBy
     comment.status || 'active',
     0, // isEdited
-    comment.moderationAction || null,
+    comment.moderationAction ? JSON.stringify(comment.moderationAction) : null, // Serialize to JSON
     comment.originalContent || null,
     comment.moderationWarning || null,
     now,
@@ -220,6 +233,22 @@ export function getCommentsByPost(postId: string, limit?: number): Comment[] {
     console.log('🗄️  [CommentRepository] Getting database instance...');
     const db = getDatabase();
     console.log('✅ [CommentRepository] Database instance obtained successfully');
+
+    // 🔍 DEBUG: Verify database instance health
+    console.log('🔍 [DEBUG] Database instance type:', typeof db);
+    console.log('🔍 [DEBUG] Database instance constructor:', db?.constructor?.name);
+    console.log('🔍 [DEBUG] Database open status:', db?.open);
+    console.log('🔍 [DEBUG] Database inTransaction status:', db?.inTransaction);
+
+    // 🔍 DEBUG: Test database connectivity with simple query
+    try {
+      const testStmt = db.prepare('SELECT 1 as test');
+      const testResult = testStmt.get();
+      console.log('✅ [DEBUG] Database connectivity test passed:', testResult);
+    } catch (testError: any) {
+      console.error('❌ [DEBUG] Database connectivity test FAILED:', testError?.message);
+      throw new Error(`Database connection test failed: ${testError?.message}`);
+    }
 
     // Step 2: Prepare query
     let query = 'SELECT * FROM comments WHERE postId = ? AND status = ? ORDER BY createdAt ASC';

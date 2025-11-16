@@ -14,6 +14,14 @@ import { communityService } from '@/lib/community-service';
 import { z } from 'zod';
 
 /**
+ * Force this route to execute on the Node.js runtime because it depends on
+ * better-sqlite3 native bindings, which are unavailable in Edge/Internet runtimes.
+ * Dynamic rendering is also required so comment data is always up to date.
+ */
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
  * Validation schema for creating a comment
  */
 const CreateCommentSchema = z.object({
@@ -82,11 +90,21 @@ export async function GET(
     console.error('Error stack:', error?.stack);
     console.error('Error name:', error?.name);
     console.error('Error code:', error?.code);
+    console.error('Runtime environment:', process.env.NEXT_RUNTIME ?? 'nodejs');
+    console.error('Node.js version:', process.version);
+    console.error('NODE_ENV:', process.env.NODE_ENV ?? 'development');
     console.error('━'.repeat(80) + '\n');
 
     // 🔍 Enhanced error logging for debugging
+    console.error('🔍 [DEBUG] Error type:', typeof error);
+    console.error('🔍 [DEBUG] Error constructor:', error?.constructor?.name);
+    console.error('🔍 [DEBUG] Error is Error instance:', error instanceof Error);
+    console.error('🔍 [DEBUG] Error message includes "SQLite":', error?.message?.includes('SQLite'));
+    console.error('🔍 [DEBUG] Error message includes "Database":', error?.message?.includes('Database'));
+    console.error('🔍 [DEBUG] Error message includes "better-sqlite3":', error?.message?.includes('better-sqlite3'));
+
     if (process.env.NODE_ENV === 'development') {
-      console.error('[DEBUG] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      console.error('🔍 [DEBUG] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
 
     // Database not found error

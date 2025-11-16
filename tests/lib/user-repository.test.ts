@@ -35,12 +35,20 @@ describe('User Repository - Comprehensive Test Suite', () => {
         id TEXT PRIMARY KEY,
         username TEXT NOT NULL UNIQUE,
         email TEXT UNIQUE,
+        passwordHash TEXT,
+        isGuest INTEGER DEFAULT 0,
         currentLevel INTEGER DEFAULT 0,
         currentXP INTEGER DEFAULT 0,
         totalXP INTEGER DEFAULT 0,
         attributes TEXT DEFAULT '{}',
+        completedTasks TEXT DEFAULT '[]',
+        unlockedContent TEXT DEFAULT '[]',
+        completedChapters TEXT DEFAULT '[]',
+        hasReceivedWelcomeBonus INTEGER DEFAULT 0,
+        stats TEXT DEFAULT '{}',
         createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL
+        updatedAt INTEGER NOT NULL,
+        lastActivityAt INTEGER
       );
 
       CREATE TABLE IF NOT EXISTS xp_transactions (
