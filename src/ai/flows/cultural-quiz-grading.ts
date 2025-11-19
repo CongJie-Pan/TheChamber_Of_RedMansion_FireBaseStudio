@@ -16,7 +16,7 @@
  * Usage: Called by DailyTaskService when users submit cultural exploration task answers
  *
  * @phase Phase 2.4 - AI Integration & Scoring System
- * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-5-mini
  */
 
 'use server'; // Required for server-side AI processing
@@ -222,9 +222,9 @@ export async function gradeCulturalQuiz(
     // Build grading prompt
     const prompt = buildCulturalQuizPrompt(input);
 
-    // Call OpenAI API with GPT-4-mini
+    // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-mini',
+      model: 'GPT-5-mini',
       messages: [
         {
           role: 'system',

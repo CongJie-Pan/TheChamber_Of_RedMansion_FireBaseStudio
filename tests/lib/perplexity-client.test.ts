@@ -7,6 +7,7 @@ import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { PerplexityClient, getDefaultPerplexityClient, resetDefaultClient } from '@/lib/perplexity-client';
 import type { PerplexityQAInput } from '@/types/perplexity-qa';
+import { ReadableStream } from 'stream/web';
 
 // Mock axios
 const mockAxiosInstance = {
@@ -27,6 +28,31 @@ jest.mock('axios', () => ({
 // Get the mocked axios to access create method in tests
 const mockedAxios = jest.mocked(axios);
 
+// Store original fetch
+const originalFetch = global.fetch;
+
+// Helper function to create a mock ReadableStream from SSE data
+function createMockSSEStream(chunks: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let index = 0;
+
+  return new ReadableStream({
+    pull(controller) {
+      if (index < chunks.length) {
+        controller.enqueue(encoder.encode(chunks[index]));
+        index++;
+      } else {
+        controller.close();
+      }
+    },
+  }) as ReadableStream<Uint8Array>;
+}
+
+// Helper to create SSE formatted chunks
+function formatSSEChunk(data: object): string {
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
+
 // Mock environment variables
 const originalEnv = process.env;
 
@@ -38,10 +64,13 @@ describe('PerplexityClient', () => {
       ...originalEnv,
       PERPLEXITYAI_API_KEY: 'test-api-key',
     };
+    // Reset fetch to original
+    global.fetch = originalFetch;
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    global.fetch = originalFetch;
   });
 
   describe('Constructor', () => {
@@ -197,11 +226,14 @@ describe('PerplexityClient', () => {
 
       const result = await client.completionRequest(input);
 
-      expect(result.answer).toContain('💭 思考過程：');
-      expect(result.answer).toContain('這是思考過程');
+      // Note: cleanResponse always removes <think> tags from the answer
+      // Thinking content is extracted separately in streaming mode
       expect(result.answer).toContain('這是主要回答');
+      expect(result.answer).toContain('重要內容');
       expect(result.answer).not.toContain('<think>');
+      expect(result.answer).not.toContain('</think>');
       expect(result.answer).not.toContain('<p>');
+      expect(result.answer).not.toContain('<strong>');
     });
 
     test('should remove thinking process when disabled', async () => {
@@ -400,74 +432,201 @@ describe('PerplexityClient', () => {
     });
   });
 
-  describe('Streaming Error Handling', () => {
-    test('should handle streaming generator errors gracefully', async () => {
+  describe('Streaming with Native Fetch', () => {
+    test('should stream content successfully using native fetch', async () => {
       const client = new PerplexityClient('test-key');
-      
-      // Mock axios to throw error during streaming
-      (mockAxiosInstance.post as any).mockRejectedValue(new Error('Network error during streaming'));
+
+      // Create mock SSE stream with valid chunks
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '林黛玉' },
+            finish_reason: null,
+          }],
+        }),
+        formatSSEChunk({
+          id: 'test-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '是紅樓夢中的主要人物。' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
 
       const input: PerplexityQAInput = {
-        userQuestion: '測試流式錯誤',
+        userQuestion: '林黛玉是誰？',
         enableStreaming: true,
       };
 
       const chunks: any[] = [];
-      
-      // The streamingCompletionRequest method handles errors internally and yields error chunks
-      // instead of throwing exceptions, so we should check for error chunks
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
         if (chunk.isComplete) break;
       }
 
-      // Should have received at least one chunk with error information
-      expect(chunks.length).toBeGreaterThan(0);
-      const lastChunk = chunks[chunks.length - 1];
-      expect(lastChunk.isComplete).toBe(true);
-      expect(lastChunk.error).toBeDefined();
-      expect(lastChunk.error).toContain('Network error during streaming');
+      expect(chunks.length).toBe(2);
+      expect(chunks[0].content).toBe('林黛玉');
+      expect(chunks[1].content).toBe('是紅樓夢中的主要人物。');
+      expect(chunks[1].isComplete).toBe(true);
+      expect(chunks[1].fullContent).toContain('林黛玉');
     });
 
-    test('should validate async generator return type', async () => {
+    test('should handle empty stream (no chunks received)', async () => {
       const client = new PerplexityClient('test-key');
-      
+
+      // Create empty stream that closes immediately
+      const mockStream = createMockSSEStream([]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
       const input: PerplexityQAInput = {
-        userQuestion: '測試生成器類型',
+        userQuestion: '測試空串流',
         enableStreaming: true,
       };
 
-      const generator = client.streamingCompletionRequest(input);
-      
-      // Check that it returns an async generator
-      expect(typeof generator).toBe('object');
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-      // In JavaScript/TypeScript, async generators return objects with constructor.name "Object"
-      // The key is that they have the Symbol.asyncIterator method
-      expect(generator.constructor.name).toBe('Object');
-      expect(generator[Symbol.asyncIterator]).toBeDefined();
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Should receive an error chunk when no content is received
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].error).toBeDefined();
+      expect(chunks[0].fullContent).toContain('錯誤');
     });
 
-    test('should handle malformed streaming response', async () => {
+    test('should handle API error response', async () => {
       const client = new PerplexityClient('test-key');
-      
-      // Mock a response that returns invalid streaming data
-      const mockInvalidStream = {
-        on: jest.fn((event: string, callback: (data?: any) => void) => {
-          if (event === 'data') {
-            // Simulate malformed SSE data
-            callback('invalid data without proper format\n');
-          }
-          if (event === 'end') {
-            callback();
-          }
-        }),
-        removeAllListeners: jest.fn(),
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: () => Promise.resolve('Invalid API key'),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試 API 錯誤',
+        enableStreaming: true,
       };
 
-      (mockAxiosInstance.post as any).mockResolvedValue({
-        data: mockInvalidStream,
-      });
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].error).toBeDefined();
+      expect(chunks[0].error).toContain('401');
+    });
+
+    test('should handle missing response body', async () => {
+      const client = new PerplexityClient('test-key');
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: null, // No body
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試無回應主體',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].error).toBeDefined();
+    });
+
+    test('should handle network fetch error', async () => {
+      const client = new PerplexityClient('test-key');
+
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試網路錯誤',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].error).toContain('Network error');
+    });
+
+    test('should handle malformed JSON in SSE stream', async () => {
+      const client = new PerplexityClient('test-key');
+
+      // Create stream with invalid JSON
+      const sseChunks = [
+        'data: {invalid json}\n\n',
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '有效內容' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
 
       const input: PerplexityQAInput = {
         userQuestion: '測試格式錯誤',
@@ -475,16 +634,159 @@ describe('PerplexityClient', () => {
       };
 
       const chunks: any[] = [];
-      
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
         if (chunk.isComplete) break;
       }
 
-      // Should complete with error handling
-      expect(chunks.length).toBeGreaterThan(0);
-      const lastChunk = chunks[chunks.length - 1];
-      expect(lastChunk.isComplete).toBe(true);
+      // Should skip invalid JSON and continue with valid chunk
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].content).toBe('有效內容');
+      expect(chunks[0].isComplete).toBe(true);
+    });
+
+    test('should extract thinking content from stream', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>這是思考過程</think>這是答案' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試思考過程',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].thinkingContent).toBe('這是思考過程');
+      expect(chunks[0].hasThinkingProcess).toBe(true);
+    });
+
+    test('should collect citations during streaming', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '根據資料 [1]' },
+            finish_reason: null,
+          }],
+          citations: ['https://zh.wikipedia.org/wiki/紅樓夢'],
+        }),
+        formatSSEChunk({
+          id: 'test-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '，林黛玉是重要人物。' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試引用',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(2);
+      // Citations should be collected across chunks
+      expect(chunks[0].citations.length).toBeGreaterThan(0);
+      expect(chunks[0].citations[0].url).toContain('wikipedia');
+    });
+
+    test('should validate async generator return type', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試生成器類型',
+        enableStreaming: true,
+      };
+
+      const generator = client.streamingCompletionRequest(input);
+
+      // Check that it returns an async generator
+      expect(typeof generator).toBe('object');
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+      expect(generator[Symbol.asyncIterator]).toBeDefined();
+    });
+
+    test('should handle rate limit error (429)', async () => {
+      const client = new PerplexityClient('test-key');
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        text: () => Promise.resolve('Rate limit exceeded'),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試速率限制',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].error).toContain('429');
     });
   });
 

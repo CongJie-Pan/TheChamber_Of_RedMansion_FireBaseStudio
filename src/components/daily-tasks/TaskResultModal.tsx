@@ -44,6 +44,7 @@ import {
 import { TaskCompletionResult } from '@/lib/types/daily-task';
 import { LevelUpModal } from '@/components/gamification';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TaskResultModalProps {
   result: TaskCompletionResult;
@@ -114,6 +115,8 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
 }) => {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [animatedScore, setAnimatedScore] = useState(0);
+  const [hasRefreshedProfile, setHasRefreshedProfile] = useState(false);
+  const { refreshUserProfile } = useAuth();
 
   /**
    * Animate score on mount
@@ -148,6 +151,34 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
       }, 2000);
     }
   }, [result.leveledUp]);
+
+  /**
+   * Refresh authenticated user's profile once the modal opens so level widgets stay in sync
+   */
+  useEffect(() => {
+    if (!open || hasRefreshedProfile || !result.success) {
+      return;
+    }
+
+    refreshUserProfile()
+      .then(() => setHasRefreshedProfile(true))
+      .catch((error) => {
+        console.error('❌ [TaskResultModal] Failed to refresh user profile after daily task submission:', error);
+      });
+  }, [open, hasRefreshedProfile, refreshUserProfile, result.success, result.taskId]);
+
+  /**
+   * Reset refresh tracking when modal closes or a new result arrives
+   */
+  useEffect(() => {
+    if (!open) {
+      setHasRefreshedProfile(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setHasRefreshedProfile(false);
+  }, [result.taskId]);
 
   return (
     <>

@@ -2,7 +2,7 @@
 
 **Status:** This module has been removed from the codebase
 **Removal Date:** 2025-10-30
-**Reason:** Migrated from GenKit/Gemini to OpenAI GPT-4-mini + Perplexity Sonar
+**Reason:** Migrated from GenKit/Gemini to OpenAI GPT-5-mini + Perplexity Sonar
 
 ## Migration Information
 
@@ -11,7 +11,7 @@ This GenKit configuration module (`src/ai/genkit.ts`) has been completely remove
 ### What Replaced It
 
 **For Scoring/Grading Tasks:**
-- **New Implementation:** Direct OpenAI GPT-4-mini API integration
+- **New Implementation:** Direct OpenAI GPT-5-mini API integration
 - **Client Module:** `src/lib/openai-client.ts`
 - **Affected Flows:**
   - `daily-reading-comprehension.ts`

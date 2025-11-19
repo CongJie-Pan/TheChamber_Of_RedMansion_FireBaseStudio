@@ -133,6 +133,26 @@ export async function POST(request: NextRequest) {
 
             if (chunkCounter === 0) {
               console.error('[Perplexity Stream API] ⚠️ NO CHUNKS RECEIVED FROM GENERATOR');
+              // Send error chunk to client when no chunks received
+              const noChunksErrorChunk: PerplexityStreamingChunk = {
+                content: '',
+                fullContent: '錯誤：AI 服務未回傳任何內容。\n\n可能原因：\n• API 連線問題\n• 請求逾時\n• 服務暫時不可用\n\n建議：\n• 請稍後再試\n• 檢查網路連線\n• 若問題持續，請聯繫系統管理員',
+                timestamp: new Date().toISOString(),
+                citations: [],
+                searchQueries: [],
+                metadata: {
+                  searchQueries: [],
+                  webSources: [],
+                  groundingSuccessful: false,
+                  errorCategory: 'EMPTY_RESPONSE',
+                },
+                responseTime: 0,
+                isComplete: true,
+                chunkIndex: 1,
+                error: 'No chunks received from Perplexity API generator',
+              };
+              const errorSseMessage = `data: ${JSON.stringify(noChunksErrorChunk)}\n\n`;
+              controller.enqueue(encoder.encode(errorSseMessage));
             } else {
               console.log(`[Perplexity Stream API] Generator iteration complete: ${chunkCounter} chunks processed`);
             }

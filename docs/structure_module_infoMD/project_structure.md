@@ -9,7 +9,7 @@ The Chamber of Red Mansion is an AI-powered educational web platform designed to
 This project follows a **Component-Driven Architecture with AI Enhancement** pattern, organized around the following core principles:
 
 * **Layered Architecture with Clear Separation of Concerns:**
-  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using direct OpenAI GPT-4-mini and Perplexity Sonar API integration. This separation allows AI capabilities to evolve independently without affecting UI or business logic, with simplified architecture removing framework overhead.
+  * **AI Orchestration Layer** (`/src/ai/`): Isolated AI workflows using direct OpenAI GPT-5-mini and Perplexity Sonar API integration. This separation allows AI capabilities to evolve independently without affecting UI or business logic, with simplified architecture removing framework overhead.
   * **Presentation Layer** (`/src/app/`, `/src/components/`): Next.js 15 App Router with React Server Components for optimal performance and SEO. UI components are isolated in `/src/components/` following atomic design principles.
   * **Business Logic Layer** (`/src/lib/`): Core services handling authentication, content filtering, task management, and user progression. This layer acts as the bridge between UI and data/AI layers.
   * **Data Layer - SQLite Architecture** (`/src/lib/repositories/`): Local-first data persistence using SQLite as the primary and only database. The repository pattern provides a clean data access layer with prepared statements for SQL injection prevention, supporting all application features including user profiles, daily tasks, notes, highlights, and community posts.
@@ -218,7 +218,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 ### AI Flow Modules (`/src/ai/flows/`) - Updated 2025-10-30
 
-**Migration Note:** All AI flows migrated from GenKit/Gemini to direct API integration on 2025-10-30. Scoring flows use OpenAI GPT-4-mini; analysis flows use Perplexity Sonar.
+**Migration Note:** All AI flows migrated from GenKit/Gemini to direct API integration on 2025-10-30. Scoring flows use OpenAI GPT-5-mini; analysis flows use Perplexity Sonar.
 
 **explain-text-selection.ts** [Perplexity Sonar] - Provides contextual AI-powered explanations for user-selected text passages from the novel using traditional Chinese analysis with web search capabilities. This flow analyzes the literary context, historical background, and linguistic nuances to help readers understand complex classical Chinese prose.
 
@@ -226,15 +226,15 @@ This section provides a complete listing of all modules in the codebase with two
 
 **interactive-character-relationship-map.ts** [Perplexity Sonar] - Generates dynamic AI insights about character relationships, motivations, and development arcs throughout the novel's 120 chapters with contemporary scholarly references. This flow helps readers navigate the complex web of over 400 characters by highlighting key relationships and their evolution.
 
-**daily-reading-comprehension.ts** [OpenAI GPT-4-mini] - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria with JSON-structured responses. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
+**daily-reading-comprehension.ts** [OpenAI GPT-5-mini] - Evaluates and grades user responses to daily reading comprehension tasks using AI-powered assessment criteria with JSON-structured responses. This module analyzes answer quality, depth of understanding, and textual evidence to provide detailed feedback and scoring.
 
-**poetry-quality-assessment.ts** [OpenAI GPT-4-mini] - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards with structured JSON output. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
+**poetry-quality-assessment.ts** [OpenAI GPT-5-mini] - Assesses user-created poetry or poetry analysis submissions using traditional Chinese literary criticism standards with structured JSON output. This flow evaluates metrics like structural adherence, tonal patterns, imagery usage, and thematic coherence based on classical poetry conventions.
 
-**character-analysis-scoring.ts** [OpenAI GPT-4-mini] - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth with JSON-formatted results. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
+**character-analysis-scoring.ts** [OpenAI GPT-5-mini] - Grades user-submitted character analyses by evaluating textual evidence, psychological insights, and literary interpretation depth with JSON-formatted results. This module uses AI to assess how well users understand character motivations, development, and symbolic significance within the narrative.
 
-**cultural-quiz-grading.ts** [OpenAI GPT-4-mini] - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context with structured JSON responses. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
+**cultural-quiz-grading.ts** [OpenAI GPT-5-mini] - Automatically evaluates multiple-choice and short-answer cultural knowledge quizzes about Qing Dynasty customs, social hierarchy, and historical context with structured JSON responses. This flow provides instant feedback and explanations to reinforce cultural literacy essential for understanding the novel.
 
-**commentary-interpretation.ts** [OpenAI GPT-4-mini] - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars with JSON-structured feedback. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
+**commentary-interpretation.ts** [OpenAI GPT-5-mini] - Grades user interpretations of scholarly commentaries and critical analyses from famous Red Chamber scholars with JSON-structured feedback. This module assesses comprehension of literary criticism and ability to synthesize multiple scholarly perspectives.
 
 **perplexity-red-chamber-qa.ts** [Perplexity Sonar] - Streams AI-powered answers to user questions by leveraging Perplexity API's access to contemporary scholarly articles and research with web search capabilities. This flow bridges classical literature with modern academic discourse, providing citations and contemporary interpretations.
 
@@ -280,7 +280,7 @@ This section provides a complete listing of all modules in the codebase with two
 
 **highlight-service.ts** - Manages text highlighting features allowing users to mark important passages, add color-coded categories, and link highlights to notes. This module integrates with highlight-repository for SQLite operations with batch processing support, supporting active reading through visual annotation and organization of key textual moments across chapters.
 
-**openai-client.ts** - Provides the primary configured client for OpenAI GPT-4-mini API integration, powering all scoring and grading tasks in the platform (updated 2025-10-30). This module handles API key management, request formatting, error handling, response parsing, and JSON-structured output for daily task evaluations including reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, and commentary interpretation.
+**openai-client.ts** - Provides the primary configured client for OpenAI GPT-5-mini API integration, powering all scoring and grading tasks in the platform (updated 2025-10-30). This module handles API key management, request formatting, error handling, response parsing, and JSON-structured output for daily task evaluations including reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, and commentary interpretation.
 
 **perplexity-client.ts** - Implements the Perplexity API client for accessing external knowledge sources and contemporary scholarly research with streaming support. This module enables real-time question answering that goes beyond the novel's text by leveraging current academic discourse and research databases.
 
@@ -564,7 +564,7 @@ This section provides a complete listing of all modules in the codebase with two
 * **API Routes** - All endpoints are defined in `/src/app/api/` with Next.js route handlers
 * **AI Flow Testing** - Test AI flows through Jest unit tests in `/tests/ai/flows/` with mocked API responses
 * **Database Management** - SQLite database managed through better-sqlite3 with schema defined in `/src/lib/sqlite-db.ts`
-* **OpenAI API** - Direct integration with GPT-4-mini for scoring tasks
+* **OpenAI API** - Direct integration with GPT-5-mini for scoring tasks
 * **Perplexity API** - Direct integration with Sonar for analysis and Q&A tasks
 
 ### Development Resources
@@ -584,7 +584,7 @@ This section provides a complete listing of all modules in the codebase with two
 **Change Log:**
 * **v1.5 (2025-11-14):** Architecture Documentation Update - Removed all Firebase/Firestore references, confirmed SQLite as the sole database solution. Updated authentication references from Firebase Auth to NextAuth.js. Removed "dual-mode" and "fallback" architecture descriptions. Updated all module descriptions, workflows, and development resources to reflect current SQLite-only architecture. Marked Firebase-to-SQLite migration scripts as historical artifacts.
 * **v1.4 (2025-10-31):** Phase 4 Completion - Guest Account System (fixed test environment with 70 XP baseline, server auto-reset, 13/13 tests passing), Login Logo Update (replaced ScrollText with official logo_circle.png), Performance Optimization (build time 126s → 59s, 53% improvement via SWC minification, lazy loading, CSS optimization). Fixed 2 critical bugs: import path issue (scripts → src/lib/constants) and repository import pattern (object → direct function).
-* **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-4-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
+* **v1.3 (2025-10-30):** AI Migration - Removed GenKit/Gemini, migrated to OpenAI GPT-5-mini (scoring tasks) + Perplexity Sonar (analysis tasks) with direct API integration. Updated all AI flow descriptions, development workflows, and documentation references.
 * **v1.2 (2025-10-29):** Added traditional Chinese window frame navigation system - ChineseWindowNavButton component, window shape type definitions, enhanced AppShell with cultural aesthetics
 * **v1.1 (2025-10-29):** Added Phase 2 completion - SQLite dual-mode architecture, repository pattern, migration scripts, 75+ repository tests
 * **v1.0 (2025-10-27):** Initial comprehensive project structure documentation

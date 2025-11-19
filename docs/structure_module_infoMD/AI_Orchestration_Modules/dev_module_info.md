@@ -2,7 +2,7 @@
 
 **Status:** This module has been removed from the codebase
 **Removal Date:** 2025-10-30
-**Reason:** Migrated from GenKit/Gemini to OpenAI GPT-4-mini + Perplexity Sonar direct API integration
+**Reason:** Migrated from GenKit/Gemini to OpenAI GPT-5-mini + Perplexity Sonar direct API integration
 
 ## Migration Impact
 
@@ -16,7 +16,7 @@ The `dev.ts` GenKit development server has been completely removed as part of th
 
 ### Affected Flows (Now Using Direct APIs)
 
-**Migrated to OpenAI GPT-4-mini:**
+**Migrated to OpenAI GPT-5-mini:**
 - Daily reading comprehension scoring
 - Poetry quality assessment
 - Character analysis scoring

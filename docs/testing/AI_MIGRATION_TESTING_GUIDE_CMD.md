@@ -1,12 +1,12 @@
 # AI Migration Testing Guide - Windows CMD Environment
 
 **Date:** 2025-10-30
-**Migration:** GenKit/Gemini → OpenAI GPT-4-mini + Perplexity Sonar
+**Migration:** GenKit/Gemini → OpenAI GPT-5-mini + Perplexity Sonar
 **Testing Environment:** Windows Command Prompt (CMD)
 
 ## Overview
 
-This guide provides step-by-step instructions for testing the AI migration in a Windows CMD environment. All AI flows have been migrated from GenKit/Gemini to OpenAI GPT-4-mini (scoring tasks) and Perplexity Sonar (analysis tasks).
+This guide provides step-by-step instructions for testing the AI migration in a Windows CMD environment. All AI flows have been migrated from GenKit/Gemini to OpenAI GPT-5-mini (scoring tasks) and Perplexity Sonar (analysis tasks).
 
 ---
 
@@ -263,7 +263,7 @@ npm install
 
 Use this checklist to verify all AI functionality works correctly:
 
-### OpenAI GPT-4-mini Flows (Scoring)
+### OpenAI GPT-5-mini Flows (Scoring)
 
 - [ ] **Character Analysis Scoring**
   - [ ] Returns valid score (0-100)

@@ -14,8 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run typecheck` - Run TypeScript type checking
 
 ### AI Development (Updated 2025-10-30)
-**Current Architecture:** Direct API integration with OpenAI GPT-4-mini + Perplexity Sonar
-- **OpenAI GPT-4-mini** - Powers all scoring and grading tasks (daily reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, commentary interpretation)
+**Current Architecture:** Direct API integration with OpenAI GPT-5-mini + Perplexity Sonar
+- **OpenAI GPT-5-mini** - Powers all scoring and grading tasks (daily reading comprehension, poetry quality assessment, character analysis scoring, cultural quiz grading, commentary interpretation)
 - **Perplexity Sonar** - Handles Q&A and analysis tasks with web search capabilities (context-aware analysis, explain text selection, character relationship mapping)
 - **Testing:** All AI flows are tested through standard Jest unit tests with mocked API responses (see `/tests/ai/flows/`)
 - **No Framework Overhead:** Removed GenKit orchestration layer for simpler, more maintainable code

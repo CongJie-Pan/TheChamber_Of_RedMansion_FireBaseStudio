@@ -14,10 +14,19 @@
  */
 
 import React, { useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
+import dynamic from 'next/dynamic';
 import { ExternalLink } from 'lucide-react';
 import type { PerplexityCitation } from '@/types/perplexity-qa';
 import { cn } from '@/lib/utils';
+
+// Phase 4-T4: Lazy load ReactMarkdown to reduce bundle size (~30KB)
+const ReactMarkdown = dynamic(
+  () => import('react-markdown'),
+  {
+    ssr: false,
+    loading: () => <span className="animate-pulse bg-muted/30 rounded inline-block h-4 w-16" />,
+  }
+);
 
 /**
  * Structured section interface

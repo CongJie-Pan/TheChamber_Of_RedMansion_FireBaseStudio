@@ -888,6 +888,126 @@ export class UserLevelService {
       };
     }
   }
+
+  /**
+   * Reset all data for any user account (SQLite-only)
+   * (ALL USERS - Guest and Regular)
+   *
+   * ⚠️ WARNING: This method permanently deletes all user data including:
+   * - XP transactions and locks
+   * - Level-up history
+   * - Daily task progress and submissions
+   * - Notes and highlights
+   * - Community posts and comments
+   * - User profile (then reinitialized)
+   *
+   * This operation is irreversible.
+   *
+   * @param userId - User ID to reset
+   * @param displayName - Display name for reinitialized profile
+   * @param email - Email for reinitialized profile
+   * @returns Promise with success status and reinitialized profile
+   */
+  async resetUserAccount(
+    userId: string,
+    displayName: string,
+    email: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    profile?: UserProfile;
+  }> {
+    if (!SQLITE_SERVER_ENABLED) {
+      throw new Error('[UserLevelService] Cannot operate: SQLite only available server-side');
+    }
+
+    try {
+      console.log(`🧹 Starting complete account reset for user ${userId}...`);
+
+      // Safety check: Verify user profile exists
+      const profile = await this.getUserProfile(userId);
+      if (!profile) {
+        return {
+          success: false,
+          message: 'User profile not found',
+        };
+      }
+
+      console.log(`🗄️  [UserLevelService] Resetting user account data`);
+
+      // For SQLite, we need to manually delete from all related tables
+      const sqliteDb = require('./sqlite-db');
+      const db = sqliteDb.getDatabase();
+
+      // Delete in reverse order of dependencies to avoid foreign key errors
+      console.log('🗑️ Deleting all user-related data from SQLite...');
+
+      // XP and level related
+      db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
+
+      // Task related
+      db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
+      db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
+
+      // Notes and highlights
+      try {
+        db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
+      } catch (e) {
+        // Notes table might not exist yet, skip
+        console.log('⚠️ Notes table not found, skipping...');
+      }
+
+      try {
+        db.prepare('DELETE FROM highlights WHERE userId = ?').run(userId);
+      } catch (e) {
+        // Highlights table might not exist yet, skip
+        console.log('⚠️ Highlights table not found, skipping...');
+      }
+
+      // Community related - hard delete posts and comments
+      try {
+        // Delete comments first (they may reference posts)
+        db.prepare('DELETE FROM comments WHERE authorId = ?').run(userId);
+        console.log('✅ Comments deleted');
+      } catch (e) {
+        console.log('⚠️ Comments table not found, skipping...');
+      }
+
+      try {
+        // Delete posts
+        db.prepare('DELETE FROM posts WHERE authorId = ?').run(userId);
+        console.log('✅ Posts deleted');
+      } catch (e) {
+        console.log('⚠️ Posts table not found, skipping...');
+      }
+
+      // Delete user profile last
+      userRepository.deleteUser(userId);
+
+      console.log('✅ All user data deleted from SQLite');
+
+      // Reinitialize user profile
+      console.log('🔄 Reinitializing user profile...');
+      const newProfile = await this.initializeUserProfile(userId, displayName, email);
+      console.log('✅ User profile reinitialized');
+
+      console.log(`🎉 Complete account reset successful for user ${userId}`);
+
+      return {
+        success: true,
+        message: 'Account has been successfully reset to initial state',
+        profile: newProfile,
+      };
+    } catch (error) {
+      console.error('❌ Error resetting user account:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to reset user account',
+      };
+    }
+  }
 }
 
 // Export singleton instance

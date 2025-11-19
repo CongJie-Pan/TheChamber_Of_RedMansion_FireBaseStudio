@@ -4,6 +4,8 @@
 
 This API route module provides Server-Sent Events (SSE) streaming endpoints for real-time AI-powered question answering using Perplexity API. It enables progressive display of AI thinking processes and answers with scholarly citations, bridging the gap between classical literature analysis and contemporary academic research. The module implements comprehensive error handling, adaptive timeouts, and graceful degradation to ensure robust user experience even during API failures or network issues.
 
+**2025-11-19 Update:** Enhanced error handling to send a user-friendly error chunk when no chunks are received from the Perplexity API generator. This provides clear feedback to users instead of silently closing the stream, with actionable suggestions for troubleshooting.
+
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**

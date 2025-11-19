@@ -119,6 +119,10 @@ export async function POST(request: NextRequest) {
         newTotalXP: result.newTotalXP,
         newLevel: result.newLevel,
         leveledUp: result.leveledUp,
+        fromLevel: result.fromLevel,
+        isDuplicate: result.isDuplicate,
+        unlockedContent: result.unlockedContent,
+        unlockedPermissions: result.unlockedPermissions,
         levelUpRewards: result.levelUpRewards,
       } as AwardXPResponse,
       { status: 200 }

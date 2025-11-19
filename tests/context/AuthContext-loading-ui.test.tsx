@@ -92,8 +92,8 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       const logo = screen.getByAltText('紅樓慧讀');
       expect(logo).toBeInTheDocument();
       expect(logo).toHaveAttribute('src', '/images/logo_circle.png');
-      expect(logo).toHaveAttribute('width', '112');
-      expect(logo).toHaveAttribute('height', '112');
+      expect(logo).toHaveAttribute('width', '120');
+      expect(logo).toHaveAttribute('height', '120');
 
       // Assert: Spinning ring container is present
       const container = logo.closest('div.relative');
@@ -278,9 +278,9 @@ describe('AuthContext Loading UI - Unit Tests', () => {
      * Test 3.1: Spinning ring has animation class
      *
      * Behavior: The ring div should include the 'animate-spin' Tailwind class.
-     * Updated: Now uses gradient ring instead of border ring.
+     * Updated: Now uses border-based ring with high contrast colors.
      */
-    it('should apply animate-spin class to gradient spinning ring', () => {
+    it('should apply animate-spin class to border-based spinning ring', () => {
       // Arrange
       (useSession as jest.Mock).mockReturnValue({
         data: null,
@@ -294,12 +294,56 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Assert: Find the spinning ring by its distinctive classes
       const spinningRing = container.querySelector('.animate-spin');
       expect(spinningRing).toBeInTheDocument();
-      expect(spinningRing).toHaveClass('rounded-full', 'w-40', 'h-40', 'absolute');
+      expect(spinningRing).toHaveClass('rounded-full', 'h-44', 'w-44', 'absolute');
 
-      // Assert: Ring uses gradient background (inline style)
-      expect(spinningRing).toHaveStyle({
-        background: expect.stringContaining('conic-gradient')
+      // Assert: Ring uses border styling for high contrast
+      expect(spinningRing).toHaveClass('border-4', 'border-transparent', 'border-t-primary');
+    });
+
+    /**
+     * Test 3.1b: Spinning ring has performance optimization
+     *
+     * Behavior: The ring should have willChange: transform for GPU optimization.
+     */
+    it('should apply willChange transform for performance optimization', () => {
+      // Arrange
+      (useSession as jest.Mock).mockReturnValue({
+        data: null,
+        status: 'loading',
+        update: jest.fn(),
       });
+
+      // Act
+      const { container } = renderAuthProvider();
+
+      // Assert: Find the spinning ring and check willChange style
+      const spinningRing = container.querySelector('.animate-spin');
+      expect(spinningRing).toBeInTheDocument();
+      expect(spinningRing).toHaveStyle({ willChange: 'transform' });
+    });
+
+    /**
+     * Test 3.1c: Spinning ring has gradient effect with border-r
+     *
+     * Behavior: The ring should have border-r-primary/60 for gradient trail effect.
+     */
+    it('should apply gradient trail effect with border-r-primary', () => {
+      // Arrange
+      (useSession as jest.Mock).mockReturnValue({
+        data: null,
+        status: 'loading',
+        update: jest.fn(),
+      });
+
+      // Act
+      const { container } = renderAuthProvider();
+
+      // Assert: Find the spinning ring and check gradient classes
+      const spinningRing = container.querySelector('.animate-spin');
+      expect(spinningRing).toBeInTheDocument();
+      // Note: Tailwind classes with / are rendered with escaped slashes in some cases
+      // We check for the presence of border-r styling
+      expect(spinningRing?.className).toMatch(/border-r-primary/);
     });
 
     /**
@@ -321,13 +365,14 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Assert: Outer container has centering classes
       const outerContainer = container.querySelector('.flex.min-h-screen.items-center.justify-center');
       expect(outerContainer).toBeInTheDocument();
-      expect(outerContainer).toHaveClass('bg-background');
+      // Container uses gradient background from-background
+      expect(outerContainer).toHaveClass('bg-gradient-to-br', 'from-background');
     });
 
     /**
      * Test 3.3: Logo container has correct sizing
      *
-     * Behavior: Logo container should be w-28 h-28 (112px).
+     * Behavior: Logo container should be h-32 w-32 (128px).
      */
     it('should apply correct size classes to logo container', () => {
       // Arrange
@@ -340,20 +385,19 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Act
       const { container } = renderAuthProvider();
 
-      // Assert: Logo container has size classes
-      const logoContainer = container.querySelector('.w-28.h-28');
+      // Assert: Logo container has size classes (h-32 w-32 = 128px)
+      const logoContainer = container.querySelector('.h-32.w-32');
       expect(logoContainer).toBeInTheDocument();
-      // Note: bg-white/10 is rendered without escaped slashes in the DOM
-      expect(logoContainer).toHaveClass('rounded-full', 'overflow-hidden', 'relative');
+      expect(logoContainer).toHaveClass('rounded-full', 'relative', 'flex', 'items-center', 'justify-center');
     });
 
     /**
-     * Test 3.4: Spinning ring uses gradient styling
+     * Test 3.4: Spinning ring has aria-hidden for accessibility
      *
-     * Behavior: Ring should use conic-gradient for smooth color transition.
-     * Updated: Now uses gradient instead of borders.
+     * Behavior: Ring should be hidden from screen readers as it's decorative.
+     * Updated: Now uses border-based ring instead of gradient.
      */
-    it('should apply gradient styles to spinning ring', () => {
+    it('should have aria-hidden attribute for accessibility', () => {
       // Arrange
       (useSession as jest.Mock).mockReturnValue({
         data: null,
@@ -364,14 +408,36 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Act
       const { container } = renderAuthProvider();
 
-      // Assert: Ring has gradient background
+      // Assert: Ring has aria-hidden for accessibility
       const spinningRing = container.querySelector('.animate-spin');
       expect(spinningRing).toBeInTheDocument();
+      expect(spinningRing).toHaveAttribute('aria-hidden', 'true');
+    });
 
-      // Assert: Ring uses inline styles for gradient and mask effect
-      const style = spinningRing?.getAttribute('style');
-      expect(style).toContain('mask');
-      expect(style).toContain('radial-gradient');
+    /**
+     * Test 3.5: Spinning ring uses high-contrast border colors
+     *
+     * Behavior: Ring should use transparent base with primary top/right borders
+     * for maximum visibility on dark backgrounds.
+     */
+    it('should use high-contrast border colors for visibility', () => {
+      // Arrange
+      (useSession as jest.Mock).mockReturnValue({
+        data: null,
+        status: 'loading',
+        update: jest.fn(),
+      });
+
+      // Act
+      const { container } = renderAuthProvider();
+
+      // Assert: Ring uses transparent base border
+      const spinningRing = container.querySelector('.animate-spin');
+      expect(spinningRing).toBeInTheDocument();
+      expect(spinningRing).toHaveClass('border-transparent');
+
+      // Assert: Ring has primary color on top for spinning effect
+      expect(spinningRing).toHaveClass('border-t-primary');
     });
   });
 
@@ -438,10 +504,10 @@ describe('AuthContext Loading UI - Unit Tests', () => {
       // Act
       renderAuthProvider();
 
-      // Assert: Dimensions are explicit
+      // Assert: Dimensions are explicit (120x120)
       const logo = screen.getByAltText('紅樓慧讀');
-      expect(logo).toHaveAttribute('width', '112');
-      expect(logo).toHaveAttribute('height', '112');
+      expect(logo).toHaveAttribute('width', '120');
+      expect(logo).toHaveAttribute('height', '120');
     });
   });
 

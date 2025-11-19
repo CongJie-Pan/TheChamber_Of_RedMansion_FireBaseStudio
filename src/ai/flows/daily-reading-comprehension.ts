@@ -15,7 +15,7 @@
  * Usage: Called by DailyTaskService when users submit morning reading task answers
  *
  * @phase Phase 2.1 - AI Integration & Scoring System
- * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-5-mini
  */
 
 'use server'; // Required for server-side AI processing
@@ -170,9 +170,9 @@ export async function assessReadingComprehension(
     // Build assessment prompt
     const prompt = buildAssessmentPrompt(input);
 
-    // Call OpenAI API with GPT-4-mini
+    // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-mini',
+      model: 'GPT-5-mini',
       messages: [
         {
           role: 'system',

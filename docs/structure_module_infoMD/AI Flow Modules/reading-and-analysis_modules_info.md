@@ -3,7 +3,7 @@
 **Migration Status:** All reading and analysis flows migrated from GenKit/Gemini on 2025-10-30.
 
 **Current Architecture:**
-- **daily-reading-comprehension:** OpenAI GPT-4-mini (scoring task)
+- **daily-reading-comprehension:** OpenAI GPT-5-mini (scoring task)
 - **context-aware-analysis:** Perplexity Sonar (analysis task with web search)
 - **explain-text-selection:** Perplexity Sonar (analysis task with web search)
 
@@ -13,12 +13,12 @@
 
 ## 1. Module Summary
 
-The `daily-reading-comprehension` module implements an AI-powered assessment system for evaluating user responses to daily morning reading comprehension tasks from "Dream of the Red Chamber" using OpenAI GPT-4-mini. This module assesses comprehension depth, accuracy, literary insight, and keyword coverage to generate numerical scores (0-100), constructive feedback in Traditional Chinese, and detailed analysis with improvement suggestions through JSON-structured responses. The flow uses difficulty-adaptive scoring criteria to ensure fair evaluation across easy, medium, and hard tasks while providing fallback assessments when AI services are unavailable.
+The `daily-reading-comprehension` module implements an AI-powered assessment system for evaluating user responses to daily morning reading comprehension tasks from "Dream of the Red Chamber" using OpenAI GPT-5-mini. This module assesses comprehension depth, accuracy, literary insight, and keyword coverage to generate numerical scores (0-100), constructive feedback in Traditional Chinese, and detailed analysis with improvement suggestions through JSON-structured responses. The flow uses difficulty-adaptive scoring criteria to ensure fair evaluation across easy, medium, and hard tasks while providing fallback assessments when AI services are unavailable.
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-4-mini API access
+  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-5-mini API access
 * **External Dependencies:**
   * `openai` - Official OpenAI SDK for API communication
   * `zod` - Schema validation library for type-safe inputs and outputs
@@ -33,10 +33,10 @@ The `daily-reading-comprehension` module implements an AI-powered assessment sys
 
 ### 4.1. `daily-reading-comprehension.ts`
 
-* **Purpose:** This server-side file implements educational assessment AI using OpenAI GPT-4-mini to evaluate student comprehension of classical Chinese literature passages. The module follows a weighted rubric (Accuracy 30%, Completeness 25%, Depth 25%, Literary Literacy 20%) with difficulty-adaptive scoring where easy tasks are more lenient (70+ for basic correctness) while hard tasks require deep analysis for similar scores. By generating both quantitative scores and qualitative feedback through JSON responses, this flow enables the daily task system to provide meaningful learning experiences with actionable improvement guidance.
+* **Purpose:** This server-side file implements educational assessment AI using OpenAI GPT-5-mini to evaluate student comprehension of classical Chinese literature passages. The module follows a weighted rubric (Accuracy 30%, Completeness 25%, Depth 25%, Literary Literacy 20%) with difficulty-adaptive scoring where easy tasks are more lenient (70+ for basic correctness) while hard tasks require deep analysis for similar scores. By generating both quantitative scores and qualitative feedback through JSON responses, this flow enables the daily task system to provide meaningful learning experiences with actionable improvement guidance.
 
 * **Functions:**
-    * `assessReadingComprehension(input: ReadingComprehensionInput): Promise<ReadingComprehensionOutput>` - Public async function that calls OpenAI GPT-4-mini API, parses JSON responses, validates output schema, and returns comprehension assessment results.
+    * `assessReadingComprehension(input: ReadingComprehensionInput): Promise<ReadingComprehensionOutput>` - Public async function that calls OpenAI GPT-5-mini API, parses JSON responses, validates output schema, and returns comprehension assessment results.
 
 * **Key Schemas:**
     * `ReadingComprehensionInputSchema`: Zod object schema with 5 required fields (passage, question, userAnswer, expectedKeywords, difficulty)
@@ -52,7 +52,7 @@ flowchart TD
     B --> C[Build system + user prompts]
     C --> D[Set role: Red Mansion literature teacher]
     D --> E[Include rubric and difficulty criteria]
-    E --> F[Call OpenAI GPT-4-mini API]
+    E --> F[Call OpenAI GPT-5-mini API]
     F --> G[Request JSON response format]
 
     G --> H[Parse JSON response]
@@ -237,7 +237,7 @@ console.log(result.sources); // Contemporary scholarly references
 
 **daily-reading-comprehension:**
 - **From:** GenKit + Gemini 2.5 Pro
-- **To:** OpenAI GPT-4-mini with JSON-structured responses
+- **To:** OpenAI GPT-5-mini with JSON-structured responses
 - **Reason:** Cost-effective scoring with reliable JSON output
 
 **context-aware-analysis & explain-text-selection:**
@@ -248,7 +248,7 @@ console.log(result.sources); // Contemporary scholarly references
 ### Benefits by Flow Type
 
 **Scoring Flow (daily-reading-comprehension):**
-- Cost efficiency with GPT-4-mini
+- Cost efficiency with GPT-5-mini
 - Reliable JSON-structured responses
 - No web search needed for grading tasks
 

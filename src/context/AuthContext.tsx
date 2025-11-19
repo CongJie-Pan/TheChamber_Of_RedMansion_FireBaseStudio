@@ -89,7 +89,8 @@ export function AuthLoadingScreen({ message, subMessage }: AuthLoadingScreenProp
       <div className="relative mb-6 flex items-center justify-center">
         {/* High-contrast spinner ring for visibility on dark backgrounds */}
         <div
-          className="absolute h-44 w-44 rounded-full border-4 border-primary/30 border-t-primary animate-spin"
+          className="absolute h-44 w-44 rounded-full border-4 border-transparent border-t-primary border-r-primary/60 animate-spin"
+          style={{ willChange: 'transform' }}
           aria-hidden="true"
         />
 

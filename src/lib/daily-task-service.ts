@@ -584,7 +584,16 @@ export class DailyTaskService {
       // Phase 4-T1: Guest account protection - record score but don't award XP
       const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
 
-      let xpResult: { success: boolean; newTotalXP: number; newLevel: number; leveledUp: boolean; fromLevel?: number };
+      let xpResult: {
+        success: boolean;
+        newTotalXP: number;
+        newLevel: number;
+        leveledUp: boolean;
+        fromLevel?: number;
+        isDuplicate?: boolean;
+        unlockedContent?: string[];
+        unlockedPermissions?: string[];
+      };
 
       // Guest account special handling: record AI evaluation but maintain fixed 70 XP
       if (isGuestAccount(userId)) {
@@ -609,30 +618,54 @@ export class DailyTaskService {
         console.log(`   💬 Feedback: ${feedback.substring(0, 80)}...`);
         console.log(`   💎 XP remains at 70 (guest account protection active)`);
       } else {
-        // Regular user: award XP normally
+        // Regular user: award XP using centralized level service
         try {
-          // Ensure user exists in SQLite database
+          // Ensure user profile exists before awarding XP
           let user = userRepository.getUserById(userId);
           if (!user) {
-            // Create user if doesn't exist
             user = userRepository.createUser(userId, userId, undefined);
           }
 
           const beforeLevel = user.currentLevel;
+          const xpReasonBase = `Daily task completion: ${task.title || taskId}`;
+          const xpReason = xpReasonBase.slice(0, 200);
 
-          // Award XP
-          const updatedUser = userRepository.awardXP(userId, finalXP);
+          const levelResult = await userLevelService.awardXP(
+            userId,
+            finalXP,
+            xpReason,
+            'daily_task',
+            xpSourceId
+          );
+
+          if (levelResult.isDuplicate) {
+            console.log(`⚠️  [DailyTaskService] Duplicate XP detected for ${userId}:${xpSourceId}`);
+          }
+
           xpResult = {
-            success: true,
-            newTotalXP: updatedUser.totalXP,
-            newLevel: updatedUser.currentLevel,
-            fromLevel: beforeLevel,
-            leveledUp: updatedUser.currentLevel > beforeLevel,
+            success: levelResult.success,
+            newTotalXP: levelResult.newTotalXP,
+            newLevel: levelResult.newLevel,
+            leveledUp: levelResult.leveledUp,
+            fromLevel: levelResult.fromLevel ?? beforeLevel,
+            isDuplicate: levelResult.isDuplicate,
+            unlockedContent: levelResult.unlockedContent,
+            unlockedPermissions: levelResult.unlockedPermissions,
           };
-          console.log(`✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${beforeLevel} -> ${updatedUser.currentLevel})`);
+
+          console.log(
+            `✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${xpResult.fromLevel} -> ${xpResult.newLevel})`
+          );
         } catch (e: any) {
           console.warn('SQLite Award XP failed, continuing:', e?.message || e);
-          xpResult = { success: true, newTotalXP: 0, newLevel: 0, leveledUp: false, fromLevel: 0 };
+          const fallbackProfile = userRepository.getUserById(userId);
+          xpResult = {
+            success: true,
+            newTotalXP: fallbackProfile?.totalXP || 0,
+            newLevel: fallbackProfile?.currentLevel || 0,
+            leveledUp: false,
+            fromLevel: fallbackProfile?.currentLevel || 0,
+          };
         }
       }
 

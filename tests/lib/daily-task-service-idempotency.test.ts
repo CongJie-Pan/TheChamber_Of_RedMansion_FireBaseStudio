@@ -29,7 +29,7 @@ const mockFirestoreGetDoc = jest.fn();
 const mockFirestoreSetDoc = jest.fn();
 const mockFirestoreUpdateDoc = jest.fn();
 
-jest.mock('firebase/firestore', () => ({
+ jest.mock('firebase/firestore', () => ({
   collection: jest.fn(),
   doc: jest.fn(),
   getDoc: (...args: any[]) => mockFirestoreGetDoc(...args),
@@ -45,7 +45,7 @@ jest.mock('firebase/firestore', () => ({
     now: jest.fn(() => ({ seconds: Date.now() / 1000, nanoseconds: 0 })),
     fromDate: jest.fn((date: Date) => ({ seconds: date.getTime() / 1000, nanoseconds: 0 })),
   },
-}));
+}), { virtual: true });
 
 // Mock Firebase db
 jest.mock('@/lib/firebase', () => ({

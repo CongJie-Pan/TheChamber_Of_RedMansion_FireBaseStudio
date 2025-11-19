@@ -23,7 +23,7 @@
  * Original Usage: Called by DailyTaskService when users submit poetry task answers
  *
  * @phase Phase 2.2 - AI Integration & Scoring System
- * @updated Migrated from GenKit/Gemini to OpenAI GPT-4-mini
+ * @updated Migrated from GenKit/Gemini to OpenAI GPT-5-mini
  * @deprecated 2025-10-30 - Poetry tasks removed, this module is no longer actively used
  *
  * Note: This file is kept for historical reference. Do not use in new code.
@@ -206,9 +206,9 @@ export async function assessPoetryQuality(
     // Build assessment prompt
     const prompt = buildPoetryAssessmentPrompt(input);
 
-    // Call OpenAI API with GPT-4-mini
+    // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-mini',
+      model: 'GPT-5-mini',
       messages: [
         {
           role: 'system',

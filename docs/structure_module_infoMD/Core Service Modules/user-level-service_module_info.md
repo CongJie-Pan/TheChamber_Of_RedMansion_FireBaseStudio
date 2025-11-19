@@ -422,6 +422,13 @@ await userLevelService.awardXP(
   'ai-first-question' // One-time sourceId
 );
 
+// Achievement Notification Behavior (2025-11-19 Update):
+// - First-time achievement: Shows toast notification AND marks as notified in localStorage
+// - Duplicate achievement: Silently logs to console (no toast shown to user)
+// - This prevents repeated "已獲得過" notifications that annoy users
+// - localStorage key format: `achievement-notified-${sourceId}`
+// - Chapter XP duplicates: Also silently logged, no toast shown
+
 // Check permission (async)
 const canUseAI = await userLevelService.checkPermission(userId, 'USE_AI');
 if (canUseAI) {

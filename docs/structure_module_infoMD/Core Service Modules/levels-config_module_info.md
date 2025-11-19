@@ -103,7 +103,7 @@ export const MAX_XP: number;     // 630 (XP required for Level 7)
   id: 0,
   title: '賈府訪客',
   titleEn: 'Mansion Visitor',
-  description: '初來乍到,對紅樓夢充滿好奇。您剛踏入大觀園,還在熟悉這座文學殿堂的一磚一瓦。',
+  description: '初來乍到，對紅樓夢充滿好奇。您剛踏入大觀園，還在熟悉這座文學殿堂的一磚一瓦。',
   requiredXP: 0,
   xpFromPrevious: 0,
   permissions: [

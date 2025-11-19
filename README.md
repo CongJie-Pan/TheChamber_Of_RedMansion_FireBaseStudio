@@ -31,7 +31,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 
 ### 🤖 AI Integration (`/src/ai/`) - Updated Architecture (2025-10-30)
 **Migration:** Transitioned from GenKit/Gemini to direct OpenAI + Perplexity integration
-- **Scoring Engine:** OpenAI GPT-4-mini for evaluation tasks (reading comprehension, poetry, quizzes)
+- **Scoring Engine:** OpenAI GPT-5-mini for evaluation tasks (reading comprehension, poetry, quizzes)
 - **Analysis Engine:** Perplexity Sonar for Q&A and context analysis
 - **Benefits:** Simplified architecture, no framework overhead, flexible AI provider selection
 - **`flows/`** - Contains specific AI workflow implementations:
@@ -128,7 +128,7 @@ TheChamber_Of_RedMansion_FireBaseStudio/
 - **SQLite + better-sqlite3** - Local database solution for data persistence. Chosen for simplicity, performance, and zero cloud dependencies. Ideal for development and single-instance deployments.
 
 ### AI Integration (Updated 2025-10-30)
-- **OpenAI GPT-4-mini** - Powers scoring and grading tasks with JSON-structured responses. Excellent performance for evaluative AI tasks with cost efficiency.
+- **OpenAI GPT-5-mini** - Powers scoring and grading tasks with JSON-structured responses. Excellent performance for evaluative AI tasks with cost efficiency.
 - **Perplexity Sonar** - Handles Q&A and analysis tasks with web search grounding capabilities. Ideal for contextual literary analysis requiring external knowledge.
 - **Direct API Integration** - Removed framework dependencies (GenKit) for simpler, more maintainable codebase.
 - **Zod Schema Validation** - Ensures type-safe AI inputs and outputs, critical for reliable AI interactions in educational contexts.

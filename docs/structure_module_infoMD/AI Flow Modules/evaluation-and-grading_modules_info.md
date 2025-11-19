@@ -1,8 +1,8 @@
 # AI Flow Modules - Evaluation and Grading (Updated 2025-10-30)
 
-**Migration Status:** All evaluation and grading flows migrated from GenKit/Gemini to OpenAI GPT-4-mini on 2025-10-30.
+**Migration Status:** All evaluation and grading flows migrated from GenKit/Gemini to OpenAI GPT-5-mini on 2025-10-30.
 
-**Current Architecture:** Direct OpenAI GPT-4-mini API integration with JSON-structured responses for reliable scoring and grading tasks.
+**Current Architecture:** Direct OpenAI GPT-5-mini API integration with JSON-structured responses for reliable scoring and grading tasks.
 
 ---
 
@@ -33,7 +33,7 @@ The `character-analysis-scoring` module implements an AI-powered evaluation syst
 * **Purpose:** This server-side file implements sophisticated literary criticism assessment by evaluating how deeply students understand character psychology, motivations, and narrative significance in the novel. The module distinguishes between superficial descriptions (external behaviors only), moderate analyses (personality and motivations explored), and profound insights (psychological depth, growth trajectories, symbolic meanings uncovered) to encourage advanced literary interpretation skills. By tracking theme coverage and providing targeted guidance for deeper exploration, this flow helps students develop critical thinking and analytical writing abilities essential for classical literature study.
 
 * **Functions:**
-    * `scoreCharacterAnalysis(input: CharacterAnalysisScoringInput): Promise<CharacterAnalysisScoringOutput>` - Public async function that calls OpenAI GPT-4-mini with structured prompts, parses JSON responses, validates output schema, and returns character analysis scoring results.
+    * `scoreCharacterAnalysis(input: CharacterAnalysisScoringInput): Promise<CharacterAnalysisScoringOutput>` - Public async function that calls OpenAI GPT-5-mini with structured prompts, parses JSON responses, validates output schema, and returns character analysis scoring results.
 
 * **Key Classes / Constants / Variables:**
     * `CharacterAnalysisScoringInputSchema`: Zod object schema with 6 fields:
@@ -70,7 +70,7 @@ flowchart TD
     B --> C[Build system + user prompts]
     C --> D[Set role: Literary critic specializing in Red Mansion]
     D --> E[Include evaluation criteria and difficulty]
-    E --> F[Call OpenAI GPT-4-mini API]
+    E --> F[Call OpenAI GPT-5-mini API]
     F --> G[Request JSON response format]
 
     G --> H[Parse JSON response]
@@ -110,7 +110,7 @@ graph LR
     CriticRole[Literary Critic System Prompt] --> PromptBuilder
     DifficultyRules[Difficulty-Specific Criteria] --> PromptBuilder
 
-    PromptBuilder -- system + user messages --> OpenAI[OpenAI GPT-4-mini]
+    PromptBuilder -- system + user messages --> OpenAI[OpenAI GPT-5-mini]
     JSONFormat[response_format: json_object] --> OpenAI
 
     OpenAI -- JSON string --> Parser[JSON.parse]
@@ -172,12 +172,12 @@ console.log(result.themesMissed); // ["命運象徵"]
 
 ## 1. Module Summary
 
-The `commentary-interpretation` module implements an AI-powered evaluation system for assessing user interpretations of Zhiyanzhai (脂硯齋) commentaries - critical annotations that provide profound insights into "Dream of the Red Chamber's" hidden meanings, symbolism, and authorial intent. This OpenAI GPT-4-mini-powered flow measures interpretation quality across four insight levels (surface, moderate, deep, profound), calculates literary sensitivity scores (0-100) for symbolic language understanding, and provides authoritative explanations of commentary meanings to guide students into advanced Red Mansion scholarship. The module bridges student interpretations with scholarly understanding through detailed feedback that highlights captured insights, missed symbolic meanings, and research methodology guidance.
+The `commentary-interpretation` module implements an AI-powered evaluation system for assessing user interpretations of Zhiyanzhai (脂硯齋) commentaries - critical annotations that provide profound insights into "Dream of the Red Chamber's" hidden meanings, symbolism, and authorial intent. This OpenAI GPT-5-mini-powered flow measures interpretation quality across four insight levels (surface, moderate, deep, profound), calculates literary sensitivity scores (0-100) for symbolic language understanding, and provides authoritative explanations of commentary meanings to guide students into advanced Red Mansion scholarship. The module bridges student interpretations with scholarly understanding through detailed feedback that highlights captured insights, missed symbolic meanings, and research methodology guidance.
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-4-mini API access
+  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-5-mini API access
 * **External Dependencies:**
   * `openai` - Official OpenAI SDK for API communication
   * `zod` - Schema validation library for type-safe inputs and outputs
@@ -195,7 +195,7 @@ The `commentary-interpretation` module implements an AI-powered evaluation syste
 * **Purpose:** This server-side file implements advanced literary criticism assessment by evaluating how well students decode Zhiyanzhai commentaries - one of the most sophisticated aspects of Red Mansion scholarship requiring understanding of foreshadowing, symbolism, metaphor, hidden narrative layers, and authorial intent signals. The module uses a four-tier insight classification system (surface: literal understanding only; moderate: notices some implications; deep: understands major symbolism/foreshadowing; profound: grasps multilayered meanings and literary value) to differentiate between basic comprehension and scholarly interpretation. By providing authoritative commentary explanations alongside student assessment, this flow serves both evaluation and education functions, enabling students to compare their interpretations with scholarly consensus and learn the methodology of reading annotated classical texts.
 
 * **Functions:**
-    * `scoreCommentaryInterpretation(input: CommentaryInterpretationInput): Promise<CommentaryInterpretationOutput>` - Public async function that calls OpenAI GPT-4-mini with structured prompts for commentary interpretation evaluation, parses JSON responses, and returns validated scoring results.
+    * `scoreCommentaryInterpretation(input: CommentaryInterpretationInput): Promise<CommentaryInterpretationOutput>` - Public async function that calls OpenAI GPT-5-mini with structured prompts for commentary interpretation evaluation, parses JSON responses, and returns validated scoring results.
 
 * **Key Classes / Constants / Variables:**
     * `CommentaryInterpretationInputSchema`: Zod object schema with 6 fields (commentaryText, relatedPassage, chapterContext, userInterpretation, interpretationHints, difficulty)
@@ -212,12 +212,12 @@ The `commentary-interpretation` module implements an AI-powered evaluation syste
 
 ## 1. Module Summary
 
-The `poetry-quality-assessment` module implements an AI-powered grading system for evaluating user recitations or compositions of poetry from "Dream of the Red Chamber" using character-by-character comparison against original texts. This OpenAI GPT-4-mini-powered flow assesses accuracy percentage, completeness percentage, and overall quality through weighted scoring while identifying specific mistakes (missing lines, incorrect characters, extra content) with line-by-line error tracking. The module provides literary analysis and appreciation guidance in Traditional Chinese markdown to deepen students' understanding of classical Chinese poetry aesthetics.
+The `poetry-quality-assessment` module implements an AI-powered grading system for evaluating user recitations or compositions of poetry from "Dream of the Red Chamber" using character-by-character comparison against original texts. This OpenAI GPT-5-mini-powered flow assesses accuracy percentage, completeness percentage, and overall quality through weighted scoring while identifying specific mistakes (missing lines, incorrect characters, extra content) with line-by-line error tracking. The module provides literary analysis and appreciation guidance in Traditional Chinese markdown to deepen students' understanding of classical Chinese poetry aesthetics.
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-4-mini API access
+  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-5-mini API access
 * **External Dependencies:**
   * `openai` - Official OpenAI SDK for API communication
   * `zod` - Schema validation library for type-safe inputs and outputs
@@ -232,7 +232,7 @@ The `poetry-quality-assessment` module implements an AI-powered grading system f
 
 ### 4.1. `poetry-quality-assessment.ts`
 
-* **Purpose:** This server-side file implements specialized AI assessment for classical Chinese poetry by performing detailed character-level comparison between original poems and user recitations through OpenAI GPT-4-mini's JSON-structured responses. The module employs a multi-metric evaluation system (accuracy percentage for character matching, completeness percentage for verse/line inclusion, overall quality combining both metrics) to provide nuanced feedback that helps students improve memorization and appreciation of Red Mansion poetry.
+* **Purpose:** This server-side file implements specialized AI assessment for classical Chinese poetry by performing detailed character-level comparison between original poems and user recitations through OpenAI GPT-5-mini's JSON-structured responses. The module employs a multi-metric evaluation system (accuracy percentage for character matching, completeness percentage for verse/line inclusion, overall quality combining both metrics) to provide nuanced feedback that helps students improve memorization and appreciation of Red Mansion poetry.
 
 * **Key Output Fields:**
     * `accuracy` (number, 0-100): Character-level accuracy percentage
@@ -253,12 +253,12 @@ The `poetry-quality-assessment` module implements an AI-powered grading system f
 
 ## 1. Module Summary
 
-The `cultural-quiz-grading` module implements an AI-powered multi-question quiz grading system for assessing user understanding of Qing Dynasty cultural knowledge, social customs, and historical context depicted in "Dream of the Red Chamber". This OpenAI GPT-4-mini-powered flow evaluates both multiple-choice and open-ended questions with differentiated scoring (100/0 for multiple-choice, 0-100 scaled for open-ended based on accuracy and completeness), provides detailed per-question explanations in Traditional Chinese, and generates cultural insights to deepen historical literacy through JSON-structured responses.
+The `cultural-quiz-grading` module implements an AI-powered multi-question quiz grading system for assessing user understanding of Qing Dynasty cultural knowledge, social customs, and historical context depicted in "Dream of the Red Chamber". This OpenAI GPT-5-mini-powered flow evaluates both multiple-choice and open-ended questions with differentiated scoring (100/0 for multiple-choice, 0-100 scaled for open-ended based on accuracy and completeness), provides detailed per-question explanations in Traditional Chinese, and generates cultural insights to deepen historical literacy through JSON-structured responses.
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-4-mini API access
+  * `@/lib/openai-client` - OpenAI client instance (`getOpenAIClient`) providing GPT-5-mini API access
 * **External Dependencies:**
   * `openai` - Official OpenAI SDK for API communication
   * `zod` - Schema validation library for type-safe inputs and outputs
@@ -292,7 +292,7 @@ The `cultural-quiz-grading` module implements an AI-powered multi-question quiz 
 ### Changes from GenKit/Gemini Architecture
 
 1. **Framework Removed:** Eliminated GenKit orchestration layer for simpler, more maintainable code
-2. **API Provider Changed:** Migrated from Google Gemini 2.5 Pro to OpenAI GPT-4-mini for all scoring tasks
+2. **API Provider Changed:** Migrated from Google Gemini 2.5 Pro to OpenAI GPT-5-mini for all scoring tasks
 3. **Response Format:** Now using OpenAI's `response_format: { type: 'json_object' }` for reliable JSON-structured outputs
 4. **Error Handling:** Simplified error handling with direct try-catch blocks instead of GenKit flow error handling
 5. **Testing Approach:** Migrated from GenKit Development UI manual testing to Jest unit tests with mocked API responses
@@ -300,7 +300,7 @@ The `cultural-quiz-grading` module implements an AI-powered multi-question quiz 
 
 ### Benefits of Migration
 
-- **Cost Efficiency:** GPT-4-mini provides excellent quality at lower cost than Gemini 2.5 Pro
+- **Cost Efficiency:** GPT-5-mini provides excellent quality at lower cost than Gemini 2.5 Pro
 - **JSON Reliability:** OpenAI's json_object mode ensures consistent, parseable JSON responses
 - **Simplified Architecture:** No framework overhead, direct API calls are easier to debug and maintain
 - **Better Testing:** Standard Jest mocking patterns are simpler than GenKit testing workflows

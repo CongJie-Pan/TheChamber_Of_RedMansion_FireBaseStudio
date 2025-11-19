@@ -141,14 +141,6 @@ export default function AchievementsPage() {
                       <p className="text-sm text-muted-foreground mb-2">{ach.description}</p>
                       <p className="text-xs text-primary">{t('achievements.rewardPrefix')}{ach.date} (+{ach.points}點)</p>
                     </CardContent>
-                    <CardFooter className="flex justify-end gap-2">
-                       <Button variant="ghost" size="sm" onClick={() => alert(`${t('buttons.share')}: ${ach.name}`)}>
-                        <Share2 className="mr-1.5 h-3.5 w-3.5" /> {t('buttons.share')}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => alert(`${t('buttons.viewDetails')} ${ach.name}`)}>
-                        {t('buttons.viewDetails')}
-                      </Button>
-                    </CardFooter>
                   </Card>
                 ))}
               </div>

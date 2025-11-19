@@ -449,16 +449,19 @@ export class PerplexityClient {
   /**
    * Make a streaming request to Perplexity API
    * 向 Perplexity API 發送流式請求
+   *
+   * Note: Uses native fetch instead of axios for better streaming support.
+   * Axios's responseType: 'stream' has known issues with async iteration.
    */
   async* streamingCompletionRequest(input: PerplexityQAInput): AsyncGenerator<PerplexityStreamingChunk> {
     const functionName = 'PerplexityClient.streamingCompletionRequest';
-    
+
     await debugLog('PERPLEXITY_CLIENT', `${functionName} called`, {
       inputType: typeof input,
       userQuestionLength: input.userQuestion?.length,
       enableStreaming: input.enableStreaming,
     });
-    
+
     const startTime = Date.now();
     let chunkIndex = 0;
     let fullContent = '';
@@ -485,91 +488,189 @@ export class PerplexityClient {
         ],
       };
 
-      await debugLog('PERPLEXITY_CLIENT', 'Making HTTP request to Perplexity API', {
-        endpoint: PERPLEXITY_CONFIG.CHAT_COMPLETIONS_ENDPOINT,
+      const fullUrl = `${PERPLEXITY_CONFIG.BASE_URL}${PERPLEXITY_CONFIG.CHAT_COMPLETIONS_ENDPOINT}`;
+
+      await debugLog('PERPLEXITY_CLIENT', 'Making HTTP request to Perplexity API (native fetch)', {
+        endpoint: fullUrl,
         requestDataKeys: Object.keys(requestData),
         model: requestData.model,
         stream: requestData.stream,
       });
 
-      const response = await this.axiosInstance.post(
-        PERPLEXITY_CONFIG.CHAT_COMPLETIONS_ENDPOINT,
-        requestData,
-        {
-          responseType: 'stream',
-        }
-      );
-
-      await debugLog('PERPLEXITY_CLIENT', 'Received HTTP response', {
-        statusCode: response.status,
-        statusText: response.statusText,
-        dataType: typeof response.data,
-        dataConstructor: response.data?.constructor?.name,
+      // Use native fetch for better streaming support
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(requestData),
       });
 
-      // Process streaming response
-      const stream = response.data;
-      
-      await terminalLogger.logForAwaitStart('PERPLEXITY_CLIENT', 'this.parseStreamingResponse(stream)', this.parseStreamingResponse(stream));
-      
-      for await (const chunk of this.parseStreamingResponse(stream)) {
-        const processingTime = (Date.now() - startTime) / 1000;
-        chunkIndex++;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new PerplexityQAError(
+          `Perplexity API Error: ${response.status} ${response.statusText} - ${errorText}`,
+          'API_ERROR',
+          response.status,
+          response.status >= 500 || response.status === 429
+        );
+      }
 
-        if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta.content) {
-          const content = chunk.choices[0].delta.content;
-          fullContent += content;
+      if (!response.body) {
+        throw new PerplexityQAError(
+          'No response body received from Perplexity API',
+          'INVALID_RESPONSE',
+          500,
+          true
+        );
+      }
 
-          // Collect citations and search queries
-          if (chunk.citations) {
-            collectedCitations = chunk.citations;
-          }
-          if (chunk.web_search_queries) {
-            collectedSearchQueries = chunk.web_search_queries;
-          }
+      await debugLog('PERPLEXITY_CLIENT', 'Received HTTP response (native fetch)', {
+        statusCode: response.status,
+        statusText: response.statusText,
+        hasBody: !!response.body,
+        contentType: response.headers.get('content-type'),
+      });
 
-          const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
-          // Extract current thinking content from raw fullContent
-          const thinkAllMatches = Array.from(fullContent.matchAll(/<think>([\s\S]*?)<\/think>/g)).map(m => (m[1] || '').trim());
-          let thinkingContent = thinkAllMatches.join('\n\n').trim();
-          if (!thinkingContent) {
-            const inc = fullContent.match(/<think[^>]*>([\s\S]*?)$/);
-            if (inc && inc[1]) thinkingContent = inc[1].trim();
-          }
-          const isComplete = chunk.choices[0].finish_reason !== null;
+      // Process streaming response using native fetch ReadableStream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-          yield {
-            content: this.cleanResponse(content, false),  // Fix: Clean incremental content to remove <think> tags
-            fullContent: this.cleanResponse(fullContent, input.showThinkingProcess),
-            thinkingContent,
-            timestamp: new Date().toISOString(),
-            citations,
-            searchQueries: collectedSearchQueries,
-            metadata: {
-              searchQueries: collectedSearchQueries,
-              webSources: citations.filter(c => c.type === 'web_citation'),
-              groundingSuccessful: collectedCitations.length > 0,
-              confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
-            },
-            responseTime: processingTime,
-            isComplete,
-            chunkIndex,
-            hasThinkingProcess: fullContent.includes('<think>'),
-          };
+      console.log('🐛 [streamingCompletionRequest] Starting stream reading with native fetch');
 
-          if (isComplete) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) {
+            console.log('🐛 [streamingCompletionRequest] Stream reading complete');
             break;
           }
 
-          // Add delay to prevent overwhelming the UI
-          await new Promise(resolve => setTimeout(resolve, PERPLEXITY_CONFIG.STREAM_CHUNK_DELAY_MS));
+          const chunkStr = decoder.decode(value, { stream: true });
+          console.log(`🐛 [streamingCompletionRequest] Raw chunk received:`, {
+            length: chunkStr.length,
+            preview: chunkStr.substring(0, 150).replace(/\n/g, '\\n'),
+          });
+
+          buffer += chunkStr;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('data: ')) {
+              const data = trimmedLine.substring(6);
+
+              if (data === '[DONE]') {
+                console.log('🐛 [streamingCompletionRequest] Received [DONE] signal');
+                return;
+              }
+
+              try {
+                const chunk: PerplexityStreamChunk = JSON.parse(data);
+                const processingTime = (Date.now() - startTime) / 1000;
+                chunkIndex++;
+
+                if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta.content) {
+                  const content = chunk.choices[0].delta.content;
+                  fullContent += content;
+
+                  // Collect citations and search queries
+                  if (chunk.citations) {
+                    collectedCitations = chunk.citations;
+                  }
+                  if (chunk.web_search_queries) {
+                    collectedSearchQueries = chunk.web_search_queries;
+                  }
+
+                  const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+                  // Extract current thinking content from raw fullContent
+                  const thinkAllMatches = Array.from(fullContent.matchAll(/<think>([\s\S]*?)<\/think>/g)).map(m => (m[1] || '').trim());
+                  let thinkingContent = thinkAllMatches.join('\n\n').trim();
+                  if (!thinkingContent) {
+                    const inc = fullContent.match(/<think[^>]*>([\s\S]*?)$/);
+                    if (inc && inc[1]) thinkingContent = inc[1].trim();
+                  }
+                  const isComplete = chunk.choices[0].finish_reason !== null;
+
+                  console.log(`🐛 [streamingCompletionRequest] Yielding chunk ${chunkIndex}:`, {
+                    contentLength: content.length,
+                    fullContentLength: fullContent.length,
+                    isComplete,
+                  });
+
+                  yield {
+                    content: this.cleanResponse(content, false),  // Fix: Clean incremental content to remove <think> tags
+                    fullContent: this.cleanResponse(fullContent, input.showThinkingProcess),
+                    thinkingContent,
+                    timestamp: new Date().toISOString(),
+                    citations,
+                    searchQueries: collectedSearchQueries,
+                    metadata: {
+                      searchQueries: collectedSearchQueries,
+                      webSources: citations.filter(c => c.type === 'web_citation'),
+                      groundingSuccessful: collectedCitations.length > 0,
+                      confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                    },
+                    responseTime: processingTime,
+                    isComplete,
+                    chunkIndex,
+                    hasThinkingProcess: fullContent.includes('<think>'),
+                  };
+
+                  if (isComplete) {
+                    return;
+                  }
+
+                  // Add delay to prevent overwhelming the UI
+                  await new Promise(resolve => setTimeout(resolve, PERPLEXITY_CONFIG.STREAM_CHUNK_DELAY_MS));
+                }
+              } catch (parseError) {
+                console.error('🐛 [streamingCompletionRequest] Failed to parse JSON:', {
+                  data: data.substring(0, 200),
+                  error: parseError instanceof Error ? parseError.message : 'Unknown error'
+                });
+              }
+            }
+          }
         }
+      } finally {
+        reader.releaseLock();
+      }
+
+      // If we got here without yielding any chunks, yield an error
+      if (chunkIndex === 0) {
+        console.error('🐛 [streamingCompletionRequest] No chunks yielded from stream');
+        const processingTime = (Date.now() - startTime) / 1000;
+        yield {
+          content: '',
+          fullContent: '錯誤：AI 未回傳任何內容。請稍後再試。',
+          timestamp: new Date().toISOString(),
+          citations: [],
+          searchQueries: [],
+          metadata: {
+            searchQueries: [],
+            webSources: [],
+            groundingSuccessful: false,
+          },
+          responseTime: processingTime,
+          isComplete: true,
+          chunkIndex: 1,
+          error: 'No content received from API',
+        };
       }
 
     } catch (error) {
       const processingTime = (Date.now() - startTime) / 1000;
       const errorMessage = error instanceof Error ? error.message : 'Streaming error occurred';
-      
+
+      console.error('🐛 [streamingCompletionRequest] Error:', errorMessage);
+
       yield {
         content: '',
         fullContent: `錯誤：${errorMessage}`,

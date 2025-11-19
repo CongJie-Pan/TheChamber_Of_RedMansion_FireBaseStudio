@@ -89,7 +89,7 @@ import type {
 import type { Timestamp } from '@/lib/types/daily-task'; // Or user-level types
 
 // User level service for XP awards (import only types/constants, not service)
-import { XP_REWARDS } from '@/types/user-level-api';
+import { XP_REWARDS, type AwardXPResponse } from '@/types/user-level-api';
 
 // Toast notifications for XP feedback
 import { useToast } from '@/hooks/use-toast';
@@ -639,7 +639,7 @@ async function awardXP(
   reason: string,
   source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
   sourceId?: string
-) {
+): Promise<AwardXPResponse> {
   const response = await fetch('/api/user-level/award-xp', {
     method: 'POST',
     headers: {
@@ -659,7 +659,7 @@ async function awardXP(
     throw new Error(errorData.error || `Failed to award XP (${response.status})`);
   }
 
-  const result = await response.json();
+  const result: AwardXPResponse = await response.json();
 
   if (!result.success) {
     throw new Error(result.error || 'Failed to award XP');

@@ -20,6 +20,16 @@ jest.mock('next/server', () => ({
   },
 }))
 
+const mockGetServerSession = jest.fn(async () => ({ user: { id: 'test-user' } }));
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: (...args: any[]) => mockGetServerSession(...args),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
+
 import { dailyTaskService } from '@/lib/daily-task-service'
 
 let GeneratePOST: any

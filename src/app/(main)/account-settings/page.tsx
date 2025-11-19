@@ -2,15 +2,16 @@
  * @fileOverview Account Settings Page
  *
  * This page provides account management functionality for users,
- * with special features for guest/anonymous users.
+ * including both guest and regular users.
  *
  * Key Features:
  * - Display user account information
- * - Guest user data reset functionality with confirmation dialog
- * - Regular user account settings (coming soon)
+ * - Account reset functionality with text confirmation dialog
+ * - Supports both guest and regular users
  *
  * Security:
- * - Guest user reset is only available for authenticated anonymous users
+ * - All reset operations require text confirmation ("我確定要重設帳號")
+ * - Users can only reset their own account
  * - Comprehensive confirmation dialog to prevent accidental data loss
  * - Loading states and error handling
  */
@@ -21,7 +22,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
-import { userLevelService } from "@/lib/user-level-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -37,6 +37,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, AlertTriangle, RotateCcw, User, Mail } from "lucide-react";
 
 /**
@@ -52,45 +54,72 @@ export default function AccountSettingsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [isResetting, setIsResetting] = useState(false);
+  const [isAccountResetting, setIsAccountResetting] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  // Required confirmation text
+  const requiredText = t('accountSettings.resetAccountRequiredText');
 
   /**
-   * Handle guest user data reset
+   * Handle account reset for all users
    *
    * This function:
-   * 1. Validates the user is a guest
-   * 2. Calls the reset service method
+   * 1. Validates the confirmation text
+   * 2. Calls the reset API endpoint
    * 3. Shows success/error toast
-   * 4. Reloads the page on success
+   * 4. Redirects to dashboard on success
    */
-  const handleResetGuestData = async () => {
-    if (!user || !userProfile?.isGuest) {
+  const handleResetAccount = async () => {
+    if (!user) {
       toast({
         title: t('accountSettings.resetError'),
-        description: 'Only guest users can reset their data.',
+        description: 'User not found.',
         variant: 'destructive',
         duration: 5000,
       });
       return;
     }
 
-    setIsResetting(true);
+    // Verify confirmation text
+    if (confirmationText !== requiredText) {
+      toast({
+        title: t('accountSettings.resetError'),
+        description: 'Confirmation text does not match.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+      return;
+    }
+
+    setIsAccountResetting(true);
 
     try {
-      const result = await userLevelService.resetGuestUserData(
-        user.id,
-        user.name || 'Guest User',
-        user.email || 'guest@example.com'
-      );
+      const response = await fetch('/api/user/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          confirmationText: confirmationText,
+        }),
+      });
+
+      const result = await response.json();
 
       if (result.success) {
         toast({
-          title: t('accountSettings.resetSuccess'),
+          title: t('accountSettings.resetAccountSuccess'),
           description: result.message,
           duration: 5000,
         });
 
-        // Wait a moment for the toast to be visible, then reload
+        // Close dialog and reset state
+        setIsResetDialogOpen(false);
+        setConfirmationText('');
+
+        // Wait a moment for the toast to be visible, then redirect
         setTimeout(() => {
           router.refresh();
           window.location.href = '/dashboard';
@@ -98,21 +127,21 @@ export default function AccountSettingsPage() {
       } else {
         toast({
           title: t('accountSettings.resetError'),
-          description: result.message,
+          description: result.error || result.message,
           variant: 'destructive',
           duration: 5000,
         });
-        setIsResetting(false);
+        setIsAccountResetting(false);
       }
     } catch (error) {
-      console.error('Error resetting guest data:', error);
+      console.error('Error resetting account:', error);
       toast({
         title: t('accountSettings.resetError'),
         description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
         duration: 5000,
       });
-      setIsResetting(false);
+      setIsAccountResetting(false);
     }
   };
 
@@ -166,69 +195,86 @@ export default function AccountSettingsPage() {
 
             <Separator />
 
-            {/* Warning Message */}
-            <div className="rounded-lg bg-destructive/10 p-4 text-sm">
-              <p className="font-semibold text-destructive">{t('accountSettings.resetWarning')}</p>
-            </div>
+            {/* Reset Account Section */}
+            <div className="space-y-4">
+              <div className="rounded-lg bg-destructive/10 p-4 text-sm">
+                <p className="font-semibold text-destructive">{t('accountSettings.resetAccountWarning')}</p>
+              </div>
 
-            {/* Reset Button with Confirmation Dialog */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  className="w-full"
-                  disabled={isResetting}
-                >
-                  {isResetting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('accountSettings.resetting')}
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                      {t('accountSettings.resetButton')}
-                    </>
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    {t('accountSettings.resetConfirmTitle')}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    <div className="space-y-2">
-                      <div>{t('accountSettings.resetConfirmDescription')}</div>
-                      <div className="font-semibold text-destructive">
-                        {t('accountSettings.resetWarning')}
-                      </div>
-                    </div>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isResetting}>
-                    {t('buttons.cancel')}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleResetGuestData}
-                    disabled={isResetting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="w-full"
+                    disabled={isAccountResetting}
                   >
-                    {isResetting ? (
+                    {isAccountResetting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {t('accountSettings.resetting')}
                       </>
                     ) : (
-                      t('buttons.confirm')
+                      <>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        {t('accountSettings.resetAccountButton')}
+                      </>
                     )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      {t('accountSettings.resetAccountConfirmTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4">
+                        <p>{t('accountSettings.resetAccountConfirmDescription')}</p>
+                        <p className="font-semibold text-destructive">
+                          {t('accountSettings.resetAccountWarning')}
+                        </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="guestConfirmText">
+                            {t('accountSettings.resetAccountInputLabel')} <span className="font-mono font-bold">{requiredText}</span>
+                          </Label>
+                          <Input
+                            id="guestConfirmText"
+                            type="text"
+                            placeholder={t('accountSettings.resetAccountInputPlaceholder')}
+                            value={confirmationText}
+                            onChange={(e) => setConfirmationText(e.target.value)}
+                            disabled={isAccountResetting}
+                          />
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      disabled={isAccountResetting}
+                      onClick={() => setConfirmationText('')}
+                    >
+                      {t('buttons.cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleResetAccount}
+                      disabled={isAccountResetting || confirmationText !== requiredText}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isAccountResetting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('accountSettings.resetting')}
+                        </>
+                      ) : (
+                        t('accountSettings.resetAccountButton')
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -261,9 +307,85 @@ export default function AccountSettingsPage() {
 
             <Separator />
 
-            {/* Coming Soon Notice */}
-            <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
-              <p>{t('appShell.settings')} - More features coming soon!</p>
+            {/* Reset Account Section */}
+            <div className="space-y-4">
+              <div className="rounded-lg bg-destructive/10 p-4 text-sm">
+                <p className="font-semibold text-destructive">{t('accountSettings.resetAccountWarning')}</p>
+              </div>
+
+              <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="w-full"
+                    disabled={isAccountResetting}
+                  >
+                    {isAccountResetting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('accountSettings.resetting')}
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        {t('accountSettings.resetAccountButton')}
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                      {t('accountSettings.resetAccountConfirmTitle')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4">
+                        <p>{t('accountSettings.resetAccountConfirmDescription')}</p>
+                        <p className="font-semibold text-destructive">
+                          {t('accountSettings.resetAccountWarning')}
+                        </p>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmText">
+                            {t('accountSettings.resetAccountInputLabel')} <span className="font-mono font-bold">{requiredText}</span>
+                          </Label>
+                          <Input
+                            id="confirmText"
+                            type="text"
+                            placeholder={t('accountSettings.resetAccountInputPlaceholder')}
+                            value={confirmationText}
+                            onChange={(e) => setConfirmationText(e.target.value)}
+                            disabled={isAccountResetting}
+                          />
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      disabled={isAccountResetting}
+                      onClick={() => setConfirmationText('')}
+                    >
+                      {t('buttons.cancel')}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleResetAccount}
+                      disabled={isAccountResetting || confirmationText !== requiredText}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isAccountResetting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('accountSettings.resetting')}
+                        </>
+                      ) : (
+                        t('accountSettings.resetAccountButton')
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>

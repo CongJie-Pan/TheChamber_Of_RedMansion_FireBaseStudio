@@ -77,7 +77,16 @@ import {
 } from "lucide-react";
 
 // Third-party libraries for content rendering
-import ReactMarkdown from 'react-markdown'; // For rendering AI response markdown
+// Phase 4-T4: Lazy load ReactMarkdown to reduce initial bundle size (~30KB)
+const ReactMarkdown = dynamic(
+  () => import('react-markdown'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="animate-pulse bg-muted/30 rounded h-4 w-full" />
+    ),
+  }
+);
 
 // Custom components and utilities
 import { cn } from "@/lib/utils";
@@ -133,7 +142,7 @@ import type { CreatePostData, CreatePostResponse } from '@/types/community';
 import { useAuth } from '@/hooks/useAuth';
 
 // XP Integration for gamification (using shared types, not service directly)
-import { XP_REWARDS } from '@/types/user-level-api';
+import { XP_REWARDS, type AwardXPResponse } from '@/types/user-level-api';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
 // Development logging control - 僅在明確啟用時才輸出分頁除錯日誌
@@ -305,7 +314,7 @@ async function awardXP(
   reason: string,
   source: 'reading' | 'daily_task' | 'community' | 'note' | 'achievement' | 'admin',
   sourceId?: string
-) {
+): Promise<AwardXPResponse> {
   // Phase 3-T3: Client-side validation before API call
   if (!userId || userId.trim() === '') {
     throw new Error('Invalid userId: must be non-empty string');
@@ -346,7 +355,7 @@ async function awardXP(
     throw new Error(errorData.error || `Failed to award XP (${response.status})`);
   }
 
-  const result = await response.json();
+  const result: AwardXPResponse = await response.json();
 
   if (!result.success) {
     console.error(`[XP Award] Service error:`, result);
@@ -801,17 +810,18 @@ export default function ReadBookPage() {
     if (!viewportEl) return;
 
     const contentEl = chapterContentRef.current as HTMLElement | null;
-    // Use maximum of several dimensions to avoid underestimation during multi-column layout
-    const viewportH = Math.max(1, viewportEl.clientHeight || viewportEl.offsetHeight || 0);
-    const totalContentH = Math.max(
-      contentEl?.scrollHeight || 0,
-      contentEl?.offsetHeight || 0,
-      viewportEl.scrollHeight || 0,
-      viewportEl.offsetHeight || 0,
+    // CSS multi-column layout creates horizontal overflow, so we use width-based calculation
+    // The content flows horizontally across columns, requiring horizontal scrolling for pagination
+    const viewportW = Math.max(1, viewportEl.clientWidth || viewportEl.offsetWidth || 0);
+    const totalContentW = Math.max(
+      contentEl?.scrollWidth || 0,
+      contentEl?.offsetWidth || 0,
+      viewportEl.scrollWidth || 0,
+      viewportEl.offsetWidth || 0,
     );
 
-    const total = Math.max(viewportH, totalContentH);
-    const pages = Math.max(1, Math.ceil(total / viewportH));
+    const total = Math.max(viewportW, totalContentW);
+    const pages = Math.max(1, Math.ceil(total / viewportW));
     setTotalPages(pages);
     const clamped = Math.min(pages, Math.max(1, currentPage));
     setCurrentPage(clamped);
@@ -963,9 +973,10 @@ export default function ReadBookPage() {
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     if (!el) return;
-    const viewport = el.clientHeight;
+    // CSS multi-column layout flows content horizontally, so we scroll horizontally
+    const viewport = el.clientWidth;
     const target = Math.max(0, (page - 1) * viewport);
-    el.scrollTo({ top: target, behavior: 'smooth' });
+    el.scrollTo({ left: target, behavior: 'smooth' });
     setCurrentPage(page);
   }, []);
 
@@ -1442,7 +1453,11 @@ export default function ReadBookPage() {
 
             // Show toast notification OUTSIDE try-catch to ensure it always displays
             // This prevents toast from being blocked by any errors in XP award process
-            if (xpResult && !xpResult.isDuplicate && !xpError) {
+            const achievementKey = 'achievement-first-ai-question';
+            const hasNotifiedKey = `achievement-notified-${achievementKey}`;
+            const hasAlreadyNotified = typeof window !== 'undefined' && localStorage.getItem(hasNotifiedKey) === 'true';
+
+            if (xpResult && !xpResult.isDuplicate && !xpError && !hasAlreadyNotified) {
               // First time unlocking achievement - show success toast
               toast({
                 title: `🏆 ${t('achievements.achievementUnlocked')}`,
@@ -1450,6 +1465,11 @@ export default function ReadBookPage() {
                 variant: 'default',
                 duration: 6000, // Increased from 5s to 6s for better visibility
               });
+
+              // Mark achievement as notified in localStorage
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(hasNotifiedKey, 'true');
+              }
 
               // Show level-up modal if leveled up
               if (xpResult.leveledUp) {
@@ -1460,12 +1480,9 @@ export default function ReadBookPage() {
                 });
               }
             } else if (xpResult && xpResult.isDuplicate) {
-              // Achievement already unlocked - inform user
-              toast({
-                title: t('成就已解鎖') ?? '成就已解鎖',
-                description: `${t('achievements.firstAIQuestion.name')} 已獲得過，未重複加分`,
-                duration: 5000,
-              });
+              // Achievement already unlocked - silently log instead of showing toast
+              // This prevents repeated notifications that annoy users
+              console.log(`ℹ️ Achievement '${achievementKey}' already unlocked, skipping notification`);
             } else if (xpError) {
               // Error occurred while awarding XP - show error toast
               toast({
@@ -2372,13 +2389,8 @@ export default function ReadBookPage() {
 
         // Skip notifications if this is a duplicate reward
         if (result.isDuplicate) {
-          console.log(`⚠️ Skipping duplicate achievement notification for chapter ${currentChapter.id}`);
-          // Inform user that XP for this chapter was already claimed previously
-          toast({
-            title: t('已領取過') ?? '已領取過',
-            description: `此章回的 XP 先前已領取，不重複加分`,
-            duration: 3000,
-          });
+          // Silently log instead of showing toast - prevents repeated notifications that annoy users
+          console.log(`⚠️ Skipping duplicate chapter XP notification for chapter ${currentChapter.id}`);
           return;
         }
 
@@ -2937,7 +2949,13 @@ ${selectedTextContent}
               <List className={toolbarIconClass}/>
               <span className={toolbarLabelClass}>{t('buttons.toc')}</span>
             </Button>
-            <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setAiMode('new-conversation'); setIsAiSheetOpen(true); handleInteraction(); }} title={t('buttons.ai')}>
+            <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => {
+              const activeSession = getActiveSession();
+              const hasHistory = activeSession && activeSession.messages.length > 0;
+              setAiMode(hasHistory ? 'perplexity-qa' : 'new-conversation');
+              setIsAiSheetOpen(true);
+              handleInteraction();
+            }} title={t('buttons.ai')}>
               <Lightbulb className={toolbarIconClass}/>
               <span className={toolbarLabelClass}>{t('buttons.ai')}</span>
             </Button>
@@ -3005,7 +3023,14 @@ ${selectedTextContent}
           tabIndex: isPaginationMode ? 0 : -1, // Enable keyboard focus in pagination mode
           style: isPaginationMode ? ({
             overscrollBehavior: 'contain',
-            outline: 'none' // Remove default focus outline, use custom styling if needed
+            outline: 'none', // Remove default focus outline, use custom styling if needed
+            // Critical for CSS multi-column horizontal pagination:
+            // - Fixed height forces columns to break and flow horizontally
+            // - overflow-x hidden allows JS-controlled horizontal scrolling
+            // - overflow-y hidden prevents vertical scrolling
+            height: 'calc(100vh - 6rem)', // Fixed height = viewport minus toolbar
+            overflowX: 'hidden',
+            overflowY: 'hidden',
           } as React.CSSProperties) : undefined,
           'aria-label': isPaginationMode ? '雙欄閱讀模式 - 使用左右方向鍵翻頁' : undefined,
           onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
@@ -3039,8 +3064,8 @@ ${selectedTextContent}
             // Enhanced column settings for better horizontal reading experience
             ...(columnLayout === 'double' && isPaginationMode ? {
               columnGap: '3rem', // Wider gap between columns for better readability
-              columnFill: 'auto', // Allow natural flow to ensure pagination measures full height
-              minHeight: '100%', // Ensure each page is at least viewport height
+              columnFill: 'auto', // Allow natural flow across columns
+              height: '100%', // Fixed height required for CSS multi-column to break into horizontal pages
             } : {})
           }}
         >
@@ -3370,7 +3395,7 @@ ${selectedTextContent}
       </Dialog>
 
       
-      <Sheet open={isAiSheetOpen} onOpenChange={(open) => {setIsAiSheetOpen(open); if (!open) {setSelectedTextInfo(null); setAiMode('new-conversation'); setTextExplanation(null); setAiAnalysisContent(null); setPerplexityResponse(null); setPerplexityStreamingChunks([]);} handleInteraction(); }}>
+      <Sheet open={isAiSheetOpen} onOpenChange={(open) => {setIsAiSheetOpen(open); if (!open) {setSelectedTextInfo(null); setTextExplanation(null); setAiAnalysisContent(null); setPerplexityResponse(null); setPerplexityStreamingChunks([]);} handleInteraction(); }}>
         <SheetContent
           side="right"
           className="!w-[90vw] sm:!w-[80vw] md:!w-[60vw] lg:!w-[50vw] !max-w-none sm:!max-w-none md:!max-w-none lg:!max-w-none bg-card text-card-foreground p-0 flex flex-col h-full"

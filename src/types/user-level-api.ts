@@ -95,6 +95,10 @@ export interface AwardXPResponse {
   newTotalXP: number;
   newLevel: number;
   leveledUp: boolean;
+  fromLevel?: number;
+  isDuplicate?: boolean;
+  unlockedContent?: string[];
+  unlockedPermissions?: string[];
   levelUpRewards?: {
     unlockedContent?: string[];
     attributePoints?: number;

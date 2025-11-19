@@ -429,6 +429,15 @@ export const translations: Record<Language, Translations> = {
       resetting: '正在重置...',
       regularUserSection: '帳戶資訊',
       regularUserDescription: '您的帳戶設置和偏好設定。',
+      // Reset account for all users
+      resetAccountButton: '重置帳號',
+      resetAccountWarning: '⚠️ 警告：此操作將永久刪除您的所有學習進度、XP、成就、筆記和社群貼文。此操作無法復原。',
+      resetAccountConfirmTitle: '確認重置帳號',
+      resetAccountConfirmDescription: '此操作將會刪除您所有的學習紀錄和進度，帳號將恢復為初始狀態。',
+      resetAccountInputLabel: '請輸入以下文字確認：',
+      resetAccountRequiredText: '我確定要重設帳號',
+      resetAccountInputPlaceholder: '輸入確認文字...',
+      resetAccountSuccess: '帳號已成功重置為初始狀態',
     },
     sidebar: {
       home: '首頁',

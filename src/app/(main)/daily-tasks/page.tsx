@@ -198,26 +198,30 @@ export default function DailyTasksPage() {
     console.log(`📋 [DailyTasks] Loading tasks for user: ${user.id}`);
 
     // Check if user is a guest (anonymous user)
-    if (!llmOnly && userProfile?.isGuest) {
-      // Check if we've already reset tasks in this session
-      const sessionKey = `guest-tasks-reset-${user.id}`;
-      const hasResetInSession = sessionStorage.getItem(sessionKey);
+    const initializeTasks = async () => {
+      if (!llmOnly && userProfile?.isGuest) {
+        // Check if we've already reset tasks in this session
+        const sessionKey = `guest-tasks-reset-${user.id}`;
+        const hasResetInSession = sessionStorage.getItem(sessionKey);
 
-      if (!hasResetInSession) {
-        console.log('🧪 Guest user first login - resetting today\'s tasks...');
-        resetTodayTasksForGuest();
-        // Mark as reset in current session
-        sessionStorage.setItem(sessionKey, 'true');
+        if (!hasResetInSession) {
+          console.log('🧪 Guest user first login - resetting today\'s tasks...');
+          await resetTodayTasksForGuest();
+          // Mark as reset in current session
+          sessionStorage.setItem(sessionKey, 'true');
+        } else {
+          console.log('🧪 Guest user session active - loading existing tasks...');
+          await loadDailyTasks();
+        }
       } else {
-        console.log('🧪 Guest user session active - loading existing tasks...');
-        loadDailyTasks();
+        await loadDailyTasks();
       }
-    } else {
-      loadDailyTasks();
-    }
 
-    // 🔧 MARK AS LOADED: Prevent repeated calls
-    hasLoadedTasksRef.current = true;
+      // 🔧 MARK AS LOADED: Only after async completion
+      hasLoadedTasksRef.current = true;
+    };
+
+    initializeTasks();
   }, [user, user?.id]); // Added user.id to dependencies for better tracking
 
   /**
@@ -259,8 +263,9 @@ export default function DailyTasksPage() {
   /**
    * Load or generate daily tasks for the user (non-blocking)
    * Shows page immediately and loads tasks in background
+   * @param isReloadAfterSubmit - If true, will retry on null progress (handles DB timing issues)
    */
-  const loadDailyTasks = async () => {
+  const loadDailyTasks = async (isReloadAfterSubmit: boolean = false) => {
     if (!user) return;
 
     // Show page immediately, load tasks in background
@@ -290,6 +295,20 @@ export default function DailyTasksPage() {
 
       // Try to get existing progress first (quick check)
       let dailyProgress = await getUserDailyProgress(user.id);
+
+      // 🔧 RETRY MECHANISM: If null after task submission, wait and retry
+      // This handles SQLite write/read timing issues
+      if (!dailyProgress && isReloadAfterSubmit) {
+        console.log('⏳ Progress returned null after submit, retrying in 500ms...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        dailyProgress = await getUserDailyProgress(user.id);
+
+        if (!dailyProgress) {
+          console.warn('⚠️ Progress still null after retry, preserving existing tasks');
+          // Don't trigger regeneration - keep existing tasks displayed
+          return;
+        }
+      }
 
       // If no progress exists, generate new tasks in background (via server API)
       if (!dailyProgress) {
@@ -364,8 +383,10 @@ export default function DailyTasksPage() {
           setTasks(loadedTasks);
           console.log(`✅ Loaded ${loadedTasks.length} existing tasks`);
         } else {
-          console.warn('Failed to fetch task details, tasks may be missing');
-          setTasks([]);
+          console.warn('Failed to fetch task details, preserving existing tasks');
+          // 🔧 PRESERVE EXISTING TASKS: Don't clear on fetch failure
+          // Only update if we actually have no tasks
+          setTasks(prevTasks => prevTasks.length > 0 ? prevTasks : []);
         }
 
         setProgress(dailyProgress);
@@ -447,11 +468,37 @@ export default function DailyTasksPage() {
       setTaskResult(result);
       setShowResultModal(true);
 
+      // 🔧 OPTIMISTIC UPDATE: Immediately mark task as completed in local state
+      // This ensures the user sees immediate feedback even if reload has issues
+      if (progress) {
+        setProgress(prevProgress => {
+          if (!prevProgress) return prevProgress;
+          return {
+            ...prevProgress,
+            completedTaskIds: [...prevProgress.completedTaskIds, taskId],
+            tasks: prevProgress.tasks.map(t =>
+              t.taskId === taskId
+                ? { ...t, status: TaskStatus.COMPLETED, completedAt: new Date() }
+                : t
+            ),
+            totalXPEarned: prevProgress.totalXPEarned + (result?.xpAwarded || 0)
+          };
+        });
+
+        // Update local stats optimistically
+        setStats(prevStats => ({
+          ...prevStats,
+          completedTasks: prevStats.completedTasks + 1,
+          xpEarned: prevStats.xpEarned + (result?.xpAwarded || 0),
+          completionRate: ((prevStats.completedTasks + 1) / prevStats.totalTasks) * 100
+        }));
+      }
+
       // Reload progress only when not in ephemeral mode
       if (!ephemeralMode && !llmOnly) {
         // 🔧 RESET LOAD FLAG: Allow reload to fetch updated progress
         hasLoadedTasksRef.current = false;
-        await loadDailyTasks();
+        await loadDailyTasks(true); // Pass true to indicate reload after submit
         hasLoadedTasksRef.current = true;
         // Refresh user profile so XP/等級在所有顯示處即時更新
         await refreshUserProfile();
