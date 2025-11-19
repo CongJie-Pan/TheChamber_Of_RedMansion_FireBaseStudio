@@ -38,6 +38,7 @@ This module provides the primary layout structure for the authenticated sections
 * **Functions:**
     * `AppShell({ children: ReactNode })`: The main component function that renders the entire application shell. It takes page content as `children` and places it within the main content area.
     * `handleLogout(): Promise<void>` - **Updated in SQLITE-024**: Signs the user out using NextAuth.js `signOut()` function with automatic redirect to `/login` via `callbackUrl` parameter. Previously used Firebase authentication. Logs any errors to the console.
+* **Layout Safeguards (Task 1.3)**: The `<main>` content container now enforces `overflow-x-hidden`/`max-w-full` to prevent any child component from creating global horizontal scrollbars when internal sections (e.g., dashboard carousels) overflow.
 * **Key Classes / Constants / Variables:**
     * `navItems`: A constant array of objects that defines the structure of the main navigation menu. Each object contains a path (`href`), a translation key for the label (`labelKey`), an `icon`, and an optional `badge` for notifications.
     * `hasIncompleteTasks`: A state variable (`boolean`) that tracks whether the currently logged-in user has any pending daily tasks. This is used to display a notification dot on the "Daily Tasks" navigation item.
@@ -102,4 +103,3 @@ graph LR
   }
   ```
 * **Testing:** This component is primarily tested through integration tests that verify navigation, authentication state changes, and responsive behavior. Unit tests could be added for specific logic like the active path determination or logout handling by mocking the required hooks and services.
-

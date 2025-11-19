@@ -318,8 +318,9 @@ export default function DashboardPage() {
           <CardDescription>{t('dashboard.recentReadingDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-4 pb-4">
+          <ScrollArea className="w-full">
+            {/* w-max + whitespace-nowrap keep cards in a single intrinsic row so ScrollArea handles overflow */}
+            <div className="flex w-max space-x-4 pb-4 whitespace-nowrap">
               {recentActivityData.map((item) => (
                 <Card key={item.id} className="w-[300px] flex-shrink-0 hover:shadow-lg transition-shadow">
                   <CardContent className="p-4">

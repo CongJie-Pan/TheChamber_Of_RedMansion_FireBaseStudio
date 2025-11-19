@@ -444,4 +444,27 @@ describe('AppShell Logo Rendering Tests (2025-10-30)', () => {
       expect(logoImage).toHaveAttribute('height');
     });
   });
+
+  describe('Layout Overflow Protection', () => {
+    /**
+     * Test: Main content area should suppress horizontal overflow
+     *
+     * Expected Behavior:
+     * - AppShell wraps page content in a <main> with overflow-x hidden
+     * - Prevents dashboard content from producing global horizontal scrollbars
+     * - Ensures Task 1.3 regression is caught if styles regress
+     */
+    it('should clamp horizontal overflow inside the main region', () => {
+      render(
+        <AppShell>
+          <div>Overflow Test Content</div>
+        </AppShell>
+      );
+
+      const sidebarInset = screen.getByTestId('sidebar-inset');
+      const mainRegion = within(sidebarInset).getByRole('main');
+
+      expect(mainRegion.className).toMatch(/overflow-x-hidden/);
+    });
+  });
 });

@@ -340,7 +340,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         
         {/* Main Content Container */}
-        <main className="flex-1 overflow-y-auto p-6"> 
+        <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden p-6"> 
           {children}
         </main>
       </SidebarInset>
