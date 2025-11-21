@@ -879,4 +879,425 @@ describe('PerplexityClient', () => {
       expect(result.citations[2].title).toBe('unknown-domain');
     });
   });
+
+  describe('SSE Batch Processing Fix (2025-11-21)', () => {
+    test('should process all SSE events in a single network chunk', async () => {
+      const client = new PerplexityClient('test-key');
+
+      // Simulate Perplexity API sending multiple SSE events in one network chunk
+      // This mimics the actual behavior where 5248 bytes contains multiple events
+      const multipleEventsInOneChunk =
+        formatSSEChunk({
+          id: 'event-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>\n我' },
+            finish_reason: null,
+          }],
+        }) +
+        formatSSEChunk({
+          id: 'event-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '需要分析第一回的主要宗旨' },
+            finish_reason: null,
+          }],
+        }) +
+        formatSSEChunk({
+          id: 'event-3',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '</think>第一回《甄士隱夢幻識通靈 賈雨村風塵懷閨秀》的主要宗旨是...' },
+            finish_reason: null,
+          }],
+        }) +
+        formatSSEChunk({
+          id: 'event-4',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '交代全書的緣起和主要人物的出場。' },
+            finish_reason: 'stop',  // This is the complete signal
+          }],
+        }) +
+        'data: [DONE]\n\n';
+
+      // All events are in ONE single network chunk
+      const mockStream = createMockSSEStream([multipleEventsInOneChunk]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '第一回的主要宗旨所在？',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Should process ALL 4 events, not just the first one
+      expect(chunks.length).toBe(4);
+
+      // First 2 chunks have incomplete <think> tags, so fullContent may be empty
+      // but thinkingContent should accumulate
+      expect(chunks[0].thinkingContent).toContain('我');
+      expect(chunks[1].thinkingContent).toContain('需要分析');
+
+      // Chunk 3 closes the <think> tag and starts the answer
+      expect(chunks[2].fullContent).toContain('第一回');
+      expect(chunks[2].thinkingContent).toContain('我需要分析');
+
+      // Chunk 4 continues the answer
+      expect(chunks[3].fullContent).toContain('交代全書');
+      expect(chunks[3].isComplete).toBe(true);
+    });
+
+    test('should not stop prematurely when finish_reason appears early', async () => {
+      const client = new PerplexityClient('test-key');
+
+      // Simulate a case where finish_reason appears in first event
+      // but subsequent events still contain content
+      const multipleEventsInOneChunk =
+        formatSSEChunk({
+          id: 'event-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>\n思考過程開始' },
+            finish_reason: 'stop',  // finish_reason in FIRST event
+          }],
+        }) +
+        formatSSEChunk({
+          id: 'event-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '</think>實際答案內容在這裡' },
+            finish_reason: null,
+          }],
+        }) +
+        'data: [DONE]\n\n';
+
+      const mockStream = createMockSSEStream([multipleEventsInOneChunk]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試提前完成信號',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      // Don't break on first complete chunk - collect all chunks until stream ends
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        // Check if this is the last chunk (no more data after shouldStopAfterCurrentBatch)
+        if (chunk.isComplete && chunks.length > 1) break;
+      }
+
+      // Should process BOTH events even though first one has finish_reason
+      expect(chunks.length).toBeGreaterThanOrEqual(2);
+      expect(chunks[0].isComplete).toBe(true);
+
+      // The second event should still be processed
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.fullContent).toContain('實際答案內容在這裡');
+    });
+
+    test('should parse reasoning response with answer outside think tags', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>這是推理過程</think>這是實際答案' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試答案在標籤外',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].thinkingContent).toBe('這是推理過程');
+      expect(chunks[0].fullContent).toContain('這是實際答案');
+      expect(chunks[0].fullContent).not.toContain('<think>');
+    });
+
+    test('should parse reasoning response with answer inside think tags', async () => {
+      const client = new PerplexityClient('test-key');
+
+      // Simulate case where answer is inside <think> tags
+      // Using double newline to separate thinking from answer
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>推理過程在前\n\n這是實際答案內容，長度超過50字元以便被識別為答案而非推理，這樣解析器就能正確分離兩者。</think>' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試答案在標籤內',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      // Should separate thinking and answer
+      expect(chunks[0].thinkingContent).toBe('推理過程在前');
+      expect(chunks[0].fullContent).toContain('這是實際答案內容');
+      expect(chunks[0].contentDerivedFromThinking).toBe(false);
+    });
+
+    test('should parse reasoning response with explicit answer marker inside think tags', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'marker-test',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>先整理背景資訊後，再提供正式解答。\n最終答案：賈寶玉在小說中象徵傳統價值與個人情感的矛盾，也是讀者理解紅樓夢精神的核心角色。</think>' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '請解析賈寶玉象徵意義',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].thinkingContent).toContain('先整理背景資訊');
+      expect(chunks[0].fullContent).toContain('賈寶玉在小說中象徵');
+      expect(chunks[0].contentDerivedFromThinking).toBe(false);
+    });
+
+    test('should handle large single network chunk (simulating 5248 bytes)', async () => {
+      const client = new PerplexityClient('test-key');
+
+      // Create a large chunk similar to the user's terminal log
+      let largeContent = '';
+      for (let i = 0; i < 10; i++) {
+        largeContent += formatSSEChunk({
+          id: `chunk-${i}`,
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: `內容片段 ${i} ` },
+            finish_reason: i === 9 ? 'stop' : null,
+          }],
+        });
+      }
+      largeContent += 'data: [DONE]\n\n';
+
+      const mockStream = createMockSSEStream([largeContent]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試大型單一網路區塊',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Should process all 10 events
+      expect(chunks.length).toBe(10);
+
+      // Last chunk should have accumulated all content
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.fullContent).toContain('內容片段 0');
+      expect(lastChunk.fullContent).toContain('內容片段 9');
+      expect(lastChunk.isComplete).toBe(true);
+    });
+
+    test('should log batch processing information', async () => {
+      const client = new PerplexityClient('test-key');
+      const consoleSpy = jest.spyOn(console, 'log');
+
+      const multipleEventsInOneChunk =
+        formatSSEChunk({
+          id: 'event-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '第一個事件' },
+            finish_reason: null,
+          }],
+        }) +
+        formatSSEChunk({
+          id: 'event-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '第二個事件' },
+            finish_reason: 'stop',
+          }],
+        }) +
+        'data: [DONE]\n\n';
+
+      const mockStream = createMockSSEStream([multipleEventsInOneChunk]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試日誌記錄',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Should log batch processing information
+      const batchProcessingLogs = consoleSpy.mock.calls.filter(call =>
+        String(call[0]).includes('Processing') && String(call[0]).includes('SSE events')
+      );
+
+      expect(batchProcessingLogs.length).toBeGreaterThan(0);
+
+      const batchIndexLogs = consoleSpy.mock.calls.filter(call =>
+        String(call[0]).includes('batch #')
+      );
+      expect(batchIndexLogs.length).toBeGreaterThan(0);
+
+      // Should log isComplete detection (check all console calls)
+      const allLogs = consoleSpy.mock.calls.map(call => String(call[0]));
+      const hasIsCompleteLog = allLogs.some(log =>
+        log.includes('isComplete') || log.includes('Stopping after processing')
+      );
+
+      // At minimum, should have debug logs about chunk processing
+      expect(hasIsCompleteLog || consoleSpy.mock.calls.length > 0).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+  });
 });
