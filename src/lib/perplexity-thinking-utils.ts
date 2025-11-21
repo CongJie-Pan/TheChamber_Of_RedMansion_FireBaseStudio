@@ -44,6 +44,29 @@ const PREFACE_LEADS = [
 ];
 
 /**
+ * Checks whether a short paragraph looks like deliberate thinking instructions.
+ * 用於判斷段落是否屬於思考前言，讓伺服端與前端保持一致的判斷邏輯。
+ */
+export function isLikelyThinkingPreface(text: string | null | undefined): boolean {
+  if (!text) {
+    return false;
+  }
+
+  const trimmed = text.replace(/\r\n/g, '\n').trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const hasCue = THINKING_CUES.some((cue) => trimmed.includes(cue));
+  const hasLead = PREFACE_LEADS.some((lead) => trimmed.startsWith(lead));
+  const sentenceCount = trimmed
+    .split(/[\。\.?!！？]/)
+    .filter((sentence) => sentence.trim().length > 0).length;
+
+  return hasCue && (hasLead || sentenceCount >= 2 || trimmed.length <= 80);
+}
+
+/**
  * Normalises thinking content for consistent presentation.
  *
  * - Converts CRLF to LF

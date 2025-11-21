@@ -25,7 +25,7 @@ import {
   supportsReasoning,
   type PerplexityModelKey,
 } from '@/ai/perplexity-config';
-import { sanitizeThinkingContent } from '@/lib/perplexity-thinking-utils';
+import { sanitizeThinkingContent, isLikelyThinkingPreface } from '@/lib/perplexity-thinking-utils';
 import { terminalLogger, debugLog, errorLog, traceLog } from '@/lib/terminal-logger';
 
 /**
@@ -246,6 +246,82 @@ export class PerplexityClient {
   }
 
   /**
+   * Parse reasoning model response to separate thinking and answer content
+   * 解析推理模型回應，分離思考過程和實際答案
+   *
+   * Based on Perplexity official documentation:
+   * "sonar-reasoning-pro outputs a <think> section containing reasoning tokens,
+   * immediately followed by the answer content"
+   *
+   * @returns { thinking: string, answer: string }
+   */
+  private parseReasoningResponse(text: string): { thinking: string; answer: string } {
+    if (!text) return { thinking: '', answer: '' };
+
+    const normalizedText = text.replace(/\r\n/g, '\n');
+
+    // Extract thinking content from complete <think>...</think> tags
+    const thinkMatches = Array.from(normalizedText.matchAll(/<think>([\s\S]*?)<\/think>/g));
+    let thinking = thinkMatches.map(m => (m[1] || '').trim()).join('\n\n').trim();
+
+    // Also extract from incomplete <think> tags (streaming in progress)
+    if (!thinking) {
+      const incompleteThinkMatch = normalizedText.match(/<think[^>]*>([\s\S]*?)$/);
+      if (incompleteThinkMatch && incompleteThinkMatch[1]) {
+        thinking = incompleteThinkMatch[1].trim();
+      }
+    }
+
+    const sanitizedThinking = sanitizeThinkingContent(thinking);
+    if (sanitizedThinking) {
+      thinking = sanitizedThinking;
+    }
+
+    // Extract answer content (everything outside <think> tags)
+    let answer = normalizedText
+      .replace(/<think>[\s\S]*?<\/think>/g, '')  // Remove complete tags
+      .replace(/<think[^>]*>[\s\S]*?$/g, '')      // Remove incomplete tags
+      .trim();
+
+    // If no answer outside think tags, check if answer might be inside think tags
+    if (!answer && thinking) {
+      const reasoningBody = thinking.replace(/\r\n/g, '\n');
+
+      // 1) Try explicit answer markers like "答案：" or "最終答案:"
+      const answerMarkerMatch = reasoningBody.match(/(答案|最終答案|回答|結論)[：:]\s*([\s\S]+)/);
+      if (answerMarkerMatch && answerMarkerMatch[2]) {
+        const potentialAnswer = answerMarkerMatch[2].trim();
+        if (potentialAnswer.length > 20) {
+          const thinkingPrefix = reasoningBody.slice(0, answerMarkerMatch.index).trim();
+          return {
+            thinking: thinkingPrefix || reasoningBody,
+            answer: potentialAnswer,
+          };
+        }
+      }
+
+      // 2) Fall back to double-newline separation heuristic
+      const segments = reasoningBody.split(/\n{2,}/).map(segment => segment.trim()).filter(Boolean);
+      if (segments.length >= 2) {
+        const firstSegment = segments[0];
+        const remainder = segments.slice(1).join('\n\n').trim();
+
+        if (
+          remainder.length > 40 &&
+          (isLikelyThinkingPreface(firstSegment) || firstSegment.length <= 80)
+        ) {
+          return {
+            thinking: firstSegment,
+            answer: remainder,
+          };
+        }
+      }
+    }
+
+    return { thinking, answer };
+  }
+
+  /**
    * Clean HTML tags and process thinking tags
    * 清理 HTML 標籤並處理思考標籤
    */
@@ -279,7 +355,7 @@ export class PerplexityClient {
     // Clean multiple newlines and spaces
     cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
     cleanText = cleanText.replace(/[ \t]+/g, ' ');
-    
+
     return cleanText.trim();
   }
 
@@ -471,6 +547,7 @@ export class PerplexityClient {
 
     const startTime = Date.now();
     let chunkIndex = 0;
+    let batchIndex = 0;
     let fullContent = '';
     let collectedCitations: string[] = [];
     let collectedSearchQueries: string[] = [];
@@ -545,6 +622,7 @@ export class PerplexityClient {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let shouldStopAfterCurrentBatch = false;
 
       console.log('🐛 [streamingCompletionRequest] Starting stream reading with native fetch');
 
@@ -566,6 +644,14 @@ export class PerplexityClient {
           buffer += chunkStr;
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
+
+          const eventsInBatch = lines.filter(line => line.trim().startsWith('data: ')).length;
+          if (eventsInBatch > 0) {
+            batchIndex += 1;
+            console.log(`🐛 [streamingCompletionRequest] Processing ${eventsInBatch} SSE events in batch #${batchIndex}`);
+          } else {
+            console.log('🐛 [streamingCompletionRequest] Received network chunk without complete SSE events');
+          }
 
           for (const line of lines) {
             const trimmedLine = line.trim();
@@ -596,39 +682,40 @@ export class PerplexityClient {
                   }
 
                   const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
-                  // Extract current thinking content from raw fullContent
-                  const thinkAllMatches = Array.from(fullContent.matchAll(/<think>([\s\S]*?)<\/think>/g)).map(m => (m[1] || '').trim());
-                  let thinkingContent = thinkAllMatches.join('\n\n').trim();
-                  if (!thinkingContent) {
-                    const inc = fullContent.match(/<think[^>]*>([\s\S]*?)$/);
-                    if (inc && inc[1]) thinkingContent = inc[1].trim();
-                  }
-                  const sanitizedThinking = sanitizeThinkingContent(thinkingContent);
                   const isComplete = chunk.choices[0].finish_reason !== null;
 
+                  // Parse reasoning response to separate thinking and answer
+                  const { thinking, answer } = this.parseReasoningResponse(fullContent);
+                  const sanitizedThinking = sanitizeThinkingContent(thinking);
+
+                  // Use parsed answer instead of cleanResponse
                   let incrementalContent = this.cleanResponse(content, false);
-                  let aggregatedContent = this.cleanResponse(fullContent, input.showThinkingProcess);
+                  // If parseReasoningResponse found an answer outside <think> tags, use it
+                  // Otherwise, use cleanResponse as fallback
+                  let aggregatedContent = answer ? answer : this.cleanResponse(fullContent, input.showThinkingProcess);
 
                   const fallbackPayload = sanitizedThinking
                     ? `${THINKING_ONLY_FALLBACK_PREFIX}\n\n${sanitizedThinking}`
                     : '';
 
                   let contentDerivedFromThinking = false;
-                  if ((!incrementalContent || incrementalContent.trim().length === 0) && fallbackPayload) {
+                  // Only apply fallback when stream is complete AND we have no answer content
+                  if (isComplete && (!aggregatedContent || aggregatedContent.trim().length === 0) && fallbackPayload) {
+                    aggregatedContent = fallbackPayload;
                     incrementalContent = fallbackPayload;
                     contentDerivedFromThinking = true;
                   }
 
-                  if ((!aggregatedContent || aggregatedContent.trim().length === 0) && fallbackPayload) {
-                    aggregatedContent = fallbackPayload;
-                    contentDerivedFromThinking = true;
-                  }
-
-                  console.log(`🐛 [streamingCompletionRequest] Yielding chunk ${chunkIndex}:`, {
-                    contentLength: incrementalContent.length,
-                    fullContentLength: aggregatedContent.length,
+                  // Log detailed parsing information for debugging
+                  console.log(`🐛 [streamingCompletionRequest] Chunk ${chunkIndex} parsed:`, {
+                    rawContentLength: fullContent.length,
+                    thinkingLength: thinking.length,
+                    answerLength: answer.length,
+                    aggregatedContentLength: aggregatedContent.length,
                     isComplete,
                     derivedFromThinking: contentDerivedFromThinking,
+                    hasThinkTags: fullContent.includes('<think>'),
+                    rawPreview: fullContent.substring(0, 100).replace(/\n/g, '\\n'),
                   });
 
                   yield {
@@ -651,12 +738,16 @@ export class PerplexityClient {
                     contentDerivedFromThinking,
                   };
 
+                  // Mark that we should stop after processing all events in current batch
                   if (isComplete) {
-                    return;
+                    console.log(`🐛 [streamingCompletionRequest] isComplete detected at chunk ${chunkIndex}, will stop after processing current batch`);
+                    shouldStopAfterCurrentBatch = true;
                   }
 
-                  // Add delay to prevent overwhelming the UI
-                  await new Promise(resolve => setTimeout(resolve, PERPLEXITY_CONFIG.STREAM_CHUNK_DELAY_MS));
+                  // Add delay to prevent overwhelming the UI (only if not complete)
+                  if (!isComplete) {
+                    await new Promise(resolve => setTimeout(resolve, PERPLEXITY_CONFIG.STREAM_CHUNK_DELAY_MS));
+                  }
                 }
               } catch (parseError) {
                 console.error('🐛 [streamingCompletionRequest] Failed to parse JSON:', {
@@ -665,6 +756,12 @@ export class PerplexityClient {
                 });
               }
             }
+          }
+
+          // After processing all events in this network chunk, check if we should stop
+          if (shouldStopAfterCurrentBatch) {
+            console.log(`🐛 [streamingCompletionRequest] Stopping after processing batch #${batchIndex || 0}`);
+            return;
           }
         }
       } finally {
