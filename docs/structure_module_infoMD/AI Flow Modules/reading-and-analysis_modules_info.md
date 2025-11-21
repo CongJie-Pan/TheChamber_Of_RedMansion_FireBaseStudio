@@ -7,6 +7,8 @@
 - **context-aware-analysis:** Perplexity Sonar (analysis task with web search)
 - **explain-text-selection:** Perplexity Sonar (analysis task with web search)
 
+**UI Enhancement (2025-11-19 - Task 4.5):** Fixed bi-column reading mode displaying empty right column. Root cause was responsive prefix `md:columns-2` only rendering columns on screens ≥768px while inline column styles applied unconditionally. Solution: (1) Removed `md:` prefix to enable columns-2 always (protected by `!isMobile` check), (2) Added `getComputedStyle` validation in `computePagination()` to verify actual column rendering before calculating pagination. This ensures robust column detection and prevents pagination errors when CSS columns fail to render.
+
 ---
 
 # Module: `daily-reading-comprehension`

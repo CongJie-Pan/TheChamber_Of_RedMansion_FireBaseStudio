@@ -690,6 +690,54 @@ describe('PerplexityClient', () => {
       expect(chunks[0].hasThinkingProcess).toBe(true);
     });
 
+    test('should fallback to thinking content when API only streams reasoning text', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'think-only',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>只有推理內容</think>' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試只有思考內容',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].isComplete).toBe(true);
+      expect(chunks[0].content).toContain('⚠️ 系統僅收到 AI 的思考內容');
+      expect(chunks[0].content).toContain('只有推理內容');
+      expect(chunks[0].contentDerivedFromThinking).toBe(true);
+      expect(chunks[0].thinkingContent).toBe('只有推理內容');
+    });
+
     test('should collect citations during streaming', async () => {
       const client = new PerplexityClient('test-key');
 

@@ -87,12 +87,34 @@ export function AuthLoadingScreen({ message, subMessage }: AuthLoadingScreenProp
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background/95 to-background px-6 text-center text-foreground">
       <div className="relative mb-6 flex items-center justify-center">
-        {/* High-contrast spinner ring for visibility on dark backgrounds */}
-        <div
-          className="absolute h-44 w-44 rounded-full border-4 border-transparent border-t-primary border-r-primary/60 animate-spin"
-          style={{ willChange: 'transform' }}
-          aria-hidden="true"
-        />
+        {/* SVG-based high-contrast spinner - more reliable than border-trick approach */}
+        <div className="absolute" style={{ willChange: 'transform' }}>
+          <svg
+            className="h-44 w-44 animate-spin text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            role="status"
+            aria-live="polite"
+            aria-label="載入中"
+          >
+            {/* Background circle with low opacity */}
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="3"
+            />
+            {/* Spinning arc with higher opacity */}
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        </div>
 
         {/* Logo container with subtle blur to highlight brand mark */}
         <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/20">

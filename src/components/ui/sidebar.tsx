@@ -138,10 +138,17 @@ const SidebarProvider = React.forwardRef<
                 "--sidebar-width": SIDEBAR_WIDTH,
                 "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
                 ...style,
+                // CSS Grid layout for fixed sidebar + flexible content (2025-11-19)
+                // Fixes horizontal scroll issue caused by w-full (100vw) + fixed sidebar (256px)
+                display: 'grid',
+                gridTemplateColumns: 'var(--sidebar-width) 1fr',
+                minHeight: '100svh',
               } as React.CSSProperties
             }
             className={cn(
-              "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar",
+              "group/sidebar-wrapper has-[[data-variant=inset]]:bg-sidebar",
+              // Removed 'flex' and 'w-full' to fix horizontal overflow
+              // Grid handles layout automatically with proper width calculation
               className
             )}
             ref={ref}

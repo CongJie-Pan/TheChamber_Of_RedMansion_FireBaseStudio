@@ -810,6 +810,20 @@ export default function ReadBookPage() {
     if (!viewportEl) return;
 
     const contentEl = chapterContentRef.current as HTMLElement | null;
+    if (!contentEl) return;
+
+    // Verify columns are actually rendered (2025-11-19 fix for Task 4.5)
+    // Prevents pagination calculation when columns fail to render
+    const computedStyle = window.getComputedStyle(contentEl);
+    const columnCount = computedStyle.columnCount;
+
+    if (columnCount === 'auto' || columnCount === '1') {
+      console.warn('[Pagination] Columns not rendered, falling back to single page. columnCount:', columnCount);
+      setTotalPages(1);
+      setCurrentPage(1);
+      return;
+    }
+
     // CSS multi-column layout creates horizontal overflow, so we use width-based calculation
     // The content flows horizontally across columns, requiring horizontal scrolling for pagination
     const viewportW = Math.max(1, viewportEl.clientWidth || viewportEl.offsetWidth || 0);
@@ -1831,9 +1845,10 @@ export default function ReadBookPage() {
                     // Fix: Always clean fullContent to prevent thinking duplication in answer area
                     let extractedThinkingText: string | null = null;
                     let extractedThinkingFromContent: string | null = null;
+                    const chunkDerivedFromThinking = Boolean(chunk.contentDerivedFromThinking);
 
                     // Step 1: Always clean fullContent first to remove any thinking content
-                    if (chunk.fullContent) {
+                    if (chunk.fullContent && !chunkDerivedFromThinking) {
                       const { cleanContent, thinkingText } = splitThinkingFromContent(chunk.fullContent);
                       (chunk as any).fullContent = cleanContent;  // Unified cleanup - prevents duplication
                       extractedThinkingFromContent = thinkingText || null;
@@ -1892,7 +1907,7 @@ export default function ReadBookPage() {
 
                       // Fix: Defensively clean initial content to ensure no <think> tags leak through
                       // This protects against any server-side cleaning failures or edge cases
-                      if (initialContent && initialContent.trim().length > 0) {
+                      if (!chunkDerivedFromThinking && initialContent && initialContent.trim().length > 0) {
                         const { cleanContent } = splitThinkingFromContent(initialContent);
                         initialContent = cleanContent;
                       }
@@ -1927,7 +1942,9 @@ export default function ReadBookPage() {
                       const finalServerThinking = (chunk as any).thinkingContent
                         ? sanitizeThinkingContent((chunk as any).thinkingContent)
                         : '';
-                      const cleaned = splitThinkingFromContent(chunk.fullContent || '').cleanContent || chunk.fullContent || '';
+                      const cleaned = chunkDerivedFromThinking
+                        ? (chunk.fullContent || chunk.content || '')
+                        : splitThinkingFromContent(chunk.fullContent || '').cleanContent || chunk.fullContent || '';
                       const finalResponse: PerplexityQAResponse = {
                         question: questionText,
                         answer: cleaned,
@@ -2128,7 +2145,7 @@ export default function ReadBookPage() {
   const getColumnClass = () => {
     switch (columnLayout) {
       case 'single': return 'columns-1';
-      case 'double': return 'md:columns-2'; // Two-column layout for horizontal reading on medium+ screens; mobile falls back to single column
+      case 'double': return 'columns-2'; // Two-column layout for horizontal reading; mobile protection via !isMobile check (line 832)
       default: return 'columns-1';
     }
   };

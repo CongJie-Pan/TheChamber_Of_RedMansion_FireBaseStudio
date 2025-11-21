@@ -28,8 +28,19 @@ This module provides global state management for the application using React's C
 ### 4.1. `AuthContext.tsx`
 
 * **Purpose:** This file implements the authentication context and provider for the application (Phase 4 - SQLITE-022). It manages the user's session state by interfacing with NextAuth.js authentication, fetches and provides the user's profile data from SQLite (including level, XP, and guest status), and handles the initial loading state. This provider is intended to wrap the entire application to provide universal access to authentication status. Replaces Firebase Authentication with NextAuth.js + SQLite integration.
+
+* **Components:**
+    * `AuthLoadingScreen({ message, subMessage })`: Full-screen loading component displayed during authentication initialization and route transitions. **Updated 2025-11-19**: Replaced border-trick spinner with SVG-based spinner for better reliability and visibility. Features:
+      - **SVG Spinner**: Industry-standard rotating arc pattern (h-44 w-44 = 176px diameter)
+      - **High Contrast**: White (`text-white`) spinner on dark red background for maximum visibility
+      - **Performance**: GPU-accelerated with `willChange: 'transform'`
+      - **Accessibility**: Includes `role="status"`, `aria-live="polite"`, and `aria-label="載入中"`
+      - **Centered Logo**: 120x120px circular logo with backdrop blur effect
+      - **Optional Messages**: Displays `message` (primary) and `subMessage` (secondary) text
+
 * **Functions:**
     * `AuthProvider({ children }: AuthProviderProps)`: The main provider component that manages and provides the authentication state.
+
 * **Key Classes / Constants / Variables:**
     * `AuthContext`: The React Context object created to hold and transmit authentication data.
 

@@ -25,6 +25,7 @@ import {
   supportsReasoning,
   type PerplexityModelKey,
 } from '@/ai/perplexity-config';
+import { sanitizeThinkingContent } from '@/lib/perplexity-thinking-utils';
 import { terminalLogger, debugLog, errorLog, traceLog } from '@/lib/terminal-logger';
 
 /**
@@ -73,6 +74,12 @@ interface PerplexityStreamChunk {
   citations?: string[];
   web_search_queries?: string[];
 }
+
+/**
+ * 系統提示文字：當 API 僅回傳思考內容時，提供友善回饋
+ */
+const THINKING_ONLY_FALLBACK_PREFIX =
+  '⚠️ 系統僅收到 AI 的思考內容，以下為原始推理紀錄：';
 
 /**
  * Perplexity API client class
@@ -596,18 +603,38 @@ export class PerplexityClient {
                     const inc = fullContent.match(/<think[^>]*>([\s\S]*?)$/);
                     if (inc && inc[1]) thinkingContent = inc[1].trim();
                   }
+                  const sanitizedThinking = sanitizeThinkingContent(thinkingContent);
                   const isComplete = chunk.choices[0].finish_reason !== null;
 
+                  let incrementalContent = this.cleanResponse(content, false);
+                  let aggregatedContent = this.cleanResponse(fullContent, input.showThinkingProcess);
+
+                  const fallbackPayload = sanitizedThinking
+                    ? `${THINKING_ONLY_FALLBACK_PREFIX}\n\n${sanitizedThinking}`
+                    : '';
+
+                  let contentDerivedFromThinking = false;
+                  if ((!incrementalContent || incrementalContent.trim().length === 0) && fallbackPayload) {
+                    incrementalContent = fallbackPayload;
+                    contentDerivedFromThinking = true;
+                  }
+
+                  if ((!aggregatedContent || aggregatedContent.trim().length === 0) && fallbackPayload) {
+                    aggregatedContent = fallbackPayload;
+                    contentDerivedFromThinking = true;
+                  }
+
                   console.log(`🐛 [streamingCompletionRequest] Yielding chunk ${chunkIndex}:`, {
-                    contentLength: content.length,
-                    fullContentLength: fullContent.length,
+                    contentLength: incrementalContent.length,
+                    fullContentLength: aggregatedContent.length,
                     isComplete,
+                    derivedFromThinking: contentDerivedFromThinking,
                   });
 
                   yield {
-                    content: this.cleanResponse(content, false),  // Fix: Clean incremental content to remove <think> tags
-                    fullContent: this.cleanResponse(fullContent, input.showThinkingProcess),
-                    thinkingContent,
+                    content: incrementalContent,
+                    fullContent: aggregatedContent,
+                    thinkingContent: sanitizedThinking,
                     timestamp: new Date().toISOString(),
                     citations,
                     searchQueries: collectedSearchQueries,
@@ -620,7 +647,8 @@ export class PerplexityClient {
                     responseTime: processingTime,
                     isComplete,
                     chunkIndex,
-                    hasThinkingProcess: fullContent.includes('<think>'),
+                    hasThinkingProcess: sanitizedThinking.length > 0 || fullContent.includes('<think>'),
+                    contentDerivedFromThinking,
                   };
 
                   if (isComplete) {
