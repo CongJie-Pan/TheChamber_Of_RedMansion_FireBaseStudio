@@ -1,9 +1,9 @@
 import { userLevelService } from '@/lib/user-level-service';
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __firestoreStore: Map<string, any> | undefined;
-  // eslint-disable-next-line no-var
+   
   var testUtils: any;
 }
 

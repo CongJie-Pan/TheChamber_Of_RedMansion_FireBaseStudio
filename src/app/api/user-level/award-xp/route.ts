@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
           newTotalXP: 0,
           newLevel: 0,
           leveledUp: false,
@@ -123,7 +123,6 @@ export async function POST(request: NextRequest) {
         isDuplicate: result.isDuplicate,
         unlockedContent: result.unlockedContent,
         unlockedPermissions: result.unlockedPermissions,
-        levelUpRewards: result.levelUpRewards,
       } as AwardXPResponse,
       { status: 200 }
     );

@@ -32,14 +32,8 @@ const REQUIRED_CONFIRMATION_TEXT = '我確定要重設帳號';
  * Zod schema for validating reset account request
  */
 const ResetAccountSchema = z.object({
-  userId: z.string({
-    required_error: 'User ID is required',
-    invalid_type_error: 'User ID must be a string',
-  }).min(1, 'User ID is required'),
-  confirmationText: z.string({
-    required_error: 'Confirmation text is required',
-    invalid_type_error: 'Confirmation text must be a string',
-  }).min(1, 'Confirmation text is required'),
+  userId: z.string().min(1, 'User ID is required'),
+  confirmationText: z.string().min(1, 'Confirmation text is required'),
 });
 
 /**
@@ -91,7 +85,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: 'Invalid request',
-          error: validationResult.error.errors[0]?.message || 'Invalid request data',
+          error: validationResult.error.issues[0]?.message || 'Invalid request data',
         } as ResetAccountResponse,
         { status: 400 }
       );

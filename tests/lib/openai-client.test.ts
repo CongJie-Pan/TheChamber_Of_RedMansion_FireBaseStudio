@@ -53,7 +53,7 @@ let OPENAI_CONSTANTS: any;
 
 function loadClient() {
   // Ensure a fresh module load after env and mocks are in place
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const mod = require('@/lib/openai-client');
   getOpenAIClient = mod.getOpenAIClient;
   generateCompletion = mod.generateCompletion;

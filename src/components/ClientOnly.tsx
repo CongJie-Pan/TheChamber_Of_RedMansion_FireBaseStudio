@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useSyncExternalStore } from 'react';
 
 interface ClientOnlyProps {
   children: ReactNode;
@@ -33,12 +33,12 @@ interface ClientOnlyProps {
  * @returns JSX element that renders differently on server vs client
  */
 export default function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
-  const [hasMounted, setHasMounted] = useState(false);
-
-  // Set mounted state to true after component mounts (client-side only)
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+  // Use useSyncExternalStore to detect client-side mounting without cascading renders
+  const hasMounted = useSyncExternalStore(
+    () => () => {}, // subscribe (no-op)
+    () => true,      // getSnapshot (client)
+    () => false      // getServerSnapshot (server)
+  );
 
   // During server-side rendering and initial client render, show fallback
   if (!hasMounted) {

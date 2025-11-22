@@ -8,7 +8,7 @@
  */
 
 import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
-import type { DailyTask, TaskType, TaskDifficulty } from '../types/daily-task';
+import type { DailyTask, DailyTaskType, TaskDifficulty } from '../types/daily-task';
 import { XP_REWARD_TABLE, ATTRIBUTE_REWARD_TABLE } from '../task-generator';
 
 /**
@@ -39,7 +39,7 @@ function rowToTask(row: TaskRow): DailyTask {
   const content = row.content ? JSON.parse(row.content) : {};
 
   // Extract type and difficulty for reward calculation
-  const taskType = row.taskType as TaskType;
+  const taskType = row.taskType as DailyTaskType;
   const difficulty = row.difficulty as TaskDifficulty;
 
   // Generate xpReward: Priority order
@@ -65,15 +65,15 @@ function rowToTask(row: TaskRow): DailyTask {
     type: taskType,
     difficulty: difficulty,
     title: row.title,
-    description: row.description || undefined,
-    baseXP: row.baseXP,
+    description: row.description || '請完成此學習任務',
     xpReward,           // ✅ Auto-generated from baseXP or REWARD_TABLE
     attributeRewards,   // ✅ Auto-generated from ATTRIBUTE_REWARD_TABLE
-    ...content,
-    sourceChapter: row.sourceChapter || undefined,
-    sourceVerseStart: row.sourceVerseStart || undefined,
-    sourceVerseEnd: row.sourceVerseEnd || undefined,
+    timeEstimate: content.timeEstimate || 10,
+    sourceId: content.sourceId || row.id,
+    content: content.content || {},
+    gradingCriteria: content.gradingCriteria,
     createdAt: fromUnixTimestamp(row.createdAt),
+    updatedAt: fromUnixTimestamp(row.createdAt),
   };
 }
 
@@ -94,16 +94,31 @@ export function createTask(task: DailyTask): DailyTask {
     difficulty,
     title,
     description,
-    baseXP,
-    sourceChapter,
-    sourceVerseStart,
-    sourceVerseEnd,
+    xpReward,
     createdAt,
-    ...contentFields
+    updatedAt,
+    attributeRewards,
+    timeEstimate,
+    sourceId,
+    content,
+    gradingCriteria,
   } = task;
 
   // Field mapping: DailyTask.type -> database.taskType
   const taskType = type;
+
+  // Store xpReward as baseXP for backward compatibility
+  const baseXP = xpReward;
+
+  // Build content JSON from task properties
+  const contentFields = {
+    content,
+    xpReward,
+    attributeRewards,
+    timeEstimate,
+    sourceId,
+    gradingCriteria,
+  };
 
   const stmt = db.prepare(`
     INSERT INTO daily_tasks (
@@ -120,9 +135,9 @@ export function createTask(task: DailyTask): DailyTask {
     description || null,
     baseXP,
     JSON.stringify(contentFields),
-    sourceChapter || null,
-    sourceVerseStart || null,
-    sourceVerseEnd || null,
+    null, // sourceChapter - deprecated
+    null, // sourceVerseStart - deprecated
+    null, // sourceVerseEnd - deprecated
     createdAt ? toUnixTimestamp(createdAt) : now
   );
 
@@ -158,7 +173,7 @@ export function getTaskById(taskId: string): DailyTask | null {
  * @param taskType - Task type
  * @returns Array of tasks
  */
-export function getTasksByType(taskType: TaskType): DailyTask[] {
+export function getTasksByType(taskType: DailyTaskType): DailyTask[] {
   const db = getDatabase();
 
   const stmt = db.prepare(`
@@ -245,13 +260,28 @@ export function updateTask(
     difficulty,
     title,
     description,
-    baseXP,
-    sourceChapter,
-    sourceVerseStart,
-    sourceVerseEnd,
+    xpReward,
     createdAt,
-    ...contentFields
+    updatedAt,
+    attributeRewards,
+    timeEstimate,
+    sourceId,
+    content,
+    gradingCriteria,
   } = updatedTask;
+
+  // Store xpReward as baseXP for backward compatibility
+  const baseXP = xpReward;
+
+  // Build content JSON
+  const contentFields = {
+    content,
+    xpReward,
+    attributeRewards,
+    timeEstimate,
+    sourceId,
+    gradingCriteria,
+  };
 
   // Field mapping: DailyTask.type -> database.taskType
   const taskType = type;
@@ -271,9 +301,9 @@ export function updateTask(
     description || null,
     baseXP,
     JSON.stringify(contentFields),
-    sourceChapter || null,
-    sourceVerseStart || null,
-    sourceVerseEnd || null,
+    null, // sourceChapter - deprecated
+    null, // sourceVerseStart - deprecated
+    null, // sourceVerseEnd - deprecated
     taskId
   );
 
@@ -320,16 +350,31 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
         difficulty,
         title,
         description,
-        baseXP,
-        sourceChapter,
-        sourceVerseStart,
-        sourceVerseEnd,
+        xpReward,
         createdAt,
-        ...contentFields
+        updatedAt,
+        attributeRewards,
+        timeEstimate,
+        sourceId,
+        content,
+        gradingCriteria,
       } = task;
 
       // Field mapping: DailyTask.type -> database.taskType
       const taskType = type;
+
+      // Store xpReward as baseXP for backward compatibility
+      const baseXP = xpReward;
+
+      // Build content JSON
+      const contentFields = {
+        content,
+        xpReward,
+        attributeRewards,
+        timeEstimate,
+        sourceId,
+        gradingCriteria,
+      };
 
       const now = Date.now();
 
@@ -348,9 +393,9 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
           safeDescription,
           safeBaseXP,
           JSON.stringify(contentFields),
-          sourceChapter || null,
-          sourceVerseStart || null,
-          sourceVerseEnd || null,
+          null, // sourceChapter - deprecated
+          null, // sourceVerseStart - deprecated
+          null, // sourceVerseEnd - deprecated
           createdAt ? toUnixTimestamp(createdAt) : now
         );
       } catch (error) {
@@ -377,7 +422,7 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
  * @param taskType - Task type (optional)
  * @returns Task count
  */
-export function getTaskCount(taskType?: TaskType): number {
+export function getTaskCount(taskType?: DailyTaskType): number {
   const db = getDatabase();
 
   let stmt;

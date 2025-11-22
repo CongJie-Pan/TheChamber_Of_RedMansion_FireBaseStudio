@@ -6,7 +6,7 @@ describe('sqlite-tool CLI helpers', () => {
   // Reset module cache between tests to ensure fresh evaluation of environment checks.
   const loadTool = () => {
     jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     return require('../../scripts/sqlite-tool.cjs');
   };
 

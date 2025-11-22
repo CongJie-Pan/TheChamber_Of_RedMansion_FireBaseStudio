@@ -637,7 +637,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           .select("circle")
           .transition()
           .duration(transitionDuration)
-          .attr("r", (d: KnowledgeGraphNode) => d.radius);
+          .attr("r", (d: any) => d.radius);
 
         // Reset link opacity
         link

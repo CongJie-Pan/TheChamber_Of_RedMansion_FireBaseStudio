@@ -24,13 +24,15 @@ import { BookOpen } from 'lucide-react';
 
 // Mock Next.js Link component for testing
 jest.mock('next/link', () => {
-  return ({ children, href, ...props }: any) => {
+  const MockLink = ({ children, href, ...props }: any) => {
     return (
       <a href={href} {...props}>
         {children}
       </a>
     );
   };
+  MockLink.displayName = 'MockLink';
+  return MockLink;
 });
 
 describe('ChineseWindowNavButton', () => {

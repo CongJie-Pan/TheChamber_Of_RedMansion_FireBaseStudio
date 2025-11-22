@@ -65,11 +65,8 @@ import type { Language } from '@/lib/translations';
  */
 export default function HomePage() {
   const { language, setLanguage, t } = useLanguage();
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+  // Use useState with true to avoid setting state in useEffect
+  const [isLoaded, setIsLoaded] = useState(true);
 
   // Feature cards data
   const features = [
@@ -157,9 +154,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-5 pl-6">
+          <Link href="/" className="flex items-center space-x-5">
             <Image
               src="/images/logo_circle.png"
               alt="紅樓慧讀 Logo"
@@ -264,7 +261,7 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t('page.featuresTitle')}
@@ -292,7 +289,7 @@ export default function HomePage() {
 
       {/* Content Preview Section */}
       <section className="py-20 bg-gradient-to-b from-gray-900 to-gray-800">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               {t('page.contentPreviewTitle')}
@@ -341,7 +338,7 @@ export default function HomePage() {
 
       {/* Call to Action Section */}
       <section className="py-20 bg-gray-900 text-white">
-        <div className="container mx-auto px-6 text-center">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
               {t('page.ctaTitle')}

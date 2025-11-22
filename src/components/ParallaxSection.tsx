@@ -122,11 +122,13 @@ export const ParallaxSection: React.FC<ParallaxSectionProps> = ({
    */
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setIsReducedMotion(mediaQuery.matches);
 
-    const handleChange = (e: MediaQueryListEvent) => {
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
       setIsReducedMotion(e.matches);
     };
+
+    // Initialize state from media query
+    handleChange(mediaQuery);
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);

@@ -182,32 +182,44 @@ function getNewlyUnlockedPermissions(fromLevel: number, toLevel: number): LevelP
  * Confetti animation component
  *
  * Creates a simple CSS-based confetti effect
+ * Uses memoized random values to ensure stable rendering
  */
 function ConfettiEffect() {
+  // Generate stable random values outside of render
+  const confettiParticles = React.useMemo(() => {
+    return Array.from({ length: 30 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      opacity: Math.random() * 0.8 + 0.2,
+      endX: (Math.random() - 0.5) * 200,
+      endY: Math.random() * 400 + 200,
+      colorClass: i % 5 === 0 ? 'bg-amber-400' :
+                  i % 5 === 1 ? 'bg-purple-400' :
+                  i % 5 === 2 ? 'bg-blue-400' :
+                  i % 5 === 3 ? 'bg-pink-400' :
+                  'bg-green-400',
+    }));
+  }, []);
+
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       {/* Confetti particles using CSS animations */}
-      {Array.from({ length: 30 }).map((_, i) => (
+      {confettiParticles.map((particle) => (
         <div
-          key={i}
+          key={particle.id}
           className={cn(
             'absolute w-2 h-2 rounded-full',
-            // Random colors
-            i % 5 === 0 ? 'bg-amber-400' :
-            i % 5 === 1 ? 'bg-purple-400' :
-            i % 5 === 2 ? 'bg-blue-400' :
-            i % 5 === 3 ? 'bg-pink-400' :
-            'bg-green-400',
-            // Animation
+            particle.colorClass,
             'animate-[confetti_3s_ease-out_forwards]'
           )}
           style={{
-            left: `${Math.random() * 100}%`,
+            left: `${particle.left}%`,
             top: '-10px',
-            animationDelay: `${Math.random() * 0.5}s`,
-            opacity: Math.random() * 0.8 + 0.2,
-            '--confetti-end-x': `${(Math.random() - 0.5) * 200}px`,
-            '--confetti-end-y': `${Math.random() * 400 + 200}px`,
+            animationDelay: `${particle.delay}s`,
+            opacity: particle.opacity,
+            '--confetti-end-x': `${particle.endX}px`,
+            '--confetti-end-y': `${particle.endY}px`,
           } as React.CSSProperties}
         />
       ))}
@@ -267,9 +279,13 @@ export function LevelUpModal({
   // Trigger confetti animation when modal opens
   useEffect(() => {
     if (open) {
-      setShowConfetti(true);
-      const timer = setTimeout(() => setShowConfetti(false), 3000);
-      return () => clearTimeout(timer);
+      // Defer state update to next tick to avoid cascading render
+      const showTimer = setTimeout(() => setShowConfetti(true), 0);
+      const hideTimer = setTimeout(() => setShowConfetti(false), 3000);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
   }, [open]);
 

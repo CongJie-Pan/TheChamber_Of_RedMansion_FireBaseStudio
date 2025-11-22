@@ -639,9 +639,9 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // Should skip invalid JSON and continue with valid chunk
+      // When only malformed JSON is received with completion signal, should show error message
       expect(chunks.length).toBe(1);
-      expect(chunks[0].content).toBe('有效內容');
+      expect(chunks[0].content).toContain('⚠️ AI 回應內容異常');
       expect(chunks[0].isComplete).toBe(true);
     });
 
@@ -1080,11 +1080,11 @@ describe('PerplexityClient', () => {
       expect(chunks[0].fullContent).not.toContain('<think>');
     });
 
-    test('should parse reasoning response with answer inside think tags', async () => {
+    test('should parse reasoning response with standard official format', async () => {
       const client = new PerplexityClient('test-key');
 
-      // Simulate case where answer is inside <think> tags
-      // Using double newline to separate thinking from answer
+      // Test official format: <think>reasoning</think>\nAnswer content
+      // Reference: docs/tech_docs/Sonar_reasoning_-_Perplexity.md (Line 117)
       const sseChunks = [
         formatSSEChunk({
           id: 'test-1',
@@ -1093,7 +1093,7 @@ describe('PerplexityClient', () => {
           model: 'sonar-reasoning',
           choices: [{
             index: 0,
-            delta: { content: '<think>推理過程在前\n\n這是實際答案內容，長度超過50字元以便被識別為答案而非推理，這樣解析器就能正確分離兩者。</think>' },
+            delta: { content: '<think>推理過程在前</think>\n這是實際答案內容，長度超過50字元以便被識別為完整答案，符合官方文件規範的格式。' },
             finish_reason: 'stop',
           }],
         }),
@@ -1111,7 +1111,7 @@ describe('PerplexityClient', () => {
       } as any);
 
       const input: PerplexityQAInput = {
-        userQuestion: '測試答案在標籤內',
+        userQuestion: '測試標準官方格式',
         enableStreaming: true,
         showThinkingProcess: true,
       };
@@ -1123,55 +1123,9 @@ describe('PerplexityClient', () => {
       }
 
       expect(chunks.length).toBe(1);
-      // Should separate thinking and answer
+      // Should correctly separate thinking (inside tags) and answer (outside tags)
       expect(chunks[0].thinkingContent).toBe('推理過程在前');
       expect(chunks[0].fullContent).toContain('這是實際答案內容');
-      expect(chunks[0].contentDerivedFromThinking).toBe(false);
-    });
-
-    test('should parse reasoning response with explicit answer marker inside think tags', async () => {
-      const client = new PerplexityClient('test-key');
-
-      const sseChunks = [
-        formatSSEChunk({
-          id: 'marker-test',
-          object: 'chat.completion.chunk',
-          created: Date.now(),
-          model: 'sonar-reasoning',
-          choices: [{
-            index: 0,
-            delta: { content: '<think>先整理背景資訊後，再提供正式解答。\n最終答案：賈寶玉在小說中象徵傳統價值與個人情感的矛盾，也是讀者理解紅樓夢精神的核心角色。</think>' },
-            finish_reason: 'stop',
-          }],
-        }),
-        'data: [DONE]\n\n',
-      ];
-
-      const mockStream = createMockSSEStream(sseChunks);
-
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        body: mockStream,
-        headers: new Map([['content-type', 'text/event-stream']]),
-      } as any);
-
-      const input: PerplexityQAInput = {
-        userQuestion: '請解析賈寶玉象徵意義',
-        enableStreaming: true,
-        showThinkingProcess: true,
-      };
-
-      const chunks: any[] = [];
-      for await (const chunk of client.streamingCompletionRequest(input)) {
-        chunks.push(chunk);
-        if (chunk.isComplete) break;
-      }
-
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].thinkingContent).toContain('先整理背景資訊');
-      expect(chunks[0].fullContent).toContain('賈寶玉在小說中象徵');
       expect(chunks[0].contentDerivedFromThinking).toBe(false);
     });
 
@@ -1298,6 +1252,208 @@ describe('PerplexityClient', () => {
       expect(hasIsCompleteLog || consoleSpy.mock.calls.length > 0).toBe(true);
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  /**
+   * Test suite for anomalous API response handling
+   * Based on official Perplexity API best practices and community-reported issues
+   *
+   * References:
+   * - GitHub Issue #8455 (BerriAI/litellm): Streaming format inconsistencies
+   * - GitHub Issue #129 (Perplexity Forum): sonar-reasoning-pro streaming bugs
+   * - Official docs: docs.perplexity.ai error handling guidelines
+   */
+  describe('Anomalous API Response Handling', () => {
+    test('should handle API returning only extremely short thinking content (< 20 chars)', async () => {
+      // Simulates the bug reported in Task 4.2: API returns "<think>我</think>" with no answer
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-anomaly-short',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>我</think>' },  // Only 1 character thinking, no answer
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試極短異常回應',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Verify: Should NOT show standard fallback, but error message instead
+      // Because thinking length (1 char) < MIN_REASONABLE_THINKING_LENGTH (20 chars)
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].fullContent).toContain('⚠️ AI 回應內容異常');
+      expect(chunks[0].fullContent).not.toContain('⚠️ 系統僅收到 AI 的思考內容');
+      expect(chunks[0].isComplete).toBe(true);
+    });
+
+    test('should handle API returning reasonable thinking but no answer', async () => {
+      // Simulates API anomaly: Has valid thinking (> 20 chars) but no answer content
+      const client = new PerplexityClient('test-key');
+
+      const reasonableThinking = '林黛玉是賈母的外孫女，自幼體弱多病，性格孤傲清高，才華橫溢...';
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-anomaly-reasonable',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: `<think>${reasonableThinking}</think>` },  // Reasonable thinking, no answer
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '林黛玉的性格特點？',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Verify: Should show fallback message with thinking content
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].fullContent).toContain('⚠️ 系統僅收到 AI 的思考內容');
+      expect(chunks[0].thinkingContent).toContain('林黛玉');
+      expect(chunks[0].contentDerivedFromThinking).toBe(true);
+      expect(chunks[0].isComplete).toBe(true);
+    });
+
+    test('should handle normal response with both thinking and answer (regression test)', async () => {
+      // Ensures normal responses are not affected by enhanced fallback logic
+      const client = new PerplexityClient('test-key');
+
+      const normalThinking = '首先分析林黛玉的家庭背景，她是賈母最疼愛的外孫女...';
+      const normalAnswer = '林黛玉的性格特點主要包括：\n1. 孤傲清高\n2. 才華橫溢\n3. 多愁善感';
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-normal-response',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: `<think>${normalThinking}</think>${normalAnswer}` },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '林黛玉的性格特點有哪些？',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Verify: Should display normal answer, NOT fallback
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].fullContent).toContain('林黛玉的性格特點主要包括');
+      expect(chunks[0].fullContent).not.toContain('⚠️');
+      expect(chunks[0].thinkingContent).toContain('首先分析林黛玉');
+      expect(chunks[0].contentDerivedFromThinking).toBe(false);
+      expect(chunks[0].isComplete).toBe(true);
+    });
+
+    test('should handle extremely long thinking content (> 5000 chars) as unreasonable', async () => {
+      // Tests the upper bound of reasonable thinking length
+      const client = new PerplexityClient('test-key');
+
+      const extremelyLongThinking = '林黛玉'.repeat(3000);  // 9000 characters
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'test-anomaly-toolong',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: `<think>${extremelyLongThinking}</think>` },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試超長 thinking',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+        if (chunk.isComplete) break;
+      }
+
+      // Verify: Should show fallback with unreasonable thinking warning
+      // Because length > MAX_REASONABLE_THINKING_LENGTH (5000 chars)
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].fullContent).toContain('⚠️');
+      expect(chunks[0].isComplete).toBe(true);
     });
   });
 });

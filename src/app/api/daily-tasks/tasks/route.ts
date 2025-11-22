@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { dailyTaskService } from '@/lib/daily-task-service';
+import { getTaskById } from '@/lib/repositories/task-repository';
 
 /**
  * GET /api/daily-tasks/tasks
@@ -46,10 +46,8 @@ export async function GET(request: NextRequest) {
 
     console.log(`📋 [API] Fetching ${taskIds.length} tasks: ${taskIds.join(', ')}`);
 
-    // Fetch task details using the service
-    const tasks = await Promise.all(
-      taskIds.map(taskId => dailyTaskService.getTaskById(taskId))
-    );
+    // Fetch task details using the repository
+    const tasks = taskIds.map(taskId => getTaskById(taskId));
 
     // Filter out any null results (tasks not found)
     const validTasks = tasks.filter(task => task !== null);

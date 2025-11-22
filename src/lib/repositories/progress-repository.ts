@@ -65,18 +65,19 @@ function rowToProgress(row: ProgressRow): DailyTaskProgress {
 
 /**
  * Convert database row to TaskSubmission
+ * Maps legacy database schema to new DailyTaskAssignment interface
  */
 function rowToSubmission(row: SubmissionRow): TaskSubmission {
   return {
-    id: row.id,
-    userId: row.userId,
     taskId: row.taskId,
-    userAnswer: row.userAnswer,
-    score: row.score,
-    feedback: row.feedback || undefined,
-    xpEarned: row.xpEarned,
+    assignedAt: fromUnixTimestamp(row.submittedAt), // Use submittedAt as approximate
+    completedAt: fromUnixTimestamp(row.submittedAt),
+    userResponse: row.userAnswer,
+    aiScore: row.score,
+    xpAwarded: row.xpEarned,
     attributeGains: row.attributeGains ? JSON.parse(row.attributeGains) : undefined,
-    submittedAt: fromUnixTimestamp(row.submittedAt),
+    feedback: row.feedback || undefined,
+    status: 'completed' as any, // Completed status since it's a submission
   };
 }
 
@@ -240,6 +241,9 @@ export function createSubmission(submission: TaskSubmission): TaskSubmission {
   const db = getDatabase();
   const now = Date.now();
 
+  // Generate a unique ID for this submission
+  const submissionId = `sub_${submission.taskId}_${Date.now()}`;
+
   const stmt = db.prepare(`
     INSERT INTO task_submissions (
       id, userId, taskId, userAnswer, score, feedback,
@@ -247,19 +251,20 @@ export function createSubmission(submission: TaskSubmission): TaskSubmission {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
+  // Map new TaskSubmission fields to legacy database schema
   stmt.run(
-    submission.id,
-    submission.userId,
+    submissionId,
+    'unknown', // userId not in new interface, use placeholder
     submission.taskId,
-    submission.userAnswer,
-    submission.score,
+    submission.userResponse || '',
+    submission.aiScore || 0,
     submission.feedback || null,
-    submission.xpEarned || 0,
+    submission.xpAwarded || 0,
     submission.attributeGains ? JSON.stringify(submission.attributeGains) : null,
-    submission.submittedAt ? toUnixTimestamp(submission.submittedAt) : now
+    submission.completedAt ? toUnixTimestamp(submission.completedAt) : now
   );
 
-  console.log(`✅ [ProgressRepository] Created submission: ${submission.id}`);
+  console.log(`✅ [ProgressRepository] Created submission: ${submissionId}`);
   return submission;
 }
 

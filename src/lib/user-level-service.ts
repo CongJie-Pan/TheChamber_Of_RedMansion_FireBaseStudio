@@ -27,7 +27,7 @@
  * - Type-safe operations
  */
 
-// Firebase removed - SQLITE-025 (no longer need Timestamp import)
+// Firebase removed - SQLITE-025 (now using SQLite Timestamp)
 import {
   UserProfile,
   UserLevel,
@@ -36,6 +36,7 @@ import {
   LevelPermission,
   AttributePoints,
   LevelRequirementCheck,
+  Timestamp,
 } from './types/user-level';
 import {
   LEVELS_CONFIG,
@@ -192,8 +193,8 @@ export class UserLevelService {
 
       // Convert SQLite Date to Timestamp for service return type
       return {
-        uid: updatedProfile.userId,
-        displayName: updatedProfile.username,
+        userId: updatedProfile.userId,
+        username: updatedProfile.username,
         email: updatedProfile.email,
         currentLevel: updatedProfile.currentLevel,
         currentXP: updatedProfile.currentXP,
@@ -238,8 +239,8 @@ export class UserLevelService {
       // Convert SQLite Date to Timestamp for service return type
       const xpProgress = calculateXPProgress(sqliteProfile.totalXP);
       return {
-        uid: sqliteProfile.userId,
-        displayName: sqliteProfile.username,
+        userId: sqliteProfile.userId,
+        username: sqliteProfile.username,
         email: sqliteProfile.email,
         currentLevel: sqliteProfile.currentLevel,
         currentXP: sqliteProfile.currentXP,

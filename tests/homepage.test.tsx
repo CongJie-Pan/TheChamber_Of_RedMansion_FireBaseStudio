@@ -50,7 +50,7 @@ jest.mock('@/hooks/useLanguage', () => ({
 jest.mock('next/image', () => ({
   __esModule: true,
   default: ({ src, alt, ...props }: any) => {
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={alt} {...props} />;
   },
 }));

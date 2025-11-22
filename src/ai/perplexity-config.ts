@@ -16,15 +16,15 @@
 export const PERPLEXITY_MODELS = {
   'sonar-pro': {
     name: 'sonar-pro',
-    displayName: 'Sonar Pro',
+    displayName: 'Sonar Pro 快速模型',
     description: '快速回應，適合一般問答',
     features: ['web_search', 'citations'],
     maxTokens: 4000,
     supportsReasoning: false,
   },
   'sonar-reasoning': {
-    name: 'sonar-reasoning', 
-    displayName: 'Sonar Reasoning',
+    name: 'sonar-reasoning',
+    displayName: 'Sonar 推理模型',
     description: '增強推理能力，適合複雜分析',
     features: ['web_search', 'citations', 'reasoning', 'thinking_process'],
     maxTokens: 8000,
@@ -32,7 +32,7 @@ export const PERPLEXITY_MODELS = {
   },
   'sonar-reasoning-pro': {
     name: 'sonar-reasoning-pro',
-    displayName: 'Sonar Reasoning Pro',
+    displayName: 'Sonar 進階推理模型',
     description: '最強推理能力，適合深度文學分析',
     features: ['web_search', 'citations', 'advanced_reasoning', 'thinking_process'],
     maxTokens: 8000,
@@ -85,7 +85,8 @@ export const PERPLEXITY_CONFIG = {
   DEFAULT_MAX_TOKENS: 2000,
   
   // Request settings
-  REQUEST_TIMEOUT_MS: 60000, // 60 seconds (base timeout)
+  REQUEST_TIMEOUT_MS: 60000, // 60 seconds (standard models timeout)
+  REASONING_MODEL_TIMEOUT_MS: 180000, // 180 seconds (3 minutes for reasoning models)
   MAX_RETRIES: 3,
   RETRY_DELAY_MS: 2000,
 

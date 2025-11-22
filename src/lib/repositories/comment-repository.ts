@@ -95,8 +95,7 @@ function rowToComment(row: CommentRow): Comment {
       parsedModerationAction = JSON.parse(row.moderationAction);
     } catch {
       // If parsing fails, it's likely a plain string like "allow"
-      // Convert to ModerationAction format
-      parsedModerationAction = { action: row.moderationAction as any };
+      parsedModerationAction = row.moderationAction as any;
     }
   }
 

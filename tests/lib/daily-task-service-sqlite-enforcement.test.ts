@@ -81,8 +81,8 @@ describe('DailyTaskService SQLite enforcement', () => {
 
   test('imports successfully when USE_SQLITE is disabled', () => {
     process.env.USE_SQLITE = '0';
-    const module = loadDailyTaskService();
+    const loadedModule = loadDailyTaskService();
 
-    expect(typeof module.DailyTaskService).toBe('function');
+    expect(typeof loadedModule.DailyTaskService).toBe('function');
   });
 });

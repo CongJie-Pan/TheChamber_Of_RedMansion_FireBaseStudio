@@ -433,7 +433,7 @@ export interface XPTransaction {
   /**
    * Source type of XP change
    */
-  source: 'reading' | 'task' | 'community' | 'poetry' | 'ai_interaction' | 'achievement' | 'admin';
+  source: 'reading' | 'daily_task' | 'community' | 'note' | 'ai_interaction' | 'achievement' | 'admin';
 
   /**
    * Reference ID to the source action

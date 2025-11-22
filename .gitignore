@@ -18,6 +18,9 @@
 /coverage
 /test-output
 
+# error reports
+/lintAndTypeError_Check
+
 # next.js
 /.next/
 /out/

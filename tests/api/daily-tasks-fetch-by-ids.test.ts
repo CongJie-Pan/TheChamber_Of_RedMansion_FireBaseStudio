@@ -51,7 +51,7 @@ describe('Daily Tasks API - Fetch by IDs', () => {
 
   beforeAll(() => {
     // Import route handler after mocking next/server
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const tasksRoute = require('@/app/api/daily-tasks/tasks/route');
     TasksGET = tasksRoute.GET;
   });

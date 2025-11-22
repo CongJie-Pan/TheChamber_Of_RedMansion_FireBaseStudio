@@ -32,7 +32,6 @@ import {
   DailyTaskType,
   TaskDifficulty,
   TextPassage,
-  PoemContent,
   CharacterPrompt,
   CulturalElement,
   CommentaryContent,
@@ -61,7 +60,6 @@ export interface TaskContentGenerationParams {
  */
 export type GeneratedTaskContent =
   | { textPassage: TextPassage }
-  | { poem: PoemContent }
   | { character: CharacterPrompt }
   | { culturalElement: CulturalElement }
   | { commentary: CommentaryContent };
@@ -228,21 +226,6 @@ JSON格式：
   }
 }`;
 
-    case DailyTaskType.POETRY:
-      return `任務：詩詞默寫
-
-選《紅樓夢》詩詞（難度${difficulty}）。
-
-JSON格式：
-{
-  "poem": {
-    "title": "詩詞標題",
-    "author": "作者",
-    "content": "完整詩詞\\n分行顯示",
-    "background": "背景說明"
-  }
-}`;
-
     case DailyTaskType.CHARACTER_INSIGHT:
       return `任務：人物角色分析
 
@@ -359,17 +342,6 @@ function parseAndValidateContent(
         }
         break;
 
-      case DailyTaskType.POETRY:
-        if (parsed.poem) {
-          // Validate required fields
-          if (!parsed.poem.title || !parsed.poem.content) {
-            console.warn('⚠️ AI generated POETRY without title or content');
-            return null; // Trigger fallback
-          }
-          return { poem: parsed.poem };
-        }
-        break;
-
       case DailyTaskType.CHARACTER_INSIGHT:
         if (parsed.character) {
           // Validate required fields
@@ -425,19 +397,6 @@ function getHardcodedContent(
           question: '這段文字描述了黛玉初見何人？',
           hint: '思考提示：注意描述中「鬢髮如銀的老母」這個關鍵特徵，以及黛玉如何認出對方的。',
           expectedKeywords: ['外祖母', '賈母', '初見'],
-        },
-      };
-
-    case DailyTaskType.POETRY:
-      return {
-        poem: {
-          id: 'poem_zanghuayin_001',
-          title: '葬花吟（節選）',
-          author: '林黛玉',
-          content: '花謝花飛花滿天，紅消香斷有誰憐？\n遊絲軟繫飄春榭，落絮輕沾撲繡簾。',
-          chapter: 27,
-          difficulty: 5,
-          theme: '花',
         },
       };
 

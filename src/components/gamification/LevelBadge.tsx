@@ -37,7 +37,7 @@
 "use client"; // Required for client-side state and hooks
 
 // React imports
-import React from 'react';
+import React, { useMemo } from 'react';
 
 // UI component imports
 import { Badge } from '@/components/ui/badge';
@@ -190,8 +190,8 @@ export function LevelBadge({
   // Get color classes for current level
   const colors = getLevelColorClasses(level);
 
-  // Get icon component for current level
-  const IconComponent = getLevelIcon(level);
+  // Get icon component for current level (memoized to avoid creating components during render)
+  const IconComponent = useMemo(() => getLevelIcon(level), [level]);
 
   // Loading state
   if (isLoading && levelOverride === undefined) {

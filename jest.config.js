@@ -116,6 +116,12 @@ const config = {
   // Global setup and teardown
   globalSetup: '<rootDir>/tests/setup/global-setup.js',
   globalTeardown: '<rootDir>/tests/setup/global-teardown.js',
+
+  // Custom reporters for JSON test results
+  reporters: [
+    'default',
+    '<rootDir>/tests/reporters/json-file-reporter.js',
+  ],
 };
 
 module.exports = config; 

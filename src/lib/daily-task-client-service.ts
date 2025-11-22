@@ -22,7 +22,7 @@
  * @phase Phase 2.9 - SQLite Integration with Client-Server Separation
  */
 
-import type { DailyTaskProgress } from './types/daily-task';
+import type { DailyTaskProgress, TaskHistoryRecord } from './types/daily-task';
 
 /**
  * Daily Task Client Service
@@ -63,9 +63,9 @@ export const dailyTaskClientService = {
    *
    * @param userId - User ID to fetch history for
    * @param limit - Maximum number of history entries to return (default: 100)
-   * @returns Array of DailyTaskProgress objects representing historical progress
+   * @returns Array of TaskHistoryRecord objects representing historical progress
    */
-  getTaskHistory: async (userId: string, limit: number = 100): Promise<DailyTaskProgress[]> => {
+  getTaskHistory: async (userId: string, limit: number = 100): Promise<TaskHistoryRecord[]> => {
     try {
       console.log(`📚 [Client Service] Fetching task history for user: ${userId}, limit: ${limit}`);
 
@@ -169,6 +169,6 @@ export const dailyTaskClientService = {
 };
 
 /**
- * Type export for convenience
+ * Type exports for convenience
  */
-export type { DailyTaskProgress } from './types/daily-task';
+export type { DailyTaskProgress, TaskHistoryRecord } from './types/daily-task';

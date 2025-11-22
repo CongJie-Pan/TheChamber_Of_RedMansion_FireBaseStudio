@@ -167,49 +167,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </div>
         );
 
-      case DailyTaskType.POETRY:
-        return (
-          <div className="space-y-4">
-            {/* Poem Title */}
-            <div className="text-center">
-              <h3 className="text-xl font-artistic text-primary">
-                《{task.content.poem?.title}》
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                {task.content.poem?.author}
-              </p>
-            </div>
-
-            {/* Original Poem (hidden for recitation) */}
-            <div>
-              <Label className="text-sm font-semibold">📜 詩詞原文（參考）</Label>
-              <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border">
-                <p className="text-sm leading-relaxed whitespace-pre-line text-center font-serif">
-                  {task.content.poem?.content}
-                </p>
-              </div>
-            </div>
-
-            {/* Recitation Input */}
-            <div>
-              <Label htmlFor="recitation" className="text-sm font-semibold">
-                🎤 默寫詩詞
-              </Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                請憑記憶默寫出這首詩，注意標點符號和格式
-              </p>
-              <Textarea
-                id="recitation"
-                placeholder="請在此默寫詩詞原文..."
-                value={userResponse}
-                onChange={(e) => setUserResponse(e.target.value)}
-                rows={6}
-                className="mt-2 font-serif"
-              />
-            </div>
-          </div>
-        );
-
       case DailyTaskType.CHARACTER_INSIGHT:
         return (
           <div className="space-y-4">
@@ -381,7 +338,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <DialogHeader>
             <DialogTitle className="text-2xl font-artistic flex items-center gap-2">
               {task.type === DailyTaskType.MORNING_READING && <BookOpen className="h-6 w-6 text-primary" />}
-              {task.type === DailyTaskType.POETRY && <Feather className="h-6 w-6 text-primary" />}
               {task.type === DailyTaskType.CHARACTER_INSIGHT && <Users className="h-6 w-6 text-primary" />}
               {task.type === DailyTaskType.CULTURAL_EXPLORATION && <Landmark className="h-6 w-6 text-primary" />}
               {task.type === DailyTaskType.COMMENTARY_DECODE && <BookMarked className="h-6 w-6 text-primary" />}

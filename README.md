@@ -212,6 +212,18 @@ TheChamber_Of_RedMansion_FireBaseStudio/
    pnpm test -- --coverage
    ```
 
+7. **Code Quality Checks**
+   ```bash
+   # Check both ESLint and TypeScript
+   npm run check:report
+
+   # Or run individually
+   npm run lint:report      # ESLint only
+   npm run typecheck:report # TypeScript only
+   ```
+
+   Reports are saved to `lintAndTypeError_Check/` directory.
+
 ## 🎯 Key Features
 
 - **AI-Powered Text Analysis** - Contextual explanations of classical Chinese literature
@@ -260,6 +272,27 @@ npm test -- --coverage
 npm test -- tests/lib/content-filter-service.test.ts
 npm test -- tests/lib/community-service.test.ts
 ```
+
+### 🔍 **Code Quality Checks**
+```bash
+# Run ESLint and TypeScript checks with detailed reports
+npm run check:report
+
+# Run ESLint check only
+npm run lint:report
+
+# Run TypeScript type check only
+npm run typecheck:report
+```
+
+**Output Location:** Reports are generated in `lintAndTypeError_Check/` directory:
+- `lint-report.txt` - ESLint violations and warnings
+- `typecheck-report.txt` - TypeScript type errors
+
+**Features:**
+- Clears cache for fresh results every run
+- Shows file size and update timestamp
+- Previews first line of output for verification
 
 ## 🤝 Contributing
 

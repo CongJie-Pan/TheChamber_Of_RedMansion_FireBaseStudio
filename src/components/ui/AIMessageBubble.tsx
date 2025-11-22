@@ -72,12 +72,17 @@ export function AIMessageBubble({
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
   // Show the thinking section ONLY when actual thinking content exists
   const showThinkingSection = hasThinkingContent && showThinkingInline;
+  // Initialize expanded state based on showThinkingSection prop
   const [isThinkingExpanded, setIsThinkingExpanded] = useState<boolean>(showThinkingSection);
   const collapseId = useId();
-  // When thinking content first appears, expand by default to match reference design
+
+  // Sync expanded state when showThinkingSection changes (deferred to avoid cascading render)
   useEffect(() => {
-    if (showThinkingSection) setIsThinkingExpanded(true);
-  }, [showThinkingSection]);
+    if (showThinkingSection && !isThinkingExpanded) {
+      const timer = setTimeout(() => setIsThinkingExpanded(true), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [showThinkingSection, isThinkingExpanded]);
 
   return (
     <div className={cn('ai-message-bubble space-y-3', className)}>

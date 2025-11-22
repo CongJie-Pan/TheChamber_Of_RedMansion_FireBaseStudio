@@ -580,7 +580,8 @@ export function updateAttributes(
   const updatedAttributes = { ...user.attributes };
 
   for (const [key, value] of Object.entries(attributeGains)) {
-    updatedAttributes[key] = (updatedAttributes[key] || 0) + value;
+    const attrKey = key as keyof AttributePoints;
+    updatedAttributes[attrKey] = (updatedAttributes[attrKey] || 0) + value;
   }
 
   return updateUser(userId, { attributes: updatedAttributes });

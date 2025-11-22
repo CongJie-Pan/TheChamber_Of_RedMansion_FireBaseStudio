@@ -203,10 +203,18 @@ body {
   * {
     @apply border-border; /* Uses the --border custom property for all borders */
   }
-  
+
+  /* Prevent horizontal scrollbar overflow at the root level */
+  html {
+    overflow-x: hidden;     /* Prevent horizontal scrolling on html element */
+    max-width: 100vw;       /* Limit maximum width to viewport width */
+  }
+
   /* Global body styling with theme colors and typography optimization */
   body {
     @apply bg-background text-foreground; /* Apply theme background and text colors */
+    overflow-x: hidden;     /* Prevent horizontal scrolling on body element */
+    max-width: 100%;        /* Limit maximum width to 100% of parent (html) */
     -webkit-font-smoothing: antialiased;  /* Smooth font rendering on WebKit browsers */
     -moz-osx-font-smoothing: grayscale;   /* Smooth font rendering on Firefox/macOS */
   }

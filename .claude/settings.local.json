@@ -102,7 +102,11 @@
       "Bash(tsx scripts/seed-guest-account.ts:*)",
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/api/community/comments-route.test.ts 2>&1 | findstr /C:\"Test Suites\" /C:\"Tests:\"\")",
       "WebFetch(domain:2ality.com)",
-      "WebFetch(domain:stackoverflow.com)"
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:docs.perplexity.ai)",
+      "WebFetch(domain:m3.material.io)",
+      "WebFetch(domain:flowbite.com)",
+      "WebFetch(domain:github.com)"
     ]
   },
   "outputStyle": "default"

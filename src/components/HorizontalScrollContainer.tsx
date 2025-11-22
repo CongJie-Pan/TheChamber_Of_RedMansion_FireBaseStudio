@@ -89,8 +89,9 @@ export const HorizontalScrollContainer: React.FC<HorizontalScrollContainerProps>
 
   /**
    * Apply momentum scrolling with physics simulation
+   * Using useCallback with proper dependency to ensure stable reference
    */
-  const applyMomentumScroll = useCallback(() => {
+  const applyMomentumScroll = useCallback(function applyMomentumScrollImpl() {
     if (!enableMomentum || !containerRef.current) return;
 
     const container = containerRef.current;
@@ -108,13 +109,13 @@ export const HorizontalScrollContainer: React.FC<HorizontalScrollContainerProps>
       container.scrollLeft = Math.max(0, Math.min(newScrollLeft, maxScroll));
 
       momentum.current.isScrolling = true;
-      animationFrame.current = requestAnimationFrame(applyMomentumScroll);
+      animationFrame.current = requestAnimationFrame(applyMomentumScrollImpl);
     } else {
       momentum.current.isScrolling = false;
       momentum.current.velocity = 0;
       setIsScrolling(false);
     }
-  }, [enableMomentum]);
+  }, [enableMomentum, setIsScrolling]);
 
   /**
    * Handle scroll events with momentum calculation

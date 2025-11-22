@@ -28,7 +28,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import type {
@@ -241,9 +241,10 @@ export const ChineseWindowNavButton = React.forwardRef<
     };
 
     /**
-     * Button content (icon + label + badge)
+     * Button content JSX (icon + label + badge)
+     * Stored as JSX element to avoid creating components during render
      */
-    const ButtonContent = () => (
+    const buttonContentJSX = (
       <>
         {/* Window frame effects - Layer 1 (background) */}
         <ActiveFrameBackground />
@@ -296,7 +297,7 @@ export const ChineseWindowNavButton = React.forwardRef<
           aria-current={isActive ? 'page' : undefined}
           title={tooltip || label}
         >
-          <ButtonContent />
+          {buttonContentJSX}
         </Link>
       );
     }
@@ -314,7 +315,7 @@ export const ChineseWindowNavButton = React.forwardRef<
         aria-label={tooltip || label}
         title={tooltip || label}
       >
-        <ButtonContent />
+        {buttonContentJSX}
       </button>
     );
   }

@@ -193,15 +193,6 @@ function buildTaskSpecificContext(
       }
       break;
 
-    case DailyTaskType.POETRY:
-      if (taskContent.poem) {
-        context += `詩詞：《${taskContent.poem.title}》
-${taskContent.poem.content}
-
-`;
-      }
-      break;
-
     case DailyTaskType.CHARACTER_INSIGHT:
       if (taskContent.character) {
         context += `人物：${taskContent.character.characterName}
@@ -243,7 +234,6 @@ ${taskContent.poem.content}
 function getTaskTypeDisplayName(taskType: DailyTaskType): string {
   const displayNames: Record<DailyTaskType, string> = {
     [DailyTaskType.MORNING_READING]: '晨讀時光 - 文本理解',
-    [DailyTaskType.POETRY]: '詩詞韻律 - 詩詞默寫',
     [DailyTaskType.CHARACTER_INSIGHT]: '人物洞察 - 角色分析',
     [DailyTaskType.CULTURAL_EXPLORATION]: '文化探秘 - 知識問答',
     [DailyTaskType.COMMENTARY_DECODE]: '脂批解密 - 批語解讀',

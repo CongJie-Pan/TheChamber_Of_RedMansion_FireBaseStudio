@@ -42,14 +42,6 @@ async function testAILogging() {
       }
     },
     {
-      name: 'Poetry (POETRY)',
-      params: {
-        userLevel: 4,
-        taskType: DailyTaskType.POETRY,
-        difficulty: TaskDifficulty.HARD,
-      }
-    },
-    {
       name: 'Character Insight (CHARACTER_INSIGHT)',
       params: {
         userLevel: 2,

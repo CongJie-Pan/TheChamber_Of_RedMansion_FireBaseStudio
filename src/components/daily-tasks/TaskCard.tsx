@@ -57,8 +57,6 @@ const getTaskTypeIcon = (type: DailyTaskType) => {
   switch (type) {
     case DailyTaskType.MORNING_READING:
       return <BookOpen className={iconClass} />;
-    case DailyTaskType.POETRY:
-      return <Feather className={iconClass} />;
     case DailyTaskType.CHARACTER_INSIGHT:
       return <Users className={iconClass} />;
     case DailyTaskType.CULTURAL_EXPLORATION:
@@ -76,7 +74,6 @@ const getTaskTypeIcon = (type: DailyTaskType) => {
 const getTaskTypeName = (type: DailyTaskType): string => {
   const names: Record<DailyTaskType, string> = {
     [DailyTaskType.MORNING_READING]: '晨讀時光',
-    [DailyTaskType.POETRY]: '詩詞韻律',
     [DailyTaskType.CHARACTER_INSIGHT]: '人物洞察',
     [DailyTaskType.CULTURAL_EXPLORATION]: '文化探秘',
     [DailyTaskType.COMMENTARY_DECODE]: '脂批解密',

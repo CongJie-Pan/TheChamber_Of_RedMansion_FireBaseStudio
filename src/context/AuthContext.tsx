@@ -87,44 +87,55 @@ export function AuthLoadingScreen({ message, subMessage }: AuthLoadingScreenProp
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background/95 to-background px-6 text-center text-foreground">
       <div className="relative mb-6 flex items-center justify-center">
-        {/* SVG-based high-contrast spinner - more reliable than border-trick approach */}
-        <div className="absolute" style={{ willChange: 'transform' }}>
-          <svg
-            className="h-44 w-44 animate-spin text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
+        {/* White gradient ring spinner with smooth trailing fade effect */}
+        <div className="absolute">
+          <div
+            className="relative inline-block animate-spin"
+            style={{
+              width: '64px',
+              height: '64px',
+              willChange: 'transform'
+            }}
             role="status"
-            aria-live="polite"
             aria-label="載入中"
           >
-            {/* Background circle with low opacity */}
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="3"
+            {/* Outer gradient circle with white conic gradient */}
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: `conic-gradient(
+                  from 90deg,
+                  rgba(255, 255, 255, 0) 0deg,
+                  rgba(255, 255, 255, 0.3) 90deg,
+                  rgba(255, 255, 255, 0.7) 180deg,
+                  rgba(255, 255, 255, 1) 270deg,
+                  rgba(255, 255, 255, 1) 300deg,
+                  rgba(255, 255, 255, 0.5) 330deg,
+                  rgba(255, 255, 255, 0) 360deg
+                )`
+              }}
             />
-            {/* Spinning arc with higher opacity */}
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            {/* Inner masking circle to create ring effect */}
+            <div
+              className="absolute rounded-full"
+              style={{
+                inset: '6px',
+                background: 'hsl(0 60% 25%)'
+              }}
             />
-          </svg>
+            <span className="sr-only">載入中</span>
+          </div>
         </div>
 
         {/* Logo container with subtle blur to highlight brand mark */}
-        <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/20">
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-white/10 backdrop-blur-md ring-1 ring-white/20">
           <Image
             src="/images/logo_circle.png"
             alt="紅樓慧讀"
-            width={120}
-            height={120}
+            width={88}
+            height={88}
             priority
-            className="h-28 w-28 rounded-full object-cover"
+            className="h-20 w-20 rounded-full object-cover"
           />
         </div>
       </div>
@@ -266,13 +277,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   useEffect(() => {
     if (user?.id) {
-      // User is logged in, load their profile from SQLite
+      // User is logged in, load their profile from SQLite asynchronously
       const username = user.name || 'User';
       const email = user.email || '';
-      loadUserProfile(user.id, username, email);
+      // Call async function without awaiting to avoid setState in effect body
+      void loadUserProfile(user.id, username, email);
     } else {
-      // User is logged out, clear profile
-      setUserProfile(null);
+      // User is logged out, clear profile (deferred to next tick)
+      const timer = setTimeout(() => setUserProfile(null), 0);
+      return () => clearTimeout(timer);
     }
   }, [user, loadUserProfile]);
 

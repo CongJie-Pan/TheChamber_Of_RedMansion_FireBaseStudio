@@ -50,11 +50,11 @@ describe('Daily Tasks API Routes - Progress & History', () => {
 
   beforeAll(() => {
     // Import route handlers after mocking next/server
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const progressRoute = require('@/app/api/daily-tasks/progress/route');
     ProgressGET = progressRoute.GET;
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const historyRoute = require('@/app/api/daily-tasks/history/route');
     HistoryGET = historyRoute.GET;
   });

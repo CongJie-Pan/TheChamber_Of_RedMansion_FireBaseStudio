@@ -222,8 +222,8 @@ function buildChatCompletionParams(
   if (options.stripOptionalParams) {
     OPTIONAL_SAMPLING_KEYS.forEach((key) => {
       if (key in payload) {
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete (payload as Record<string, unknown>)[key];
+         
+        delete (payload as unknown as Record<string, unknown>)[key];
       }
     });
   }
@@ -369,8 +369,6 @@ export async function generateCompletion(
 
       content =
         choice?.message?.content ||
-        choice?.text ||
-        choice?.message?.text ||
         '';
       usage = response.usage;
       responseModel = response.model;

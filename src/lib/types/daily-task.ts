@@ -193,6 +193,11 @@ export interface DailyTaskAssignment {
 }
 
 /**
+ * Task submission record (alias for DailyTaskAssignment for backward compatibility)
+ */
+export type TaskSubmission = DailyTaskAssignment;
+
+/**
  * Daily task progress for a user on a specific date
  * Firestore collection: dailyTaskProgress
  */

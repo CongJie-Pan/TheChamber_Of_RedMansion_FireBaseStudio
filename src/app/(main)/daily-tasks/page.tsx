@@ -67,6 +67,9 @@ import {
   TaskCompletionResult
 } from '@/lib/types/daily-task';
 
+// Utilities
+import { fromUnixTimestamp } from '@/lib/sqlite-db';
+
 // Components (to be implemented)
 import { TaskCard } from '@/components/daily-tasks/TaskCard';
 import { TaskModal } from '@/components/daily-tasks/TaskModal';
@@ -478,7 +481,7 @@ export default function DailyTasksPage() {
             completedTaskIds: [...prevProgress.completedTaskIds, taskId],
             tasks: prevProgress.tasks.map(t =>
               t.taskId === taskId
-                ? { ...t, status: TaskStatus.COMPLETED, completedAt: new Date() }
+                ? { ...t, status: TaskStatus.COMPLETED, completedAt: fromUnixTimestamp(Date.now()) }
                 : t
             ),
             totalXPEarned: prevProgress.totalXPEarned + (result?.xpAwarded || 0)
@@ -555,7 +558,7 @@ export default function DailyTasksPage() {
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={loadDailyTasks} className="w-full">
+            <Button onClick={() => loadDailyTasks()} className="w-full">
               重新載入
             </Button>
           </CardContent>

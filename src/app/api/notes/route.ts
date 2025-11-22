@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         } as CreateNoteResponse,
         { status: 400 }
       );
@@ -268,7 +268,7 @@ export async function PUT(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         } as UpdateNoteResponse,
         { status: 400 }
       );

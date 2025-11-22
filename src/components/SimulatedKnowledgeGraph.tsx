@@ -26,33 +26,16 @@ import { cn } from "@/lib/utils";
 import { useState } from 'react';
 
 /**
- * SimulatedKnowledgeGraph Component
- * 
- * Displays a knowledge graph visualization for the current chapter, showing
- * relationships between characters and themes in "Dream of the Red Chamber".
- * 
- * @param {DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>} props - Standard div props
- * @param {string} className - Additional CSS classes for styling
- * @returns {JSX.Element} The knowledge graph visualization component
+ * Fallback Content Component
+ *
+ * Displays a styled placeholder when the main image fails to load.
+ * Features traditional Chinese design elements and sample character names
+ * from "Dream of the Red Chamber" to maintain thematic consistency.
+ *
+ * @returns {JSX.Element} Styled fallback content with character samples
  */
-export function SimulatedKnowledgeGraph({ className, ...props }: DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
-  // External image URL hosted on ImgBB for knowledge graph visualization
-  // This could be replaced with dynamically generated graphs in future iterations
-  const imageUrl = "https://i.ibb.co/8gqXHgCK/knowledge-Graph-main-Page-for-Reading-Page.jpg";
-  
-  // State to track image loading errors for fallback display
-  const [imageError, setImageError] = useState(false);
-
-  /**
-   * Fallback Content Component
-   * 
-   * Displays a styled placeholder when the main image fails to load.
-   * Features traditional Chinese design elements and sample character names
-   * from "Dream of the Red Chamber" to maintain thematic consistency.
-   * 
-   * @returns {JSX.Element} Styled fallback content with character samples
-   */
-  const FallbackContent = () => (
+function FallbackContent() {
+  return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 rounded-lg border-2 border-red-200">
       {/* Traditional Chinese pattern decoration using cherry blossom emoji */}
       <div className="text-6xl mb-4 animate-pulse">🌸</div>
@@ -86,6 +69,25 @@ export function SimulatedKnowledgeGraph({ className, ...props }: DetailedHTMLPro
       </p>
     </div>
   );
+}
+
+/**
+ * SimulatedKnowledgeGraph Component
+ *
+ * Displays a knowledge graph visualization for the current chapter, showing
+ * relationships between characters and themes in "Dream of the Red Chamber".
+ *
+ * @param {DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>} props - Standard div props
+ * @param {string} className - Additional CSS classes for styling
+ * @returns {JSX.Element} The knowledge graph visualization component
+ */
+export function SimulatedKnowledgeGraph({ className, ...props }: DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+  // External image URL hosted on ImgBB for knowledge graph visualization
+  // This could be replaced with dynamically generated graphs in future iterations
+  const imageUrl = "https://i.ibb.co/8gqXHgCK/knowledge-Graph-main-Page-for-Reading-Page.jpg";
+
+  // State to track image loading errors for fallback display
+  const [imageError, setImageError] = useState(false);
 
   return (
     <div

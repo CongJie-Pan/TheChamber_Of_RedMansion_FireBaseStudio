@@ -63,7 +63,9 @@ export function isLikelyThinkingPreface(text: string | null | undefined): boolea
     .split(/[\。\.?!！？]/)
     .filter((sentence) => sentence.trim().length > 0).length;
 
-  return hasCue && (hasLead || sentenceCount >= 2 || trimmed.length <= 80);
+  // Require either lead words or multiple sentences to avoid false positives
+  // Removed length check (trimmed.length <= 80) as it was too lenient for Chinese text
+  return hasCue && (hasLead || sentenceCount >= 2);
 }
 
 /**
@@ -117,44 +119,83 @@ export function splitThinkingFromContent(text: string | null | undefined): Think
 
   // 0) PRIORITY: Extract and remove <think> tags (Perplexity API format)
   // This should be handled by the server, but we double-check here as a safety measure
-  const thinkTagRegex = /<think>([\s\S]*?)<\/think>/gi;
-  const thinkMatches = normalised.match(thinkTagRegex);
+  // Using counting method to correctly handle nested/consecutive tags
 
-  if (thinkMatches && thinkMatches.length > 0) {
-    // Extract all thinking tag content
-    let allThinkingText = '';
-    thinkMatches.forEach(match => {
-      const content = match.replace(/<\/?think>/gi, '').trim();
-      if (content) {
-        allThinkingText += content + '\n\n';
+  const thinkingParts: string[] = [];
+  let cleanResult = '';
+  let depth = 0;
+  let currentThinking = '';
+  let i = 0;
+
+  while (i < normalised.length) {
+    // Check for opening tag <think>
+    if (normalised.slice(i, i + 7) === '<think>') {
+      depth++;
+      if (depth === 1) {
+        // Start of a new top-level thinking block
+        currentThinking = '';
+      } else {
+        // Nested tag - preserve in thinking content
+        currentThinking += '<think>';
       }
-    });
-
-    // Remove all <think>...</think> tags and their content from the answer
-    let cleanContent = normalised.replace(thinkTagRegex, '');
-
-    // Also handle incomplete tags (e.g., streaming)
-    const incompleteThinkPattern = /<think[^>]*>([\s\S]*?)(?=<(?!\/?think)|$)/gi;
-    cleanContent = cleanContent.replace(incompleteThinkPattern, '');
-
-    // Clean up multiple blank lines
-    cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n').trim();
-
-    // If we extracted thinking content, return it
-    if (allThinkingText.trim()) {
-      return {
-        cleanContent: cleanContent,
-        thinkingText: sanitizeThinkingContent(allThinkingText.trim()),
-      };
+      i += 7;
+      continue;
     }
 
-    // If tags were present but empty, still return cleaned content
-    if (thinkMatches.length > 0) {
-      return {
-        cleanContent: cleanContent,
-        thinkingText: '',
-      };
+    // Check for closing tag </think>
+    if (normalised.slice(i, i + 8) === '</think>') {
+      depth--;
+      if (depth === 0) {
+        // Complete thinking block - save it
+        if (currentThinking.trim()) {
+          thinkingParts.push(currentThinking.trim());
+        }
+        currentThinking = '';
+      } else if (depth > 0) {
+        // Nested closing tag - preserve in thinking content
+        currentThinking += '</think>';
+      } else {
+        // depth < 0: unmatched closing tag - treat as regular text
+        cleanResult += '</think>';
+      }
+      i += 8;
+      continue;
     }
+
+    // Regular character
+    if (depth > 0) {
+      // Inside thinking block
+      currentThinking += normalised[i];
+    } else {
+      // Outside thinking block
+      cleanResult += normalised[i];
+    }
+    i++;
+  }
+
+  // If there's incomplete thinking (depth > 0), don't extract it
+  // Just return empty thinkingText (streaming not complete)
+
+  const allThinkingText = thinkingParts.join('\n\n');
+  const hasCompleteTags = thinkingParts.length > 0;
+
+  // Clean up the result
+  const cleanContent = cleanResult.replace(/\n{3,}/g, '\n\n').trim();
+
+  // Return result based on what we found
+  if (hasCompleteTags) {
+    return {
+      cleanContent: cleanContent,
+      thinkingText: sanitizeThinkingContent(allThinkingText),
+    };
+  }
+
+  // If we encountered tags but none were complete, return empty thinking
+  if (depth > 0 || normalised.includes('<think')) {
+    return {
+      cleanContent: cleanContent,
+      thinkingText: '',
+    };
   }
 
   // 1) Explicit markers such as headings or decorative separators

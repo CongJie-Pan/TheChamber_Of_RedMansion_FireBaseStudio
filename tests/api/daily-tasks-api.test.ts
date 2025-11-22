@@ -55,9 +55,9 @@ describe('Daily Tasks API', () => {
 
   beforeAll(() => {
     // Import route handlers after mocking next/server
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     GeneratePOST = require('@/app/api/daily-tasks/generate/route').POST
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     SubmitPOST = require('@/app/api/daily-tasks/submit/route').POST
   })
 

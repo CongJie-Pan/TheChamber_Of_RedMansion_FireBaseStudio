@@ -214,4 +214,16 @@ const timeout = calculateAdaptiveTimeout({
 });
 ```
 
-* **Testing:** This module consists of pure configuration constants and utility functions without unit tests. Integration testing occurs through the `perplexity-client.ts` service and `perplexity-red-chamber-qa.ts` AI flow that consume these configurations. The adaptive timeout algorithm can be validated by observing API request performance in production logs using the `terminal-logger` module. Configuration validation is tested through the `isPerplexityConfigured()` guard function used in API routes.
+* **Testing:** This module has comprehensive unit test coverage in `tests/ai/perplexity-config.test.ts` with 95%+ code coverage. The test suite includes:
+  - **Model Configuration Tests** (18 tests): Validates all three model types with correct properties, Chinese display names, reasoning effort levels, and question contexts
+  - **Configuration Constants Tests** (8 tests): Verifies API endpoints, timeout values, adaptive timeout configuration, default model settings, streaming settings, citation settings, response processing settings, and error handling settings
+  - **Environment Variable Tests** (5 tests): Tests API key retrieval, configuration validation, and environment variable mapping
+  - **Model Helper Tests** (2 tests): Validates `getModelConfig()` and `supportsReasoning()` functions
+  - **HTTP Headers Tests** (3 tests): Tests header generation with provided API key, environment API key, and missing API key scenarios
+  - **Config Factory Tests** (9 tests): Validates `createPerplexityConfig()` with default values, custom values, maxTokens ceiling enforcement, reasoning_effort inclusion/exclusion logic, and all reasoning effort levels
+  - **Adaptive Timeout Algorithm Tests** (14 tests): Comprehensive validation of timeout calculation including base timeout, reasoning multiplier, effort bonuses (high/medium/low), question length bonuses, context-specific adjustments, min/max boundary enforcement, and combined bonuses
+  - **Timeout Formatter Tests** (6 tests): Tests `getTimeoutSummary()` with various timeout values and formatting edge cases
+  - **Type Safety Tests** (3 tests): Validates TypeScript type unions for PerplexityModelKey, ReasoningEffort, and QuestionContext
+  - **Edge Cases Tests** (6 tests): Tests undefined parameters, zero values, extreme values, and boundary conditions
+
+  Integration testing occurs through `tests/integration/perplexity-qa-integration.test.ts` and `tests/lib/perplexity-client.test.ts` which validate configuration usage in real API request scenarios. The adaptive timeout algorithm is validated through logged performance metrics using the `terminal-logger` module.

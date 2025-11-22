@@ -347,7 +347,7 @@ export class DailyTaskService {
           // Ensure critical fields have values with fallbacks
           title: task.title || `${task.type} 任務`,
           description: task.description || `請完成此學習任務`,
-          baseXP: task.baseXP ?? BASE_XP_REWARDS[task.type] ?? 10,
+          xpReward: task.xpReward ?? BASE_XP_REWARDS[task.type] ?? 10,
         };
 
         // Log validation warnings
@@ -357,8 +357,8 @@ export class DailyTaskService {
         if (!task.description) {
           console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing description, using fallback`);
         }
-        if (task.baseXP === undefined || task.baseXP === null) {
-          console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing baseXP, using fallback: ${validated.baseXP}`);
+        if (task.xpReward === undefined || task.xpReward === null) {
+          console.warn(`⚠️ [DailyTaskService] Task ${index + 1} (${task.id}) missing xpReward, using fallback: ${validated.xpReward}`);
         }
 
         return validated;
@@ -809,8 +809,6 @@ export class DailyTaskService {
         score,
         feedback,
         xpAwarded: finalXP,
-        // Backward-compat alias expected by some integration tests
-        xpEarned: finalXP as any,
         attributeGains,
         rewards: {
           immediately: {

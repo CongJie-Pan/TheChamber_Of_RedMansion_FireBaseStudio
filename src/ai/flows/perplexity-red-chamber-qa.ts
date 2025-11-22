@@ -83,7 +83,7 @@ const PerplexityQAOutputSchemaObject = z.object({
     webSources: z.array(z.any()),
     confidenceScore: z.number().optional(),
     groundingSuccessful: z.boolean(),
-    rawMetadata: z.record(z.any()).optional(),
+    rawMetadata: z.record(z.string(), z.any()).optional(),
   }).describe('接地元數據'),
   modelUsed: z.string().describe('使用的模型'),
   modelKey: z.string().describe('模型金鑰'),
@@ -99,7 +99,7 @@ const PerplexityQAOutputSchemaObject = z.object({
   questionLength: z.number().describe('問題長度（字符數）'),
   citationCount: z.number().describe('引用數量'),
   error: z.string().optional().describe('錯誤資訊（如果請求失敗）'),
-  metadata: z.record(z.any()).optional().describe('額外的回應元數據'),
+  metadata: z.record(z.string(), z.any()).optional().describe('額外的回應元數據'),
 });
 
 /**

@@ -171,13 +171,18 @@ export const TaskResultModal: React.FC<TaskResultModalProps> = ({
    * Reset refresh tracking when modal closes or a new result arrives
    */
   useEffect(() => {
+    // Reset flag when modal closes
     if (!open) {
-      setHasRefreshedProfile(false);
+      // Use setTimeout to defer state update to next tick
+      const timer = setTimeout(() => setHasRefreshedProfile(false), 0);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
   useEffect(() => {
-    setHasRefreshedProfile(false);
+    // Reset flag when task changes
+    const timer = setTimeout(() => setHasRefreshedProfile(false), 0);
+    return () => clearTimeout(timer);
   }, [result.taskId]);
 
   return (

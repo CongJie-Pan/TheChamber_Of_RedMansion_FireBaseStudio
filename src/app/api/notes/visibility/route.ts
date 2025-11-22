@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest) {
         {
           success: false,
           error: 'Invalid request data',
-          details: validationResult.error.errors,
+          details: validationResult.error.issues,
         } as UpdateNoteVisibilityResponse,
         { status: 400 }
       );

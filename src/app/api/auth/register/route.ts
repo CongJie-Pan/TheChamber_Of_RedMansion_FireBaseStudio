@@ -156,13 +156,13 @@ export async function POST(request: NextRequest) {
       validatedData = registerSchema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.log('❌ [Registration] Validation failed:', error.errors);
+        console.log('❌ [Registration] Validation failed:', error.issues);
         return NextResponse.json(
           {
             success: false,
             error: 'Validation failed',
             code: 'VALIDATION_ERROR',
-            details: error.errors.map((err) => ({
+            details: error.issues.map((err) => ({
               field: err.path.join('.'),
               message: err.message,
             })),
