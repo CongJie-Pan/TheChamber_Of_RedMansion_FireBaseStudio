@@ -19,6 +19,27 @@ const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Add Web Streams API support (Node.js 18+)
+// Required for SSE streaming tests and perplexity-client integration tests
+if (typeof global.ReadableStream === 'undefined') {
+  const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
+  global.ReadableStream = ReadableStream;
+  global.WritableStream = WritableStream;
+  global.TransformStream = TransformStream;
+}
+
+// Web Standard APIs (Request, Response, Headers, FormData, fetch)
+// Node.js 22+ provides these natively on globalThis (powered by undici internally)
+// jsdom environment requires explicit global injection (it doesn't auto-inherit Node.js globals)
+if (typeof global.Response === 'undefined') {
+  // Copy Node.js native Web Standard APIs to Jest's global object
+  global.Response = globalThis.Response;
+  global.Request = globalThis.Request;
+  global.Headers = globalThis.Headers;
+  global.FormData = globalThis.FormData;
+  global.fetch = globalThis.fetch;
+}
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(() => ({

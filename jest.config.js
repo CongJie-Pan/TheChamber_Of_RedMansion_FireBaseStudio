@@ -40,17 +40,22 @@ const config = {
   },
   
   // Module name mapping for path aliases (matching tsconfig.json)
+  // IMPORTANT: More specific paths must come BEFORE general patterns
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@/components/(.*)$': '<rootDir>/src/components/$1',
-    '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
-    '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
-    '^@/context/(.*)$': '<rootDir>/src/context/$1',
+    // CSS and asset mocks (must be first)
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     // Mock lucide-react icons to avoid ES module issues
     'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
     // Mock all Radix UI React primitives to simple components
     '^@radix-ui/react-.*$': '<rootDir>/tests/mocks/radix.js',
+    // Specific path mappings (must come before general @/(.*)$)
+    '^@/components/(.*)$': '<rootDir>/src/components/$1',
+    '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
+    '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
+    '^@/context/(.*)$': '<rootDir>/src/context/$1',
+    '^@tests/(.*)$': '<rootDir>/tests/$1',
+    // General catch-all pattern (must be last)
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   
   // Test file patterns

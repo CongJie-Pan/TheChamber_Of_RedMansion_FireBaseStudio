@@ -26,6 +26,7 @@ import {
   type PerplexityModelKey,
 } from '@/ai/perplexity-config';
 import { sanitizeThinkingContent, isLikelyThinkingPreface } from '@/lib/perplexity-thinking-utils';
+import { PerplexityStreamProcessor } from '@/lib/streaming/perplexity-stream-processor';
 import { terminalLogger, debugLog, errorLog, traceLog } from '@/lib/terminal-logger';
 
 // Debug mode control: Enable detailed logging with PERPLEXITY_DEBUG=true
@@ -79,11 +80,6 @@ interface PerplexityStreamChunk {
   web_search_queries?: string[];
 }
 
-/**
- * 系統提示文字：當 API 僅回傳思考內容時，提供友善回饋
- */
-const THINKING_ONLY_FALLBACK_PREFIX =
-  '⚠️ 系統僅收到 AI 的思考內容，以下為原始推理紀錄：';
 
 /**
  * Perplexity API client class
@@ -259,48 +255,6 @@ export class PerplexityClient {
    *
    * @returns { thinking: string, answer: string }
    */
-  /**
-   * Parse reasoning response according to official Perplexity documentation
-   * Official format: <think>reasoning process...</think>\nActual answer here
-   *
-   * Reference: docs/tech_docs/Sonar_reasoning_-_Perplexity.md (Line 117)
-   * @param text - Raw response text from Perplexity API
-   * @returns Separated thinking and answer content
-   */
-  private parseReasoningResponse(text: string): { thinking: string; answer: string } {
-    if (!text) return { thinking: '', answer: '' };
-
-    // Step 1: Extract all complete <think>...</think> tags as thinking content
-    const completeThinkMatches = Array.from(text.matchAll(/<think>([\s\S]*?)<\/think>/g));
-    let thinking = completeThinkMatches
-      .map(m => (m[1] || '').trim())
-      .join('\n\n')
-      .trim();
-
-    // Step 1.5: Handle incomplete <think> tags during streaming
-    // When streaming, we may receive "<think>\n我" before the closing tag
-    if (!thinking) {
-      const incompleteThinkMatch = text.match(/<think[^>]*>([\s\S]*?)$/);
-      if (incompleteThinkMatch && incompleteThinkMatch[1]) {
-        thinking = incompleteThinkMatch[1].trim();
-      }
-    }
-
-    // Step 2: Remove all <think> tags - remaining content is the answer
-    // This follows official format: answer is ALWAYS after </think> tag
-    let answer = text
-      .replace(/<think>[\s\S]*?<\/think>/g, '')  // Remove complete tags
-      .replace(/<think[^>]*>[\s\S]*?$/g, '')     // Remove incomplete tags (during streaming)
-      .trim();
-
-    // Step 3: Sanitize thinking content (remove HTML, markdown, etc.)
-    const sanitizedThinking = sanitizeThinkingContent(thinking);
-
-    return {
-      thinking: sanitizedThinking || thinking,
-      answer
-    };
-  }
 
   /**
    * Clean HTML tags and process thinking tags
@@ -432,7 +386,20 @@ export class PerplexityClient {
       }
 
       const rawAnswer = choice.message.content;
-      const cleanAnswer = this.cleanResponse(rawAnswer, input.showThinkingProcess);
+
+      // Use StreamProcessor to separate thinking and answer content
+      const processor = new PerplexityStreamProcessor();
+      const chunks = processor.processChunk(rawAnswer);
+      processor.finalize();
+
+      // Extract thinking and answer from processed chunks
+      const thinkingContent = sanitizeThinkingContent(processor.getAllThinking());
+      const answerContent = chunks
+        .filter(c => c.type === 'text')
+        .map(c => c.content)
+        .join('');
+
+      const cleanAnswer = this.cleanResponse(answerContent, input.showThinkingProcess);
       const citations = this.extractCitations(
         cleanAnswer,
         apiResponse.citations,
@@ -532,6 +499,10 @@ export class PerplexityClient {
     let fullContent = '';
     let collectedCitations: string[] = [];
     let collectedSearchQueries: string[] = [];
+
+    // Initialize StreamProcessor for handling <think> tags across chunks
+    const processor = new PerplexityStreamProcessor();
+    let accumulatedThinking = '';
 
     try {
       const prompt = this.buildPrompt(input);
@@ -648,23 +619,9 @@ export class PerplexityClient {
               try {
                 const chunk: PerplexityStreamChunk = JSON.parse(data);
                 const processingTime = (Date.now() - startTime) / 1000;
-                chunkIndex++;
 
                 if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta.content) {
-                  const content = chunk.choices[0].delta.content;
-                  fullContent += content;
-
-                  // Enhanced diagnostic logging - log raw content for debugging
-                  if (chunkIndex % 5 === 1 || fullContent.includes('</think>')) {
-                    console.log(`🔍 [RAW CONTENT] Chunk ${chunkIndex}:`, {
-                      totalLength: fullContent.length,
-                      preview: fullContent.substring(0, 200).replace(/\n/g, '\\n'),
-                      hasOpenTag: fullContent.includes('<think>'),
-                      hasCloseTag: fullContent.includes('</think>'),
-                      openTagCount: (fullContent.match(/<think>/g) || []).length,
-                      closeTagCount: (fullContent.match(/<\/think>/g) || []).length,
-                    });
-                  }
+                  const rawContent = chunk.choices[0].delta.content;
 
                   // Collect citations and search queries
                   if (chunk.citations) {
@@ -674,178 +631,85 @@ export class PerplexityClient {
                     collectedSearchQueries = chunk.web_search_queries;
                   }
 
-                  const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
                   const isComplete = chunk.choices[0].finish_reason !== null;
 
-                  // Parse reasoning response to separate thinking and answer (following official format)
-                  const { thinking, answer } = this.parseReasoningResponse(fullContent);
-                  const sanitizedThinking = sanitizeThinkingContent(thinking);
+                  // Process content through StreamProcessor to separate thinking and text
+                  const structuredChunks = processor.processChunk(rawContent);
 
-                  // Log 1: Parsing results for debugging (only in DEBUG mode)
-                  if (DEBUG) {
-                    console.log('🧠 [PARSE REASONING] Extraction results:', {
-                      chunkIndex,
-                      fullContentLength: fullContent.length,
-                      hasThinkTags: fullContent.includes('<think>'),
-                      completeThinkTags: (fullContent.match(/<think>[\s\S]*?<\/think>/g) || []).length,
-                      extractedThinkingLength: thinking.length,
-                      extractedAnswerLength: answer.length,
-                      sanitizedThinkingLength: sanitizedThinking.length,
-                      thinkingPreview: thinking.substring(0, 100).replace(/\n/g, '\\n') || '(empty)',
-                      answerPreview: answer.substring(0, 100).replace(/\n/g, '\\n') || '(empty)',
-                      fullContentPreview: fullContent.substring(0, 150).replace(/\n/g, '\\n'),
-                    });
-                  }
+                  for (const structured of structuredChunks) {
+                    if (structured.type === 'thinking') {
+                      // Accumulate thinking content
+                      accumulatedThinking += (accumulatedThinking ? '\n\n' : '') + structured.content;
+                    } else if (structured.type === 'text') {
+                      // Accumulate answer text
+                      fullContent += structured.content;
 
-                  // Simplified logic based on official format: answer is always outside <think> tags
-                  let incrementalContent = this.cleanResponse(content, false);
-                  let aggregatedContent = answer || '';  // Answer from official format
+                      // Sanitize accumulated thinking
+                      const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
 
-                  const fallbackPayload = sanitizedThinking
-                    ? `${THINKING_ONLY_FALLBACK_PREFIX}\n\n${sanitizedThinking}`
-                    : '';
+                      // Extract citations from current full content
+                      const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
 
-                  let contentDerivedFromThinking = false;
+                      // Clean the incremental content
+                      const incrementalContent = this.cleanResponse(structured.content, false);
 
-                  // Enhanced fallback logic based on official Perplexity API best practices
-                  // Reference: docs.perplexity.ai error handling guidelines
-                  // Based on web research: Chinese complete sentences need 6-8 chars (subject+verb+object)
-                  const MIN_VALID_ANSWER_LENGTH = 6;  // Minimum for complete Chinese sentence (e.g., "她很聰明" = 6 chars)
-                  const MIN_REASONABLE_THINKING_LENGTH = 6;  // Minimum for meaningful reasoning (e.g., "只有推理內容" = 6 chars)
-                  const MAX_REASONABLE_THINKING_LENGTH = 5000;  // Maximum to avoid anomalies
+                      yield {
+                        content: incrementalContent,
+                        fullContent: fullContent,
+                        thinkingContent: sanitizedThinking,
+                        contentDerivedFromThinking: false,  // No fallback logic
+                        timestamp: new Date().toISOString(),
+                        citations,
+                        searchQueries: collectedSearchQueries,
+                        metadata: {
+                          searchQueries: collectedSearchQueries,
+                          webSources: citations.filter(c => c.type === 'web_citation'),
+                          groundingSuccessful: collectedCitations.length > 0,
+                          confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                        },
+                        responseTime: processingTime,
+                        isComplete,
+                        chunkIndex,
+                        hasThinkingProcess: sanitizedThinking.length > 0,
+                      };
 
-                  const hasValidAnswer = aggregatedContent && aggregatedContent.trim().length >= MIN_VALID_ANSWER_LENGTH;
-                  const hasReasonableThinking =
-                    sanitizedThinking &&
-                    sanitizedThinking.length >= MIN_REASONABLE_THINKING_LENGTH &&
-                    sanitizedThinking.length <= MAX_REASONABLE_THINKING_LENGTH;
-
-                  // Log 2: Validation checks for debugging (only in DEBUG mode)
-                  if (DEBUG) {
-                    console.log('🔍 [VALIDATION] Answer & Thinking Check:', {
-                      chunkIndex,
-                      isComplete,
-                      // Answer validation
-                      rawAnswerLength: answer.length,
-                      aggregatedContentLength: aggregatedContent.trim().length,
-                      MIN_VALID_ANSWER_LENGTH,
-                      hasValidAnswer,
-                      answerPreview: aggregatedContent.substring(0, 50).replace(/\n/g, '\\n'),
-                      // Thinking validation
-                      thinkingLength: sanitizedThinking?.length || 0,
-                      MIN_REASONABLE_THINKING_LENGTH,
-                      MAX_REASONABLE_THINKING_LENGTH,
-                      hasReasonableThinking,
-                      thinkingPreview: sanitizedThinking?.substring(0, 50).replace(/\n/g, '\\n') || '(none)',
-                      // Decision path prediction
-                      willUseFallback: isComplete && !hasValidAnswer && hasReasonableThinking,
-                      willShowError: isComplete && !hasValidAnswer && !hasReasonableThinking,
-                      willShowNormalAnswer: hasValidAnswer,
-                    });
-                  }
-
-                  // Only apply fallback when stream is complete AND we have no valid answer
-                  if (isComplete && !hasValidAnswer) {
-                    // Log 3: Fallback decision path (only in DEBUG mode)
-                    if (DEBUG) {
-                      console.warn('⚠️ [FALLBACK LOGIC] No valid answer detected at completion:', {
-                        answerLength: aggregatedContent.trim().length,
-                        requiredMinLength: MIN_VALID_ANSWER_LENGTH,
-                        deficit: MIN_VALID_ANSWER_LENGTH - aggregatedContent.trim().length,
-                        hasThinking: !!sanitizedThinking,
-                        thinkingLength: sanitizedThinking?.length || 0,
-                      });
-                    }
-
-                    if (hasReasonableThinking) {
-                      // Case 1: Has reasonable thinking but no answer → API anomaly, show fallback
-                      if (DEBUG) {
-                        console.log('✅ [FALLBACK] Using thinking content as fallback:', {
-                          thinkingLength: sanitizedThinking.length,
-                          thinkingIsInBounds: `${MIN_REASONABLE_THINKING_LENGTH} <= ${sanitizedThinking.length} <= ${MAX_REASONABLE_THINKING_LENGTH}`,
-                          fallbackPayloadLength: fallbackPayload.length,
-                        });
-                      }
-
-                      aggregatedContent = fallbackPayload;
-                      incrementalContent = fallbackPayload;
-                      contentDerivedFromThinking = true;
-
-                      console.warn('[Perplexity API] Reasoning-only response detected', {
-                        thinkingLength: sanitizedThinking.length,
-                        answerLength: answer.length,
-                        modelKey: input.modelKey,
-                        fullContentPreview: fullContent.substring(0, 100).replace(/\n/g, '\\n'),
-                        apiEndpoint: 'https://api.perplexity.ai/chat/completions'
-                      });
-                    } else {
-                      // Case 2: Thinking is unreasonable or does not exist → show clear error message
-                      if (DEBUG) {
-                        console.error('❌ [ERROR PATH] Thinking content unreasonable, showing error:', {
-                          thinkingLength: sanitizedThinking?.length || 0,
-                          isTooShort: !sanitizedThinking || sanitizedThinking.length < MIN_REASONABLE_THINKING_LENGTH,
-                          isTooLong: sanitizedThinking && sanitizedThinking.length > MAX_REASONABLE_THINKING_LENGTH,
-                          missingThinking: !sanitizedThinking,
-                          thresholds: {
-                            min: MIN_REASONABLE_THINKING_LENGTH,
-                            max: MAX_REASONABLE_THINKING_LENGTH,
-                          },
-                        });
-                      }
-
-                      const errorMessage = '⚠️ AI 回應內容異常。建議：\n• 重新提問\n• 嘗試簡化問題\n• 若問題持續，請稍後再試';
-                      aggregatedContent = errorMessage;
-                      incrementalContent = errorMessage;
-
-                      console.error('[Perplexity API] Invalid response content', {
-                        thinkingLength: sanitizedThinking?.length || 0,
-                        answerLength: answer.length,
-                        fullContentLength: fullContent.length,
-                        modelKey: input.modelKey,
-                        hasThinkTags: fullContent.includes('<think>')
-                      });
+                      chunkIndex++;
                     }
                   }
 
-                  // Log 4: Final chunk output for debugging (only in DEBUG mode, with data redaction)
-                  if (DEBUG) {
-                    console.log('📤 [YIELD CHUNK] Preparing to yield chunk:', {
-                      chunkIndex,
-                      contentLength: incrementalContent.length,
-                      fullContentLength: aggregatedContent.length,
-                      thinkingLength: sanitizedThinking.length,
-                      isComplete,
-                      derivedFromThinking: contentDerivedFromThinking,
-                      citationsCount: citations.length,
-                      // Content classification
-                      isError: aggregatedContent.includes('⚠️ AI 回應內容異常'),
-                      isFallback: aggregatedContent.includes('⚠️ 系統僅收到 AI 的思考內容'),
-                      isNormalAnswer: !aggregatedContent.includes('⚠️'),
-                      // Previews (redacted in production for security)
-                      contentPreview: incrementalContent.substring(0, 100).replace(/\n/g, '\\n'),
-                      fullContentPreview: aggregatedContent.substring(0, 100).replace(/\n/g, '\\n'),
-                    });
-                  }
+                  // If stream is complete, finalize the processor
+                  if (isComplete) {
+                    const finalChunk = processor.finalize();
+                    if (finalChunk.content.trim()) {
+                      // Handle any remaining buffered content
+                      fullContent += finalChunk.content;
 
-                  yield {
-                    content: incrementalContent,
-                    fullContent: aggregatedContent,
-                    thinkingContent: sanitizedThinking,
-                    timestamp: new Date().toISOString(),
-                    citations,
-                    searchQueries: collectedSearchQueries,
-                    metadata: {
-                      searchQueries: collectedSearchQueries,
-                      webSources: citations.filter(c => c.type === 'web_citation'),
-                      groundingSuccessful: collectedCitations.length > 0,
-                      confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
-                    },
-                    responseTime: processingTime,
-                    isComplete,
-                    chunkIndex,
-                    hasThinkingProcess: sanitizedThinking.length > 0 || fullContent.includes('<think>'),
-                    contentDerivedFromThinking,
-                  };
+                      const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+                      const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+
+                      yield {
+                        content: finalChunk.content,
+                        fullContent: fullContent,
+                        thinkingContent: sanitizedThinking,
+                        contentDerivedFromThinking: false,
+                        timestamp: new Date().toISOString(),
+                        citations,
+                        searchQueries: collectedSearchQueries,
+                        metadata: {
+                          searchQueries: collectedSearchQueries,
+                          webSources: citations.filter(c => c.type === 'web_citation'),
+                          groundingSuccessful: collectedCitations.length > 0,
+                          confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                        },
+                        responseTime: processingTime,
+                        isComplete: true,
+                        chunkIndex,
+                        hasThinkingProcess: sanitizedThinking.length > 0,
+                      };
+
+                      chunkIndex++;
+                    }
+                  }
 
                   // Mark that we should stop after processing all events in current batch
                   if (isComplete) {

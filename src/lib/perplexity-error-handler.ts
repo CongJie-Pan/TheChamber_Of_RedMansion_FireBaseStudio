@@ -91,12 +91,31 @@ export function classifyError(
 ): ClassifiedError {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorName = error instanceof Error ? error.name : 'UnknownError';
+  const normalizedErrorMessage = errorMessage.toLowerCase();
+
+  // Rate limit errors (checked first - more specific than "exceeded")
+  if (
+    normalizedErrorMessage.includes('rate limit') ||
+    normalizedErrorMessage.includes('429') ||
+    normalizedErrorMessage.includes('too many requests')
+  ) {
+    return {
+      category: PerplexityErrorCategory.RATE_LIMIT,
+      originalError: error,
+      userMessage: 'API 請求次數已達上限，請稍候再試。通常需要等待 1-2 分鐘。',
+      technicalMessage: `Rate limit error: ${errorMessage}`,
+      recoveryActions: [RecoveryAction.WAIT_AND_RETRY],
+      shouldRetry: true,
+      retryDelay: 60000, // 60 seconds
+      context,
+    };
+  }
 
   // Timeout errors
   if (
-    errorMessage.includes('timeout') ||
-    errorMessage.includes('ETIMEDOUT') ||
-    errorMessage.includes('exceeded')
+    normalizedErrorMessage.includes('timeout') ||
+    normalizedErrorMessage.includes('etimedout') ||
+    normalizedErrorMessage.includes('exceeded')
   ) {
     return {
       category: PerplexityErrorCategory.TIMEOUT,
@@ -115,30 +134,12 @@ export function classifyError(
     };
   }
 
-  // Rate limit errors
-  if (
-    errorMessage.includes('rate limit') ||
-    errorMessage.includes('429') ||
-    errorMessage.includes('too many requests')
-  ) {
-    return {
-      category: PerplexityErrorCategory.RATE_LIMIT,
-      originalError: error,
-      userMessage: 'API 請求次數已達上限，請稍候再試。通常需要等待 1-2 分鐘。',
-      technicalMessage: `Rate limit error: ${errorMessage}`,
-      recoveryActions: [RecoveryAction.WAIT_AND_RETRY],
-      shouldRetry: true,
-      retryDelay: 60000, // 60 seconds
-      context,
-    };
-  }
-
   // Authentication errors
   if (
-    errorMessage.includes('401') ||
-    errorMessage.includes('unauthorized') ||
-    errorMessage.includes('authentication') ||
-    errorMessage.includes('API key')
+    normalizedErrorMessage.includes('401') ||
+    normalizedErrorMessage.includes('unauthorized') ||
+    normalizedErrorMessage.includes('authentication') ||
+    normalizedErrorMessage.includes('api key')
   ) {
     return {
       category: PerplexityErrorCategory.AUTHENTICATION_ERROR,
@@ -153,10 +154,10 @@ export function classifyError(
 
   // Network errors
   if (
-    errorMessage.includes('ECONNREFUSED') ||
-    errorMessage.includes('ENOTFOUND') ||
-    errorMessage.includes('network') ||
-    errorMessage.includes('fetch failed')
+    normalizedErrorMessage.includes('econnrefused') ||
+    normalizedErrorMessage.includes('enotfound') ||
+    normalizedErrorMessage.includes('network') ||
+    normalizedErrorMessage.includes('fetch failed')
   ) {
     return {
       category: PerplexityErrorCategory.NETWORK_ERROR,
@@ -172,8 +173,8 @@ export function classifyError(
 
   // Validation errors
   if (
-    errorMessage.includes('validation') ||
-    errorMessage.includes('invalid') ||
+    normalizedErrorMessage.includes('validation') ||
+    normalizedErrorMessage.includes('invalid') ||
     errorName === 'ValidationError'
   ) {
     return {
@@ -189,9 +190,9 @@ export function classifyError(
 
   // Streaming errors
   if (
-    errorMessage.includes('stream') ||
-    errorMessage.includes('async iterable') ||
-    errorMessage.includes('SSE')
+    normalizedErrorMessage.includes('stream') ||
+    normalizedErrorMessage.includes('async iterable') ||
+    normalizedErrorMessage.includes('sse')
   ) {
     return {
       category: PerplexityErrorCategory.STREAMING_ERROR,

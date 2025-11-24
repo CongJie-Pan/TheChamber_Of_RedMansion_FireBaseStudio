@@ -190,8 +190,11 @@ export function LevelBadge({
   // Get color classes for current level
   const colors = getLevelColorClasses(level);
 
-  // Get icon component for current level (memoized to avoid creating components during render)
-  const IconComponent = useMemo(() => getLevelIcon(level), [level]);
+  // Get icon component for current level (memoized as JSX element, not component)
+  const iconElement = useMemo(() => {
+    const IconComponent = getLevelIcon(level);
+    return IconComponent;
+  }, [level]);
 
   // Loading state
   if (isLoading && levelOverride === undefined) {
@@ -247,7 +250,7 @@ export function LevelBadge({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        <IconComponent className="h-3.5 w-3.5" />
+        {iconElement && <iconElement.type className="h-3.5 w-3.5" />}
         <span className="font-semibold">Lv.{level}</span>
       </Badge>
     );
@@ -273,7 +276,7 @@ export function LevelBadge({
       tabIndex={onClick ? 0 : undefined}
     >
       <div className="flex items-center gap-1.5">
-        <IconComponent className="h-5 w-5" />
+        {iconElement && <iconElement.type className="h-5 w-5" />}
         <span className="font-bold text-lg">Lv.{level}</span>
       </div>
 

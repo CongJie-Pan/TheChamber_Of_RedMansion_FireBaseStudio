@@ -101,7 +101,7 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({ userId }) => {
    */
   useEffect(() => {
     loadCalendarData();
-  }, [userId, year, month]);
+  }, [userId, year, month, loadCalendarData]);
 
   const loadCalendarData = async () => {
     setIsLoading(true);

@@ -68,3 +68,20 @@ run the repo, change to use : pnpm run dev
 - 紅樓夢學習數據，可以經由賀嘉生老師的課程內容，可以思考看看如何做這類的數據分析。
 - [x] 請子傑再發一次git，我這邊核准之後，他就可以merge進來了(master)，merge到master分支。
 - 實際程式測試 每日修身 GPT-5-mini 嵌入功能。
+
+### 2025/11/22
+
+- continue Task 4.2, Task 4.5 fix 
+
+---
+
+### 2025/11/24
+- 進度: 4.2, 4.5 complete and versel 上線
+
+the below both add the new claude session window:
+
+- continue to fix the "docs\2025_11_19_toDoList.md" of TASK 4.2
+  - [] "docs\PerplexityQA_Bug\testOutput\2025_11_24_bugRecord.md"
+  - [] "docs\PerplexityAI_BugFix_WorkList.md" 
+- continue to fix the "docs\2025_11_19_toDoList.md" of "Task 4.5"
+  - [] "docs\BiColumn_BugFix_WorkList.md"

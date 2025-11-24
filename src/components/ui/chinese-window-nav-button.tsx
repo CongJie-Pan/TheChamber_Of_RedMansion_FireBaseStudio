@@ -190,22 +190,21 @@ export const ChineseWindowNavButton = React.forwardRef<
     /**
      * Active state background element (subtle frame shown when active)
      */
-    const ActiveFrameBackground = () =>
-      isActive ? (
-        <div
-          className="absolute inset-0 pointer-events-none opacity-40 z-0"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--accent)/0.12), hsl(var(--primary)/0.15))',
-            clipPath: clipPath,
-          }}
-          aria-hidden="true"
-        />
-      ) : null;
+    const activeFrameBackground = isActive ? (
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40 z-0"
+        style={{
+          background: 'linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--accent)/0.12), hsl(var(--primary)/0.15))',
+          clipPath: clipPath,
+        }}
+        aria-hidden="true"
+      />
+    ) : null;
 
     /**
      * Badge indicator element
      */
-    const BadgeIndicator = () => {
+    const badgeIndicator = useMemo(() => {
       if (!badge) return null;
 
       // Numeric badge
@@ -238,7 +237,7 @@ export const ChineseWindowNavButton = React.forwardRef<
           <span className="sr-only">New notifications</span>
         </span>
       );
-    };
+    }, [badge]);
 
     /**
      * Button content JSX (icon + label + badge)
@@ -247,7 +246,7 @@ export const ChineseWindowNavButton = React.forwardRef<
     const buttonContentJSX = (
       <>
         {/* Window frame effects - Layer 1 (background) */}
-        <ActiveFrameBackground />
+        {activeFrameBackground}
 
         {/* Window frame border - REMOVED for simpler styling */}
         {/* <WindowFrameBorder /> */}
@@ -266,7 +265,7 @@ export const ChineseWindowNavButton = React.forwardRef<
         <span className="truncate relative z-20">{label}</span>
 
         {/* Badge - Layer 4 (top) */}
-        <BadgeIndicator />
+        {badgeIndicator}
       </>
     );
 

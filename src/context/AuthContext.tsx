@@ -280,7 +280,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // User is logged in, load their profile from SQLite asynchronously
       const username = user.name || 'User';
       const email = user.email || '';
-      // Call async function without awaiting to avoid setState in effect body
+      // Call async function to load profile from external system (SQLite)
+      // This is an intentional side effect for synchronizing with external state
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadUserProfile(user.id, username, email);
     } else {
       // User is logged out, clear profile (deferred to next tick)

@@ -50,7 +50,7 @@ export const DailyTasksSummary: React.FC = () => {
     if (user) {
       loadProgress();
     }
-  }, [user]);
+  }, [user, loadProgress]);
 
   const loadProgress = async () => {
     if (!user) return;

@@ -225,7 +225,7 @@ export default function DailyTasksPage() {
     };
 
     initializeTasks();
-  }, [user, user?.id]); // Added user.id to dependencies for better tracking
+  }, [user, user?.id, llmOnly, loadDailyTasks, resetTodayTasksForGuest, userProfile?.isGuest]); // Added all dependencies
 
   /**
    * Reset today's tasks for guest users

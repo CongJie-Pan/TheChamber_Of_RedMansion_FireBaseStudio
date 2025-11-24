@@ -125,7 +125,6 @@ import type { ThinkingStatus } from '@/components/ui/ThinkingProcessIndicator';
 import { ConversationFlow } from '@/components/ui/ConversationFlow';
 import type { ConversationMessage, MessageRole } from '@/components/ui/ConversationFlow';
 import { AIMessageBubble } from '@/components/ui/AIMessageBubble';
-import { sanitizeThinkingContent, splitThinkingFromContent } from '@/lib/perplexity-thinking-utils';
 
 // Citation and Error Handling Utilities
 // Citation processing handled within AI bubble components
@@ -721,7 +720,7 @@ export default function ReadBookPage() {
       const sid = startNewSession();
       setActiveSessionId(sid);
     }
-  }, []);
+  }, [createSession, startNewSession]);
 
   // Persist sessions
   useEffect(() => {
@@ -802,6 +801,14 @@ export default function ReadBookPage() {
     }
   }, [currentChapterIndex]);
 
+  // Task 3.1: Style enforcement utility (2025-11-24)
+  // Prevent content CSS from overriding critical layout styles
+  const setImportantStyles = useCallback((element: HTMLElement, styles: Record<string, string>) => {
+    Object.entries(styles).forEach(([property, value]) => {
+      element.style.setProperty(property, value, 'important');
+    });
+  }, []);
+
   const computePagination = useCallback(() => {
     if (!isPaginationMode) return;
     const viewportEl =
@@ -812,34 +819,80 @@ export default function ReadBookPage() {
     const contentEl = chapterContentRef.current as HTMLElement | null;
     if (!contentEl) return;
 
-    // Verify columns are actually rendered (2025-11-19 fix for Task 4.5)
-    // Prevents pagination calculation when columns fail to render
+    // Verify columns are actually rendered
     const computedStyle = window.getComputedStyle(contentEl);
     const columnCount = computedStyle.columnCount;
 
     if (columnCount === 'auto' || columnCount === '1') {
-      console.warn('[Pagination] Columns not rendered, falling back to single page. columnCount:', columnCount);
+      if (DEBUG_PAGINATION) {
+        console.warn('[Pagination] Columns not rendered, falling back to single page. columnCount:', columnCount);
+      }
       setTotalPages(1);
       setCurrentPage(1);
       return;
     }
 
-    // CSS multi-column layout creates horizontal overflow, so we use width-based calculation
-    // The content flows horizontally across columns, requiring horizontal scrolling for pagination
-    const viewportW = Math.max(1, viewportEl.clientWidth || viewportEl.offsetWidth || 0);
-    const totalContentW = Math.max(
-      contentEl?.scrollWidth || 0,
-      contentEl?.offsetWidth || 0,
-      viewportEl.scrollWidth || 0,
-      viewportEl.offsetWidth || 0,
-    );
+    // Task 1.1: Container Dynamic Expansion (2025-11-24 fix)
+    // Use single page width as base unit, not total width
+    const singlePageWidth = Math.max(1, viewportEl.clientWidth || viewportEl.offsetWidth || 0);
 
-    const total = Math.max(viewportW, totalContentW);
-    const pages = Math.max(1, Math.ceil(total / viewportW));
-    setTotalPages(pages);
-    const clamped = Math.min(pages, Math.max(1, currentPage));
+    // Use Range API to precisely measure actual content boundaries
+    const range = document.createRange();
+    range.selectNodeContents(contentEl);
+    const contentRect = range.getBoundingClientRect();
+    const contentWidth = contentRect.width;
+
+    // Calculate correct page count
+    const pageCount = Math.max(1, Math.ceil(contentWidth / singlePageWidth));
+
+    // Dynamically expand container to accommodate all columns
+    const expandedWidth = pageCount * singlePageWidth;
+
+    // Task 3.1: Apply critical layout styles with !important flag (2025-11-24 fix)
+    // Prevent content CSS from overriding these essential layout properties
+    setImportantStyles(contentEl, {
+      'width': `${expandedWidth}px`,
+      'column-count': '2',
+      'column-gap': '3rem',
+      'column-fill': 'auto',
+      'height': 'calc(100vh - 6rem)',
+      'box-sizing': 'border-box',
+      'position': 'relative',
+    });
+
+    // Validation: verify expansion succeeded
+    requestAnimationFrame(() => {
+      const actualWidth = contentEl.offsetWidth;
+      if (Math.abs(actualWidth - expandedWidth) > 10) {
+        if (DEBUG_PAGINATION) {
+          console.warn('[Pagination] Width mismatch:', {
+            expected: expandedWidth,
+            actual: actualWidth,
+            difference: Math.abs(actualWidth - expandedWidth),
+          });
+        }
+      }
+    });
+
+    // Task 6.1: Enhanced debug logging (2025-11-24)
+    // Controlled by DEBUG_PAGINATION constant - only logs in development when explicitly enabled
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] Calculation:', {
+        singlePageWidth,
+        contentWidth,
+        contentRect: { width: contentRect.width, height: contentRect.height },
+        pageCount,
+        expandedWidth,
+        columnCount: computedStyle.columnCount,
+        viewportHeight: viewportEl.clientHeight,
+        contentHeight: contentEl.scrollHeight,
+      });
+    }
+
+    setTotalPages(pageCount);
+    const clamped = Math.min(pageCount, Math.max(1, currentPage));
     setCurrentPage(clamped);
-  }, [isPaginationMode, currentPage]);
+  }, [isPaginationMode, currentPage, setImportantStyles]);
 
   // Enable pagination automatically for double-column layout
   useEffect(() => {
@@ -972,24 +1025,74 @@ export default function ReadBookPage() {
     };
   }, [handleInteraction, handleMouseUp, handleScroll, checkChapterScrollCompletion]);
 
-  // Recompute pagination on resize (after layout has flushed)
+  // Task 5.1: Enhanced ResizeObserver for responsive pagination (2025-11-24 fix)
+  // Monitor both viewport and content element size changes
   useEffect(() => {
-    const onResize = () => {
+    if (!isPaginationMode) return;
+
+    const viewportEl =
+      (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
+      (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
+    const contentEl = chapterContentRef.current as HTMLElement | null;
+
+    if (!viewportEl || !contentEl) return;
+
+    // Create ResizeObserver to monitor size changes
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Task 6.1: Log resize trigger (2025-11-24)
+      if (DEBUG_PAGINATION) {
+        console.log('[Pagination] ResizeObserver triggered:', {
+          entriesCount: entries.length,
+          targets: entries.map(e => ({
+            target: e.target.id || e.target.className,
+            contentRect: {
+              width: e.contentRect.width,
+              height: e.contentRect.height,
+            },
+          })),
+        });
+      }
+
       // double-rAF to ensure multi-column layout settles before measuring
-      requestAnimationFrame(() => requestAnimationFrame(() => computePagination()));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        computePagination();
+      }));
+    });
+
+    // Observe both viewport and content elements
+    resizeObserver.observe(viewportEl);
+    resizeObserver.observe(contentEl);
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [computePagination]);
+  }, [isPaginationMode, computePagination]);
 
   const goToPage = useCallback((page: number) => {
     const el =
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     if (!el) return;
-    // CSS multi-column layout flows content horizontally, so we scroll horizontally
-    const viewport = el.clientWidth;
-    const target = Math.max(0, (page - 1) * viewport);
+
+    // Task 4.1: Use stored page width for consistency (2025-11-24 fix)
+    // Use singlePageWidth instead of recalculating to ensure accuracy
+    const singlePageWidth = el.clientWidth;
+
+    // Page 1 = scroll 0, Page 2 = scroll singlePageWidth, etc.
+    const target = Math.max(0, (page - 1) * singlePageWidth);
+
+    // Task 6.1: Enhanced debug logging (2025-11-24)
+    // Controlled by global DEBUG_PAGINATION constant
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] goToPage:', {
+        targetPage: page,
+        singlePageWidth,
+        scrollTarget: target,
+        currentScrollLeft: el.scrollLeft,
+      });
+    }
+
     el.scrollTo({ left: target, behavior: 'smooth' });
     setCurrentPage(page);
   }, []);
@@ -1616,13 +1719,10 @@ export default function ReadBookPage() {
                   // If no explicit isComplete chunk was received, finalize using last chunk
                   if (!sawCompletion && chunks.length > 0) {
                     const last = chunks[chunks.length - 1];
-                    const combinedRaw = last.fullContent && last.fullContent.length > 0
-                      ? last.fullContent
-                      : chunks.map(c => c.content).join('');
-                    const combinedSplit = splitThinkingFromContent(combinedRaw);
-                    const combined = combinedSplit.cleanContent;
-                    if (!latestThinkingText && combinedSplit.thinkingText) {
-                      latestThinkingText = combinedSplit.thinkingText;
+                    // Server already separated thinking and answer via StreamProcessor
+                    const combined = last.fullContent || '';
+                    if (!latestThinkingText && last.thinkingContent) {
+                      latestThinkingText = last.thinkingContent;
                     }
                     if (latestThinkingText && latestThinkingText !== thinkingContent) {
                       setThinkingContent(latestThinkingText);
@@ -1722,13 +1822,10 @@ export default function ReadBookPage() {
                     // Finalize if generator didn't send explicit isComplete chunk
                     if (!sawCompletion && chunks.length > 0) {
                       const last = chunks[chunks.length - 1];
-                      const combinedRaw = last.fullContent && last.fullContent.length > 0
-                        ? last.fullContent
-                        : chunks.map(c => c.content).join('');
-                      const combinedSplit = splitThinkingFromContent(combinedRaw);
-                      const combined = combinedSplit.cleanContent;
-                      if (!latestThinkingText && combinedSplit.thinkingText) {
-                        latestThinkingText = combinedSplit.thinkingText;
+                      // Server already separated thinking and answer via StreamProcessor
+                      const combined = last.fullContent || '';
+                      if (!latestThinkingText && last.thinkingContent) {
+                        latestThinkingText = last.thinkingContent;
                       }
                       if (latestThinkingText && latestThinkingText !== thinkingContent) {
                         setThinkingContent(latestThinkingText);
@@ -1843,27 +1940,12 @@ export default function ReadBookPage() {
 
                     // Extract and separate thinking content from answer content
                     // Fix: Always clean fullContent to prevent thinking duplication in answer area
+                    // Trust server-side StreamProcessor - no client-side cleaning needed
                     let extractedThinkingText: string | null = null;
-                    let extractedThinkingFromContent: string | null = null;
-                    const chunkDerivedFromThinking = Boolean(chunk.contentDerivedFromThinking);
 
-                    // Step 1: Always clean fullContent first to remove any thinking content
-                    if (chunk.fullContent && !chunkDerivedFromThinking) {
-                      const { cleanContent, thinkingText } = splitThinkingFromContent(chunk.fullContent);
-                      (chunk as any).fullContent = cleanContent;  // Unified cleanup - prevents duplication
-                      extractedThinkingFromContent = thinkingText || null;
-                    }
-
-                    // Step 2: Prefer server-extracted thinking content from <think> tags
+                    // Use server-extracted thinking content from StreamProcessor
                     if ((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0) {
-                      extractedThinkingText = sanitizeThinkingContent((chunk as any).thinkingContent.trim());
-                    } else if (extractedThinkingFromContent) {
-                      // Fallback: use client-side extracted thinking if server didn't provide it
-                      extractedThinkingText = sanitizeThinkingContent(extractedThinkingFromContent);
-                    }
-
-                    // Step 3: Update thinking state if we have new thinking content
-                    if (extractedThinkingText) {
+                      extractedThinkingText = (chunk as any).thinkingContent.trim();
                       latestThinkingText = extractedThinkingText;
                       if (extractedThinkingText !== thinkingContent) {
                         setThinkingContent(extractedThinkingText);
@@ -1874,25 +1956,9 @@ export default function ReadBookPage() {
                       const msgId = streamingAIMessageIdRef.current;
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
-                        let updatedText = chunk.fullContent?.length ? chunk.fullContent : (m.content + (chunk.content || ''));
-                        // If we only have incremental content, attempt to split thinking from the aggregated text
-                        let incrementalThinking: string | null = null;
-                        if (!chunk.fullContent && updatedText) {
-                          const split = splitThinkingFromContent(updatedText);
-                          incrementalThinking = split.thinkingText || null;
-                          updatedText = split.cleanContent;
-                        }
-                        // If we have aggregated thinking from server, prefer replacing (not appending) to avoid duplication
-                        let newThinking = (m.thinkingProcess || '').trim();
-                        if (extractedThinkingText && extractedThinkingText.trim().length > 0) {
-                          newThinking = extractedThinkingText.trim();
-                        } else if (incrementalThinking && incrementalThinking.trim().length > 0) {
-                          const base = newThinking;
-                          const incrementalSanitized = incrementalThinking.trim();
-                          if (!base) newThinking = incrementalSanitized;
-                          else if (!base.includes(incrementalSanitized)) newThinking = `${base}\n\n${incrementalSanitized}`;
-                          latestThinkingText = incrementalSanitized;
-                        }
+                        // Server provides clean content via StreamProcessor
+                        const updatedText = chunk.fullContent?.length ? chunk.fullContent : (m.content + (chunk.content || ''));
+                        const newThinking = extractedThinkingText || m.thinkingProcess || '';
                         return {
                           ...m,
                           content: updatedText,
@@ -1903,16 +1969,10 @@ export default function ReadBookPage() {
                       }));
                     } else {
                       // Create streaming message once actual answer tokens arrive
-                      let initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
+                      // Server provides clean content via StreamProcessor - no client cleaning needed
+                      const initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
 
-                      // Fix: Defensively clean initial content to ensure no <think> tags leak through
-                      // This protects against any server-side cleaning failures or edge cases
-                      if (!chunkDerivedFromThinking && initialContent && initialContent.trim().length > 0) {
-                        const { cleanContent } = splitThinkingFromContent(initialContent);
-                        initialContent = cleanContent;
-                      }
-
-                      // Only create message if we have actual answer content after cleaning
+                      // Only create message if we have actual answer content
                       if (initialContent && initialContent.trim().length > 0) {
                         console.log('[QA Module] Creating streaming AI message after first answer tokens');
                         const aiMsgId = `ai-stream-${Date.now()}`;
@@ -1938,13 +1998,10 @@ export default function ReadBookPage() {
                       setThinkingStatus('complete');
                       setStreamingProgress(100);
 
-                      // Create final response from last chunk (cleaned of thinking section)
-                      const finalServerThinking = (chunk as any).thinkingContent
-                        ? sanitizeThinkingContent((chunk as any).thinkingContent)
-                        : '';
-                      const cleaned = chunkDerivedFromThinking
-                        ? (chunk.fullContent || chunk.content || '')
-                        : splitThinkingFromContent(chunk.fullContent || '').cleanContent || chunk.fullContent || '';
+                      // Create final response from last chunk
+                      // Server already cleaned content via StreamProcessor
+                      const finalServerThinking = (chunk as any).thinkingContent || '';
+                      const cleaned = chunk.fullContent || chunk.content || '';
                       const finalResponse: PerplexityQAResponse = {
                         question: questionText,
                         answer: cleaned,
@@ -2211,7 +2268,7 @@ export default function ReadBookPage() {
     } else {
       setUserNotes([]);
     }
-  }, [user?.id, currentChapter.id]);
+  }, [user?.id, currentChapter]);
 
   // One-time welcome bonus for new users entering reading page
   useEffect(() => {
@@ -2452,7 +2509,7 @@ export default function ReadBookPage() {
         chapterTimerRef.current = null;
       }
     };
-  }, [user?.id, currentChapter?.id, completedChapters, hasScrolledToBottom]);
+  }, [user?.id, currentChapter, completedChapters, hasScrolledToBottom, refreshUserProfile, toast, userProfile?.completedChapters]);
 
   const handleSaveNote = async () => {
     if (!user?.id || (!noteSelectedText && !toolbarInfo?.text && !selectedTextInfo?.text)) return;
@@ -3078,11 +3135,20 @@ ${selectedTextContent}
           style={{
             fontSize: `${currentNumericFontSize}px`,
             fontFamily: (selectedFontFamily as any).family || undefined,
-            // Enhanced column settings for better horizontal reading experience
+            // Task 2.1: Enhanced CSS Layout Constraints (2025-11-24 fix)
             ...(columnLayout === 'double' && isPaginationMode ? {
-              columnGap: '3rem', // Wider gap between columns for better readability
-              columnFill: 'auto', // Allow natural flow across columns
-              height: '100%', // Fixed height required for CSS multi-column to break into horizontal pages
+              // Explicit height constraint (matches viewport exactly)
+              height: 'calc(100vh - 6rem)',
+              // Allow width to expand automatically
+              width: 'auto',
+              // Column settings
+              columnCount: 2,
+              columnWidth: 'auto', // Let column-count take precedence
+              columnGap: '3rem',
+              columnFill: 'auto',
+              // Layout related
+              position: 'relative',
+              boxSizing: 'border-box',
             } : {})
           }}
         >

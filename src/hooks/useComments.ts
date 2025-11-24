@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Comment type from API
@@ -106,7 +106,7 @@ export function useCommentsInView(postId: string, elementRef: React.RefObject<HT
   const queryClient = useQueryClient();
   const hasPrefetchedRef = useRef(false);
   // Use state for the return value to avoid accessing ref during render
-  const [isInView, setIsInView] = React.useState(false);
+  const [isInView, setIsInView] = useState(false);
 
   useEffect(() => {
     if (!elementRef.current || hasPrefetchedRef.current) return;

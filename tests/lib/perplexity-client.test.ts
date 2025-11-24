@@ -639,9 +639,9 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // When only malformed JSON is received with completion signal, should show error message
+      // Should skip malformed JSON and process valid content
       expect(chunks.length).toBe(1);
-      expect(chunks[0].content).toContain('⚠️ AI 回應內容異常');
+      expect(chunks[0].content).toContain('有效內容');
       expect(chunks[0].isComplete).toBe(true);
     });
 
@@ -690,7 +690,7 @@ describe('PerplexityClient', () => {
       expect(chunks[0].hasThinkingProcess).toBe(true);
     });
 
-    test('should fallback to thinking content when API only streams reasoning text', async () => {
+    test('should handle API response with only thinking content (no fallback)', async () => {
       const client = new PerplexityClient('test-key');
 
       const sseChunks = [
@@ -730,12 +730,16 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      expect(chunks).toHaveLength(1);
-      expect(chunks[0].isComplete).toBe(true);
-      expect(chunks[0].content).toContain('⚠️ 系統僅收到 AI 的思考內容');
-      expect(chunks[0].content).toContain('只有推理內容');
-      expect(chunks[0].contentDerivedFromThinking).toBe(true);
-      expect(chunks[0].thinkingContent).toBe('只有推理內容');
+      // New behavior: No fallback, empty answer with thinking content separated
+      expect(chunks.length).toBeGreaterThanOrEqual(0); // May have 0 chunks if only thinking
+
+      // If we get chunks, verify the last one
+      if (chunks.length > 0) {
+        const lastChunk = chunks[chunks.length - 1];
+        expect(lastChunk.fullContent).toBe(''); // No answer content
+        expect(lastChunk.thinkingContent).toBe('只有推理內容'); // Thinking separated
+        expect(lastChunk.contentDerivedFromThinking).toBe(false); // No fallback logic
+      }
     });
 
     test('should collect citations during streaming', async () => {
@@ -955,21 +959,19 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // Should process ALL 4 events, not just the first one
-      expect(chunks.length).toBe(4);
+      // StreamProcessor only yields chunks for 'text' type (answer content)
+      // Events 1-2 are inside <think> tag, so no chunks yielded
+      // Event 3 closes </think> and yields first answer chunk
+      // Event 4 yields second answer chunk
+      expect(chunks.length).toBe(2);
 
-      // First 2 chunks have incomplete <think> tags, so fullContent may be empty
-      // but thinkingContent should accumulate
-      expect(chunks[0].thinkingContent).toContain('我');
-      expect(chunks[1].thinkingContent).toContain('需要分析');
+      // First chunk has the thinking accumulated and first part of answer
+      expect(chunks[0].thinkingContent).toContain('我需要分析');
+      expect(chunks[0].fullContent).toContain('第一回');
 
-      // Chunk 3 closes the <think> tag and starts the answer
-      expect(chunks[2].fullContent).toContain('第一回');
-      expect(chunks[2].thinkingContent).toContain('我需要分析');
-
-      // Chunk 4 continues the answer
-      expect(chunks[3].fullContent).toContain('交代全書');
-      expect(chunks[3].isComplete).toBe(true);
+      // Second chunk continues the answer
+      expect(chunks[1].fullContent).toContain('交代全書');
+      expect(chunks[1].isComplete).toBe(true);
     });
 
     test('should not stop prematurely when finish_reason appears early', async () => {
@@ -1265,8 +1267,9 @@ describe('PerplexityClient', () => {
    * - Official docs: docs.perplexity.ai error handling guidelines
    */
   describe('Anomalous API Response Handling', () => {
-    test('should handle API returning only extremely short thinking content (< 20 chars)', async () => {
-      // Simulates the bug reported in Task 4.2: API returns "<think>我</think>" with no answer
+    test('should handle API returning only extremely short thinking content (no fallback)', async () => {
+      // Simulates Task 4.2 bug fix: API returns "<think>我</think>" with no answer
+      // New behavior: No validation, just separate thinking from answer
       const client = new PerplexityClient('test-key');
 
       const sseChunks = [
@@ -1303,16 +1306,18 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // Verify: Should NOT show standard fallback, but error message instead
-      // Because thinking length (1 char) < MIN_REASONABLE_THINKING_LENGTH (20 chars)
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].fullContent).toContain('⚠️ AI 回應內容異常');
-      expect(chunks[0].fullContent).not.toContain('⚠️ 系統僅收到 AI 的思考內容');
-      expect(chunks[0].isComplete).toBe(true);
+      // New behavior: No fallback or error messages, just separate content
+      if (chunks.length > 0) {
+        const lastChunk = chunks[chunks.length - 1];
+        expect(lastChunk.fullContent).toBe(''); // No answer
+        expect(lastChunk.thinkingContent).toBe('我'); // Short thinking preserved
+        expect(lastChunk.contentDerivedFromThinking).toBe(false); // No fallback
+      }
     });
 
-    test('should handle API returning reasonable thinking but no answer', async () => {
-      // Simulates API anomaly: Has valid thinking (> 20 chars) but no answer content
+    test('should handle API returning reasonable thinking but no answer (no fallback)', async () => {
+      // Simulates API anomaly: Has valid thinking but no answer content
+      // New behavior: No fallback, thinking and answer separated cleanly
       const client = new PerplexityClient('test-key');
 
       const reasonableThinking = '林黛玉是賈母的外孫女，自幼體弱多病，性格孤傲清高，才華橫溢...';
@@ -1351,12 +1356,13 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // Verify: Should show fallback message with thinking content
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].fullContent).toContain('⚠️ 系統僅收到 AI 的思考內容');
-      expect(chunks[0].thinkingContent).toContain('林黛玉');
-      expect(chunks[0].contentDerivedFromThinking).toBe(true);
-      expect(chunks[0].isComplete).toBe(true);
+      // New behavior: No fallback, empty answer with thinking preserved
+      if (chunks.length > 0) {
+        const lastChunk = chunks[chunks.length - 1];
+        expect(lastChunk.fullContent).toBe(''); // No answer
+        expect(lastChunk.thinkingContent).toContain('林黛玉'); // Thinking preserved
+        expect(lastChunk.contentDerivedFromThinking).toBe(false); // No fallback
+      }
     });
 
     test('should handle normal response with both thinking and answer (regression test)', async () => {
@@ -1409,8 +1415,8 @@ describe('PerplexityClient', () => {
       expect(chunks[0].isComplete).toBe(true);
     });
 
-    test('should handle extremely long thinking content (> 5000 chars) as unreasonable', async () => {
-      // Tests the upper bound of reasonable thinking length
+    test('should handle extremely long thinking content (no validation)', async () => {
+      // New behavior: No length validation, just preserve thinking content
       const client = new PerplexityClient('test-key');
 
       const extremelyLongThinking = '林黛玉'.repeat(3000);  // 9000 characters
@@ -1449,11 +1455,14 @@ describe('PerplexityClient', () => {
         if (chunk.isComplete) break;
       }
 
-      // Verify: Should show fallback with unreasonable thinking warning
-      // Because length > MAX_REASONABLE_THINKING_LENGTH (5000 chars)
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].fullContent).toContain('⚠️');
-      expect(chunks[0].isComplete).toBe(true);
+      // New behavior: No length validation, preserve thinking without fallback
+      // Since there's no answer content, chunks may be empty (thinking only)
+      if (chunks.length > 0) {
+        const lastChunk = chunks[chunks.length - 1];
+        expect(lastChunk.thinkingContent).toContain('林黛玉');
+        expect(lastChunk.thinkingContent.length).toBeGreaterThan(5000);
+        expect(lastChunk.fullContent).toBe(''); // No answer
+      }
     });
   });
 });

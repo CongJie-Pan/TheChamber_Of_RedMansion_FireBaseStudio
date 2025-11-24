@@ -45,7 +45,7 @@
 "use client"; // Required for interactive community features and state management
 
 // React hooks for component state and lifecycle management
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // UI component imports for community interface
 import { Button } from "@/components/ui/button";
@@ -916,15 +916,10 @@ export default function CommunityPage() {
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [levelUpInfo, setLevelUpInfo] = useState<{from: number, to: number} | null>(null);
 
-  // Load posts from Firebase on component mount
-  useEffect(() => {
-    loadPosts();
-  }, []);
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const firebasePosts = await fetchPosts();
       const localPosts = firebasePosts.map(post => convertFirebasePost(post, user?.id));
@@ -935,7 +930,12 @@ export default function CommunityPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  // Load posts from Firebase on component mount
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
 
   const handleNewPost = async (content: string) => {
     if (!user) {

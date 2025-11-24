@@ -182,11 +182,12 @@ function getNewlyUnlockedPermissions(fromLevel: number, toLevel: number): LevelP
  * Confetti animation component
  *
  * Creates a simple CSS-based confetti effect
- * Uses memoized random values to ensure stable rendering
+ * Uses useState to ensure stable rendering and avoid calling impure functions during render
  */
 function ConfettiEffect() {
-  // Generate stable random values outside of render
-  const confettiParticles = React.useMemo(() => {
+  // Generate stable random values on mount using useState
+  // This ensures Math.random() is only called during initialization, not during render
+  const [confettiParticles] = React.useState(() => {
     return Array.from({ length: 30 }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
@@ -200,7 +201,7 @@ function ConfettiEffect() {
                   i % 5 === 3 ? 'bg-pink-400' :
                   'bg-green-400',
     }));
-  }, []);
+  });
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
