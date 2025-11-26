@@ -609,12 +609,13 @@ export default function ReadBookPage() {
   const LEGACY_MESSAGES_KEY = 'redmansion_qa_conversations';
 
   // Helpers
-  const createSession = (title?: string): ConversationSession => ({
+  // Wrapped in useCallback to prevent infinite re-renders in useEffect
+  const createSession = useCallback((title?: string): ConversationSession => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title,
     createdAt: new Date(),
     messages: [],
-  });
+  }), []);
 
   const getActiveSession = () => sessions.find(s => s.id === activeSessionId) || null;
 
@@ -629,12 +630,13 @@ export default function ReadBookPage() {
     });
   };
 
-  const startNewSession = (title?: string) => {
+  // Wrapped in useCallback to prevent infinite re-renders in useEffect
+  const startNewSession = useCallback((title?: string) => {
     const newSession = createSession(title);
     setSessions(prev => [...prev, newSession]);
     setActiveSessionId(newSession.id);
     return newSession.id;
-  };
+  }, [createSession]);
 
   /**
    * Share note to community via API route
@@ -1946,9 +1948,11 @@ export default function ReadBookPage() {
                     // Use server-extracted thinking content from StreamProcessor
                     if ((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0) {
                       extractedThinkingText = (chunk as any).thinkingContent.trim();
-                      latestThinkingText = extractedThinkingText;
-                      if (extractedThinkingText !== thinkingContent) {
-                        setThinkingContent(extractedThinkingText);
+                      if (extractedThinkingText) {
+                        latestThinkingText = extractedThinkingText;
+                        if (extractedThinkingText !== thinkingContent) {
+                          setThinkingContent(extractedThinkingText);
+                        }
                       }
                     }
 

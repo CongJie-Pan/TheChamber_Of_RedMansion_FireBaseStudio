@@ -67,12 +67,7 @@ jest.mock('firebase/firestore', () => ({
   addDoc: jest.fn(),
   updateDoc: jest.fn(),
   serverTimestamp: jest.fn(() => new Date()),
-}));
-
-// Mock Firebase app
-jest.mock('@/lib/firebase', () => ({
-  db: {},
-}));
+}), { virtual: true });
 
 describe('Bi-Column Responsive Behavior', () => {
   let mockRange: any;
@@ -352,7 +347,7 @@ describe('Bi-Column Responsive Behavior', () => {
 
       resizeHandler(20);
 
-      expect(currentPage).toBe(10); // Doubled as pages doubled
+      expect(currentPage).toBe(9); // Position ratio preserved: (5-1)/(10-1) = 4/9, then round(4/9 * 19) + 1 = 9
       expect(totalPages).toBe(20);
     });
 

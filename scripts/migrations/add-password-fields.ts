@@ -67,19 +67,19 @@ async function confirmMigration(): Promise<boolean> {
 /**
  * Check if passwordHash column already exists
  */
-function checkColumnExists(db: any, tableName: string, columnName: string): boolean {
-  const result = db.prepare(`PRAGMA table_info(${tableName})`).all();
-  return result.some((col: any) => col.name === columnName);
+async function checkColumnExists(db: any, tableName: string, columnName: string): Promise<boolean> {
+  const result = await db.execute(`PRAGMA table_info(${tableName})`);
+  return result.rows.some((col: any) => col.name === columnName);
 }
 
 /**
  * Check if email column has UNIQUE constraint
  */
-function checkEmailUniqueConstraint(db: any): boolean {
-  const result = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='users'`).get();
-  if (!result) return false;
+async function checkEmailUniqueConstraint(db: any): Promise<boolean> {
+  const result = await db.execute(`SELECT sql FROM sqlite_master WHERE type='table' AND name='users'`);
+  if (!result.rows[0]) return false;
 
-  const sql: string = result.sql;
+  const sql: string = result.rows[0].sql as string;
   // Check if email has UNIQUE constraint in the CREATE TABLE statement
   return sql.includes('email TEXT UNIQUE') || sql.includes('UNIQUE(email)');
 }
@@ -93,7 +93,7 @@ async function migrate(): Promise<void> {
 
   try {
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabase();
     if (!db) {
       throw new Error('Failed to get database instance');
     }
@@ -101,7 +101,8 @@ async function migrate(): Promise<void> {
     log('✅ Database connection established');
 
     // Check if users table exists
-    const tableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='users'`).get();
+    const tableExistsResult = await db.execute(`SELECT name FROM sqlite_master WHERE type='table' AND name='users'`);
+    const tableExists = tableExistsResult.rows[0];
     if (!tableExists) {
       log('⚠️  Users table does not exist. Migration not needed.');
       log('   If this is a new database, the schema will be created automatically.');
@@ -111,8 +112,8 @@ async function migrate(): Promise<void> {
     log('✅ Users table exists');
 
     // Check current state
-    const passwordHashExists = checkColumnExists(db, 'users', 'passwordHash');
-    const emailUniqueExists = checkEmailUniqueConstraint(db);
+    const passwordHashExists = await checkColumnExists(db, 'users', 'passwordHash');
+    const emailUniqueExists = await checkEmailUniqueConstraint(db);
 
     log('\n📊 Current state:');
     log(`   - passwordHash column exists: ${passwordHashExists ? '✅ Yes' : '❌ No'}`);
@@ -146,11 +147,14 @@ async function migrate(): Promise<void> {
     log('\n🔧 Applying migration...');
 
     if (!isDryRun) {
-      db.transaction(() => {
+      // Begin transaction
+      await db.execute('BEGIN');
+
+      try {
         // Step 1: Add passwordHash column if needed
         if (needsPasswordHash) {
           log('   Adding passwordHash column...');
-          db.exec(`ALTER TABLE users ADD COLUMN passwordHash TEXT`);
+          await db.execute(`ALTER TABLE users ADD COLUMN passwordHash TEXT`);
           log('   ✅ passwordHash column added');
         }
 
@@ -160,24 +164,25 @@ async function migrate(): Promise<void> {
           log('   This requires recreating the table with new schema...');
 
           // Get current table schema
-          const currentSchema = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='users'`).get() as { sql: string } | undefined;
+          const currentSchemaResult = await db.execute(`SELECT sql FROM sqlite_master WHERE type='table' AND name='users'`);
+          const currentSchema = currentSchemaResult.rows[0] as unknown as { sql: string } | undefined;
           if (verbose && currentSchema) {
             log(`   Current schema: ${currentSchema.sql}`);
           }
 
           // Create temporary table with all existing data
           log('   1. Creating temporary backup table...');
-          db.exec(`
+          await db.execute(`
             CREATE TABLE users_backup AS SELECT * FROM users;
           `);
 
           // Drop original table
           log('   2. Dropping original users table...');
-          db.exec(`DROP TABLE users`);
+          await db.execute(`DROP TABLE users`);
 
           // Recreate table with UNIQUE constraint on email
           log('   3. Recreating users table with UNIQUE email constraint...');
-          db.exec(`
+          await db.execute(`
             CREATE TABLE users (
               id TEXT PRIMARY KEY,
               username TEXT NOT NULL,
@@ -200,25 +205,32 @@ async function migrate(): Promise<void> {
 
           // Copy data back from temporary table
           log('   4. Restoring data from backup...');
-          db.exec(`
+          await db.execute(`
             INSERT INTO users SELECT * FROM users_backup;
           `);
 
           // Drop temporary table
           log('   5. Dropping backup table...');
-          db.exec(`DROP TABLE users_backup`);
+          await db.execute(`DROP TABLE users_backup`);
 
           log('   ✅ UNIQUE constraint added to email column');
         }
-      })();
+
+        // Commit transaction
+        await db.execute('COMMIT');
+      } catch (error) {
+        // Rollback on error
+        await db.execute('ROLLBACK');
+        throw error;
+      }
     } else {
       log('   [Dry-run mode] Changes would be applied here');
     }
 
     // Verify migration
     log('\n🔍 Verifying migration...');
-    const passwordHashFinal = checkColumnExists(db, 'users', 'passwordHash');
-    const emailUniqueFinal = checkEmailUniqueConstraint(db);
+    const passwordHashFinal = await checkColumnExists(db, 'users', 'passwordHash');
+    const emailUniqueFinal = await checkEmailUniqueConstraint(db);
 
     log('📊 Final state:');
     log(`   - passwordHash column exists: ${passwordHashFinal ? '✅ Yes' : '❌ No'}`);

@@ -7,7 +7,7 @@
  * @phase Phase 2 - SQLITE-006 - Simple Services Migration (Notes)
  */
 
-import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 
 /**
  * Note interface matching the service layer
@@ -82,19 +82,19 @@ function generateNoteId(): string {
  * @param note - Note data without id and createdAt
  * @returns Created note ID
  */
-export function createNote(note: Omit<Note, 'id' | 'createdAt'>): string {
+export async function createNote(note: Omit<Note, 'id' | 'createdAt'>): Promise<string> {
   const db = getDatabase();
   const id = generateNoteId();
   const now = Date.now();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO notes (
       id, userId, chapterId, selectedText, note, createdAt, lastModified,
       tags, isPublic, wordCount, noteType
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     id,
     note.userId,
     note.chapterId,
@@ -106,7 +106,8 @@ export function createNote(note: Omit<Note, 'id' | 'createdAt'>): string {
     note.isPublic ? 1 : 0,
     calculateWordCount(note.note),
     note.noteType || null
-  );
+  ]
+  });
 
   console.log(`✅ [NoteRepository] Created note: ${id} (user: ${note.userId}, chapter: ${note.chapterId})`);
   return id;
@@ -118,21 +119,22 @@ export function createNote(note: Omit<Note, 'id' | 'createdAt'>): string {
  * @param noteId - Note ID
  * @param content - New note content
  */
-export function updateNoteContent(noteId: string, content: string): void {
+export async function updateNoteContent(noteId: string, content: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE notes
     SET note = ?, wordCount = ?, lastModified = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     content,
     calculateWordCount(content),
     Date.now(),
     noteId
-  );
+  ]
+  });
 
   console.log(`✅ [NoteRepository] Updated note content: ${noteId}`);
 }
@@ -144,16 +146,18 @@ export function updateNoteContent(noteId: string, content: string): void {
  * @param chapterId - Chapter ID
  * @returns Array of notes
  */
-export function getNotesByUserAndChapter(userId: string, chapterId: number): Note[] {
+export async function getNotesByUserAndChapter(userId: string, chapterId: number): Promise<Note[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM notes
     WHERE userId = ? AND chapterId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(userId, chapterId) as NoteRow[];
+  `,
+    args: [userId, chapterId]
+  });
+  const rows = result.rows as unknown as NoteRow[];
 
   return rows.map(rowToNote);
 }
@@ -164,16 +168,18 @@ export function getNotesByUserAndChapter(userId: string, chapterId: number): Not
  * @param userId - User ID
  * @returns Array of notes sorted by creation date (newest first)
  */
-export function getAllNotesByUser(userId: string): Note[] {
+export async function getAllNotesByUser(userId: string): Promise<Note[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM notes
     WHERE userId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(userId) as NoteRow[];
+  `,
+    args: [userId]
+  });
+  const rows = result.rows as unknown as NoteRow[];
 
   return rows.map(rowToNote);
 }
@@ -184,14 +190,16 @@ export function getAllNotesByUser(userId: string): Note[] {
  * @param noteId - Note ID
  * @returns Note or null if not found
  */
-export function getNoteById(noteId: string): Note | null {
+export async function getNoteById(noteId: string): Promise<Note | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM notes WHERE id = ?
-  `);
-
-  const row = stmt.get(noteId) as NoteRow | undefined;
+  `,
+    args: [noteId]
+  });
+  const row = result.rows[0] as unknown as NoteRow | undefined;
 
   if (!row) {
     return null;
@@ -205,11 +213,13 @@ export function getNoteById(noteId: string): Note | null {
  *
  * @param noteId - Note ID
  */
-export function deleteNote(noteId: string): void {
+export async function deleteNote(noteId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`DELETE FROM notes WHERE id = ?`);
-  stmt.run(noteId);
+  await db.execute({
+    sql: `DELETE FROM notes WHERE id = ?`,
+    args: [noteId]
+  });
 
   console.log(`✅ [NoteRepository] Deleted note: ${noteId}`);
 }
@@ -220,20 +230,21 @@ export function deleteNote(noteId: string): void {
  * @param noteId - Note ID
  * @param isPublic - Whether note is public
  */
-export function updateNoteVisibility(noteId: string, isPublic: boolean): void {
+export async function updateNoteVisibility(noteId: string, isPublic: boolean): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE notes
     SET isPublic = ?, lastModified = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     isPublic ? 1 : 0,
     Date.now(),
     noteId
-  );
+  ]
+  });
 
   console.log(`✅ [NoteRepository] Updated note visibility: ${noteId} (public: ${isPublic})`);
 }
@@ -244,17 +255,19 @@ export function updateNoteVisibility(noteId: string, isPublic: boolean): void {
  * @param limit - Maximum number of notes to fetch (default: 50)
  * @returns Array of public notes sorted by creation date (newest first)
  */
-export function getPublicNotes(limit: number = 50): Note[] {
+export async function getPublicNotes(limit: number = 50): Promise<Note[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM notes
     WHERE isPublic = 1
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-
-  const rows = stmt.all(limit) as NoteRow[];
+  `,
+    args: [limit]
+  });
+  const rows = result.rows as unknown as NoteRow[];
 
   return rows.map(rowToNote);
 }
@@ -265,20 +278,21 @@ export function getPublicNotes(limit: number = 50): Note[] {
  * @param noteId - Note ID
  * @param tags - Array of tag strings
  */
-export function updateNoteTags(noteId: string, tags: string[]): void {
+export async function updateNoteTags(noteId: string, tags: string[]): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE notes
     SET tags = ?, lastModified = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     JSON.stringify(tags),
     Date.now(),
     noteId
-  );
+  ]
+  });
 
   console.log(`✅ [NoteRepository] Updated note tags: ${noteId} (${tags.length} tags)`);
 }
@@ -290,18 +304,17 @@ export function updateNoteTags(noteId: string, tags: string[]): void {
  * @param chapterId - Chapter ID
  * @returns Number of notes deleted
  */
-export function deleteNotesByUserAndChapter(userId: string, chapterId: number): number {
-  const db = getDatabase();
+export async function deleteNotesByUserAndChapter(userId: string, chapterId: number): Promise<number> {
+  const db = await getDatabase();
 
-  const stmt = db.prepare(`
-    DELETE FROM notes
-    WHERE userId = ? AND chapterId = ?
-  `);
+  const result = await db.execute({
+    sql: `DELETE FROM notes WHERE userId = ? AND chapterId = ?`,
+    args: [userId, chapterId]
+  });
 
-  const result = stmt.run(userId, chapterId);
-
-  console.log(`✅ [NoteRepository] Deleted ${result.changes} notes for user ${userId}, chapter ${chapterId}`);
-  return result.changes;
+  const changes = result.rowsAffected;
+  console.log(`✅ [NoteRepository] Deleted ${changes} notes for user ${userId}, chapter ${chapterId}`);
+  return changes;
 }
 
 /**
@@ -310,44 +323,55 @@ export function deleteNotesByUserAndChapter(userId: string, chapterId: number): 
  * @param notes - Array of notes to create
  * @returns Array of created note IDs
  */
-export function batchCreateNotes(notes: Array<Omit<Note, 'id' | 'createdAt'>>): string[] {
-  const db = getDatabase();
+export async function batchCreateNotes(notes: Array<Omit<Note, 'id' | 'createdAt'>>): Promise<string[]> {
+  const db = await getDatabase();
   const ids: string[] = [];
 
-  const insertMany = db.transaction((notesToInsert: Array<Omit<Note, 'id' | 'createdAt'>>) => {
-    const stmt = db.prepare(`
+  try {
+    // Start transaction
+    await db.execute('BEGIN');
+
+    const sql = `
       INSERT INTO notes (
         id, userId, chapterId, selectedText, note, createdAt, lastModified,
         tags, isPublic, wordCount, noteType
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    for (const note of notesToInsert) {
+    for (const note of notes) {
       const id = generateNoteId();
       const now = Date.now();
 
-      stmt.run(
-        id,
-        note.userId,
-        note.chapterId,
-        note.selectedText,
-        note.note,
-        now,
-        now,
-        JSON.stringify(note.tags || []),
-        note.isPublic ? 1 : 0,
-        calculateWordCount(note.note),
-        note.noteType || null
-      );
+      await db.execute({
+        sql,
+        args: [
+          id,
+          note.userId,
+          note.chapterId,
+          note.selectedText,
+          note.note,
+          now,
+          now,
+          JSON.stringify(note.tags || []),
+          note.isPublic ? 1 : 0,
+          calculateWordCount(note.note),
+          note.noteType || null
+        ]
+      });
 
       ids.push(id);
     }
-  });
 
-  insertMany(notes);
-
-  console.log(`✅ [NoteRepository] Batch created ${notes.length} notes`);
-  return ids;
+    // Commit transaction
+    await db.execute('COMMIT');
+    console.log(`✅ [NoteRepository] Batch created ${notes.length} notes`);
+    return ids;
+  } catch (error) {
+    // Rollback transaction on error
+    await db.execute('ROLLBACK');
+    console.error(`❌ [NoteRepository] Batch create failed:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -357,30 +381,31 @@ export function batchCreateNotes(notes: Array<Omit<Note, 'id' | 'createdAt'>>): 
  * @param chapterId - Optional chapter ID filter
  * @returns Note count
  */
-export function getNoteCount(userId: string, chapterId?: number): number {
-  const db = getDatabase();
+export async function getNoteCount(userId: string, chapterId?: number): Promise<number> {
+  const db = await getDatabase();
 
-  let stmt;
+  let sql: string;
   let params: any[];
 
   if (chapterId !== undefined) {
-    stmt = db.prepare(`
+    sql = `
       SELECT COUNT(*) as count
       FROM notes
       WHERE userId = ? AND chapterId = ?
-    `);
+    `;
     params = [userId, chapterId];
   } else {
-    stmt = db.prepare(`
+    sql = `
       SELECT COUNT(*) as count
       FROM notes
       WHERE userId = ?
-    `);
+    `;
     params = [userId];
   }
 
-  const result = stmt.get(...params) as { count: number };
-  return result.count;
+  const result = await db.execute({ sql, args: params });
+  const row = result.rows[0] as unknown as { count: number };
+  return row.count;
 }
 
 /**
@@ -390,28 +415,21 @@ export function getNoteCount(userId: string, chapterId?: number): number {
  * @param tag - Tag to search for
  * @returns Array of notes with the specified tag
  */
-export function getNotesByTag(userId: string, tag: string): Note[] {
-  const db = getDatabase();
+export async function getNotesByTag(userId: string, tag: string): Promise<Note[]> {
+  const db = await getDatabase();
 
-  // SQLite JSON functions to search within JSON array
-  const stmt = db.prepare(`
-    SELECT * FROM notes
-    WHERE userId = ?
-    AND json_each.value = ?
-    AND json_each.key IN (SELECT key FROM json_each(notes.tags))
-    ORDER BY createdAt DESC
-  `);
+  // Using LIKE approach for simplicity with Turso
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM notes
+      WHERE userId = ?
+      AND tags LIKE ?
+      ORDER BY createdAt DESC
+    `,
+    args: [userId, `%"${tag}"%`]
+  });
 
-  // Alternative simpler approach using LIKE (works but less precise)
-  const altStmt = db.prepare(`
-    SELECT * FROM notes
-    WHERE userId = ?
-    AND tags LIKE ?
-    ORDER BY createdAt DESC
-  `);
-
-  const rows = altStmt.all(userId, `%"${tag}"%`) as NoteRow[];
-
+  const rows = result.rows as unknown as NoteRow[];
   return rows.map(rowToNote);
 }
 
@@ -421,20 +439,21 @@ export function getNotesByTag(userId: string, tag: string): Note[] {
  * @param noteId - Note ID
  * @param noteType - Note type (general, vocabulary, character, theme, question)
  */
-export function updateNoteType(noteId: string, noteType: string | null): void {
+export async function updateNoteType(noteId: string, noteType: string | null): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE notes
     SET noteType = ?, lastModified = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     noteType,
     Date.now(),
     noteId
-  );
+  ]
+  });
 
   console.log(`✅ [NoteRepository] Updated note type: ${noteId} (type: ${noteType})`);
 }

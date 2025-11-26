@@ -12,7 +12,7 @@
  * - Hover tooltips with task details
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, XCircle } from "lucide-react";
@@ -98,12 +98,9 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({ userId }) => {
 
   /**
    * Load task history and populate calendar
+   * Wrapped in useCallback to prevent infinite re-renders
    */
-  useEffect(() => {
-    loadCalendarData();
-  }, [userId, year, month, loadCalendarData]);
-
-  const loadCalendarData = async () => {
+  const loadCalendarData = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -154,7 +151,14 @@ export const TaskCalendar: React.FC<TaskCalendarProps> = ({ userId }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, year, month]);
+
+  /**
+   * Load calendar data when dependencies change
+   */
+  useEffect(() => {
+    loadCalendarData();
+  }, [loadCalendarData]);
 
   /**
    * Navigate to previous month

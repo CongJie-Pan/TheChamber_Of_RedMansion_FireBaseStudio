@@ -37,7 +37,7 @@
 "use client"; // Required for client-side state and hooks
 
 // React imports
-import React, { useMemo } from 'react';
+import React from 'react';
 
 // UI component imports
 import { Badge } from '@/components/ui/badge';
@@ -146,16 +146,19 @@ function getLevelColorClasses(level: number): {
 }
 
 /**
- * Get appropriate icon based on level tier
+ * Render appropriate icon based on level tier
+ *
+ * Returns JSX element directly to avoid ESLint react-hooks/static-components error.
+ * This function should only be called in JSX, not stored in a variable.
  *
  * @param level - Current user level (0-7)
- * @returns Lucide icon component for the level tier
+ * @param sizeClass - Tailwind CSS size class (e.g., "h-3.5 w-3.5")
+ * @returns JSX element for the level tier icon
  */
-function getLevelIcon(level: number) {
-  if (level <= 1) return Trophy;
-  if (level <= 3) return Star;
-  if (level <= 5) return Star;
-  return Sparkles; // Master tier gets special sparkles icon
+function renderLevelIcon(level: number, sizeClass: string): React.ReactNode {
+  if (level <= 1) return <Trophy className={sizeClass} />;
+  if (level <= 5) return <Star className={sizeClass} />;
+  return <Sparkles className={sizeClass} />; // Master tier gets special sparkles icon
 }
 
 /**
@@ -189,12 +192,6 @@ export function LevelBadge({
 
   // Get color classes for current level
   const colors = getLevelColorClasses(level);
-
-  // Get icon component for current level (memoized as JSX element, not component)
-  const iconElement = useMemo(() => {
-    const IconComponent = getLevelIcon(level);
-    return IconComponent;
-  }, [level]);
 
   // Loading state
   if (isLoading && levelOverride === undefined) {
@@ -250,7 +247,7 @@ export function LevelBadge({
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
       >
-        {iconElement && <iconElement.type className="h-3.5 w-3.5" />}
+        {renderLevelIcon(level, "h-3.5 w-3.5")}
         <span className="font-semibold">Lv.{level}</span>
       </Badge>
     );
@@ -276,7 +273,7 @@ export function LevelBadge({
       tabIndex={onClick ? 0 : undefined}
     >
       <div className="flex items-center gap-1.5">
-        {iconElement && <iconElement.type className="h-5 w-5" />}
+        {renderLevelIcon(level, "h-5 w-5")}
         <span className="font-bold text-lg">Lv.{level}</span>
       </div>
 

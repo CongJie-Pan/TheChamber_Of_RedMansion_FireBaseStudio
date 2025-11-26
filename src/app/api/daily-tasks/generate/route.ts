@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dailyTaskService } from '@/lib/daily-task-service'
 import { taskGenerator } from '@/lib/task-generator'
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-options";
 import { isLlmOnlyMode } from '@/lib/env'
 import { isGuestAccount, getGuestTaskIds, logGuestAction } from '@/lib/middleware/guest-account'
 import { getTasksByIds } from '@/lib/repositories/task-repository'

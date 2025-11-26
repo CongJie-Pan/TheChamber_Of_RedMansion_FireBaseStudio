@@ -1,4 +1,8 @@
 /**
+ * @jest-environment node
+ */
+
+/**
  * @fileOverview Integration Tests: SSE Pipeline End-to-End
  *
  * Tests the complete Server-Sent Events pipeline from API route to ReadableStream.
@@ -6,10 +10,14 @@
  *
  * 100% mocked - no real API calls to Perplexity.
  *
+ * IMPORTANT: Uses @jest-environment node (not jsdom) because:
+ * - Tests Next.js API route handlers (NextRequest/NextResponse)
+ * - Requires Node.js server environment, not browser simulation
+ * - Avoids "Class extends value undefined" errors from Next.js module loading
+ *
  * @see src/app/api/perplexity-qa-stream/route.ts
  */
 
-import { POST } from '@/app/api/perplexity-qa-stream/route';
 import {
   createMockRequest,
   waitForSSECompletion,
@@ -18,23 +26,22 @@ import {
 } from '@tests/utils/perplexity-test-utils';
 import type { PerplexityStreamingChunk } from '@/types/perplexity-qa';
 
-// Mock the Perplexity flow - separate mock implementations from hoisted mock
-const mockPerplexityStreaming = jest.fn();
-const mockCreateInput = jest.fn();
-
+// Mock the Perplexity flow - define mocks directly in factory to avoid hoisting issues
 jest.mock('@/ai/flows/perplexity-red-chamber-qa', () => ({
-  perplexityRedChamberQAStreaming: mockPerplexityStreaming,
-  createPerplexityQAInputForFlow: mockCreateInput,
+  perplexityRedChamberQAStreaming: jest.fn(),
+  createPerplexityQAInputForFlow: jest.fn(),
 }));
 
-import { perplexityRedChamberQAStreaming } from '@/ai/flows/perplexity-red-chamber-qa';
+// Import the route AFTER the mock is defined
+import { POST } from '@/app/api/perplexity-qa-stream/route';
+import { perplexityRedChamberQAStreaming, createPerplexityQAInputForFlow } from '@/ai/flows/perplexity-red-chamber-qa';
 
 describe('Integration: SSE Pipeline', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Set default mock implementations
-    mockCreateInput.mockResolvedValue({
+    (createPerplexityQAInputForFlow as jest.Mock).mockResolvedValue({
       userQuestion: 'Test question',
       modelKey: 'sonar-reasoning-pro',
       reasoningEffort: 'medium',

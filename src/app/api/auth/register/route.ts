@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
 
     // Create user in SQLite database
     try {
-      const newUser = createUser(userId, username, email, passwordHash);
+      const newUser = await createUser(userId, username, email, passwordHash);
 
       console.log(`✅ [Registration] User created successfully: ${userId} (${email})`);
 

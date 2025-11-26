@@ -66,12 +66,7 @@ jest.mock('firebase/firestore', () => ({
   addDoc: jest.fn(),
   updateDoc: jest.fn(),
   serverTimestamp: jest.fn(() => new Date()),
-}));
-
-// Mock Firebase app
-jest.mock('@/lib/firebase', () => ({
-  db: {},
-}));
+}), { virtual: true });
 
 describe('Bi-Column Basic Functionality', () => {
   let mockRange: any;

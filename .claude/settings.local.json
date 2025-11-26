@@ -107,7 +107,8 @@
       "WebFetch(domain:m3.material.io)",
       "WebFetch(domain:flowbite.com)",
       "WebFetch(domain:github.com)",
-      "Bash(npx jest --listTests)"
+      "Bash(npx jest --listTests)",
+      "Bash(git log:*)"
     ]
   },
   "outputStyle": "default"

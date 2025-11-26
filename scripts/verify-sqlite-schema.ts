@@ -8,8 +8,7 @@
  * Usage: tsx scripts/verify-sqlite-schema.ts
  */
 
-import { getDatabase } from '../src/lib/sqlite-db';
-import type Database from 'better-sqlite3';
+import { getDatabase, type Client } from '../src/lib/sqlite-db';
 
 interface TableInfo {
   name: string;
@@ -59,47 +58,52 @@ const REQUIRED_INDEXES = [
 /**
  * Get all tables in the database
  */
-function getAllTables(db: Database.Database): string[] {
+async function getAllTables(db: Client): Promise<string[]> {
   const query = `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`;
-  const rows = db.prepare(query).all() as { name: string }[];
+  const result = await db.execute(query);
+  const rows = result.rows as unknown as { name: string }[];
   return rows.map(row => row.name);
 }
 
 /**
  * Get columns for a specific table
  */
-function getTableColumns(db: Database.Database, tableName: string): string[] {
+async function getTableColumns(db: Client, tableName: string): Promise<string[]> {
   const query = `PRAGMA table_info(${tableName})`;
-  const rows = db.prepare(query).all() as { name: string }[];
+  const result = await db.execute(query);
+  const rows = result.rows as unknown as { name: string }[];
   return rows.map(row => row.name);
 }
 
 /**
  * Get all indexes in the database
  */
-function getAllIndexes(db: Database.Database): string[] {
+async function getAllIndexes(db: Client): Promise<string[]> {
   const query = `SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'`;
-  const rows = db.prepare(query).all() as { name: string }[];
+  const result = await db.execute(query);
+  const rows = result.rows as unknown as { name: string }[];
   return rows.map(row => row.name);
 }
 
 /**
  * Get database file size
  */
-function getDatabaseSize(db: Database.Database): number {
+async function getDatabaseSize(db: Client): Promise<number> {
   const query = `SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()`;
-  const row = db.prepare(query).get() as { size: number };
+  const result = await db.execute(query);
+  const row = result.rows[0] as unknown as { size: number };
   return row.size;
 }
 
 /**
  * Get row counts for all tables
  */
-function getRowCounts(db: Database.Database, tables: string[]): Record<string, number> {
+async function getRowCounts(db: Client, tables: string[]): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const table of tables) {
     const query = `SELECT COUNT(*) as count FROM ${table}`;
-    const row = db.prepare(query).get() as { count: number };
+    const result = await db.execute(query);
+    const row = result.rows[0] as unknown as { count: number };
     counts[table] = row.count;
   }
   return counts;
@@ -108,7 +112,7 @@ function getRowCounts(db: Database.Database, tables: string[]): Record<string, n
 /**
  * Main verification function
  */
-function verifySchema(): void {
+async function verifySchema(): Promise<void> {
   console.log('\n' + '='.repeat(80));
   console.log('SQLite Schema Verification Report');
   console.log('='.repeat(80));
@@ -117,9 +121,9 @@ function verifySchema(): void {
   console.log(`Platform: ${process.platform} (${process.arch})`);
   console.log('='.repeat(80) + '\n');
 
-  let db: Database.Database;
+  let db: Client;
   try {
-    db = getDatabase();
+    db = await getDatabase();
   } catch (error: any) {
     console.error('❌ CRITICAL ERROR: Failed to initialize SQLite database');
     console.error(`   Error: ${error.message}`);
@@ -130,10 +134,10 @@ function verifySchema(): void {
   }
 
   // Get database information
-  const dbSize = getDatabaseSize(db);
-  const allTables = getAllTables(db);
-  const allIndexes = getAllIndexes(db);
-  const rowCounts = getRowCounts(db, allTables);
+  const dbSize = await getDatabaseSize(db);
+  const allTables = await getAllTables(db);
+  const allIndexes = await getAllIndexes(db);
+  const rowCounts = await getRowCounts(db, allTables);
 
   console.log('📊 DATABASE INFORMATION');
   console.log('-'.repeat(80));
@@ -156,7 +160,7 @@ function verifySchema(): void {
       continue;
     }
 
-    const actualColumns = getTableColumns(db, tableName);
+    const actualColumns = await getTableColumns(db, tableName);
     const missingColumns = requiredColumns.filter(col => !actualColumns.includes(col));
     const extraColumns = actualColumns.filter(col => !requiredColumns.includes(col));
 
@@ -224,10 +228,14 @@ function verifySchema(): void {
 }
 
 // Run verification
-try {
-  verifySchema();
-} catch (error: any) {
-  console.error('\n❌ VERIFICATION ERROR:', error.message);
-  console.error(error.stack);
-  process.exit(1);
+async function main() {
+  try {
+    await verifySchema();
+  } catch (error: any) {
+    console.error('\n❌ VERIFICATION ERROR:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+  }
 }
+
+main();

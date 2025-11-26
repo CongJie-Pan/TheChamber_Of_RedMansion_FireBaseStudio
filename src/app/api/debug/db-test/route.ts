@@ -26,7 +26,7 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 1: Attempting to get database instance...');
     diagnostics.step1_getDatabase = '嘗試中...';
 
-    const db = getDatabase();
+    const db = await getDatabase();
 
     diagnostics.step1_getDatabase = '✅ 成功';
     console.log('✅ [Diagnostic] Step 1: Database instance obtained successfully');
@@ -35,9 +35,10 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 2: Listing all tables...');
     diagnostics.step2_listTables = '嘗試中...';
 
-    const tables = db.prepare(
+    const tablesResult = await db.execute(
       "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).all() as Array<{ name: string }>;
+    );
+    const tables = tablesResult.rows as unknown as Array<{ name: string }>;
 
     diagnostics.step2_listTables = {
       success: true,
@@ -50,7 +51,8 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 3: Checking comments table structure...');
     diagnostics.step3_commentsSchema = '嘗試中...';
 
-    const commentsInfo = db.pragma('table_info(comments)') as Array<{ name: string; type: string }>;
+    const commentsInfoResult = await db.execute('PRAGMA table_info(comments)');
+    const commentsInfo = commentsInfoResult.rows as unknown as Array<{ name: string; type: string }>;
 
     diagnostics.step3_commentsSchema = {
       success: true,
@@ -63,7 +65,8 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 4: Counting comments...');
     diagnostics.step4_countComments = '嘗試中...';
 
-    const commentCount = db.prepare('SELECT COUNT(*) as count FROM comments').get() as { count: number };
+    const commentCountResult = await db.execute('SELECT COUNT(*) as count FROM comments');
+    const commentCount = commentCountResult.rows[0] as unknown as { count: number };
 
     diagnostics.step4_countComments = {
       success: true,
@@ -75,7 +78,8 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 5: Counting posts...');
     diagnostics.step5_countPosts = '嘗試中...';
 
-    const postCount = db.prepare('SELECT COUNT(*) as count FROM posts').get() as { count: number };
+    const postCountResult = await db.execute('SELECT COUNT(*) as count FROM posts');
+    const postCount = postCountResult.rows[0] as unknown as { count: number };
 
     diagnostics.step5_countPosts = {
       success: true,
@@ -87,9 +91,11 @@ export async function GET() {
     console.log('🔍 [Diagnostic] Step 6: Testing comments query...');
     diagnostics.step6_testQuery = '嘗試中...';
 
-    const testComments = db.prepare(
-      'SELECT * FROM comments WHERE status = ? LIMIT 5'
-    ).all('active');
+    const testCommentsResult = await db.execute({
+      sql: 'SELECT * FROM comments WHERE status = ? LIMIT 5',
+      args: ['active']
+    });
+    const testComments = testCommentsResult.rows;
 
     diagnostics.step6_testQuery = {
       success: true,

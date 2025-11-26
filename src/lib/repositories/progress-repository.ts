@@ -7,7 +7,7 @@
  * @phase Phase 2.9 - Local SQLite Database Implementation
  */
 
-import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 import type { DailyTaskProgress, DailyTaskAssignment, TaskSubmission } from '../types/daily-task';
 
 /**
@@ -87,19 +87,19 @@ function rowToSubmission(row: SubmissionRow): TaskSubmission {
  * @param progress - Daily progress data
  * @returns Created progress record
  */
-export function createProgress(progress: DailyTaskProgress): DailyTaskProgress {
+export async function createProgress(progress: DailyTaskProgress): Promise<DailyTaskProgress> {
   const db = getDatabase();
   const now = Date.now();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO daily_progress (
       id, userId, date, tasks, completedTaskIds, skippedTaskIds,
       totalXPEarned, totalAttributeGains, usedSourceIds,
       streak, createdAt, updatedAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     progress.id,
     progress.userId,
     progress.date,
@@ -112,7 +112,8 @@ export function createProgress(progress: DailyTaskProgress): DailyTaskProgress {
     progress.streak || 0,
     progress.createdAt ? toUnixTimestamp(progress.createdAt) : now,
     progress.updatedAt ? toUnixTimestamp(progress.updatedAt) : now
-  );
+  ]
+  });
 
   console.log(`✅ [ProgressRepository] Created progress: ${progress.id}`);
   return progress;
@@ -125,15 +126,17 @@ export function createProgress(progress: DailyTaskProgress): DailyTaskProgress {
  * @param date - Date in YYYY-MM-DD format
  * @returns Progress record or null if not found
  */
-export function getProgress(userId: string, date: string): DailyTaskProgress | null {
+export async function getProgress(userId: string, date: string): Promise<DailyTaskProgress | null> {
   const db = getDatabase();
   const progressId = `${userId}_${date}`;
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_progress WHERE id = ?
-  `);
-
-  const row = stmt.get(progressId) as ProgressRow | undefined;
+  `,
+    args: [progressId]
+  });
+  const row = result.rows[0] as unknown as ProgressRow | undefined;
 
   if (!row) {
     return null;
@@ -149,10 +152,10 @@ export function getProgress(userId: string, date: string): DailyTaskProgress | n
  * @param updates - Partial progress updates
  * @returns Updated progress record
  */
-export function updateProgress(
+export async function updateProgress(
   progressId: string,
   updates: Partial<Omit<DailyTaskProgress, 'id' | 'userId' | 'date' | 'createdAt'>>
-): DailyTaskProgress {
+): Promise<DailyTaskProgress> {
   const db = getDatabase();
   const now = Date.now();
 
@@ -202,13 +205,14 @@ export function updateProgress(
   // Add progressId for WHERE clause
   updateValues.push(progressId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE daily_progress
     SET ${updateFields.join(', ')}
     WHERE id = ?
-  `);
-
-  stmt.run(...updateValues);
+  `,
+    args: [...updateValues]
+  });
 
   console.log(`✅ [ProgressRepository] Updated progress: ${progressId}`);
 
@@ -222,7 +226,7 @@ export function updateProgress(
 
   const date = dateMatch[1];
   const userId = progressId.substring(0, progressId.lastIndexOf(`_${date}`));
-  const updated = getProgress(userId, date);
+  const updated = await getProgress(userId, date);
 
   if (!updated) {
     throw new Error(`Failed to retrieve updated progress: ${progressId}`);
@@ -237,32 +241,33 @@ export function updateProgress(
  * @param submission - Task submission data
  * @returns Created submission
  */
-export function createSubmission(submission: TaskSubmission): TaskSubmission {
-  const db = getDatabase();
+export async function createSubmission(submission: TaskSubmission): Promise<TaskSubmission> {
+  const db = await getDatabase();
   const now = Date.now();
 
   // Generate a unique ID for this submission
   const submissionId = `sub_${submission.taskId}_${Date.now()}`;
 
-  const stmt = db.prepare(`
-    INSERT INTO task_submissions (
-      id, userId, taskId, userAnswer, score, feedback,
-      xpEarned, attributeGains, submittedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
   // Map new TaskSubmission fields to legacy database schema
-  stmt.run(
-    submissionId,
-    'unknown', // userId not in new interface, use placeholder
-    submission.taskId,
-    submission.userResponse || '',
-    submission.aiScore || 0,
-    submission.feedback || null,
-    submission.xpAwarded || 0,
-    submission.attributeGains ? JSON.stringify(submission.attributeGains) : null,
-    submission.completedAt ? toUnixTimestamp(submission.completedAt) : now
-  );
+  await db.execute({
+    sql: `
+      INSERT INTO task_submissions (
+        id, userId, taskId, userAnswer, score, feedback,
+        xpEarned, attributeGains, submittedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      submissionId,
+      'unknown', // userId not in new interface, use placeholder
+      submission.taskId,
+      submission.userResponse || '',
+      submission.aiScore || 0,
+      submission.feedback || null,
+      submission.xpAwarded || 0,
+      submission.attributeGains ? JSON.stringify(submission.attributeGains) : null,
+      submission.completedAt ? toUnixTimestamp(submission.completedAt) : now
+    ]
+  });
 
   console.log(`✅ [ProgressRepository] Created submission: ${submissionId}`);
   return submission;
@@ -274,14 +279,16 @@ export function createSubmission(submission: TaskSubmission): TaskSubmission {
  * @param submissionId - Submission ID
  * @returns Submission or null if not found
  */
-export function getSubmissionById(submissionId: string): TaskSubmission | null {
+export async function getSubmissionById(submissionId: string): Promise<TaskSubmission | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM task_submissions WHERE id = ?
-  `);
-
-  const row = stmt.get(submissionId) as SubmissionRow | undefined;
+  `,
+    args: [submissionId]
+  });
+  const row = result.rows[0] as unknown as SubmissionRow | undefined;
 
   if (!row) {
     return null;
@@ -297,19 +304,21 @@ export function getSubmissionById(submissionId: string): TaskSubmission | null {
  * @param taskId - Task ID
  * @returns Array of submissions
  */
-export function getUserTaskSubmissions(
+export async function getUserTaskSubmissions(
   userId: string,
   taskId: string
-): TaskSubmission[] {
+): Promise<TaskSubmission[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM task_submissions
     WHERE userId = ? AND taskId = ?
     ORDER BY submittedAt DESC
-  `);
-
-  const rows = stmt.all(userId, taskId) as SubmissionRow[];
+  `,
+    args: [userId, taskId]
+  });
+  const rows = result.rows as unknown as SubmissionRow[];
 
   return rows.map(rowToSubmission);
 }
@@ -321,20 +330,22 @@ export function getUserTaskSubmissions(
  * @param limit - Number of records to fetch
  * @returns Array of progress records
  */
-export function getUserRecentProgress(
+export async function getUserRecentProgress(
   userId: string,
   limit: number = 30
-): DailyTaskProgress[] {
+): Promise<DailyTaskProgress[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_progress
     WHERE userId = ?
     ORDER BY date DESC
     LIMIT ?
-  `);
-
-  const rows = stmt.all(userId, limit) as ProgressRow[];
+  `,
+    args: [userId, limit]
+  });
+  const rows = result.rows as unknown as ProgressRow[];
 
   return rows.map(rowToProgress);
 }
@@ -347,20 +358,22 @@ export function getUserRecentProgress(
  * @param endDate - End date (YYYY-MM-DD)
  * @returns Array of progress records
  */
-export function getProgressByDateRange(
+export async function getProgressByDateRange(
   userId: string,
   startDate: string,
   endDate: string
-): DailyTaskProgress[] {
+): Promise<DailyTaskProgress[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_progress
     WHERE userId = ? AND date >= ? AND date <= ?
     ORDER BY date DESC
-  `);
-
-  const rows = stmt.all(userId, startDate, endDate) as ProgressRow[];
+  `,
+    args: [userId, startDate, endDate]
+  });
+  const rows = result.rows as unknown as ProgressRow[];
 
   return rows.map(rowToProgress);
 }
@@ -370,11 +383,13 @@ export function getProgressByDateRange(
  *
  * @param progressId - Progress record ID
  */
-export function deleteProgress(progressId: string): void {
+export async function deleteProgress(progressId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`DELETE FROM daily_progress WHERE id = ?`);
-  stmt.run(progressId);
+  await db.execute({
+    sql: `DELETE FROM daily_progress WHERE id = ?`,
+    args: [progressId]
+  });
 
   console.log(`✅ [ProgressRepository] Deleted progress: ${progressId}`);
 }

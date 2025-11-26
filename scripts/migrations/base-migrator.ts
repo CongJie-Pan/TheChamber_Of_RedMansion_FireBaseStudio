@@ -8,8 +8,7 @@
  * @phase Phase 1 - SQLITE-003 - Data Migration Framework
  */
 
-import type Database from 'better-sqlite3';
-import { getDatabase } from '../../src/lib/sqlite-db';
+import { getDatabase, type Client } from '../../src/lib/sqlite-db';
 
 /**
  * Firebase Timestamp type
@@ -48,7 +47,7 @@ export interface MigrationStats {
  * Base migrator class for Firebase to SQLite migrations
  */
 export abstract class BaseMigrator {
-  protected db: Database.Database;
+  protected db: Client;
   protected options: Required<MigrationOptions>;
   protected stats: MigrationStats;
 

@@ -19,11 +19,19 @@
 
 // Jest configuration with proper React/JSX support
 const config = {
+  // Load polyfills BEFORE setupFilesAfterEnv (critical for undici compatibility)
+  setupFiles: ['<rootDir>/jest.polyfills.js'],
+
   // Setup files that run before each test
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  
+
   // Test environment - use jsdom for React component tests
   testEnvironment: 'jsdom',
+
+  // Prevent jsdom from overriding Node.js module exports
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
   
   // Use ts-jest preset for TypeScript and JSX support
   preset: 'ts-jest',

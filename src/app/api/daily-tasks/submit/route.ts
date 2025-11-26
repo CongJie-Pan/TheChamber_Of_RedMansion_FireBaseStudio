@@ -18,7 +18,7 @@ import {
   TaskCompletionResult,
 } from '@/lib/types/daily-task'
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-options";
 import { isLlmOnlyMode } from '@/lib/env'
 import { simpleTierScore } from '@/lib/task-evaluator'
 

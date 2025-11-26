@@ -19,19 +19,20 @@ interface PostRow {
  * Migrate moderationAction from legacy JSON format to string primitives
  * This is optional now that repository handles both formats
  */
-export function migrateModerationActionFormat(dryRun: boolean = true): void {
+export async function migrateModerationActionFormat(dryRun: boolean = true): Promise<void> {
   console.log('🔍 [Migration] Scanning posts with moderationAction field...');
   console.log(`   Mode: ${dryRun ? 'DRY RUN (no changes)' : 'LIVE (will update database)'}`);
 
-  const db = getDatabase();
+  const db = await getDatabase();
 
   try {
     // Get all posts with non-null moderationAction
-    const posts = db.prepare(`
+    const result = await db.execute(`
       SELECT id, moderationAction
       FROM posts
       WHERE moderationAction IS NOT NULL
-    `).all() as PostRow[];
+    `);
+    const posts = result.rows as unknown as PostRow[];
 
     console.log(`   Found ${posts.length} posts with moderationAction field`);
 
@@ -98,16 +99,13 @@ export function migrateModerationActionFormat(dryRun: boolean = true): void {
     if (!dryRun && updates.length > 0) {
       console.log(`\n🔄 [Migration] Executing ${updates.length} updates...`);
 
-      const stmt = db.prepare(`
-        UPDATE posts
-        SET moderationAction = ?
-        WHERE id = ?
-      `);
-
       let updated = 0;
       for (const update of updates) {
         try {
-          stmt.run(update.newValue, update.id);
+          await db.execute({
+            sql: `UPDATE posts SET moderationAction = ? WHERE id = ?`,
+            args: [update.newValue, update.id]
+          });
           updated++;
         } catch (error) {
           console.error(`   ❌ Failed to update post ${update.id}:`, error);

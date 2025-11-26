@@ -12,8 +12,7 @@
  * Usage: tsx scripts/seed-guest-account.ts [--reset]
  */
 
-import { getDatabase } from '../src/lib/sqlite-db';
-import type Database from 'better-sqlite3';
+import { getDatabase, type Client } from '../src/lib/sqlite-db';
 import {
   GUEST_USER_ID,
   GUEST_EMAIL,
@@ -126,33 +125,28 @@ const GUEST_PROGRESS = {
  * Delete existing guest account data
  * Phase 4-T1: Ensures complete reset including all task submissions and progress records
  */
-function deleteGuestData(db: Database.Database): void {
+async function deleteGuestData(db: Client): Promise<void> {
   console.log(`\n🗑️  Deleting existing guest account data...`);
 
   // Delete in order of foreign key dependencies (child tables first)
   // This ensures complete reset: XP=70, Level=1, 0 completed tasks
   const deletions = [
-    { table: 'task_submissions', condition: 'userId = ?' },   // All task submission records
-    { table: 'level_ups', condition: 'userId = ?' },
-    { table: 'xp_transaction_locks', condition: 'userId = ?' },
-    { table: 'xp_transactions', condition: 'userId = ?' },
-    { table: 'daily_progress', condition: 'userId = ?' },     // ALL daily progress records
-    { table: 'daily_tasks', condition: 'id IN (?, ?)' },      // Guest-specific fixed tasks
-    { table: 'users', condition: 'id = ?' },
+    { table: 'task_submissions', condition: 'userId = ?', params: [GUEST_USER_ID] },
+    { table: 'level_ups', condition: 'userId = ?', params: [GUEST_USER_ID] },
+    { table: 'xp_transaction_locks', condition: 'userId = ?', params: [GUEST_USER_ID] },
+    { table: 'xp_transactions', condition: 'userId = ?', params: [GUEST_USER_ID] },
+    { table: 'daily_progress', condition: 'userId = ?', params: [GUEST_USER_ID] },
+    { table: 'daily_tasks', condition: 'id IN (?, ?)', params: [GUEST_TASK_1_ID, GUEST_TASK_2_ID] },
+    { table: 'users', condition: 'id = ?', params: [GUEST_USER_ID] },
   ];
 
-  for (const { table, condition } of deletions) {
+  for (const { table, condition, params } of deletions) {
     try {
-      let params: string[];
-      if (table === 'daily_tasks') {
-        params = [GUEST_TASK_1_ID, GUEST_TASK_2_ID];
-      } else {
-        params = [GUEST_USER_ID];
-      }
-
-      const stmt = db.prepare(`DELETE FROM ${table} WHERE ${condition}`);
-      const result = stmt.run(...params);
-      console.log(`   ✓ Deleted ${result.changes} row(s) from ${table}`);
+      const result = await db.execute({
+        sql: `DELETE FROM ${table} WHERE ${condition}`,
+        args: params
+      });
+      console.log(`   ✓ Deleted row(s) from ${table}`);
     } catch (error: any) {
       console.warn(`   ⚠️  Warning: Could not delete from ${table}: ${error.message}`);
     }
@@ -162,27 +156,26 @@ function deleteGuestData(db: Database.Database): void {
 /**
  * Insert guest user account
  */
-function insertGuestUser(db: Database.Database): void {
+async function insertGuestUser(db: Client): Promise<void> {
   console.log(`\n👤 Creating guest user account...`);
 
-  const stmt = db.prepare(`
-    INSERT INTO users (
+  await db.execute({
+    sql: `INSERT INTO users (
       id, username, email, currentLevel, currentXP, totalXP,
       attributes, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    GUEST_USER.id,
-    GUEST_USER.username,
-    GUEST_USER.email,
-    GUEST_USER.currentLevel,
-    GUEST_USER.currentXP,
-    GUEST_USER.totalXP,
-    GUEST_USER.attributes,
-    GUEST_USER.createdAt,
-    GUEST_USER.updatedAt
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      GUEST_USER.id,
+      GUEST_USER.username,
+      GUEST_USER.email,
+      GUEST_USER.currentLevel,
+      GUEST_USER.currentXP,
+      GUEST_USER.totalXP,
+      GUEST_USER.attributes,
+      Date.now(),
+      Date.now()
+    ]
+  });
 
   console.log(`   ✓ Created user: ${GUEST_USER.username} (ID: ${GUEST_USER.id})`);
   console.log(`   ✓ Set XP: ${GUEST_USER.currentXP}, Level: ${GUEST_USER.currentLevel}`);
@@ -191,30 +184,29 @@ function insertGuestUser(db: Database.Database): void {
 /**
  * Insert guest daily tasks
  */
-function insertGuestTasks(db: Database.Database): void {
+async function insertGuestTasks(db: Client): Promise<void> {
   console.log(`\n📝 Creating guest daily tasks...`);
 
-  const stmt = db.prepare(`
-    INSERT INTO daily_tasks (
-      id, taskType, difficulty, title, description, baseXP,
-      content, sourceChapter, sourceVerseStart, sourceVerseEnd, createdAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
   for (const task of GUEST_TASKS) {
-    stmt.run(
-      task.id,
-      task.taskType,
-      task.difficulty,
-      task.title,
-      task.description,
-      task.baseXP,
-      task.content,
-      task.sourceChapter,
-      task.sourceVerseStart,
-      task.sourceVerseEnd,
-      task.createdAt
-    );
+    await db.execute({
+      sql: `INSERT INTO daily_tasks (
+        id, taskType, difficulty, title, description, baseXP,
+        content, sourceChapter, sourceVerseStart, sourceVerseEnd, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        task.id,
+        task.taskType,
+        task.difficulty,
+        task.title,
+        task.description,
+        task.baseXP,
+        task.content,
+        task.sourceChapter,
+        task.sourceVerseStart,
+        task.sourceVerseEnd,
+        Date.now()
+      ]
+    });
     console.log(`   ✓ Created task: ${task.title} (${task.baseXP} XP)`);
   }
 }
@@ -222,31 +214,30 @@ function insertGuestTasks(db: Database.Database): void {
 /**
  * Insert guest daily progress
  */
-function insertGuestProgress(db: Database.Database): void {
+async function insertGuestProgress(db: Client): Promise<void> {
   console.log(`\n📊 Creating guest daily progress...`);
 
-  const stmt = db.prepare(`
-    INSERT INTO daily_progress (
+  await db.execute({
+    sql: `INSERT INTO daily_progress (
       id, userId, date, tasks, completedTaskIds, skippedTaskIds,
       totalXPEarned, totalAttributeGains, usedSourceIds, streak,
       createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    GUEST_PROGRESS.id,
-    GUEST_PROGRESS.userId,
-    GUEST_PROGRESS.date,
-    GUEST_PROGRESS.tasks,
-    GUEST_PROGRESS.completedTaskIds,
-    GUEST_PROGRESS.skippedTaskIds,
-    GUEST_PROGRESS.totalXPEarned,
-    GUEST_PROGRESS.totalAttributeGains,
-    GUEST_PROGRESS.usedSourceIds,
-    GUEST_PROGRESS.streak,
-    GUEST_PROGRESS.createdAt,
-    GUEST_PROGRESS.updatedAt
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      GUEST_PROGRESS.id,
+      GUEST_PROGRESS.userId,
+      GUEST_PROGRESS.date,
+      GUEST_PROGRESS.tasks,
+      GUEST_PROGRESS.completedTaskIds,
+      GUEST_PROGRESS.skippedTaskIds,
+      GUEST_PROGRESS.totalXPEarned,
+      GUEST_PROGRESS.totalAttributeGains,
+      GUEST_PROGRESS.usedSourceIds,
+      GUEST_PROGRESS.streak,
+      Date.now(),
+      Date.now()
+    ]
+  });
 
   console.log(`   ✓ Created progress for date: ${GUEST_PROGRESS.date}`);
   console.log(`   ✓ Tasks: 0/2 completed`);
@@ -255,26 +246,26 @@ function insertGuestProgress(db: Database.Database): void {
 /**
  * Main seeding function
  */
-export function seedGuestAccount(reset: boolean = true): void {
+export async function seedGuestAccount(reset: boolean = true): Promise<void> {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`🧪 GUEST TEST ACCOUNT SEEDING SCRIPT`);
   console.log(`${'='.repeat(60)}`);
 
-  const db = getDatabase();
+  const db = await getDatabase();
 
   try {
     // Use transaction for atomicity
-    db.exec('BEGIN TRANSACTION');
+    await db.execute('BEGIN');
 
     if (reset) {
-      deleteGuestData(db);
+      await deleteGuestData(db);
     }
 
-    insertGuestUser(db);
-    insertGuestTasks(db);
-    insertGuestProgress(db);
+    await insertGuestUser(db);
+    await insertGuestTasks(db);
+    await insertGuestProgress(db);
 
-    db.exec('COMMIT');
+    await db.execute('COMMIT');
 
     console.log(`\n${'='.repeat(60)}`);
     console.log(`✅ Guest account seeded successfully!`);
@@ -291,7 +282,7 @@ export function seedGuestAccount(reset: boolean = true): void {
     console.log(`\n`);
 
   } catch (error: any) {
-    db.exec('ROLLBACK');
+    await db.execute('ROLLBACK');
     console.error(`\n❌ Error seeding guest account: ${error.message}`);
     console.error(error.stack);
     process.exit(1);

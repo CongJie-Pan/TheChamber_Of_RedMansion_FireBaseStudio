@@ -613,6 +613,36 @@ export class PerplexityClient {
 
               if (data === '[DONE]') {
                 console.log('🐛 [streamingCompletionRequest] Received [DONE] signal');
+
+                // PHASE 3 FIX: Finalize processor to flush any remaining buffered content
+                const finalChunk = processor.finalize();
+                if (finalChunk.content.trim()) {
+                  fullContent += finalChunk.content;
+                  const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+                  const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+                  const processingTime = (Date.now() - startTime) / 1000;
+
+                  yield {
+                    content: finalChunk.content,
+                    fullContent: fullContent,
+                    thinkingContent: sanitizedThinking,
+                    contentDerivedFromThinking: false,
+                    timestamp: new Date().toISOString(),
+                    citations,
+                    searchQueries: collectedSearchQueries,
+                    metadata: {
+                      searchQueries: collectedSearchQueries,
+                      webSources: citations.filter(c => c.type === 'web_citation'),
+                      groundingSuccessful: collectedCitations.length > 0,
+                      confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                    },
+                    responseTime: processingTime,
+                    isComplete: true,  // [DONE] signal means stream is complete
+                    chunkIndex,
+                    hasThinkingProcess: sanitizedThinking.length > 0,
+                  };
+                }
+
                 return;
               }
 
@@ -640,6 +670,33 @@ export class PerplexityClient {
                     if (structured.type === 'thinking') {
                       // Accumulate thinking content
                       accumulatedThinking += (accumulatedThinking ? '\n\n' : '') + structured.content;
+
+                      // PHASE 1 FIX: Yield thinking-only chunks so they're captured by tests
+                      // This ensures thinking-only responses don't result in empty chunk arrays
+                      const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+                      const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+
+                      yield {
+                        content: '',  // No answer text in thinking-only chunks
+                        fullContent: fullContent,  // Current accumulated answer (may be empty)
+                        thinkingContent: sanitizedThinking,
+                        contentDerivedFromThinking: false,
+                        timestamp: new Date().toISOString(),
+                        citations,
+                        searchQueries: collectedSearchQueries,
+                        metadata: {
+                          searchQueries: collectedSearchQueries,
+                          webSources: citations.filter(c => c.type === 'web_citation'),
+                          groundingSuccessful: collectedCitations.length > 0,
+                          confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                        },
+                        responseTime: processingTime,
+                        isComplete,
+                        chunkIndex,
+                        hasThinkingProcess: true,
+                      };
+
+                      chunkIndex++;
                     } else if (structured.type === 'text') {
                       // Accumulate answer text
                       fullContent += structured.content;

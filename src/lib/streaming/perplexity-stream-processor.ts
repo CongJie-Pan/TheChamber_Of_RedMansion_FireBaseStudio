@@ -90,51 +90,93 @@ export class PerplexityStreamProcessor {
     // When we're inside a thinking tag, process only the new chunk directly
     // without re-processing the buffer
     if (this.state === 'inside') {
-      let i = 0;
-      while (i < rawChunk.length) {
-        // Check for closing </think> tag
-        if (rawChunk.slice(i, i + 8) === '</think>') {
-          this.tagDepth--;
+      // PHASE 4.1 FIX: Use sliding window to detect closing tags across chunk boundaries
+      // Create lookback buffer: last 7 chars from thinkingBuffer + current rawChunk
+      const maxLookbackSize = 7;
+      const lookbackFromPrevious = this.thinkingBuffer.slice(-maxLookbackSize);
+      // IMPORTANT: Use actual lookback size, not max, when thinkingBuffer has fewer chars
+      const actualLookbackSize = lookbackFromPrevious.length;
+      const lookbackBuffer = lookbackFromPrevious + rawChunk;
 
-          if (this.tagDepth === 0) {
-            // Complete thinking block
-            const thinkingContent = this.thinkingBuffer.trim();
-            if (thinkingContent) {
-              this.accumulatedThinking.push(thinkingContent);
-              chunks.push({
-                type: 'thinking',
-                content: thinkingContent,
-                timestamp: Date.now(),
-              });
-            }
+      let foundClosingTag = false;
+      let closingTagPosition = -1;
 
-            this.state = 'outside';
-            this.thinkingBuffer = '';
-
-            // Process remaining content in this chunk as normal text/buffer
-            const remaining = rawChunk.slice(i + 8);
-            if (remaining) {
-              // Recursively process the remaining part
-              const remainingChunks = this.processChunk(remaining);
-              chunks.push(...remainingChunks);
-            }
-
-            return chunks;
-          } else {
-            // Nested closing tag
-            this.thinkingBuffer += '</think>';
-          }
-
-          i += 8;
-          continue;
+      // Search for </think> in the combined lookback buffer
+      for (let searchPos = 0; searchPos <= lookbackBuffer.length - 8; searchPos++) {
+        if (lookbackBuffer.slice(searchPos, searchPos + 8) === '</think>') {
+          closingTagPosition = searchPos;
+          foundClosingTag = true;
+          break;
         }
-
-        // Regular character - add to thinking buffer
-        this.thinkingBuffer += rawChunk[i];
-        i++;
       }
 
-      // Finished processing rawChunk while still inside thinking tag
+      if (foundClosingTag) {
+        this.tagDepth--;
+
+        if (this.tagDepth === 0) {
+          // Calculate where the closing tag ends in the lookback buffer
+          // lookbackBuffer structure: [actualLookbackSize chars from thinkingBuffer] + [rawChunk]
+          // closingTagPosition is where '</think>' starts in lookbackBuffer
+          const tagEndInLookback = closingTagPosition + 8; // '</think>' is 8 chars
+
+          // Calculate how much of the partial closing tag exists in thinkingBuffer
+          // If tag starts before actualLookbackSize, part of it is in thinkingBuffer
+          const charsToRemoveFromThinking = Math.max(0, actualLookbackSize - closingTagPosition);
+
+          // Remove partial closing tag from thinkingBuffer if it exists
+          if (charsToRemoveFromThinking > 0) {
+            this.thinkingBuffer = this.thinkingBuffer.slice(0, -charsToRemoveFromThinking);
+          }
+
+          // Add content from rawChunk that comes before the closing tag
+          // closingTagPosition is in lookbackBuffer coordinates
+          // Content before tag in rawChunk starts at position 0 and ends at (closingTagPosition - actualLookbackSize)
+          if (closingTagPosition > actualLookbackSize) {
+            const contentBeforeTagInRaw = rawChunk.slice(0, closingTagPosition - actualLookbackSize);
+            this.thinkingBuffer += contentBeforeTagInRaw;
+          }
+
+          // Complete thinking block
+          const thinkingContent = this.thinkingBuffer.trim();
+          if (thinkingContent) {
+            this.accumulatedThinking.push(thinkingContent);
+            chunks.push({
+              type: 'thinking',
+              content: thinkingContent,
+              timestamp: Date.now(),
+            });
+          }
+
+          this.state = 'outside';
+          this.thinkingBuffer = '';
+
+          // Calculate where remaining content starts in rawChunk
+          // rawChunk starts at position actualLookbackSize in lookbackBuffer
+          // Remaining content starts after the tag ends
+          const remainingStartInRaw = Math.max(0, tagEndInLookback - actualLookbackSize);
+          const remaining = rawChunk.slice(remainingStartInRaw);
+
+          if (remaining) {
+            // Recursively process the remaining part
+            const remainingChunks = this.processChunk(remaining);
+            chunks.push(...remainingChunks);
+          }
+
+          return chunks;
+        } else {
+          // Nested closing tag - add to thinking buffer
+          this.thinkingBuffer += rawChunk;
+          return chunks;
+        }
+      }
+
+      // No closing tag found in sliding window - add all to thinking buffer
+      // The sliding window logic (lines 93-109) already handles detecting closing tags
+      // that span chunk boundaries by looking back into thinkingBuffer.
+      // We simply add the entire rawChunk to thinkingBuffer and let the next chunk's
+      // sliding window handle any split closing tags.
+      this.thinkingBuffer += rawChunk;
+
       return chunks;
     }
 
@@ -284,6 +326,27 @@ export class PerplexityStreamProcessor {
   }
 
   /**
+   * Find the start of a potential incomplete </think> closing tag
+   *
+   * Looks for patterns like "</", "</t", "</th", "</thi", etc. at the end of the string
+   *
+   * @param text - Text to search
+   * @returns Index of potential closing tag start, or -1 if none found
+   */
+  private findPotentialClosingTag(text: string): number {
+    // Check from the end for potential closing tag starts
+    const patterns = ['</think', '</thin', '</thi', '</th', '</t', '</'];
+
+    for (const pattern of patterns) {
+      if (text.endsWith(pattern)) {
+        return text.length - pattern.length;
+      }
+    }
+
+    return -1;
+  }
+
+  /**
    * Finalize processing when stream ends
    *
    * Emits any remaining buffered content as appropriate chunks.
@@ -295,7 +358,18 @@ export class PerplexityStreamProcessor {
 
     // If we're still inside a thinking tag, include it as thinking
     if (this.state === 'inside') {
-      const thinkingContent = this.thinkingBuffer.trim();
+      // PHASE 4.1 FIX: Clean partial closing tags from thinking buffer before outputting
+      let thinkingContent = this.thinkingBuffer.trim();
+
+      // Remove any incomplete closing tag at the end (e.g., "</thi", "</t", etc.)
+      const partialClosingTags = ['</think', '</thin', '</thi', '</th', '</t', '</'];
+      for (const partial of partialClosingTags) {
+        if (thinkingContent.endsWith(partial)) {
+          thinkingContent = thinkingContent.slice(0, -partial.length).trim();
+          break;
+        }
+      }
+
       if (thinkingContent) {
         this.accumulatedThinking.push(thinkingContent);
         finalContent = thinkingContent;

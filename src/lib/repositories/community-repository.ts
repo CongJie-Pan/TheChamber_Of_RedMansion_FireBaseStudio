@@ -13,7 +13,7 @@
  * @phase Phase 3 - SQLITE-014 Community Repository Implementation
  */
 
-import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 import type { ModerationAction } from '../content-filter-service';
 
 /**
@@ -122,7 +122,7 @@ function rowToPost(row: PostRow): CommunityPost {
  * @param post - Post data (content should already be moderated)
  * @returns Created post ID
  */
-export function createPost(post: {
+export async function createPost(post: {
   id: string;
   authorId: string;
   authorName: string;
@@ -134,20 +134,20 @@ export function createPost(post: {
   moderationAction?: string;
   originalContent?: string;
   moderationWarning?: string;
-}): string {
+}): Promise<string> {
   const db = getDatabase();
   const now = Date.now();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO posts (
       id, authorId, authorName, title, content, tags, category,
       likes, likedBy, bookmarkedBy, commentCount, viewCount,
       status, isEdited, moderationAction, originalContent, moderationWarning,
       createdAt, updatedAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     post.id,
     post.authorId,
     post.authorName,
@@ -167,7 +167,8 @@ export function createPost(post: {
     post.moderationWarning || null,
     now,
     now
-  );
+  ]
+  });
 
   console.log(`✅ [CommunityRepository] Created post: ${post.id}`);
   return post.id;
@@ -179,11 +180,14 @@ export function createPost(post: {
  * @param postId - Post ID
  * @returns Post or null if not found
  */
-export function getPostById(postId: string): CommunityPost | null {
+export async function getPostById(postId: string): Promise<CommunityPost | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare('SELECT * FROM posts WHERE id = ?');
-  const row = stmt.get(postId) as PostRow | undefined;
+  const result = await db.execute({
+    sql: `SELECT * FROM posts WHERE id = ?`,
+    args: [postId]
+  });
+  const row = result.rows[0] as unknown as PostRow | undefined;
 
   return row ? rowToPost(row) : null;
 }
@@ -194,15 +198,15 @@ export function getPostById(postId: string): CommunityPost | null {
  * @param options - Query options
  * @returns Array of posts
  */
-export function getPosts(options: {
+export async function getPosts(options: {
   category?: string;
   status?: 'active' | 'hidden' | 'deleted';
   tags?: string[];
   limit?: number;
   offset?: number;
   sortBy?: 'newest' | 'popular' | 'trending';
-} = {}): CommunityPost[] {
-  const db = getDatabase();
+} = {}): Promise<CommunityPost[]> {
+  const db = await getDatabase();
 
   const {
     category,
@@ -242,8 +246,8 @@ export function getPosts(options: {
   query += ' LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
-  const stmt = db.prepare(query);
-  const rows = stmt.all(...params) as PostRow[];
+  const result = await db.execute({ sql: query, args: params });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -256,7 +260,7 @@ export function getPosts(options: {
  * @param updates - Fields to update (content should already be moderated if changed)
  * @returns Updated post
  */
-export function updatePost(
+export async function updatePost(
   postId: string,
   updates: Partial<{
     title: string;
@@ -268,7 +272,7 @@ export function updatePost(
     originalContent: string;
     moderationWarning: string;
   }>
-): CommunityPost {
+): Promise<CommunityPost> {
   const db = getDatabase();
   const now = Date.now();
 
@@ -323,14 +327,16 @@ export function updatePost(
 
   params.push(postId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts SET ${fields.join(', ')} WHERE id = ?
-  `);
-  stmt.run(...params);
+  `,
+    args: [...params]
+  });
 
   console.log(`✅ [CommunityRepository] Updated post: ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after update: ${postId}`);
   return updated;
 }
@@ -340,13 +346,15 @@ export function updatePost(
  *
  * @param postId - Post ID
  */
-export function deletePost(postId: string): void {
+export async function deletePost(postId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts SET status = 'deleted', updatedAt = ? WHERE id = ?
-  `);
-  stmt.run(Date.now(), postId);
+  `,
+    args: [Date.now(), postId]
+  });
 
   console.log(`✅ [CommunityRepository] Deleted post: ${postId}`);
 }
@@ -357,13 +365,15 @@ export function deletePost(postId: string): void {
  * @param postId - Post ID
  * @returns True if post exists
  */
-export function postExists(postId: string): boolean {
-  const db = getDatabase();
+export async function postExists(postId: string): Promise<boolean> {
+  const db = await getDatabase();
 
-  const stmt = db.prepare('SELECT 1 FROM posts WHERE id = ? LIMIT 1');
-  const row = stmt.get(postId);
+  const result = await db.execute({
+    sql: 'SELECT 1 FROM posts WHERE id = ? LIMIT 1',
+    args: [postId]
+  });
 
-  return !!row;
+  return result.rows.length > 0;
 }
 
 // ============================================================================
@@ -377,10 +387,10 @@ export function postExists(postId: string): boolean {
  * @param userId - User ID
  * @returns Updated post
  */
-export function likePost(postId: string, userId: string): CommunityPost {
+export async function likePost(postId: string, userId: string): Promise<CommunityPost> {
   const db = getDatabase();
 
-  const post = getPostById(postId);
+  const post = await getPostById(postId);
   if (!post) throw new Error(`Post not found: ${postId}`);
 
   if (post.likedBy.includes(userId)) {
@@ -390,16 +400,18 @@ export function likePost(postId: string, userId: string): CommunityPost {
 
   const newLikedBy = [...post.likedBy, userId];
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts
     SET likes = likes + 1, likedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newLikedBy), Date.now(), postId);
+  `,
+    args: [JSON.stringify(newLikedBy), Date.now(), postId]
+  });
 
   console.log(`✅ [CommunityRepository] User ${userId} liked post ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after like: ${postId}`);
   return updated;
 }
@@ -411,10 +423,10 @@ export function likePost(postId: string, userId: string): CommunityPost {
  * @param userId - User ID
  * @returns Updated post
  */
-export function unlikePost(postId: string, userId: string): CommunityPost {
+export async function unlikePost(postId: string, userId: string): Promise<CommunityPost> {
   const db = getDatabase();
 
-  const post = getPostById(postId);
+  const post = await getPostById(postId);
   if (!post) throw new Error(`Post not found: ${postId}`);
 
   if (!post.likedBy.includes(userId)) {
@@ -424,16 +436,18 @@ export function unlikePost(postId: string, userId: string): CommunityPost {
 
   const newLikedBy = post.likedBy.filter(id => id !== userId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts
     SET likes = likes - 1, likedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newLikedBy), Date.now(), postId);
+  `,
+    args: [JSON.stringify(newLikedBy), Date.now(), postId]
+  });
 
   console.log(`✅ [CommunityRepository] User ${userId} unliked post ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after unlike: ${postId}`);
   return updated;
 }
@@ -445,10 +459,10 @@ export function unlikePost(postId: string, userId: string): CommunityPost {
  * @param userId - User ID
  * @returns Updated post
  */
-export function bookmarkPost(postId: string, userId: string): CommunityPost {
+export async function bookmarkPost(postId: string, userId: string): Promise<CommunityPost> {
   const db = getDatabase();
 
-  const post = getPostById(postId);
+  const post = await getPostById(postId);
   if (!post) throw new Error(`Post not found: ${postId}`);
 
   if (post.bookmarkedBy.includes(userId)) {
@@ -458,16 +472,18 @@ export function bookmarkPost(postId: string, userId: string): CommunityPost {
 
   const newBookmarkedBy = [...post.bookmarkedBy, userId];
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts
     SET bookmarkedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newBookmarkedBy), Date.now(), postId);
+  `,
+    args: [JSON.stringify(newBookmarkedBy), Date.now(), postId]
+  });
 
   console.log(`✅ [CommunityRepository] User ${userId} bookmarked post ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after bookmark: ${postId}`);
   return updated;
 }
@@ -479,10 +495,10 @@ export function bookmarkPost(postId: string, userId: string): CommunityPost {
  * @param userId - User ID
  * @returns Updated post
  */
-export function unbookmarkPost(postId: string, userId: string): CommunityPost {
+export async function unbookmarkPost(postId: string, userId: string): Promise<CommunityPost> {
   const db = getDatabase();
 
-  const post = getPostById(postId);
+  const post = await getPostById(postId);
   if (!post) throw new Error(`Post not found: ${postId}`);
 
   if (!post.bookmarkedBy.includes(userId)) {
@@ -492,16 +508,18 @@ export function unbookmarkPost(postId: string, userId: string): CommunityPost {
 
   const newBookmarkedBy = post.bookmarkedBy.filter(id => id !== userId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts
     SET bookmarkedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newBookmarkedBy), Date.now(), postId);
+  `,
+    args: [JSON.stringify(newBookmarkedBy), Date.now(), postId]
+  });
 
   console.log(`✅ [CommunityRepository] User ${userId} unbookmarked post ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after unbookmark: ${postId}`);
   return updated;
 }
@@ -511,13 +529,15 @@ export function unbookmarkPost(postId: string, userId: string): CommunityPost {
  *
  * @param postId - Post ID
  */
-export function incrementViewCount(postId: string): void {
+export async function incrementViewCount(postId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts SET viewCount = viewCount + 1 WHERE id = ?
-  `);
-  stmt.run(postId);
+  `,
+    args: [postId]
+  });
 }
 
 // ============================================================================
@@ -531,16 +551,19 @@ export function incrementViewCount(postId: string): void {
  * @param limit - Maximum number of posts
  * @returns Array of posts
  */
-export function getPostsByAuthor(authorId: string, limit: number = 20): CommunityPost[] {
+export async function getPostsByAuthor(authorId: string, limit: number = 20): Promise<CommunityPost[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM posts
     WHERE authorId = ? AND status = 'active'
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(authorId, limit) as PostRow[];
+  `,
+    args: [authorId, limit]
+  });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -552,16 +575,19 @@ export function getPostsByAuthor(authorId: string, limit: number = 20): Communit
  * @param limit - Maximum number of posts
  * @returns Array of posts
  */
-export function getPostsByTag(tag: string, limit: number = 20): CommunityPost[] {
+export async function getPostsByTag(tag: string, limit: number = 20): Promise<CommunityPost[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM posts
     WHERE tags LIKE ? AND status = 'active'
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(`%"${tag}"%`, limit) as PostRow[];
+  `,
+    args: [`%"${tag}"%`, limit]
+  });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -573,16 +599,19 @@ export function getPostsByTag(tag: string, limit: number = 20): CommunityPost[] 
  * @param limit - Maximum number of posts
  * @returns Array of posts
  */
-export function getPostsByCategory(category: string, limit: number = 20): CommunityPost[] {
+export async function getPostsByCategory(category: string, limit: number = 20): Promise<CommunityPost[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM posts
     WHERE category = ? AND status = 'active'
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(category, limit) as PostRow[];
+  `,
+    args: [category, limit]
+  });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -594,17 +623,20 @@ export function getPostsByCategory(category: string, limit: number = 20): Commun
  * @param limit - Maximum number of posts
  * @returns Array of trending posts
  */
-export function getTrendingPosts(limit: number = 20): CommunityPost[] {
+export async function getTrendingPosts(limit: number = 20): Promise<CommunityPost[]> {
   const db = getDatabase();
   const now = Date.now();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM posts
     WHERE status = 'active'
     ORDER BY (likes * 2 + commentCount * 3 + viewCount) / ((? - createdAt) / 3600000.0 + 1) DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(now, limit) as PostRow[];
+  `,
+    args: [now, limit]
+  });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -615,15 +647,18 @@ export function getTrendingPosts(limit: number = 20): CommunityPost[] {
  * @param userId - User ID
  * @returns Array of bookmarked posts
  */
-export function getBookmarkedPostsByUser(userId: string): CommunityPost[] {
+export async function getBookmarkedPostsByUser(userId: string): Promise<CommunityPost[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM posts
     WHERE bookmarkedBy LIKE ? AND status = 'active'
     ORDER BY createdAt DESC
-  `);
-  const rows = stmt.all(`%"${userId}"%`) as PostRow[];
+  `,
+    args: [`%"${userId}"%`]
+  });
+  const rows = result.rows as unknown as PostRow[];
 
   return rows.map(rowToPost);
 }
@@ -639,24 +674,25 @@ export function getBookmarkedPostsByUser(userId: string): CommunityPost[] {
  * @param moderationResult - Moderation result from content filter
  * @returns Updated post
  */
-export function moderatePost(
+export async function moderatePost(
   postId: string,
   moderationResult: ModerationAction & {
     shouldHide?: boolean;
     filteredContent?: string;
     warning?: string;
   }
-): CommunityPost {
+): Promise<CommunityPost> {
   const db = getDatabase();
   const now = Date.now();
 
-  const post = getPostById(postId);
+  const post = await getPostById(postId);
   if (!post) throw new Error(`Post not found: ${postId}`);
 
   const finalContent = moderationResult.filteredContent || post.content;
   const status = moderationResult.shouldHide ? 'hidden' : post.status;
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts
     SET
       content = ?,
@@ -666,9 +702,8 @@ export function moderatePost(
       moderationWarning = ?,
       updatedAt = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     finalContent,
     status,
     JSON.stringify(moderationResult),
@@ -676,11 +711,12 @@ export function moderatePost(
     moderationResult.warning || null,
     now,
     postId
-  );
+  ]
+  });
 
   console.log(`✅ [CommunityRepository] Moderated post: ${postId}`);
 
-  const updated = getPostById(postId);
+  const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after moderation: ${postId}`);
   return updated;
 }
@@ -691,13 +727,15 @@ export function moderatePost(
  * @param postId - Post ID
  * @param delta - Change in comment count (positive or negative)
  */
-export function incrementCommentCount(postId: string, delta: number): void {
+export async function incrementCommentCount(postId: string, delta: number): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE posts SET commentCount = commentCount + ? WHERE id = ?
-  `);
-  stmt.run(delta, postId);
+  `,
+    args: [delta, postId]
+  });
 
   console.log(`✅ [CommunityRepository] Updated comment count for post ${postId}: ${delta > 0 ? '+' : ''}${delta}`);
 }
@@ -712,47 +750,59 @@ export function incrementCommentCount(postId: string, delta: number): void {
  * @param posts - Array of posts to create
  * @returns Number of posts created
  */
-export function batchCreatePosts(posts: Array<Omit<CommunityPost, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): number {
-  const db = getDatabase();
+export async function batchCreatePosts(posts: Array<Omit<CommunityPost, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): Promise<number> {
+  const db = await getDatabase();
   let created = 0;
 
-  const insertMany = db.transaction((postsToInsert) => {
-    const stmt = db.prepare(`
+  try {
+    // Start transaction
+    await db.execute('BEGIN');
+
+    const sql = `
       INSERT INTO posts (
         id, authorId, authorName, title, content, tags, category,
         likes, likedBy, bookmarkedBy, commentCount, viewCount,
         status, isEdited, moderationAction, originalContent, moderationWarning,
         createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    for (const post of postsToInsert) {
-      stmt.run(
-        post.id,
-        post.authorId,
-        post.authorName,
-        post.title || null,
-        post.content,
-        JSON.stringify(post.tags || []),
-        post.category || null,
-        post.likes || 0,
-        JSON.stringify(post.likedBy || []),
-        JSON.stringify(post.bookmarkedBy || []),
-        post.commentCount || 0,
-        post.viewCount || 0,
-        post.status || 'active',
-        post.isEdited ? 1 : 0,
-        post.moderationAction || null,
-        post.originalContent || null,
-        post.moderationWarning || null,
-        toUnixTimestamp(post.createdAt),
-        toUnixTimestamp(post.updatedAt)
-      );
+    for (const post of posts) {
+      await db.execute({
+        sql,
+        args: [
+          post.id,
+          post.authorId,
+          post.authorName,
+          post.title || null,
+          post.content,
+          JSON.stringify(post.tags || []),
+          post.category || null,
+          post.likes || 0,
+          JSON.stringify(post.likedBy || []),
+          JSON.stringify(post.bookmarkedBy || []),
+          post.commentCount || 0,
+          post.viewCount || 0,
+          post.status || 'active',
+          post.isEdited ? 1 : 0,
+          post.moderationAction || null,
+          post.originalContent || null,
+          post.moderationWarning || null,
+          toUnixTimestamp(post.createdAt),
+          toUnixTimestamp(post.updatedAt)
+        ]
+      });
       created++;
     }
-  });
 
-  insertMany(posts);
-  console.log(`✅ [CommunityRepository] Batch created ${created} posts`);
-  return created;
+    // Commit transaction
+    await db.execute('COMMIT');
+    console.log(`✅ [CommunityRepository] Batch created ${created} posts`);
+    return created;
+  } catch (error) {
+    // Rollback transaction on error
+    await db.execute('ROLLBACK');
+    console.error(`❌ [CommunityRepository] Batch create failed:`, error);
+    throw error;
+  }
 }

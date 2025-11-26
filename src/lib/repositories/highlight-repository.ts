@@ -7,7 +7,7 @@
  * @phase Phase 2 - SQLITE-005 - Simple Services Migration (Highlights)
  */
 
-import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 
 /**
  * Highlight interface matching the service layer
@@ -57,26 +57,27 @@ function generateHighlightId(): string {
  * @param highlight - Highlight data without id and createdAt
  * @returns Created highlight ID
  */
-export function createHighlight(
+export async function createHighlight(
   highlight: Omit<Highlight, 'id' | 'createdAt'>
-): string {
+): Promise<string> {
   const db = getDatabase();
   const id = generateHighlightId();
   const now = Date.now();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO highlights (
       id, userId, chapterId, selectedText, createdAt
     ) VALUES (?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     id,
     highlight.userId,
     highlight.chapterId,
     highlight.selectedText,
     now
-  );
+  ]
+  });
 
   console.log(`✅ [HighlightRepository] Created highlight: ${id} (user: ${highlight.userId}, chapter: ${highlight.chapterId})`);
   return id;
@@ -89,19 +90,21 @@ export function createHighlight(
  * @param chapterId - Chapter ID
  * @returns Array of highlights
  */
-export function getHighlightsByUserAndChapter(
+export async function getHighlightsByUserAndChapter(
   userId: string,
   chapterId: number
-): Highlight[] {
+): Promise<Highlight[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM highlights
     WHERE userId = ? AND chapterId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(userId, chapterId) as HighlightRow[];
+  `,
+    args: [userId, chapterId]
+  });
+  const rows = result.rows as unknown as HighlightRow[];
 
   return rows.map(rowToHighlight);
 }
@@ -112,14 +115,16 @@ export function getHighlightsByUserAndChapter(
  * @param highlightId - Highlight ID
  * @returns Highlight or null if not found
  */
-export function getHighlightById(highlightId: string): Highlight | null {
+export async function getHighlightById(highlightId: string): Promise<Highlight | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM highlights WHERE id = ?
-  `);
-
-  const row = stmt.get(highlightId) as HighlightRow | undefined;
+  `,
+    args: [highlightId]
+  });
+  const row = result.rows[0] as unknown as HighlightRow | undefined;
 
   if (!row) {
     return null;
@@ -134,16 +139,18 @@ export function getHighlightById(highlightId: string): Highlight | null {
  * @param userId - User ID
  * @returns Array of highlights across all chapters
  */
-export function getHighlightsByUser(userId: string): Highlight[] {
+export async function getHighlightsByUser(userId: string): Promise<Highlight[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM highlights
     WHERE userId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(userId) as HighlightRow[];
+  `,
+    args: [userId]
+  });
+  const rows = result.rows as unknown as HighlightRow[];
 
   return rows.map(rowToHighlight);
 }
@@ -153,11 +160,13 @@ export function getHighlightsByUser(userId: string): Highlight[] {
  *
  * @param highlightId - Highlight ID
  */
-export function deleteHighlight(highlightId: string): void {
+export async function deleteHighlight(highlightId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`DELETE FROM highlights WHERE id = ?`);
-  stmt.run(highlightId);
+  await db.execute({
+    sql: `DELETE FROM highlights WHERE id = ?`,
+    args: [highlightId]
+  });
 
   console.log(`✅ [HighlightRepository] Deleted highlight: ${highlightId}`);
 }
@@ -169,21 +178,20 @@ export function deleteHighlight(highlightId: string): void {
  * @param chapterId - Chapter ID
  * @returns Number of highlights deleted
  */
-export function deleteHighlightsByUserAndChapter(
+export async function deleteHighlightsByUserAndChapter(
   userId: string,
   chapterId: number
-): number {
-  const db = getDatabase();
+): Promise<number> {
+  const db = await getDatabase();
 
-  const stmt = db.prepare(`
-    DELETE FROM highlights
-    WHERE userId = ? AND chapterId = ?
-  `);
+  const result = await db.execute({
+    sql: `DELETE FROM highlights WHERE userId = ? AND chapterId = ?`,
+    args: [userId, chapterId]
+  });
 
-  const result = stmt.run(userId, chapterId);
-
-  console.log(`✅ [HighlightRepository] Deleted ${result.changes} highlights for user ${userId}, chapter ${chapterId}`);
-  return result.changes;
+  const changes = result.rowsAffected;
+  console.log(`✅ [HighlightRepository] Deleted ${changes} highlights for user ${userId}, chapter ${chapterId}`);
+  return changes;
 }
 
 /**
@@ -192,39 +200,50 @@ export function deleteHighlightsByUserAndChapter(
  * @param highlights - Array of highlights to create
  * @returns Array of created highlight IDs
  */
-export function batchCreateHighlights(
+export async function batchCreateHighlights(
   highlights: Array<Omit<Highlight, 'id' | 'createdAt'>>
-): string[] {
-  const db = getDatabase();
+): Promise<string[]> {
+  const db = await getDatabase();
   const ids: string[] = [];
 
-  const insertMany = db.transaction((highlightsToInsert: Array<Omit<Highlight, 'id' | 'createdAt'>>) => {
-    const stmt = db.prepare(`
+  try {
+    // Start transaction
+    await db.execute('BEGIN');
+
+    const sql = `
       INSERT INTO highlights (
         id, userId, chapterId, selectedText, createdAt
       ) VALUES (?, ?, ?, ?, ?)
-    `);
+    `;
 
-    for (const highlight of highlightsToInsert) {
+    for (const highlight of highlights) {
       const id = generateHighlightId();
       const now = Date.now();
 
-      stmt.run(
-        id,
-        highlight.userId,
-        highlight.chapterId,
-        highlight.selectedText,
-        now
-      );
+      await db.execute({
+        sql,
+        args: [
+          id,
+          highlight.userId,
+          highlight.chapterId,
+          highlight.selectedText,
+          now
+        ]
+      });
 
       ids.push(id);
     }
-  });
 
-  insertMany(highlights);
-
-  console.log(`✅ [HighlightRepository] Batch created ${highlights.length} highlights`);
-  return ids;
+    // Commit transaction
+    await db.execute('COMMIT');
+    console.log(`✅ [HighlightRepository] Batch created ${highlights.length} highlights`);
+    return ids;
+  } catch (error) {
+    // Rollback transaction on error
+    await db.execute('ROLLBACK');
+    console.error(`❌ [HighlightRepository] Batch create failed:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -234,28 +253,29 @@ export function batchCreateHighlights(
  * @param chapterId - Optional chapter ID filter
  * @returns Highlight count
  */
-export function getHighlightCount(userId: string, chapterId?: number): number {
-  const db = getDatabase();
+export async function getHighlightCount(userId: string, chapterId?: number): Promise<number> {
+  const db = await getDatabase();
 
-  let stmt;
+  let sql: string;
   let params: any[];
 
   if (chapterId !== undefined) {
-    stmt = db.prepare(`
+    sql = `
       SELECT COUNT(*) as count
       FROM highlights
       WHERE userId = ? AND chapterId = ?
-    `);
+    `;
     params = [userId, chapterId];
   } else {
-    stmt = db.prepare(`
+    sql = `
       SELECT COUNT(*) as count
       FROM highlights
       WHERE userId = ?
-    `);
+    `;
     params = [userId];
   }
 
-  const result = stmt.get(...params) as { count: number };
-  return result.count;
+  const result = await db.execute({ sql, args: params });
+  const row = result.rows[0] as unknown as { count: number };
+  return row.count;
 }

@@ -112,11 +112,11 @@ export async function resetUserPassword(
   let user: UserProfile | null = null;
 
   if (userId) {
-    user = getUserById(userId);
+    user = await getUserById(userId);
   }
 
   if (!user && normalizedEmail) {
-    user = getUserByEmail(normalizedEmail);
+    user = await getUserByEmail(normalizedEmail);
   }
 
   if (!user) {
@@ -128,7 +128,7 @@ export async function resetUserPassword(
   }
 
   const hashedPassword = await hashPassword(password);
-  const updated = updateUserPasswordHash(user.userId, hashedPassword);
+  const updated = await updateUserPasswordHash(user.userId, hashedPassword);
 
   return {
     userId: updated.userId,

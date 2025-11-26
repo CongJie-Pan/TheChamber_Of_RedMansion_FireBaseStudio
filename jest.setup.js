@@ -14,31 +14,15 @@
 // Import Testing Library Jest DOM matchers
 require('@testing-library/jest-dom');
 
-// Global polyfills for Node.js environment
-const { TextEncoder, TextDecoder } = require('util');
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
-
-// Add Web Streams API support (Node.js 18+)
-// Required for SSE streaming tests and perplexity-client integration tests
-if (typeof global.ReadableStream === 'undefined') {
-  const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
-  global.ReadableStream = ReadableStream;
-  global.WritableStream = WritableStream;
-  global.TransformStream = TransformStream;
-}
-
-// Web Standard APIs (Request, Response, Headers, FormData, fetch)
-// Node.js 22+ provides these natively on globalThis (powered by undici internally)
-// jsdom environment requires explicit global injection (it doesn't auto-inherit Node.js globals)
-if (typeof global.Response === 'undefined') {
-  // Copy Node.js native Web Standard APIs to Jest's global object
-  global.Response = globalThis.Response;
-  global.Request = globalThis.Request;
-  global.Headers = globalThis.Headers;
-  global.FormData = globalThis.FormData;
-  global.fetch = globalThis.fetch;
-}
+// Web Standard APIs polyfills (TextEncoder, fetch, Request, Response, Streams, etc.)
+// are now loaded via jest.polyfills.js (setupFiles in jest.config.js).
+//
+// This approach ensures:
+// - Correct initialization order (TextEncoder before undici)
+// - Compatibility with jest-environment-jsdom and Node.js 22
+// - Prevention of globals being cleared by jsdom
+//
+// See jest.polyfills.js for implementation details.
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({

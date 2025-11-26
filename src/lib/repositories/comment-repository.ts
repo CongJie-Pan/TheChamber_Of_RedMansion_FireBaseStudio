@@ -15,7 +15,7 @@
  * @phase Phase 3 - SQLITE-015 Comment Repository Implementation
  */
 
-import { getDatabase, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, fromUnixTimestamp } from '../sqlite-db';
 import type { ModerationAction } from '../content-filter-service';
 
 /**
@@ -138,7 +138,7 @@ function generateCommentId(): string {
  * @param comment - Comment data (content should already be moderated)
  * @returns Created comment ID
  */
-export function createComment(comment: {
+export async function createComment(comment: {
   id?: string;
   postId: string;
   authorId: string;
@@ -149,7 +149,7 @@ export function createComment(comment: {
   moderationAction?: string;
   originalContent?: string;
   moderationWarning?: string;
-}): string {
+}): Promise<string> {
   const db = getDatabase();
   const now = Date.now();
   const commentId = comment.id || generateCommentId();
@@ -157,7 +157,7 @@ export function createComment(comment: {
   // Calculate depth based on parent comment
   let depth = 0;
   if (comment.parentCommentId) {
-    const parent = getCommentById(comment.parentCommentId);
+    const parent = await getCommentById(comment.parentCommentId);
     if (!parent) {
       throw new Error(`Parent comment not found: ${comment.parentCommentId}`);
     }
@@ -167,16 +167,16 @@ export function createComment(comment: {
     updateReplyCount(comment.parentCommentId, 1);
   }
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO comments (
       id, postId, authorId, authorName, content, parentCommentId,
       depth, replyCount, likes, likedBy, status, isEdited,
       moderationAction, originalContent, moderationWarning,
       createdAt, updatedAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     commentId,
     comment.postId,
     comment.authorId,
@@ -194,7 +194,8 @@ export function createComment(comment: {
     comment.moderationWarning || null,
     now,
     now
-  );
+  ]
+  });
 
   console.log(`✅ [CommentRepository] Created comment: ${commentId} (depth: ${depth})`);
   return commentId;
@@ -206,11 +207,14 @@ export function createComment(comment: {
  * @param commentId - Comment ID
  * @returns Comment or null if not found
  */
-export function getCommentById(commentId: string): Comment | null {
+export async function getCommentById(commentId: string): Promise<Comment | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare('SELECT * FROM comments WHERE id = ?');
-  const row = stmt.get(commentId) as CommentRow | undefined;
+  const result = await db.execute({
+    sql: `SELECT * FROM comments WHERE id = ?`,
+    args: [commentId]
+  });
+  const row = result.rows[0] as unknown as CommentRow | undefined;
 
   return row ? rowToComment(row) : null;
 }
@@ -222,7 +226,7 @@ export function getCommentById(commentId: string): Comment | null {
  * @param limit - Maximum number of comments (optional)
  * @returns Array of comments
  */
-export function getCommentsByPost(postId: string, limit?: number): Comment[] {
+export async function getCommentsByPost(postId: string, limit?: number): Promise<Comment[]> {
   console.log(`\n${'━'.repeat(80)}`);
   console.log(`🔍 [CommentRepository] Getting comments for post: ${postId}`);
   console.log(`📊 [CommentRepository] Limit: ${limit || 'unlimited'}`);
@@ -230,24 +234,8 @@ export function getCommentsByPost(postId: string, limit?: number): Comment[] {
   try {
     // Step 1: Get database instance
     console.log('🗄️  [CommentRepository] Getting database instance...');
-    const db = getDatabase();
+    const db = await getDatabase();
     console.log('✅ [CommentRepository] Database instance obtained successfully');
-
-    // 🔍 DEBUG: Verify database instance health
-    console.log('🔍 [DEBUG] Database instance type:', typeof db);
-    console.log('🔍 [DEBUG] Database instance constructor:', db?.constructor?.name);
-    console.log('🔍 [DEBUG] Database open status:', db?.open);
-    console.log('🔍 [DEBUG] Database inTransaction status:', db?.inTransaction);
-
-    // 🔍 DEBUG: Test database connectivity with simple query
-    try {
-      const testStmt = db.prepare('SELECT 1 as test');
-      const testResult = testStmt.get();
-      console.log('✅ [DEBUG] Database connectivity test passed:', testResult);
-    } catch (testError: any) {
-      console.error('❌ [DEBUG] Database connectivity test FAILED:', testError?.message);
-      throw new Error(`Database connection test failed: ${testError?.message}`);
-    }
 
     // Step 2: Prepare query
     let query = 'SELECT * FROM comments WHERE postId = ? AND status = ? ORDER BY createdAt ASC';
@@ -263,8 +251,8 @@ export function getCommentsByPost(postId: string, limit?: number): Comment[] {
 
     // Step 3: Execute query
     console.log('⚡ [CommentRepository] Executing query...');
-    const stmt = db.prepare(query);
-    const rows = stmt.all(...params) as CommentRow[];
+    const result = await db.execute({ sql: query, args: params });
+    const rows = result.rows as unknown as CommentRow[];
 
     console.log(`✅ [CommentRepository] Query executed successfully`);
     console.log(`📊 [CommentRepository] Found ${rows.length} comments`);
@@ -298,21 +286,23 @@ export function getCommentsByPost(postId: string, limit?: number): Comment[] {
  *
  * @param commentId - Comment ID
  */
-export function deleteComment(commentId: string): void {
+export async function deleteComment(commentId: string): Promise<void> {
   const db = getDatabase();
 
-  const comment = getCommentById(commentId);
+  const comment = await getCommentById(commentId);
   if (!comment) {
     throw new Error(`Comment not found: ${commentId}`);
   }
 
   // Soft delete: mark as deleted, replace content
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE comments
     SET status = 'deleted', content = '[已刪除]', updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(Date.now(), commentId);
+  `,
+    args: [Date.now(), commentId]
+  });
 
   // Update parent's reply count if this is a reply
   if (comment.parentCommentId) {
@@ -332,16 +322,19 @@ export function deleteComment(commentId: string): void {
  * @param postId - Post ID
  * @returns Array of root comment nodes with nested replies
  */
-export function buildCommentTree(postId: string): CommentTreeNode[] {
+export async function buildCommentTree(postId: string): Promise<CommentTreeNode[]> {
   const db = getDatabase();
 
   // Load all active comments for the post
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM comments
     WHERE postId = ? AND status != 'deleted'
     ORDER BY createdAt ASC
-  `);
-  const rows = stmt.all(postId) as CommentRow[];
+  `,
+    args: [postId]
+  });
+  const rows = result.rows as unknown as CommentRow[];
 
   if (rows.length === 0) {
     return [];
@@ -386,15 +379,18 @@ export function buildCommentTree(postId: string): CommentTreeNode[] {
  * @param commentId - Parent comment ID
  * @returns Array of direct child comments
  */
-export function getCommentReplies(commentId: string): Comment[] {
+export async function getCommentReplies(commentId: string): Promise<Comment[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM comments
     WHERE parentCommentId = ? AND status = 'active'
     ORDER BY createdAt ASC
-  `);
-  const rows = stmt.all(commentId) as CommentRow[];
+  `,
+    args: [commentId]
+  });
+  const rows = result.rows as unknown as CommentRow[];
 
   return rows.map(rowToComment);
 }
@@ -405,13 +401,15 @@ export function getCommentReplies(commentId: string): Comment[] {
  * @param commentId - Comment ID
  * @param delta - Change in reply count (positive or negative)
  */
-export function updateReplyCount(commentId: string, delta: number): void {
+export async function updateReplyCount(commentId: string, delta: number): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE comments SET replyCount = replyCount + ? WHERE id = ?
-  `);
-  stmt.run(delta, commentId);
+  `,
+    args: [delta, commentId]
+  });
 
   console.log(`✅ [CommentRepository] Updated reply count for comment ${commentId}: ${delta > 0 ? '+' : ''}${delta}`);
 }
@@ -427,10 +425,10 @@ export function updateReplyCount(commentId: string, delta: number): void {
  * @param userId - User ID
  * @returns Updated comment
  */
-export function likeComment(commentId: string, userId: string): Comment {
+export async function likeComment(commentId: string, userId: string): Promise<Comment> {
   const db = getDatabase();
 
-  const comment = getCommentById(commentId);
+  const comment = await getCommentById(commentId);
   if (!comment) throw new Error(`Comment not found: ${commentId}`);
 
   if (comment.likedBy.includes(userId)) {
@@ -440,16 +438,18 @@ export function likeComment(commentId: string, userId: string): Comment {
 
   const newLikedBy = [...comment.likedBy, userId];
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE comments
     SET likes = likes + 1, likedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newLikedBy), Date.now(), commentId);
+  `,
+    args: [JSON.stringify(newLikedBy), Date.now(), commentId]
+  });
 
   console.log(`✅ [CommentRepository] User ${userId} liked comment ${commentId}`);
 
-  const updated = getCommentById(commentId);
+  const updated = await getCommentById(commentId);
   if (!updated) throw new Error(`Comment not found after like: ${commentId}`);
   return updated;
 }
@@ -461,10 +461,10 @@ export function likeComment(commentId: string, userId: string): Comment {
  * @param userId - User ID
  * @returns Updated comment
  */
-export function unlikeComment(commentId: string, userId: string): Comment {
+export async function unlikeComment(commentId: string, userId: string): Promise<Comment> {
   const db = getDatabase();
 
-  const comment = getCommentById(commentId);
+  const comment = await getCommentById(commentId);
   if (!comment) throw new Error(`Comment not found: ${commentId}`);
 
   if (!comment.likedBy.includes(userId)) {
@@ -474,16 +474,18 @@ export function unlikeComment(commentId: string, userId: string): Comment {
 
   const newLikedBy = comment.likedBy.filter(id => id !== userId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE comments
     SET likes = likes - 1, likedBy = ?, updatedAt = ?
     WHERE id = ?
-  `);
-  stmt.run(JSON.stringify(newLikedBy), Date.now(), commentId);
+  `,
+    args: [JSON.stringify(newLikedBy), Date.now(), commentId]
+  });
 
   console.log(`✅ [CommentRepository] User ${userId} unliked comment ${commentId}`);
 
-  const updated = getCommentById(commentId);
+  const updated = await getCommentById(commentId);
   if (!updated) throw new Error(`Comment not found after unlike: ${commentId}`);
   return updated;
 }
@@ -499,16 +501,19 @@ export function unlikeComment(commentId: string, userId: string): Comment {
  * @param limit - Maximum number of comments (default: 20)
  * @returns Array of comments
  */
-export function getCommentsByAuthor(authorId: string, limit: number = 20): Comment[] {
+export async function getCommentsByAuthor(authorId: string, limit: number = 20): Promise<Comment[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM comments
     WHERE authorId = ? AND status = 'active'
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-  const rows = stmt.all(authorId, limit) as CommentRow[];
+  `,
+    args: [authorId, limit]
+  });
+  const rows = result.rows as unknown as CommentRow[];
 
   return rows.map(rowToComment);
 }
@@ -519,16 +524,19 @@ export function getCommentsByAuthor(authorId: string, limit: number = 20): Comme
  * @param postId - Post ID
  * @returns Number of active comments
  */
-export function getCommentCount(postId: string): number {
+export async function getCommentCount(postId: string): Promise<number> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const queryResult = await db.execute({
+    sql: `
     SELECT COUNT(*) as count FROM comments
     WHERE postId = ? AND status = 'active'
-  `);
-  const result = stmt.get(postId) as { count: number };
+  `,
+    args: [postId]
+  });
+  const countRow = queryResult.rows[0] as unknown as { count: number };
 
-  return result.count;
+  return countRow.count;
 }
 
 // ============================================================================
@@ -541,44 +549,56 @@ export function getCommentCount(postId: string): number {
  * @param comments - Array of comments to create
  * @returns Number of comments created
  */
-export function batchCreateComments(comments: Array<Omit<Comment, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): number {
-  const db = getDatabase();
+export async function batchCreateComments(comments: Array<Omit<Comment, 'createdAt' | 'updatedAt'> & { createdAt: Timestamp; updatedAt: Timestamp }>): Promise<number> {
+  const db = await getDatabase();
   let created = 0;
 
-  const insertMany = db.transaction((commentsToInsert) => {
-    const stmt = db.prepare(`
+  try {
+    // Start transaction
+    await db.execute('BEGIN');
+
+    const sql = `
       INSERT INTO comments (
         id, postId, authorId, authorName, content, parentCommentId, depth, replyCount,
         likes, likedBy, status, isEdited, moderationAction, originalContent, moderationWarning,
         createdAt, updatedAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    for (const comment of commentsToInsert) {
-      stmt.run(
-        comment.id,
-        comment.postId,
-        comment.authorId,
-        comment.authorName,
-        comment.content,
-        comment.parentCommentId || null,
-        comment.depth || 0,
-        comment.replyCount || 0,
-        comment.likes || 0,
-        JSON.stringify(comment.likedBy || []),
-        comment.status || 'active',
-        comment.isEdited ? 1 : 0,
-        comment.moderationAction || null,
-        comment.originalContent || null,
-        comment.moderationWarning || null,
-        comment.createdAt.seconds * 1000, // Convert Firebase Timestamp to Unix milliseconds
-        comment.updatedAt.seconds * 1000
-      );
+    for (const comment of comments) {
+      await db.execute({
+        sql,
+        args: [
+          comment.id,
+          comment.postId,
+          comment.authorId,
+          comment.authorName,
+          comment.content,
+          comment.parentCommentId || null,
+          comment.depth || 0,
+          comment.replyCount || 0,
+          comment.likes || 0,
+          JSON.stringify(comment.likedBy || []),
+          comment.status || 'active',
+          comment.isEdited ? 1 : 0,
+          comment.moderationAction || null,
+          comment.originalContent || null,
+          comment.moderationWarning || null,
+          comment.createdAt.seconds * 1000, // Convert Firebase Timestamp to Unix milliseconds
+          comment.updatedAt.seconds * 1000
+        ]
+      });
       created++;
     }
-  });
 
-  insertMany(comments);
-  console.log(`✅ [CommentRepository] Batch created ${created} comments`);
-  return created;
+    // Commit transaction
+    await db.execute('COMMIT');
+    console.log(`✅ [CommentRepository] Batch created ${created} comments`);
+    return created;
+  } catch (error) {
+    // Rollback transaction on error
+    await db.execute('ROLLBACK');
+    console.error(`❌ [CommentRepository] Batch create failed:`, error);
+    throw error;
+  }
 }

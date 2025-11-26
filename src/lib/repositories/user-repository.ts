@@ -8,7 +8,7 @@
  * Phase 4-T1: Added guest account protection to prevent XP modifications
  */
 
-import { getDatabase } from '../sqlite-db';
+import { getDatabase, type Client } from '../sqlite-db';
 import type { AttributePoints } from '../types/user-level';
 import { isGuestAccount } from '../middleware/guest-account';
 import {
@@ -203,12 +203,12 @@ function rowToUserProfile(row: UserRow): UserProfile {
  * @param passwordHash - bcrypt hashed password (optional, Phase 4 - SQLITE-019)
  * @returns Created user profile
  */
-export function createUser(
+export async function createUser(
   userId: string,
   username: string,
   email?: string,
   passwordHash?: string
-): UserProfile {
+): Promise<UserProfile> {
   const db = getDatabase();
   const now = Date.now();
 
@@ -231,33 +231,34 @@ export function createUser(
     lastActivityAt: fromUnixTimestamp(now),
   };
 
-  const stmt = db.prepare(`
-    INSERT INTO users (
-      id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
-      attributes, completedTasks, unlockedContent, completedChapters,
-      hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    userId,
-    username,
-    email || null,
-    passwordHash || null, // Insert password hash or null (Phase 4 - SQLITE-019)
-    0, // isGuest = 0 (false) for regular users (Phase 4 - SQLITE-021)
-    userProfile.currentLevel,
-    userProfile.currentXP,
-    userProfile.totalXP,
-    JSON.stringify(userProfile.attributes),
-    JSON.stringify(userProfile.completedTasks),
-    JSON.stringify(userProfile.unlockedContent),
-    JSON.stringify(userProfile.completedChapters),
-    userProfile.hasReceivedWelcomeBonus ? 1 : 0,
-    JSON.stringify(userProfile.stats),
-    now,
-    now,
-    now
-  );
+  await db.execute({
+    sql: `
+      INSERT INTO users (
+        id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
+        attributes, completedTasks, unlockedContent, completedChapters,
+        hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      userId,
+      username,
+      email || null,
+      passwordHash || null, // Insert password hash or null (Phase 4 - SQLITE-019)
+      0, // isGuest = 0 (false) for regular users (Phase 4 - SQLITE-021)
+      userProfile.currentLevel,
+      userProfile.currentXP,
+      userProfile.totalXP,
+      JSON.stringify(userProfile.attributes),
+      JSON.stringify(userProfile.completedTasks),
+      JSON.stringify(userProfile.unlockedContent),
+      JSON.stringify(userProfile.completedChapters),
+      userProfile.hasReceivedWelcomeBonus ? 1 : 0,
+      JSON.stringify(userProfile.stats),
+      now,
+      now,
+      now
+    ]
+  });
 
   console.log(`✅ [UserRepository] Created user: ${userId}${passwordHash ? ' (with password)' : ' (without password)'}`);
   return userProfile;
@@ -273,9 +274,9 @@ export function createUser(
  *
  * @returns Created guest user profile
  */
-export function createGuestUser(): UserProfile {
+export async function createGuestUser(): Promise<UserProfile> {
   // Return existing fixed guest account if present
-  const existingGuest = getUserById(GUEST_USER_ID);
+  const existingGuest = await getUserById(GUEST_USER_ID);
   if (existingGuest) {
     console.log(`✅ [UserRepository] Reusing existing guest user: ${GUEST_USER_ID}`);
     return existingGuest;
@@ -310,40 +311,41 @@ export function createGuestUser(): UserProfile {
     lastActivityAt: fromUnixTimestamp(now),
   };
 
-  const stmt = db.prepare(`
-    INSERT INTO users (
-      id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
-      attributes, completedTasks, unlockedContent, completedChapters,
-      hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
   try {
-    stmt.run(
-      GUEST_USER_ID,
-      GUEST_USERNAME,
-      GUEST_EMAIL,
-      passwordHash,
-      1, // isGuest = 1 (true) for guest accounts
-      guestProfile.currentLevel,
-      guestProfile.currentXP,
-      guestProfile.totalXP,
-      JSON.stringify(guestProfile.attributes),
-      JSON.stringify(guestProfile.completedTasks),
-      JSON.stringify(guestProfile.unlockedContent),
-      JSON.stringify(guestProfile.completedChapters),
-      guestProfile.hasReceivedWelcomeBonus ? 1 : 0,
-      JSON.stringify(guestProfile.stats),
-      now,
-      now,
-      now
-    );
+    await db.execute({
+      sql: `
+        INSERT INTO users (
+          id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
+          attributes, completedTasks, unlockedContent, completedChapters,
+          hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        GUEST_USER_ID,
+        GUEST_USERNAME,
+        GUEST_EMAIL,
+        passwordHash,
+        1, // isGuest = 1 (true) for guest accounts
+        guestProfile.currentLevel,
+        guestProfile.currentXP,
+        guestProfile.totalXP,
+        JSON.stringify(guestProfile.attributes),
+        JSON.stringify(guestProfile.completedTasks),
+        JSON.stringify(guestProfile.unlockedContent),
+        JSON.stringify(guestProfile.completedChapters),
+        guestProfile.hasReceivedWelcomeBonus ? 1 : 0,
+        JSON.stringify(guestProfile.stats),
+        now,
+        now,
+        now
+      ]
+    });
 
     console.log(`✅ [UserRepository] Created guest user: ${GUEST_USER_ID} (${GUEST_USERNAME})`);
     return guestProfile;
   } catch (error: any) {
     if (typeof error?.message === 'string' && error.message.includes('UNIQUE constraint failed')) {
-      const fallbackGuest = getUserById(GUEST_USER_ID);
+      const fallbackGuest = await getUserById(GUEST_USER_ID);
       if (fallbackGuest) {
         console.warn('⚠️ [UserRepository] Guest user already existed during creation, returning existing record.');
         return fallbackGuest;
@@ -359,14 +361,16 @@ export function createGuestUser(): UserProfile {
  * @param userId - User ID
  * @returns User profile or null if not found
  */
-export function getUserById(userId: string): UserProfile | null {
+export async function getUserById(userId: string): Promise<UserProfile | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM users WHERE id = ?
-  `);
-
-  const row = stmt.get(userId) as UserRow | undefined;
+  `,
+    args: [userId]
+  });
+  const row = result.rows[0] as unknown as UserRow | undefined;
 
   if (!row) {
     return null;
@@ -384,10 +388,10 @@ export function getUserById(userId: string): UserProfile | null {
  * @param updates - Partial user profile updates
  * @returns Updated user profile
  */
-export function updateUser(
+export async function updateUser(
   userId: string,
   updates: Partial<Omit<UserProfile, 'userId' | 'createdAt'>>
-): UserProfile {
+): Promise<UserProfile> {
   const db = getDatabase();
   const now = Date.now();
 
@@ -405,7 +409,7 @@ export function updateUser(
 
     // If no updates remain after filtering, return current user
     if (Object.keys(updates).length === 0) {
-      const currentUser = getUserById(userId);
+      const currentUser = await getUserById(userId);
       if (!currentUser) {
         throw new Error(`User not found: ${userId}`);
       }
@@ -489,18 +493,19 @@ export function updateUser(
   // Add userId for WHERE clause
   updateValues.push(userId);
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE users
     SET ${updateFields.join(', ')}
     WHERE id = ?
-  `);
-
-  stmt.run(...updateValues);
+  `,
+    args: [...updateValues]
+  });
 
   console.log(`✅ [UserRepository] Updated user: ${userId}`);
 
   // Return updated profile
-  const updated = getUserById(userId);
+  const updated = await getUserById(userId);
   if (!updated) {
     throw new Error(`Failed to retrieve updated user: ${userId}`);
   }
@@ -518,16 +523,16 @@ export function updateUser(
  * @param passwordHash - bcrypt hash string to store
  * @returns Updated user profile
  */
-export function updateUserPasswordHash(
+export async function updateUserPasswordHash(
   userId: string,
   passwordHash: string
-): UserProfile {
-  const user = getUserById(userId);
+): Promise<UserProfile> {
+  const user = await getUserById(userId);
   if (!user) {
     throw new Error(`User not found: ${userId}`);
   }
 
-  return updateUser(userId, { passwordHash });
+  return await updateUser(userId, { passwordHash });
 }
 
 /**
@@ -540,8 +545,8 @@ export function updateUserPasswordHash(
  * @param xpAmount - Amount of XP to award
  * @returns Updated user profile
  */
-export function awardXP(userId: string, xpAmount: number): UserProfile {
-  const user = getUserById(userId);
+export async function awardXP(userId: string, xpAmount: number): Promise<UserProfile> {
+  const user = await getUserById(userId);
   if (!user) {
     throw new Error(`User not found: ${userId}`);
   }
@@ -555,7 +560,7 @@ export function awardXP(userId: string, xpAmount: number): UserProfile {
   const newCurrentXP = user.currentXP + xpAmount;
   const newTotalXP = user.totalXP + xpAmount;
 
-  return updateUser(userId, {
+  return await updateUser(userId, {
     currentXP: newCurrentXP,
     totalXP: newTotalXP,
   });
@@ -568,11 +573,11 @@ export function awardXP(userId: string, xpAmount: number): UserProfile {
  * @param attributeGains - Attribute gains to add
  * @returns Updated user profile
  */
-export function updateAttributes(
+export async function updateAttributes(
   userId: string,
   attributeGains: Record<string, number>
-): UserProfile {
-  const user = getUserById(userId);
+): Promise<UserProfile> {
+  const user = await getUserById(userId);
   if (!user) {
     throw new Error(`User not found: ${userId}`);
   }
@@ -584,7 +589,7 @@ export function updateAttributes(
     updatedAttributes[attrKey] = (updatedAttributes[attrKey] || 0) + value;
   }
 
-  return updateUser(userId, { attributes: updatedAttributes });
+  return await updateUser(userId, { attributes: updatedAttributes });
 }
 
 /**
@@ -592,11 +597,13 @@ export function updateAttributes(
  *
  * @param userId - User ID
  */
-export function deleteUser(userId: string): void {
+export async function deleteUser(userId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`DELETE FROM users WHERE id = ?`);
-  stmt.run(userId);
+  await db.execute({
+    sql: `DELETE FROM users WHERE id = ?`,
+    args: [userId]
+  });
 
   console.log(`✅ [UserRepository] Deleted user: ${userId}`);
 }
@@ -607,13 +614,16 @@ export function deleteUser(userId: string): void {
  * @param userId - User ID
  * @returns True if user exists
  */
-export function userExists(userId: string): boolean {
+export async function userExists(userId: string): Promise<boolean> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`SELECT COUNT(*) as count FROM users WHERE id = ?`);
-  const result = stmt.get(userId) as { count: number };
+  const result = await db.execute({
+    sql: `SELECT COUNT(*) as count FROM users WHERE id = ?`,
+    args: [userId]
+  });
+  const countRow = result.rows[0] as unknown as { count: number };
 
-  return result.count > 0;
+  return countRow.count > 0;
 }
 
 // ============================================================
@@ -639,7 +649,7 @@ interface XPTransactionRow {
  * @param transaction - XP transaction data (without transactionId)
  * @returns Transaction ID
  */
-export function createXPTransaction(
+export async function createXPTransaction(
   transaction: {
     userId: string;
     amount: number;
@@ -647,18 +657,18 @@ export function createXPTransaction(
     source: string;
     sourceId?: string;
   }
-): string {
+): Promise<string> {
   const db = getDatabase();
   const now = Date.now();
   const transactionId = `xp_${transaction.userId}_${now}_${Math.random().toString(36).substring(2, 9)}`;
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO xp_transactions (
       transactionId, userId, amount, reason, source, sourceId, createdAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     transactionId,
     transaction.userId,
     transaction.amount,
@@ -666,7 +676,8 @@ export function createXPTransaction(
     transaction.source,
     transaction.sourceId || null,
     now
-  );
+  ]
+  });
 
   console.log(`✅ [UserRepository] Created XP transaction: ${transactionId} (+${transaction.amount} XP for ${transaction.userId})`);
   return transactionId;
@@ -679,17 +690,19 @@ export function createXPTransaction(
  * @param limitCount - Maximum number of transactions to return (default: 50)
  * @returns Array of XP transaction records
  */
-export function getXPTransactionsByUser(userId: string, limitCount: number = 50): XPTransactionRow[] {
+export async function getXPTransactionsByUser(userId: string, limitCount: number = 50): Promise<XPTransactionRow[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM xp_transactions
     WHERE userId = ?
     ORDER BY createdAt DESC
     LIMIT ?
-  `);
-
-  const rows = stmt.all(userId, limitCount) as XPTransactionRow[];
+  `,
+    args: [userId, limitCount]
+  });
+  const rows = result.rows as unknown as XPTransactionRow[];
   return rows;
 }
 
@@ -700,16 +713,18 @@ export function getXPTransactionsByUser(userId: string, limitCount: number = 50)
  * @param sourceId - Source reference ID
  * @returns Array of XP transaction records
  */
-export function getXPTransactionsBySource(source: string, sourceId: string): XPTransactionRow[] {
+export async function getXPTransactionsBySource(source: string, sourceId: string): Promise<XPTransactionRow[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM xp_transactions
     WHERE source = ? AND sourceId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(source, sourceId) as XPTransactionRow[];
+  `,
+    args: [source, sourceId]
+  });
+  const rows = result.rows as unknown as XPTransactionRow[];
   return rows;
 }
 
@@ -720,17 +735,19 @@ export function getXPTransactionsBySource(source: string, sourceId: string): XPT
  * @param sourceId - Source reference ID
  * @returns True if transaction exists
  */
-export function hasXPTransaction(userId: string, sourceId: string): boolean {
+export async function hasXPTransaction(userId: string, sourceId: string): Promise<boolean> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT COUNT(*) as count
     FROM xp_transactions
     WHERE userId = ? AND sourceId = ?
-  `);
-
-  const result = stmt.get(userId, sourceId) as { count: number };
-  return result.count > 0;
+  `,
+    args: [userId, sourceId]
+  });
+  const countRow = result.rows[0] as unknown as { count: number };
+  return countRow.count > 0;
 }
 
 /**
@@ -739,17 +756,19 @@ export function hasXPTransaction(userId: string, sourceId: string): boolean {
  * @param userId - User ID
  * @returns Total XP sum
  */
-export function getTotalXPFromTransactions(userId: string): number {
+export async function getTotalXPFromTransactions(userId: string): Promise<number> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT COALESCE(SUM(amount), 0) as total
     FROM xp_transactions
     WHERE userId = ?
-  `);
-
-  const result = stmt.get(userId) as { total: number };
-  return result.total;
+  `,
+    args: [userId]
+  });
+  const totalRow = result.rows[0] as unknown as { total: number };
+  return totalRow.total;
 }
 
 // ============================================================
@@ -773,18 +792,19 @@ interface XPLockRow {
  * @param sourceId - Source reference ID
  * @returns Lock ID
  */
-export function createXPLock(userId: string, sourceId: string): string {
+export async function createXPLock(userId: string, sourceId: string): Promise<string> {
   const db = getDatabase();
   const now = Date.now();
   const lockId = `lock_${userId}_${sourceId}`;
 
   try {
-    const stmt = db.prepare(`
+    await db.execute({
+    sql: `
       INSERT INTO xp_transaction_locks (lockId, userId, sourceId, createdAt)
       VALUES (?, ?, ?, ?)
-    `);
-
-    stmt.run(lockId, userId, sourceId, now);
+    `,
+    args: [lockId, userId, sourceId, now]
+  });
     console.log(`🔒 [UserRepository] Created XP lock: ${lockId}`);
     return lockId;
   } catch (error: any) {
@@ -804,17 +824,19 @@ export function createXPLock(userId: string, sourceId: string): string {
  * @param sourceId - Source reference ID
  * @returns True if lock exists
  */
-export function hasXPLock(userId: string, sourceId: string): boolean {
+export async function hasXPLock(userId: string, sourceId: string): Promise<boolean> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT COUNT(*) as count
     FROM xp_transaction_locks
     WHERE userId = ? AND sourceId = ?
-  `);
-
-  const result = stmt.get(userId, sourceId) as { count: number };
-  return result.count > 0;
+  `,
+    args: [userId, sourceId]
+  });
+  const lockCount = result.rows[0] as unknown as { count: number };
+  return lockCount.count > 0;
 }
 
 /**
@@ -823,15 +845,16 @@ export function hasXPLock(userId: string, sourceId: string): boolean {
  * @param userId - User ID
  * @param sourceId - Source reference ID
  */
-export function deleteXPLock(userId: string, sourceId: string): void {
+export async function deleteXPLock(userId: string, sourceId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     DELETE FROM xp_transaction_locks
     WHERE userId = ? AND sourceId = ?
-  `);
-
-  stmt.run(userId, sourceId);
+  `,
+    args: [userId, sourceId]
+  });
   console.log(`🔓 [UserRepository] Deleted XP lock for ${userId}:${sourceId}`);
 }
 
@@ -841,17 +864,16 @@ export function deleteXPLock(userId: string, sourceId: string): void {
  * @param olderThanMs - Delete locks older than this many milliseconds (default: 24 hours)
  * @returns Number of locks deleted
  */
-export function cleanupExpiredLocks(olderThanMs: number = 24 * 60 * 60 * 1000): number {
+export async function cleanupExpiredLocks(olderThanMs: number = 24 * 60 * 60 * 1000): Promise<number> {
   const db = getDatabase();
   const cutoffTime = Date.now() - olderThanMs;
 
-  const stmt = db.prepare(`
-    DELETE FROM xp_transaction_locks
-    WHERE createdAt < ?
-  `);
+  const result = await db.execute({
+    sql: `DELETE FROM xp_transaction_locks WHERE createdAt < ?`,
+    args: [cutoffTime]
+  });
 
-  const result = stmt.run(cutoffTime);
-  const deletedCount = result.changes;
+  const deletedCount = result.rowsAffected;
 
   if (deletedCount > 0) {
     console.log(`🧹 [UserRepository] Cleaned up ${deletedCount} expired XP locks`);
@@ -883,24 +905,24 @@ interface LevelUpRow {
  * @param record - Level-up record data (without levelUpId)
  * @returns Level-Up record ID
  */
-export function createLevelUpRecord(record: {
+export async function createLevelUpRecord(record: {
   userId: string;
   fromLevel: number;
   toLevel: number;
   unlockedContent?: string[];
   unlockedPermissions?: string[];
-}): string {
+}): Promise<string> {
   const db = getDatabase();
   const now = Date.now();
   const levelUpId = `levelup_${record.userId}_${now}`;
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO level_ups (
       levelUpId, userId, fromLevel, toLevel, unlockedContent, unlockedPermissions, createdAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     levelUpId,
     record.userId,
     record.fromLevel,
@@ -908,7 +930,8 @@ export function createLevelUpRecord(record: {
     record.unlockedContent ? JSON.stringify(record.unlockedContent) : null,
     record.unlockedPermissions ? JSON.stringify(record.unlockedPermissions) : null,
     now
-  );
+  ]
+  });
 
   console.log(`🎉 [UserRepository] Level-up recorded: ${record.userId} (${record.fromLevel} → ${record.toLevel})`);
   return levelUpId;
@@ -920,16 +943,18 @@ export function createLevelUpRecord(record: {
  * @param userId - User ID
  * @returns Array of level-up records
  */
-export function getLevelUpsByUser(userId: string): LevelUpRow[] {
+export async function getLevelUpsByUser(userId: string): Promise<LevelUpRow[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM level_ups
     WHERE userId = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(userId) as LevelUpRow[];
+  `,
+    args: [userId]
+  });
+  const rows = result.rows as unknown as LevelUpRow[];
   return rows;
 }
 
@@ -939,17 +964,19 @@ export function getLevelUpsByUser(userId: string): LevelUpRow[] {
  * @param userId - User ID
  * @returns Latest level-up record or null if none exists
  */
-export function getLatestLevelUp(userId: string): LevelUpRow | null {
+export async function getLatestLevelUp(userId: string): Promise<LevelUpRow | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM level_ups
     WHERE userId = ?
     ORDER BY createdAt DESC
     LIMIT 1
-  `);
-
-  const row = stmt.get(userId) as LevelUpRow | undefined;
+  `,
+    args: [userId]
+  });
+  const row = result.rows[0] as unknown as LevelUpRow | undefined;
   return row || null;
 }
 
@@ -963,14 +990,16 @@ export function getLatestLevelUp(userId: string): LevelUpRow | null {
  * @param email - User email
  * @returns User profile or null if not found
  */
-export function getUserByEmail(email: string): UserProfile | null {
+export async function getUserByEmail(email: string): Promise<UserProfile | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM users WHERE email = ?
-  `);
-
-  const row = stmt.get(email) as UserRow | undefined;
+  `,
+    args: [email]
+  });
+  const row = result.rows[0] as unknown as UserRow | undefined;
 
   if (!row) {
     return null;
@@ -986,28 +1015,32 @@ export function getUserByEmail(email: string): UserProfile | null {
  * @param maxLevel - Maximum level (inclusive, optional)
  * @returns Array of user profiles
  */
-export function getUsersByLevel(minLevel: number, maxLevel?: number): UserProfile[] {
+export async function getUsersByLevel(minLevel: number, maxLevel?: number): Promise<UserProfile[]> {
   const db = getDatabase();
 
-  let stmt;
-  let rows;
+  let result;
 
   if (maxLevel !== undefined) {
-    stmt = db.prepare(`
-      SELECT * FROM users
-      WHERE currentLevel >= ? AND currentLevel <= ?
-      ORDER BY currentLevel DESC, totalXP DESC
-    `);
-    rows = stmt.all(minLevel, maxLevel) as UserRow[];
+    result = await db.execute({
+      sql: `
+        SELECT * FROM users
+        WHERE currentLevel >= ? AND currentLevel <= ?
+        ORDER BY currentLevel DESC, totalXP DESC
+      `,
+      args: [minLevel, maxLevel]
+    });
   } else {
-    stmt = db.prepare(`
-      SELECT * FROM users
-      WHERE currentLevel >= ?
-      ORDER BY currentLevel DESC, totalXP DESC
-    `);
-    rows = stmt.all(minLevel) as UserRow[];
+    result = await db.execute({
+      sql: `
+        SELECT * FROM users
+        WHERE currentLevel >= ?
+        ORDER BY currentLevel DESC, totalXP DESC
+      `,
+      args: [minLevel]
+    });
   }
 
+  const rows = result.rows as unknown as UserRow[];
   return rows.map(rowToUserProfile);
 }
 
@@ -1017,16 +1050,18 @@ export function getUsersByLevel(minLevel: number, maxLevel?: number): UserProfil
  * @param limitCount - Number of users to return (default: 10)
  * @returns Array of user profiles ordered by XP descending
  */
-export function getTopUsersByXP(limitCount: number = 10): UserProfile[] {
+export async function getTopUsersByXP(limitCount: number = 10): Promise<UserProfile[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM users
     ORDER BY totalXP DESC, currentLevel DESC
     LIMIT ?
-  `);
-
-  const rows = stmt.all(limitCount) as UserRow[];
+  `,
+    args: [limitCount]
+  });
+  const rows = result.rows as unknown as UserRow[];
   return rows.map(rowToUserProfile);
 }
 
@@ -1037,17 +1072,19 @@ export function getTopUsersByXP(limitCount: number = 10): UserProfile[] {
  * @param limitCount - Maximum number of results (default: 20)
  * @returns Array of matching user profiles
  */
-export function searchUsers(searchTerm: string, limitCount: number = 20): UserProfile[] {
+export async function searchUsers(searchTerm: string, limitCount: number = 20): Promise<UserProfile[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM users
     WHERE username LIKE ?
     ORDER BY currentLevel DESC, totalXP DESC
     LIMIT ?
-  `);
-
-  const rows = stmt.all(`%${searchTerm}%`, limitCount) as UserRow[];
+  `,
+    args: [`%${searchTerm}%`, limitCount]
+  });
+  const rows = result.rows as unknown as UserRow[];
   return rows.map(rowToUserProfile);
 }
 
@@ -1070,21 +1107,19 @@ export function searchUsers(searchTerm: string, limitCount: number = 20): UserPr
  * @param sourceId - Unique source identifier for deduplication
  * @returns Result object with success status and XP data
  */
-export function awardXPWithTransaction(
+export async function awardXPWithTransaction(
   userId: string,
   amount: number,
   reason: string,
   source: string,
   sourceId: string
-): {
+): Promise<{
   success: boolean;
   isDuplicate: boolean;
   newTotalXP: number;
   newCurrentXP: number;
   transactionId?: string;
-} {
-  const db = getDatabase();
-
+}> {
   // Validate inputs
   if (!userId || !sourceId) {
     throw new Error('userId and sourceId are required');
@@ -1094,9 +1129,10 @@ export function awardXPWithTransaction(
   }
 
   // Check for duplicate BEFORE transaction (fast path)
-  if (hasXPLock(userId, sourceId)) {
+  const lockExists = await hasXPLock(userId, sourceId);
+  if (lockExists) {
     console.log(`⚠️ [UserRepository] Duplicate XP award prevented (lock exists): ${userId}:${sourceId}`);
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     return {
       success: true,
       isDuplicate: true,
@@ -1105,59 +1141,43 @@ export function awardXPWithTransaction(
     };
   }
 
-  // Execute atomic transaction
-  const result = db.transaction(() => {
-    // Double-check lock inside transaction (race condition protection)
-    if (hasXPLock(userId, sourceId)) {
-      const user = getUserById(userId);
-      return {
-        success: true,
-        isDuplicate: true,
-        newTotalXP: user?.totalXP || 0,
-        newCurrentXP: user?.currentXP || 0,
-      };
-    }
+  // Get current user
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
 
-    // Get current user
-    const user = getUserById(userId);
-    if (!user) {
-      throw new Error(`User not found: ${userId}`);
-    }
+  // Calculate new XP values
+  const newTotalXP = user.totalXP + amount;
+  const newCurrentXP = user.currentXP + amount;
 
-    // Calculate new XP values
-    const newTotalXP = user.totalXP + amount;
-    const newCurrentXP = user.currentXP + amount;
+  // Step 1: Create lock (prevents future duplicates)
+  await createXPLock(userId, sourceId);
 
-    // Step 1: Create lock (prevents future duplicates)
-    createXPLock(userId, sourceId);
+  // Step 2: Update user XP
+  await updateUser(userId, {
+    totalXP: newTotalXP,
+    currentXP: newCurrentXP,
+  });
 
-    // Step 2: Update user XP
-    updateUser(userId, {
-      totalXP: newTotalXP,
-      currentXP: newCurrentXP,
-    });
+  // Step 3: Create transaction record (audit trail)
+  const transactionId = await createXPTransaction({
+    userId,
+    amount,
+    reason,
+    source,
+    sourceId,
+  });
 
-    // Step 3: Create transaction record (audit trail)
-    const transactionId = createXPTransaction({
-      userId,
-      amount,
-      reason,
-      source,
-      sourceId,
-    });
+  console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (${source}:${sourceId})`);
 
-    console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (${source}:${sourceId})`);
-
-    return {
-      success: true,
-      isDuplicate: false,
-      newTotalXP,
-      newCurrentXP,
-      transactionId,
-    };
-  })();
-
-  return result;
+  return {
+    success: true,
+    isDuplicate: false,
+    newTotalXP,
+    newCurrentXP,
+    transactionId,
+  };
 }
 
 /**
@@ -1172,19 +1192,17 @@ export function awardXPWithTransaction(
  * @param source - Source type
  * @returns Result object with XP data
  */
-export function awardXPSimple(
+export async function awardXPSimple(
   userId: string,
   amount: number,
   reason: string,
   source: string
-): {
+): Promise<{
   success: boolean;
   newTotalXP: number;
   newCurrentXP: number;
   transactionId: string;
-} {
-  const db = getDatabase();
-
+}> {
   // Validate inputs
   if (!userId) {
     throw new Error('userId is required');
@@ -1193,45 +1211,40 @@ export function awardXPSimple(
     throw new Error('amount must be a positive number');
   }
 
-  // Execute atomic transaction
-  const result = db.transaction(() => {
-    // Get current user
-    const user = getUserById(userId);
-    if (!user) {
-      throw new Error(`User not found: ${userId}`);
-    }
+  // Get current user
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
 
-    // Calculate new XP values
-    const newTotalXP = user.totalXP + amount;
-    const newCurrentXP = user.currentXP + amount;
+  // Calculate new XP values
+  const newTotalXP = user.totalXP + amount;
+  const newCurrentXP = user.currentXP + amount;
 
-    // Update user XP
-    updateUser(userId, {
-      totalXP: newTotalXP,
-      currentXP: newCurrentXP,
-    });
+  // Update user XP
+  await updateUser(userId, {
+    totalXP: newTotalXP,
+    currentXP: newCurrentXP,
+  });
 
-    // Create transaction record (with auto-generated sourceId)
-    const autoSourceId = `auto_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const transactionId = createXPTransaction({
-      userId,
-      amount,
-      reason,
-      source,
-      sourceId: autoSourceId,
-    });
+  // Create transaction record (with auto-generated sourceId)
+  const autoSourceId = `auto_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const transactionId = await createXPTransaction({
+    userId,
+    amount,
+    reason,
+    source,
+    sourceId: autoSourceId,
+  });
 
-    console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (simple mode)`);
+  console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (simple mode)`);
 
-    return {
-      success: true,
-      newTotalXP,
-      newCurrentXP,
-      transactionId,
-    };
-  })();
-
-  return result;
+  return {
+    success: true,
+    newTotalXP,
+    newCurrentXP,
+    transactionId,
+  };
 }
 
 // ============================================================
@@ -1329,7 +1342,7 @@ export function calculateUnlockedContent(level: number): string[] {
  * @param level - User level (0-7)
  * @returns Array of unlocked permission identifiers
  */
-export function calculateUnlockedPermissions(level: number): string[] {
+export async function calculateUnlockedPermissions(level: number): Promise<string[]> {
   // Permissions are cumulative
   const permissionMap: Record<number, string[]> = {
     0: ['basic_reading', 'simple_ai_qa'],
@@ -1360,44 +1373,39 @@ export function calculateUnlockedPermissions(level: number): string[] {
  * @param users - Array of user profiles to create (with userId, timestamps as Date objects)
  * @returns Number of users created
  */
-export function batchCreateUsers(users: UserProfile[]): number {
+export async function batchCreateUsers(users: UserProfile[]): Promise<number> {
   const db = getDatabase();
-  let created = 0;
 
-  const insertMany = db.transaction((usersToInsert: UserProfile[]) => {
-    const stmt = db.prepare(`
+  const statements = users.map(user => ({
+    sql: `
       INSERT INTO users (
         id, username, email, currentLevel, currentXP, totalXP,
         attributes, completedTasks, unlockedContent, completedChapters,
         hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `,
+    args: [
+      user.userId,
+      user.username,
+      user.email || null,
+      user.currentLevel,
+      user.currentXP,
+      user.totalXP,
+      JSON.stringify(user.attributes),
+      JSON.stringify(user.completedTasks || []),
+      JSON.stringify(user.unlockedContent || []),
+      JSON.stringify(user.completedChapters || []),
+      user.hasReceivedWelcomeBonus ? 1 : 0,
+      JSON.stringify(user.stats || DEFAULT_STATS),
+      user.createdAt.getTime(),
+      user.updatedAt.getTime(),
+      user.lastActivityAt ? user.lastActivityAt.getTime() : null
+    ]
+  }));
 
-    for (const user of usersToInsert) {
-      stmt.run(
-        user.userId,
-        user.username,
-        user.email || null,
-        user.currentLevel,
-        user.currentXP,
-        user.totalXP,
-        JSON.stringify(user.attributes),
-        JSON.stringify(user.completedTasks || []),
-        JSON.stringify(user.unlockedContent || []),
-        JSON.stringify(user.completedChapters || []),
-        user.hasReceivedWelcomeBonus ? 1 : 0,
-        JSON.stringify(user.stats || DEFAULT_STATS),
-        user.createdAt.getTime(),
-        user.updatedAt.getTime(),
-        user.lastActivityAt ? user.lastActivityAt.getTime() : null
-      );
-      created++;
-    }
-  });
-
-  insertMany(users);
-  console.log(`✅ [UserRepository] Batch created ${created} users`);
-  return created;
+  await db.batch(statements, 'write');
+  console.log(`✅ [UserRepository] Batch created ${users.length} users`);
+  return users.length;
 }
 
 /**
@@ -1406,7 +1414,7 @@ export function batchCreateUsers(users: UserProfile[]): number {
  * @param transactions - Array of XP transaction records (with transactionId and timestamp)
  * @returns Number of transactions created
  */
-export function batchCreateXPTransactions(
+export async function batchCreateXPTransactions(
   transactions: Array<{
     transactionId: string;
     userId: string;
@@ -1416,34 +1424,29 @@ export function batchCreateXPTransactions(
     sourceId: string;
     timestamp: number; // Unix timestamp in milliseconds
   }>
-): number {
+): Promise<number> {
   const db = getDatabase();
-  let created = 0;
 
-  const insertMany = db.transaction((transactionsToInsert) => {
-    const stmt = db.prepare(`
+  const statements = transactions.map(tx => ({
+    sql: `
       INSERT INTO xp_transactions (
         transactionId, userId, amount, reason, source, sourceId, createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    `,
+    args: [
+      tx.transactionId,
+      tx.userId,
+      tx.amount,
+      tx.reason,
+      tx.source,
+      tx.sourceId || null,
+      tx.timestamp
+    ]
+  }));
 
-    for (const tx of transactionsToInsert) {
-      stmt.run(
-        tx.transactionId,
-        tx.userId,
-        tx.amount,
-        tx.reason,
-        tx.source,
-        tx.sourceId || null,
-        tx.timestamp
-      );
-      created++;
-    }
-  });
-
-  insertMany(transactions);
-  console.log(`✅ [UserRepository] Batch created ${created} XP transactions`);
-  return created;
+  await db.batch(statements, 'write');
+  console.log(`✅ [UserRepository] Batch created ${transactions.length} XP transactions`);
+  return transactions.length;
 }
 
 /**
@@ -1452,7 +1455,7 @@ export function batchCreateXPTransactions(
  * @param levelUps - Array of level-up records (with levelUpId and timestamp)
  * @returns Number of level-up records created
  */
-export function batchCreateLevelUps(
+export async function batchCreateLevelUps(
   levelUps: Array<{
     levelUpId: string;
     userId: string;
@@ -1462,34 +1465,29 @@ export function batchCreateLevelUps(
     unlockedPermissions?: string[];
     timestamp: number; // Unix timestamp in milliseconds
   }>
-): number {
+): Promise<number> {
   const db = getDatabase();
-  let created = 0;
 
-  const insertMany = db.transaction((levelUpsToInsert) => {
-    const stmt = db.prepare(`
+  const statements = levelUps.map(levelUp => ({
+    sql: `
       INSERT INTO level_ups (
         levelUpId, userId, fromLevel, toLevel, unlockedContent, unlockedPermissions, createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    `,
+    args: [
+      levelUp.levelUpId,
+      levelUp.userId,
+      levelUp.fromLevel,
+      levelUp.toLevel,
+      levelUp.unlockedContent ? JSON.stringify(levelUp.unlockedContent) : null,
+      levelUp.unlockedPermissions ? JSON.stringify(levelUp.unlockedPermissions) : null,
+      levelUp.timestamp
+    ]
+  }));
 
-    for (const levelUp of levelUpsToInsert) {
-      stmt.run(
-        levelUp.levelUpId,
-        levelUp.userId,
-        levelUp.fromLevel,
-        levelUp.toLevel,
-        levelUp.unlockedContent ? JSON.stringify(levelUp.unlockedContent) : null,
-        levelUp.unlockedPermissions ? JSON.stringify(levelUp.unlockedPermissions) : null,
-        levelUp.timestamp
-      );
-      created++;
-    }
-  });
-
-  insertMany(levelUps);
-  console.log(`✅ [UserRepository] Batch created ${created} level-up records`);
-  return created;
+  await db.batch(statements, 'write');
+  console.log(`✅ [UserRepository] Batch created ${levelUps.length} level-up records`);
+  return levelUps.length;
 }
 
 /**
@@ -1498,37 +1496,29 @@ export function batchCreateLevelUps(
  * @param locks - Array of XP lock records (with lockId and timestamp)
  * @returns Number of XP locks created
  */
-export function batchCreateXPLocks(
+export async function batchCreateXPLocks(
   locks: Array<{
     lockId: string;
     userId: string;
     sourceId: string;
     timestamp: number; // Unix timestamp in milliseconds
   }>
-): number {
+): Promise<number> {
   const db = getDatabase();
-  let created = 0;
 
-  const insertMany = db.transaction((locksToInsert) => {
-    const stmt = db.prepare(`
-      INSERT OR IGNORE INTO xp_transaction_locks (lockId, userId, sourceId, createdAt)
-      VALUES (?, ?, ?, ?)
-    `);
+  const statements = locks.map(lock => ({
+    sql: `INSERT OR IGNORE INTO xp_transaction_locks (lockId, userId, sourceId, createdAt) VALUES (?, ?, ?, ?)`,
+    args: [
+      lock.lockId,
+      lock.userId,
+      lock.sourceId,
+      lock.timestamp
+    ]
+  }));
 
-    for (const lock of locksToInsert) {
-      stmt.run(
-        lock.lockId,
-        lock.userId,
-        lock.sourceId,
-        lock.timestamp
-      );
-      created++;
-    }
-  });
-
-  insertMany(locks);
-  console.log(`✅ [UserRepository] Batch created ${created} XP locks`);
-  return created;
+  await db.batch(statements, 'write');
+  console.log(`✅ [UserRepository] Batch created ${locks.length} XP locks`);
+  return locks.length;
 }
 
 /**
@@ -1544,13 +1534,13 @@ export function batchCreateXPLocks(
  * @param sourceId - Unique source identifier
  * @returns Result with XP and level-up information
  */
-export function awardXPWithLevelUp(
+export async function awardXPWithLevelUp(
   userId: string,
   amount: number,
   reason: string,
   source: string,
   sourceId: string
-): {
+): Promise<{
   success: boolean;
   isDuplicate: boolean;
   newTotalXP: number;
@@ -1562,9 +1552,7 @@ export function awardXPWithLevelUp(
   unlockedPermissions?: string[];
   transactionId?: string;
   levelUpId?: string;
-} {
-  const db = getDatabase();
-
+}> {
   // Validate inputs
   if (!userId || !sourceId) {
     throw new Error('userId and sourceId are required');
@@ -1574,9 +1562,10 @@ export function awardXPWithLevelUp(
   }
 
   // Check for duplicate BEFORE transaction (fast path)
-  if (hasXPLock(userId, sourceId)) {
+  const lockExists = await hasXPLock(userId, sourceId);
+  if (lockExists) {
     console.log(`⚠️ [UserRepository] Duplicate XP award prevented (lock exists): ${userId}:${sourceId}`);
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     return {
       success: true,
       isDuplicate: true,
@@ -1591,13 +1580,9 @@ export function awardXPWithLevelUp(
   if (amount === 0) {
     console.log(`⚠️ [UserRepository] Zero XP award, creating lock only: ${userId}:${sourceId}`);
     // Create lock to mark as processed (prevents re-processing)
-    db.transaction(() => {
-      if (!hasXPLock(userId, sourceId)) {
-        createXPLock(userId, sourceId);
-      }
-    })();
+    await createXPLock(userId, sourceId);
 
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     return {
       success: true,
       isDuplicate: false,
@@ -1608,134 +1593,117 @@ export function awardXPWithLevelUp(
     };
   }
 
-  // Execute atomic transaction with level-up detection
-  const result = db.transaction(() => {
-    // Double-check lock inside transaction
-    if (hasXPLock(userId, sourceId)) {
-      const user = getUserById(userId);
+  // Get current user
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+
+  // Check chapter completion deduplication (additional guard beyond XP locks)
+  const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
+  if (chapterMatch) {
+    const chapterId = parseInt(chapterMatch[1], 10);
+    const completedChapters = user.completedChapters || [];
+
+    if (completedChapters.includes(chapterId)) {
+      console.log(`⚠️ [UserRepository] Chapter ${chapterId} already completed for user ${userId}`);
       return {
         success: true,
         isDuplicate: true,
-        newTotalXP: user?.totalXP || 0,
-        newCurrentXP: user?.currentXP || 0,
-        newLevel: user?.currentLevel || 0,
+        newTotalXP: user.totalXP,
+        newCurrentXP: user.currentXP,
+        newLevel: user.currentLevel,
         leveledUp: false,
       };
     }
+  }
 
-    // Get current user
-    const user = getUserById(userId);
-    if (!user) {
-      throw new Error(`User not found: ${userId}`);
-    }
+  // Calculate new XP values
+  const currentTotalXP = user.totalXP;
+  const newTotalXP = currentTotalXP + amount;
+  let newCurrentXP = user.currentXP + amount;
 
-    // Check chapter completion deduplication (additional guard beyond XP locks)
-    const chapterMatch = sourceId.match(/^chapter-(\d+)$/);
-    if (chapterMatch) {
-      const chapterId = parseInt(chapterMatch[1], 10);
-      const completedChapters = user.completedChapters || [];
+  // Detect level-up
+  const levelUpInfo = detectLevelUp(currentTotalXP, newTotalXP);
 
-      if (completedChapters.includes(chapterId)) {
-        console.log(`⚠️ [UserRepository] Chapter ${chapterId} already completed for user ${userId}`);
-        return {
-          success: true,
-          isDuplicate: true,
-          newTotalXP: user.totalXP,
-          newCurrentXP: user.currentXP,
-          newLevel: user.currentLevel,
-          leveledUp: false,
-        };
-      }
-    }
+  // Step 1: Create lock
+  await createXPLock(userId, sourceId);
 
-    // Calculate new XP values
-    const currentTotalXP = user.totalXP;
-    const newTotalXP = currentTotalXP + amount;
-    const newCurrentXP = user.currentXP + amount;
+  // Step 2: Update user XP
+  const updates: Partial<Omit<UserProfile, 'userId' | 'createdAt'>> = {
+    totalXP: newTotalXP,
+    currentXP: newCurrentXP,
+  };
 
-    // Detect level-up
-    const levelUpInfo = detectLevelUp(currentTotalXP, newTotalXP);
+  // If leveled up, update level and reset currentXP within level
+  if (levelUpInfo.leveledUp) {
+    updates.currentLevel = levelUpInfo.toLevel;
+    // Calculate XP within current level
+    const levelThreshold = LEVEL_THRESHOLDS[levelUpInfo.toLevel];
+    const xpIntoLevel = newTotalXP - levelThreshold;
+    updates.currentXP = xpIntoLevel;
+    newCurrentXP = xpIntoLevel;
+  }
 
-    // Step 1: Create lock
-    createXPLock(userId, sourceId);
+  // Persist completed chapter if applicable (sourceId pattern)
+  if (chapterMatch) {
+    const chapterId = parseInt(chapterMatch[1], 10);
+    const currentCompleted = user.completedChapters || [];
+    // Add chapter to completedChapters array (deduplicated with Set)
+    updates.completedChapters = Array.from(new Set([...currentCompleted, chapterId]));
+  }
 
-    // Step 2: Update user XP
-    const updates: Partial<Omit<UserProfile, 'userId' | 'createdAt'>> = {
-      totalXP: newTotalXP,
-      currentXP: newCurrentXP,
-    };
+  await updateUser(userId, updates);
 
-    // If leveled up, update level and reset currentXP within level
-    if (levelUpInfo.leveledUp) {
-      updates.currentLevel = levelUpInfo.toLevel;
-      // Calculate XP within current level
-      const levelThreshold = LEVEL_THRESHOLDS[levelUpInfo.toLevel];
-      const xpIntoLevel = newTotalXP - levelThreshold;
-      updates.currentXP = xpIntoLevel;
-    }
+  // Step 3: Create transaction record
+  const transactionId = await createXPTransaction({
+    userId,
+    amount,
+    reason,
+    source,
+    sourceId,
+  });
 
-    // Persist completed chapter if applicable (sourceId pattern)
-    if (chapterMatch) {
-      const chapterId = parseInt(chapterMatch[1], 10);
-      const currentCompleted = user.completedChapters || [];
-      // Add chapter to completedChapters array (deduplicated with Set)
-      updates.completedChapters = Array.from(new Set([...currentCompleted, chapterId]));
-    }
+  // Step 4: If leveled up, create level-up record and update unlocked content
+  let levelUpId: string | undefined;
+  let unlockedContent: string[] | undefined;
+  let unlockedPermissions: string[] | undefined;
 
-    updateUser(userId, updates);
+  if (levelUpInfo.leveledUp) {
+    unlockedContent = calculateUnlockedContent(levelUpInfo.toLevel);
+    unlockedPermissions = await calculateUnlockedPermissions(levelUpInfo.toLevel);
 
-    // Step 3: Create transaction record
-    const transactionId = createXPTransaction({
+    levelUpId = await createLevelUpRecord({
       userId,
-      amount,
-      reason,
-      source,
-      sourceId,
-    });
-
-    // Step 4: If leveled up, create level-up record and update unlocked content
-    let levelUpId: string | undefined;
-    let unlockedContent: string[] | undefined;
-    let unlockedPermissions: string[] | undefined;
-
-    if (levelUpInfo.leveledUp) {
-      unlockedContent = calculateUnlockedContent(levelUpInfo.toLevel);
-      unlockedPermissions = calculateUnlockedPermissions(levelUpInfo.toLevel);
-
-      levelUpId = createLevelUpRecord({
-        userId,
-        fromLevel: levelUpInfo.fromLevel,
-        toLevel: levelUpInfo.toLevel,
-        unlockedContent,
-        unlockedPermissions,
-      });
-
-      // Update unlocked content in user profile (within transaction for atomicity)
-      if (unlockedContent && unlockedContent.length > 0) {
-        const currentContent = user.unlockedContent || [];
-        const updatedContent = Array.from(new Set([...currentContent, ...unlockedContent]));
-        updateUser(userId, { unlockedContent: updatedContent });
-      }
-
-      console.log(`🎊 [UserRepository] LEVEL UP! ${userId}: ${levelUpInfo.fromLevel} → ${levelUpInfo.toLevel}`);
-    }
-
-    console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (${source}:${sourceId})`);
-
-    return {
-      success: true,
-      isDuplicate: false,
-      newTotalXP,
-      newCurrentXP: updates.currentXP!,
-      newLevel: updates.currentLevel || user.currentLevel,
-      leveledUp: levelUpInfo.leveledUp,
-      fromLevel: levelUpInfo.leveledUp ? levelUpInfo.fromLevel : undefined,
+      fromLevel: levelUpInfo.fromLevel,
+      toLevel: levelUpInfo.toLevel,
       unlockedContent,
       unlockedPermissions,
-      transactionId,
-      levelUpId,
-    };
-  })();
+    });
 
-  return result;
+    // Update unlocked content in user profile
+    if (unlockedContent && unlockedContent.length > 0) {
+      const currentContent = user.unlockedContent || [];
+      const updatedContent = Array.from(new Set([...currentContent, ...unlockedContent]));
+      await updateUser(userId, { unlockedContent: updatedContent });
+    }
+
+    console.log(`🎊 [UserRepository] LEVEL UP! ${userId}: ${levelUpInfo.fromLevel} → ${levelUpInfo.toLevel}`);
+  }
+
+  console.log(`✅ [UserRepository] Awarded ${amount} XP to ${userId} (${source}:${sourceId})`);
+
+  return {
+    success: true,
+    isDuplicate: false,
+    newTotalXP,
+    newCurrentXP,
+    newLevel: updates.currentLevel || user.currentLevel,
+    leveledUp: levelUpInfo.leveledUp,
+    fromLevel: levelUpInfo.leveledUp ? levelUpInfo.fromLevel : undefined,
+    unlockedContent,
+    unlockedPermissions,
+    transactionId,
+    levelUpId,
+  };
 }

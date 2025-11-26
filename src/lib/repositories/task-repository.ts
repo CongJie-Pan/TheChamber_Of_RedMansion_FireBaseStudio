@@ -7,7 +7,7 @@
  * @phase Phase 2.9 - Local SQLite Database Implementation
  */
 
-import { getDatabase, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
+import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
 import type { DailyTask, DailyTaskType, TaskDifficulty } from '../types/daily-task';
 import { XP_REWARD_TABLE, ATTRIBUTE_REWARD_TABLE } from '../task-generator';
 
@@ -83,7 +83,7 @@ function rowToTask(row: TaskRow): DailyTask {
  * @param task - Daily task data
  * @returns Created task
  */
-export function createTask(task: DailyTask): DailyTask {
+export async function createTask(task: DailyTask): Promise<DailyTask> {
   const db = getDatabase();
   const now = Date.now();
 
@@ -120,14 +120,14 @@ export function createTask(task: DailyTask): DailyTask {
     gradingCriteria,
   };
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     INSERT INTO daily_tasks (
       id, taskType, difficulty, title, description, baseXP,
       content, sourceChapter, sourceVerseStart, sourceVerseEnd, createdAt
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+  `,
+    args: [
     id,
     taskType,
     difficulty,
@@ -139,7 +139,8 @@ export function createTask(task: DailyTask): DailyTask {
     null, // sourceVerseStart - deprecated
     null, // sourceVerseEnd - deprecated
     createdAt ? toUnixTimestamp(createdAt) : now
-  );
+  ]
+  });
 
   console.log(`✅ [TaskRepository] Created task: ${id} (${taskType})`);
   return task;
@@ -151,14 +152,16 @@ export function createTask(task: DailyTask): DailyTask {
  * @param taskId - Task ID
  * @returns Task or null if not found
  */
-export function getTaskById(taskId: string): DailyTask | null {
+export async function getTaskById(taskId: string): Promise<DailyTask | null> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_tasks WHERE id = ?
-  `);
-
-  const row = stmt.get(taskId) as TaskRow | undefined;
+  `,
+    args: [taskId]
+  });
+  const row = result.rows[0] as unknown as TaskRow | undefined;
 
   if (!row) {
     return null;
@@ -173,16 +176,18 @@ export function getTaskById(taskId: string): DailyTask | null {
  * @param taskType - Task type
  * @returns Array of tasks
  */
-export function getTasksByType(taskType: DailyTaskType): DailyTask[] {
+export async function getTasksByType(taskType: DailyTaskType): Promise<DailyTask[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_tasks
     WHERE taskType = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(taskType) as TaskRow[];
+  `,
+    args: [taskType]
+  });
+  const rows = result.rows as unknown as TaskRow[];
 
   return rows.map(rowToTask);
 }
@@ -193,16 +198,18 @@ export function getTasksByType(taskType: DailyTaskType): DailyTask[] {
  * @param difficulty - Task difficulty
  * @returns Array of tasks
  */
-export function getTasksByDifficulty(difficulty: TaskDifficulty): DailyTask[] {
+export async function getTasksByDifficulty(difficulty: TaskDifficulty): Promise<DailyTask[]> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_tasks
     WHERE difficulty = ?
     ORDER BY createdAt DESC
-  `);
-
-  const rows = stmt.all(difficulty) as TaskRow[];
+  `,
+    args: [difficulty]
+  });
+  const rows = result.rows as unknown as TaskRow[];
 
   return rows.map(rowToTask);
 }
@@ -213,7 +220,7 @@ export function getTasksByDifficulty(difficulty: TaskDifficulty): DailyTask[] {
  * @param taskIds - Array of task IDs
  * @returns Array of tasks
  */
-export function getTasksByIds(taskIds: string[]): DailyTask[] {
+export async function getTasksByIds(taskIds: string[]): Promise<DailyTask[]> {
   if (taskIds.length === 0) {
     return [];
   }
@@ -221,12 +228,14 @@ export function getTasksByIds(taskIds: string[]): DailyTask[] {
   const db = getDatabase();
 
   const placeholders = taskIds.map(() => '?').join(',');
-  const stmt = db.prepare(`
+  const result = await db.execute({
+    sql: `
     SELECT * FROM daily_tasks
     WHERE id IN (${placeholders})
-  `);
-
-  const rows = stmt.all(...taskIds) as TaskRow[];
+  `,
+    args: [...taskIds]
+  });
+  const rows = result.rows as unknown as TaskRow[];
 
   return rows.map(rowToTask);
 }
@@ -238,14 +247,14 @@ export function getTasksByIds(taskIds: string[]): DailyTask[] {
  * @param updates - Partial task updates
  * @returns Updated task
  */
-export function updateTask(
+export async function updateTask(
   taskId: string,
   updates: Partial<Omit<DailyTask, 'id' | 'createdAt'>>
-): DailyTask {
+): Promise<DailyTask> {
   const db = getDatabase();
 
   // Get current task
-  const currentTask = getTaskById(taskId);
+  const currentTask = await getTaskById(taskId);
   if (!currentTask) {
     throw new Error(`Task not found: ${taskId}`);
   }
@@ -286,15 +295,15 @@ export function updateTask(
   // Field mapping: DailyTask.type -> database.taskType
   const taskType = type;
 
-  const stmt = db.prepare(`
+  await db.execute({
+    sql: `
     UPDATE daily_tasks
     SET taskType = ?, difficulty = ?, title = ?, description = ?,
         baseXP = ?, content = ?, sourceChapter = ?,
         sourceVerseStart = ?, sourceVerseEnd = ?
     WHERE id = ?
-  `);
-
-  stmt.run(
+  `,
+    args: [
     taskType,
     difficulty,
     title,
@@ -305,7 +314,8 @@ export function updateTask(
     null, // sourceVerseStart - deprecated
     null, // sourceVerseEnd - deprecated
     taskId
-  );
+  ]
+  });
 
   console.log(`✅ [TaskRepository] Updated task: ${taskId}`);
 
@@ -317,11 +327,13 @@ export function updateTask(
  *
  * @param taskId - Task ID
  */
-export function deleteTask(taskId: string): void {
+export async function deleteTask(taskId: string): Promise<void> {
   const db = getDatabase();
 
-  const stmt = db.prepare(`DELETE FROM daily_tasks WHERE id = ?`);
-  stmt.run(taskId);
+  await db.execute({
+    sql: `DELETE FROM daily_tasks WHERE id = ?`,
+    args: [taskId]
+  });
 
   console.log(`✅ [TaskRepository] Deleted task: ${taskId}`);
 }
@@ -332,18 +344,21 @@ export function deleteTask(taskId: string): void {
  * @param tasks - Array of tasks to create
  * @returns Array of created tasks
  */
-export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
-  const db = getDatabase();
+export async function batchCreateTasks(tasks: DailyTask[]): Promise<DailyTask[]> {
+  const db = await getDatabase();
 
-  const insertMany = db.transaction((tasksToInsert: DailyTask[]) => {
-    const stmt = db.prepare(`
+  try {
+    // Start transaction
+    await db.execute('BEGIN');
+
+    const sql = `
       INSERT INTO daily_tasks (
         id, taskType, difficulty, title, description, baseXP,
         content, sourceChapter, sourceVerseStart, sourceVerseEnd, createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-    for (const task of tasksToInsert) {
+    for (const task of tasks) {
       const {
         id,
         type, // DailyTask interface uses 'type', not 'taskType'
@@ -385,19 +400,22 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
       const safeBaseXP = baseXP ?? 10;
 
       try {
-        stmt.run(
-          id,
-          taskType,
-          difficulty,
-          safeTitle,
-          safeDescription,
-          safeBaseXP,
-          JSON.stringify(contentFields),
-          null, // sourceChapter - deprecated
-          null, // sourceVerseStart - deprecated
-          null, // sourceVerseEnd - deprecated
-          createdAt ? toUnixTimestamp(createdAt) : now
-        );
+        await db.execute({
+          sql,
+          args: [
+            id,
+            taskType,
+            difficulty,
+            safeTitle,
+            safeDescription,
+            safeBaseXP,
+            JSON.stringify(contentFields),
+            null, // sourceChapter - deprecated
+            null, // sourceVerseStart - deprecated
+            null, // sourceVerseEnd - deprecated
+            createdAt ? toUnixTimestamp(createdAt) : now
+          ]
+        });
       } catch (error) {
         // Enhanced error logging to identify problematic field
         console.error(`❌ [TaskRepository] SQLite constraint error for task ${id}:`);
@@ -408,12 +426,17 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
         throw error;
       }
     }
-  });
 
-  insertMany(tasks);
-
-  console.log(`✅ [TaskRepository] Batch created ${tasks.length} tasks`);
-  return tasks;
+    // Commit transaction
+    await db.execute('COMMIT');
+    console.log(`✅ [TaskRepository] Batch created ${tasks.length} tasks`);
+    return tasks;
+  } catch (error) {
+    // Rollback transaction on error
+    await db.execute('ROLLBACK');
+    console.error(`❌ [TaskRepository] Batch create failed:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -422,19 +445,20 @@ export function batchCreateTasks(tasks: DailyTask[]): DailyTask[] {
  * @param taskType - Task type (optional)
  * @returns Task count
  */
-export function getTaskCount(taskType?: DailyTaskType): number {
-  const db = getDatabase();
+export async function getTaskCount(taskType?: DailyTaskType): Promise<number> {
+  const db = await getDatabase();
 
-  let stmt;
+  let sql: string;
   let params: any[] = [];
 
   if (taskType) {
-    stmt = db.prepare(`SELECT COUNT(*) as count FROM daily_tasks WHERE taskType = ?`);
+    sql = `SELECT COUNT(*) as count FROM daily_tasks WHERE taskType = ?`;
     params = [taskType];
   } else {
-    stmt = db.prepare(`SELECT COUNT(*) as count FROM daily_tasks`);
+    sql = `SELECT COUNT(*) as count FROM daily_tasks`;
   }
 
-  const result = stmt.get(...params) as { count: number };
-  return result.count;
+  const result = await db.execute({ sql, args: params });
+  const row = result.rows[0] as unknown as { count: number };
+  return row.count;
 }

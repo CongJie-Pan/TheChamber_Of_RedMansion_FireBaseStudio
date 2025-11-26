@@ -30,7 +30,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -225,13 +225,15 @@ export default function DailyTasksPage() {
     };
 
     initializeTasks();
-  }, [user, user?.id, llmOnly, loadDailyTasks, resetTodayTasksForGuest, userProfile?.isGuest]); // Added all dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, user?.id, llmOnly, userProfile?.isGuest]); // Removed loadDailyTasks and resetTodayTasksForGuest to avoid hoisting issues
 
   /**
    * Reset today's tasks for guest users
    * Deletes today's progress and regenerates tasks for testing
+   * Wrapped in useCallback to prevent infinite re-renders
    */
-  const resetTodayTasksForGuest = async () => {
+  const resetTodayTasksForGuest = useCallback(async () => {
     if (!user || !userProfile?.isGuest || llmOnly) return;
 
     setIsLoading(true);
@@ -261,14 +263,16 @@ export default function DailyTasksPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userProfile?.isGuest, llmOnly, toast]); // loadDailyTasks is stable due to useCallback
 
   /**
    * Load or generate daily tasks for the user (non-blocking)
    * Shows page immediately and loads tasks in background
+   * Wrapped in useCallback to prevent infinite re-renders
    * @param isReloadAfterSubmit - If true, will retry on null progress (handles DB timing issues)
    */
-  const loadDailyTasks = async (isReloadAfterSubmit: boolean = false) => {
+  const loadDailyTasks = useCallback(async (isReloadAfterSubmit: boolean = false) => {
     if (!user) return;
 
     // Show page immediately, load tasks in background
@@ -407,7 +411,7 @@ export default function DailyTasksPage() {
         duration: 5000,
       });
     }
-  };
+  }, [user, llmOnly, toast]);
 
   /**
    * Helper function to update statistics from progress

@@ -66,12 +66,7 @@ jest.mock('firebase/firestore', () => ({
   addDoc: jest.fn(),
   updateDoc: jest.fn(),
   serverTimestamp: jest.fn(() => new Date()),
-}));
-
-// Mock Firebase app
-jest.mock('@/lib/firebase', () => ({
-  db: {},
-}));
+}), { virtual: true });
 
 describe('Bi-Column Navigation', () => {
   let mockRange: any;
@@ -1101,6 +1096,8 @@ describe('Bi-Column Navigation', () => {
     test('detects contentEditable elements correctly', () => {
       /**
        * Tests identification of contenteditable elements.
+       * Note: jsdom doesn't properly implement isContentEditable (returns undefined),
+       * so we check the contentEditable attribute string directly.
        */
       const div = document.createElement('div');
       div.contentEditable = 'true';
@@ -1108,7 +1105,7 @@ describe('Bi-Column Navigation', () => {
       const isEditable = (element: HTMLElement) => {
         return element.tagName === 'INPUT' ||
                element.tagName === 'TEXTAREA' ||
-               element.isContentEditable;
+               element.contentEditable === 'true';  // jsdom workaround
       };
 
       expect(isEditable(div)).toBe(true);
@@ -1117,13 +1114,15 @@ describe('Bi-Column Navigation', () => {
     test('non-editable elements return false', () => {
       /**
        * Tests that regular elements are not identified as editable.
+       * Note: jsdom doesn't properly implement isContentEditable (returns undefined),
+       * so we check the contentEditable attribute string directly.
        */
       const div = document.createElement('div');
 
       const isEditable = (element: HTMLElement) => {
         return element.tagName === 'INPUT' ||
                element.tagName === 'TEXTAREA' ||
-               element.isContentEditable;
+               element.contentEditable === 'true';  // jsdom workaround
       };
 
       expect(isEditable(div)).toBe(false);

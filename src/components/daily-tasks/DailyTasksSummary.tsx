@@ -12,7 +12,7 @@
  * - Motivational messages
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -45,14 +45,9 @@ export const DailyTasksSummary: React.FC = () => {
 
   /**
    * Load today's progress
+   * Wrapped in useCallback to prevent infinite re-renders
    */
-  useEffect(() => {
-    if (user) {
-      loadProgress();
-    }
-  }, [user, loadProgress]);
-
-  const loadProgress = async () => {
+  const loadProgress = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -88,7 +83,16 @@ export const DailyTasksSummary: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  /**
+   * Load progress when user changes
+   */
+  useEffect(() => {
+    if (user) {
+      loadProgress();
+    }
+  }, [user, loadProgress]);
 
   // Calculate statistics
   const totalTasks = progress?.tasks.length || 0;
