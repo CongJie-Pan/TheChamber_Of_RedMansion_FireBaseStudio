@@ -367,6 +367,31 @@ async function verifySchema(db: Client): Promise<void> {
 }
 
 /**
+ * Background schema initialization (non-blocking for lazy initialization)
+ * This runs asynchronously without blocking the main request
+ *
+ * @param db - Database client instance
+ */
+async function initializeSchemaAsync(db: Client): Promise<void> {
+  try {
+    console.log('🔄 [Turso] Background: Testing database connection...');
+    await db.execute('SELECT 1');
+
+    console.log('🔄 [Turso] Background: Initializing schema...');
+    await initializeSchema(db);
+
+    console.log('🔄 [Turso] Background: Verifying schema...');
+    await verifySchema(db);
+
+    console.log('✅ [Turso] Background schema initialization complete');
+  } catch (error: any) {
+    console.error('❌ [Turso] Background schema initialization error:', error.message);
+    // Don't throw - this is a background operation
+    // The database client is still usable, queries will handle missing tables gracefully
+  }
+}
+
+/**
  * Flag to track if Turso initialization has been attempted
  */
 let initializationAttempted = false;
@@ -458,11 +483,13 @@ export async function initializeDatabase(): Promise<void> {
 }
 
 /**
- * Get database instance (singleton pattern) - SYNCHRONOUS
- * Must call initializeDatabase() first during app startup
+ * Get database instance (singleton pattern) with lazy initialization
+ *
+ * This function supports both startup initialization (via instrumentation hook)
+ * and lazy initialization (for serverless environments where startup hooks are unreliable).
  *
  * @returns Turso database client instance
- * @throws Error if database not initialized or initialization failed
+ * @throws Error if database initialization fails or environment is invalid
  */
 export function getDatabase(): Client {
   if (typeof window !== 'undefined') {
@@ -479,17 +506,52 @@ export function getDatabase(): Client {
     );
   }
 
-  if (!dbInstance) {
-    console.warn('⚠️ [Turso] Database not initialized during startup. Attempting lazy initialization...');
-    console.warn('⚠️ [Turso] This should not happen in production. Check instrumentation.ts');
+  // Lazy initialization: Initialize on first access if not already done
+  if (!dbInstance && !initializationAttempted) {
+    console.warn('⚡ [Turso] Lazy initialization triggered (serverless cold start or instrumentation hook failed)');
 
+    // Mark as attempted to prevent concurrent initialization
+    initializationAttempted = true;
+
+    try {
+      // Validate environment variables
+      if (!DB_CONFIG.url) {
+        throw new Error('TURSO_DATABASE_URL environment variable is not set');
+      }
+      if (!DB_CONFIG.authToken) {
+        throw new Error('TURSO_AUTH_TOKEN environment variable is not set');
+      }
+
+      console.log('🔄 [Turso] Creating database client...');
+
+      // Create client (connection is lazy in LibSQL - actual connection happens on first query)
+      dbInstance = createClient({
+        url: DB_CONFIG.url,
+        authToken: DB_CONFIG.authToken,
+      });
+
+      console.log('✅ [Turso] Database client created successfully');
+      console.log('🔄 [Turso] Schema will be initialized in background...');
+
+      // Schedule async schema initialization in background (non-blocking)
+      // This ensures the first request isn't blocked by schema creation
+      initializeSchemaAsync(dbInstance).catch(err => {
+        console.error('❌ [Turso] Background schema initialization failed:', err);
+        // Don't set initializationFailed here - client is still usable
+      });
+
+    } catch (error: any) {
+      initializationFailed = true;
+      const errorMessage = `Database lazy initialization failed: ${error.message}`;
+      console.error('❌ [Turso]', errorMessage);
+      throw new Error(errorMessage);
+    }
+  }
+
+  if (!dbInstance) {
     throw new Error(
-      'Database not initialized. Call initializeDatabase() during app startup before accessing repositories.\n' +
-      'Possible causes:\n' +
-      '1. instrumentationHook not enabled in next.config.ts\n' +
-      '2. instrumentation.ts not running in Vercel environment\n' +
-      '3. Edge runtime incompatibility\n' +
-      'Check Vercel build logs for initialization errors.'
+      'Database initialization failed. This should not happen after lazy initialization attempt. ' +
+      'Check logs for detailed error information.'
     );
   }
 
