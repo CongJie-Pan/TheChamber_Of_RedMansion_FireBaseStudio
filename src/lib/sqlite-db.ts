@@ -480,8 +480,16 @@ export function getDatabase(): Client {
   }
 
   if (!dbInstance) {
+    console.warn('⚠️ [Turso] Database not initialized during startup. Attempting lazy initialization...');
+    console.warn('⚠️ [Turso] This should not happen in production. Check instrumentation.ts');
+
     throw new Error(
-      'Database not initialized. Call initializeDatabase() during app startup before accessing repositories.'
+      'Database not initialized. Call initializeDatabase() during app startup before accessing repositories.\n' +
+      'Possible causes:\n' +
+      '1. instrumentationHook not enabled in next.config.ts\n' +
+      '2. instrumentation.ts not running in Vercel environment\n' +
+      '3. Edge runtime incompatibility\n' +
+      'Check Vercel build logs for initialization errors.'
     );
   }
 

@@ -8,52 +8,27 @@
  */
 
 export async function register() {
-  const nodeEnv = process.env.NODE_ENV;
+  console.log('🚀 [Instrumentation] register() called');
+  console.log('🚀 [Instrumentation] NEXT_RUNTIME:', process.env.NEXT_RUNTIME);
+  console.log('🚀 [Instrumentation] Running on server:', typeof window === 'undefined');
 
-  // Enhanced environment detection:
-  // 1. Explicit development mode (NODE_ENV=development)
-  // 2. If NODE_ENV is not set but we're running via npm run dev (development server)
-  // 3. Allow explicit override with ENABLE_GUEST_ACCOUNT=true
-  const isDevelopment =
-    nodeEnv === 'development' ||
-    (!nodeEnv && process.argv.some(arg => arg.includes('next') && arg.includes('dev'))) ||
-    process.env.ENABLE_GUEST_ACCOUNT === 'true';
-
-  if (isDevelopment) {
-    console.log('\n🔧 [Instrumentation] Running development setup tasks...\n');
-    console.log('[Instrumentation] Current working directory:', process.cwd());
-    console.log('[Instrumentation] Node environment:', nodeEnv || '未設置（檢測為開發模式）');
+  // Only run on server side (both Node.js and Edge runtime)
+  if (typeof window === 'undefined') {
+    // Skip if running in Edge runtime (Turso client requires Node.js)
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      console.log('⚠️ [Instrumentation] Skipping DB init in Edge runtime');
+      return;
+    }
 
     try {
-      // Dynamically import the seed function to avoid bundling issues
-      const { seedGuestAccount } = await import('./scripts/seed-guest-account');
-
-      // Seed guest account with reset
-      console.log('[Instrumentation] Calling seedGuestAccount(true)...');
-      seedGuestAccount(true);
-
-      console.log('✅ [Instrumentation] Guest account seeded successfully\n');
-    } catch (error: any) {
-      console.error('❌ [Instrumentation] Failed to seed guest account:', error.message);
-      console.error('[Instrumentation] Error stack:', error.stack);
-      console.error('   Make sure better-sqlite3 is properly installed for your platform');
-      console.error('   Run: npm rebuild better-sqlite3');
-      console.error('   Or manually seed: npx tsx scripts/seed-guest-account.ts --reset');
-
-      // Enhanced diagnostics
-      const fs = require('fs');
-      const path = require('path');
-      const dbPath = path.join(process.cwd(), 'data', 'local-db', 'redmansion.db');
-      const dbDirExists = fs.existsSync(path.dirname(dbPath));
-      const dbFileExists = fs.existsSync(dbPath);
-      console.error('[Instrumentation] Database directory exists:', dbDirExists);
-      console.error('[Instrumentation] Database file exists:', dbFileExists);
-      console.error('');
+      const { initializeDatabase } = await import('./src/lib/sqlite-db');
+      await initializeDatabase();
+      console.log('✅ [Instrumentation] Database initialized successfully');
+    } catch (error) {
+      console.error('❌ [Instrumentation] Failed to initialize database:', error);
+      // Log but don't throw - individual routes will handle gracefully
     }
   } else {
-    console.log('\n[Instrumentation] Skipping development setup');
-    console.log('[Instrumentation] NODE_ENV=' + (nodeEnv || '未設置（非開發模式）'));
-    console.log('[Instrumentation] Guest account setup only runs in development mode');
-    console.log('[Instrumentation] To enable: npm run dev (recommended) or NODE_ENV=development npm start\n');
+    console.log('⚠️ [Instrumentation] Skipping DB init in browser environment');
   }
 }

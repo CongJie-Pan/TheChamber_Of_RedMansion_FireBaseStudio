@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   experimental: {
     // optimizeCss requires 'critters' package - install with: npm install --save-dev critters
     optimizeCss: true, // Re-enabled for better CSS optimization
+    instrumentationHook: true, // Explicitly enable instrumentation for Vercel deployment
     optimizePackageImports: [
       'lucide-react',
       'd3',
@@ -31,7 +32,6 @@ const nextConfig: NextConfig = {
       'date-fns',        // Added for date utilities optimization
       'react-markdown',  // Added for markdown rendering optimization
     ], // Tree-shake specific packages
-    // Note: instrumentationHook is now enabled by default in Next.js 15
   },
   images: {
     remotePatterns: [
