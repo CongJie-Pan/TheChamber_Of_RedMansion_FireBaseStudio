@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
     // optimizeCss requires 'critters' package - install with: npm install --save-dev critters
     optimizeCss: true, // Re-enabled for better CSS optimization
     instrumentationHook: true, // Explicitly enable instrumentation for Vercel deployment
+    // Exclude @libsql/client from serverless function bundling to prevent module resolution issues
+    serverComponentsExternalPackages: ['@libsql/client'],
     optimizePackageImports: [
       'lucide-react',
       'd3',

@@ -574,12 +574,45 @@ export class PerplexityClient {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let shouldStopAfterCurrentBatch = false;
+      // FIX: Removed shouldStopAfterCurrentBatch - we should ALWAYS wait for [DONE] signal
+      // to ensure all content is received and properly flushed.
+      // LobeChat pattern: let stream naturally complete via explicit stop signal
 
       console.log('🐛 [streamingCompletionRequest] Starting stream reading with native fetch');
 
+      // Defensive: Prevent infinite loop in edge cases (e.g., broken stream that never ends)
+      // Value rationale: MAX_TOKENS (2000) * 5 (safety margin for reasoning models with thinking tags)
+      // Reasoning models can produce 500-2000+ chunks for complex responses
+      const MAX_READ_ITERATIONS = 10000;
+      let readCount = 0;
+
       try {
         while (true) {
+          // Safety check: prevent runaway loops
+          if (++readCount > MAX_READ_ITERATIONS) {
+            // Collect diagnostic information for debugging
+            const diagnostics = {
+              iterations: readCount,
+              maxAllowed: MAX_READ_ITERATIONS,
+              chunksProcessed: chunkIndex,
+              batchesProcessed: batchIndex,
+              contentLength: fullContent.length,
+              thinkingLength: accumulatedThinking.length,
+              bufferSize: buffer.length,
+              timestamp: new Date().toISOString(),
+            };
+            console.error('[PerplexityClient] Stream overflow detected:', diagnostics);
+
+            throw new PerplexityQAError(
+              `Stream processing exceeded maximum iterations limit (${MAX_READ_ITERATIONS}). ` +
+              `Processed ${chunkIndex} chunks with ${fullContent.length} chars of content. ` +
+              `This may indicate an infinite loop or malformed stream response.`,
+              'STREAM_OVERFLOW',
+              500,
+              false
+            );
+          }
+
           const { done, value } = await reader.read();
 
           if (done) {
@@ -618,30 +651,41 @@ export class PerplexityClient {
                 const finalChunk = processor.finalize();
                 if (finalChunk.content.trim()) {
                   fullContent += finalChunk.content;
-                  const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
-                  const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
-                  const processingTime = (Date.now() - startTime) / 1000;
-
-                  yield {
-                    content: finalChunk.content,
-                    fullContent: fullContent,
-                    thinkingContent: sanitizedThinking,
-                    contentDerivedFromThinking: false,
-                    timestamp: new Date().toISOString(),
-                    citations,
-                    searchQueries: collectedSearchQueries,
-                    metadata: {
-                      searchQueries: collectedSearchQueries,
-                      webSources: citations.filter(c => c.type === 'web_citation'),
-                      groundingSuccessful: collectedCitations.length > 0,
-                      confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
-                    },
-                    responseTime: processingTime,
-                    isComplete: true,  // [DONE] signal means stream is complete
-                    chunkIndex,
-                    hasThinkingProcess: sanitizedThinking.length > 0,
-                  };
                 }
+
+                const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+                const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+                const processingTime = (Date.now() - startTime) / 1000;
+
+                // FIX: ALWAYS yield a final completion chunk on [DONE]
+                // This ensures the UI receives the complete state even if fullContent is empty
+                // LobeChat pattern: explicit completion signal handling
+                console.log('🐛 [streamingCompletionRequest] Yielding final completion chunk:', {
+                  fullContentLength: fullContent.length,
+                  thinkingLength: sanitizedThinking.length,
+                  citationCount: citations.length,
+                  processingTime,
+                });
+
+                yield {
+                  content: finalChunk.content.trim() || '',
+                  fullContent: fullContent,
+                  thinkingContent: sanitizedThinking,
+                  contentDerivedFromThinking: false,
+                  timestamp: new Date().toISOString(),
+                  citations,
+                  searchQueries: collectedSearchQueries,
+                  metadata: {
+                    searchQueries: collectedSearchQueries,
+                    webSources: citations.filter(c => c.type === 'web_citation'),
+                    groundingSuccessful: collectedCitations.length > 0,
+                    confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+                  },
+                  responseTime: processingTime,
+                  isComplete: true,  // [DONE] signal means stream is complete
+                  chunkIndex: chunkIndex + 1,
+                  hasThinkingProcess: sanitizedThinking.length > 0,
+                };
 
                 return;
               }
@@ -691,7 +735,7 @@ export class PerplexityClient {
                           confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
                         },
                         responseTime: processingTime,
-                        isComplete,
+                        isComplete: false,  // Thinking-only chunks are never complete - answer hasn't arrived yet
                         chunkIndex,
                         hasThinkingProcess: true,
                       };
@@ -734,45 +778,12 @@ export class PerplexityClient {
                     }
                   }
 
-                  // If stream is complete, finalize the processor
-                  if (isComplete) {
-                    const finalChunk = processor.finalize();
-                    if (finalChunk.content.trim()) {
-                      // Handle any remaining buffered content
-                      fullContent += finalChunk.content;
-
-                      const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
-                      const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
-
-                      yield {
-                        content: finalChunk.content,
-                        fullContent: fullContent,
-                        thinkingContent: sanitizedThinking,
-                        contentDerivedFromThinking: false,
-                        timestamp: new Date().toISOString(),
-                        citations,
-                        searchQueries: collectedSearchQueries,
-                        metadata: {
-                          searchQueries: collectedSearchQueries,
-                          webSources: citations.filter(c => c.type === 'web_citation'),
-                          groundingSuccessful: collectedCitations.length > 0,
-                          confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
-                        },
-                        responseTime: processingTime,
-                        isComplete: true,
-                        chunkIndex,
-                        hasThinkingProcess: sanitizedThinking.length > 0,
-                      };
-
-                      chunkIndex++;
-                    }
-                  }
-
-                  // Mark that we should stop after processing all events in current batch
-                  if (isComplete) {
-                    console.log(`🐛 [streamingCompletionRequest] isComplete detected at chunk ${chunkIndex}, will stop after processing current batch`);
-                    shouldStopAfterCurrentBatch = true;
-                  }
+                  // FIX: Do NOT finalize processor or exit early on isComplete - wait for [DONE] signal
+                  // The Perplexity API sends finish_reason BEFORE the stream actually ends.
+                  // Calling processor.finalize() here would reset the processor state and lose
+                  // any incomplete thinking content (e.g., when </think> hasn't arrived yet).
+                  // The processor is properly finalized in the [DONE] handler at line ~620.
+                  // LobeChat pattern: only exit on explicit 'stop' signal or stream end
 
                   // Add delay to prevent overwhelming the UI (only if not complete)
                   if (!isComplete) {
@@ -787,12 +798,7 @@ export class PerplexityClient {
               }
             }
           }
-
-          // After processing all events in this network chunk, check if we should stop
-          if (shouldStopAfterCurrentBatch) {
-            console.log(`🐛 [streamingCompletionRequest] Stopping after processing batch #${batchIndex || 0}`);
-            return;
-          }
+          // FIX: Removed shouldStopAfterCurrentBatch check - continue processing until [DONE] or stream end
         }
       } finally {
         reader.releaseLock();

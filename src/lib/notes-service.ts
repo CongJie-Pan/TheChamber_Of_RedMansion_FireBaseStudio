@@ -28,23 +28,15 @@ export interface Note {
 }
 
 // SQLite Database Integration
-// Conditional import: only load SQLite modules on server-side
-// Avoid loading better-sqlite3 native module on client-side (browser)
-let noteRepository: any;
+// Standard ESM imports - these are resolved at build time by Next.js
+// The @libsql/client is excluded from client bundles via next.config.ts serverComponentsExternalPackages
+import * as noteRepository from './repositories/note-repository';
 
 const SQLITE_SERVER_ENABLED = typeof window === 'undefined';
 
-if (SQLITE_SERVER_ENABLED) {
-  try {
-    noteRepository = require('./repositories/note-repository');
-    console.log('✅ [NotesService] SQLite modules loaded successfully');
-  } catch (error: any) {
-    console.error('❌ [NotesService] Failed to load SQLite modules');
-    console.error('   Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.');
-    throw new Error(
-      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to diagnose the environment.'
-    );
-  }
+// Log initialization status on server-side only
+if (typeof window === 'undefined') {
+  console.log('✅ [NotesService] SQLite modules loaded successfully');
 }
 
 /**

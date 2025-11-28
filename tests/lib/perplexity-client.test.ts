@@ -682,12 +682,15 @@ describe('PerplexityClient', () => {
       const chunks: any[] = [];
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        if (chunk.isComplete) break;
+        // Wait for stream to naturally end via [DONE] signal
       }
 
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].thinkingContent).toBe('這是思考過程');
-      expect(chunks[0].hasThinkingProcess).toBe(true);
+      // May have thinking chunk + text chunk + final [DONE] chunk
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toBe('這是思考過程');
+      expect(lastChunk.hasThinkingProcess).toBe(true);
     });
 
     test('should handle API response with only thinking content (no fallback)', async () => {
@@ -956,22 +959,22 @@ describe('PerplexityClient', () => {
       const chunks: any[] = [];
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        if (chunk.isComplete) break;
+        // Wait for stream to naturally end via [DONE] signal
       }
 
-      // StreamProcessor only yields chunks for 'text' type (answer content)
-      // Events 1-2 are inside <think> tag, so no chunks yielded
-      // Event 3 closes </think> and yields first answer chunk
-      // Event 4 yields second answer chunk
-      expect(chunks.length).toBe(2);
+      // With PHASE 1 FIX: thinking chunks are now yielded too
+      // Events 1-2: thinking chunks (isComplete: false)
+      // Event 3: text chunk with answer start
+      // Event 4: text chunk with answer continuation
+      // Final: [DONE] yields final completion chunk
+      expect(chunks.length).toBeGreaterThanOrEqual(2);
 
-      // First chunk has the thinking accumulated and first part of answer
-      expect(chunks[0].thinkingContent).toContain('我需要分析');
-      expect(chunks[0].fullContent).toContain('第一回');
-
-      // Second chunk continues the answer
-      expect(chunks[1].fullContent).toContain('交代全書');
-      expect(chunks[1].isComplete).toBe(true);
+      // Last chunk should have all accumulated content
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toContain('我需要分析');
+      expect(lastChunk.fullContent).toContain('第一回');
+      expect(lastChunk.fullContent).toContain('交代全書');
+      expect(lastChunk.isComplete).toBe(true);
     });
 
     test('should not stop prematurely when finish_reason appears early', async () => {
@@ -1021,15 +1024,17 @@ describe('PerplexityClient', () => {
 
       const chunks: any[] = [];
       // Don't break on first complete chunk - collect all chunks until stream ends
+      // FIX (2025-11-27): Removed shouldStopAfterCurrentBatch - now waits for [DONE] signal
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        // Check if this is the last chunk (no more data after shouldStopAfterCurrentBatch)
+        // Stream continues until [DONE] signal, not just isComplete
         if (chunk.isComplete && chunks.length > 1) break;
       }
 
       // Should process BOTH events even though first one has finish_reason
       expect(chunks.length).toBeGreaterThanOrEqual(2);
-      expect(chunks[0].isComplete).toBe(true);
+      // Thinking-only chunks are never complete - only final chunks with answer are complete
+      expect(chunks[0].isComplete).toBe(false);
 
       // The second event should still be processed
       const lastChunk = chunks[chunks.length - 1];
@@ -1073,13 +1078,16 @@ describe('PerplexityClient', () => {
       const chunks: any[] = [];
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        if (chunk.isComplete) break;
+        // Wait for stream to naturally end via [DONE] signal
       }
 
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].thinkingContent).toBe('這是推理過程');
-      expect(chunks[0].fullContent).toContain('這是實際答案');
-      expect(chunks[0].fullContent).not.toContain('<think>');
+      // Should have thinking chunk(s) and text chunk(s), plus final [DONE] chunk
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toBe('這是推理過程');
+      expect(lastChunk.fullContent).toContain('這是實際答案');
+      expect(lastChunk.fullContent).not.toContain('<think>');
     });
 
     test('should parse reasoning response with standard official format', async () => {
@@ -1121,14 +1129,17 @@ describe('PerplexityClient', () => {
       const chunks: any[] = [];
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        if (chunk.isComplete) break;
+        // Wait for stream to naturally end via [DONE] signal
       }
 
-      expect(chunks.length).toBe(1);
+      // Should have thinking chunk(s) and text chunk(s), plus final [DONE] chunk
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      const lastChunk = chunks[chunks.length - 1];
       // Should correctly separate thinking (inside tags) and answer (outside tags)
-      expect(chunks[0].thinkingContent).toBe('推理過程在前');
-      expect(chunks[0].fullContent).toContain('這是實際答案內容');
-      expect(chunks[0].contentDerivedFromThinking).toBe(false);
+      expect(lastChunk.thinkingContent).toBe('推理過程在前');
+      expect(lastChunk.fullContent).toContain('這是實際答案內容');
+      expect(lastChunk.contentDerivedFromThinking).toBe(false);
     });
 
     test('should handle large single network chunk (simulating 5248 bytes)', async () => {
@@ -1403,16 +1414,19 @@ describe('PerplexityClient', () => {
       const chunks: any[] = [];
       for await (const chunk of client.streamingCompletionRequest(input)) {
         chunks.push(chunk);
-        if (chunk.isComplete) break;
+        // Wait for stream to naturally end via [DONE] signal
       }
 
+      // Should have thinking chunk(s) and text chunk(s), plus final [DONE] chunk
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      const lastChunk = chunks[chunks.length - 1];
       // Verify: Should display normal answer, NOT fallback
-      expect(chunks.length).toBe(1);
-      expect(chunks[0].fullContent).toContain('林黛玉的性格特點主要包括');
-      expect(chunks[0].fullContent).not.toContain('⚠️');
-      expect(chunks[0].thinkingContent).toContain('首先分析林黛玉');
-      expect(chunks[0].contentDerivedFromThinking).toBe(false);
-      expect(chunks[0].isComplete).toBe(true);
+      expect(lastChunk.fullContent).toContain('林黛玉的性格特點主要包括');
+      expect(lastChunk.fullContent).not.toContain('⚠️');
+      expect(lastChunk.thinkingContent).toContain('首先分析林黛玉');
+      expect(lastChunk.contentDerivedFromThinking).toBe(false);
+      expect(lastChunk.isComplete).toBe(true);
     });
 
     test('should handle extremely long thinking content (no validation)', async () => {
@@ -1463,6 +1477,413 @@ describe('PerplexityClient', () => {
         expect(lastChunk.thinkingContent.length).toBeGreaterThan(5000);
         expect(lastChunk.fullContent).toBe(''); // No answer
       }
+    });
+  });
+
+  /**
+   * Test suite for Streaming Fix (2025-11-27)
+   * Tests the LobeChat-aligned streaming termination pattern
+   *
+   * Key code changes tested:
+   * 1. src/lib/perplexity-client.ts: Removed shouldStopAfterCurrentBatch early exit
+   * 2. src/lib/perplexity-client.ts: [DONE] handler always yields final chunk
+   * 3. src/lib/perplexity-client.ts: Thinking-only chunks are now yielded
+   *
+   * Reference: LobeChat @lobechat/fetch-sse pattern - wait for explicit [DONE] signal
+   */
+  describe('Streaming Termination Fix (2025-11-27)', () => {
+    test('should wait for [DONE] signal instead of stopping on isComplete', async () => {
+      // This test verifies the core fix: stream continues until [DONE]
+      // even when finish_reason is set (isComplete=true)
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'chunk-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '第一段內容' },
+            finish_reason: 'stop',  // isComplete=true here
+          }],
+        }),
+        formatSSEChunk({
+          id: 'chunk-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '，第二段內容也要收到' },
+            finish_reason: null,
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試 [DONE] 信號等待',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      // Key: collect ALL chunks until [DONE], don't break on first isComplete
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // Verify both chunks were received (stream didn't stop early)
+      expect(chunks.length).toBeGreaterThanOrEqual(2);
+
+      // Verify final chunk has accumulated content from BOTH events
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.fullContent).toContain('第一段內容');
+      expect(lastChunk.fullContent).toContain('第二段內容也要收到');
+      expect(lastChunk.isComplete).toBe(true);
+    });
+
+    test('should always yield final chunk on [DONE] even with empty fullContent', async () => {
+      // This test verifies the [DONE] handler fix: always yield final chunk
+      // Reference: src/lib/perplexity-client.ts lines 629-657
+      const client = new PerplexityClient('test-key');
+
+      // Simulate API returning only thinking content
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'think-only',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>只有推理內容，沒有答案</think>' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試空 fullContent 的 [DONE] 處理',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // Verify a final chunk was yielded even though fullContent is empty
+      expect(chunks.length).toBeGreaterThan(0);
+
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.isComplete).toBe(true);
+      expect(lastChunk.thinkingContent).toContain('只有推理內容');
+      // fullContent should be empty (no answer outside <think> tags)
+      expect(lastChunk.fullContent).toBe('');
+    });
+
+    test('should yield thinking-only chunks for real-time UI updates', async () => {
+      // This test verifies Phase 1 fix: thinking chunks are yielded
+      // Reference: src/lib/perplexity-client.ts lines 682-712
+      const client = new PerplexityClient('test-key');
+
+      // Simulate streaming thinking content followed by answer
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'think-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>開始思考問題' },
+            finish_reason: null,
+          }],
+        }),
+        formatSSEChunk({
+          id: 'think-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '，繼續分析中</think>' },
+            finish_reason: null,
+          }],
+        }),
+        formatSSEChunk({
+          id: 'answer-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '這是最終答案' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試 thinking 區塊即時更新',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // Verify thinking chunks were yielded for real-time UI updates
+      const thinkingChunks = chunks.filter(c => c.hasThinkingProcess && c.content === '');
+      expect(thinkingChunks.length).toBeGreaterThan(0);
+
+      // Verify final chunk has both thinking and answer
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toContain('開始思考問題');
+      expect(lastChunk.fullContent).toContain('這是最終答案');
+    });
+
+    test('should NOT stop stream on finish_reason before [DONE]', async () => {
+      // This test is a regression test for the shouldStopAfterCurrentBatch removal
+      // Reference: src/lib/perplexity-client.ts lines 577-579 (removed code)
+      const client = new PerplexityClient('test-key');
+
+      // Simulate finish_reason appearing multiple times before [DONE]
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'chunk-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '段落一' },
+            finish_reason: 'stop',  // First stop
+          }],
+        }),
+        formatSSEChunk({
+          id: 'chunk-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '段落二' },
+            finish_reason: 'stop',  // Second stop
+          }],
+        }),
+        formatSSEChunk({
+          id: 'chunk-3',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '段落三' },
+            finish_reason: null,
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試多個 finish_reason',
+        enableStreaming: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // Verify all 3 content chunks were processed (stream didn't stop early)
+      expect(chunks.length).toBeGreaterThanOrEqual(3);
+
+      // Verify final content includes all segments
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.fullContent).toContain('段落一');
+      expect(lastChunk.fullContent).toContain('段落二');
+      expect(lastChunk.fullContent).toContain('段落三');
+    });
+
+    test('should yield complete metadata on [DONE] signal', async () => {
+      // This test verifies that the final chunk from [DONE] handler
+      // includes all required metadata fields
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'metadata-test',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>分析中</think>答案內容' },
+            finish_reason: 'stop',
+          }],
+          citations: ['https://example.com/source'],
+          web_search_queries: ['紅樓夢分析'],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '測試完整 metadata',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // Verify final chunk from [DONE] handler has all metadata
+      const lastChunk = chunks[chunks.length - 1];
+
+      // Required fields from [DONE] handler (lines 639-657)
+      expect(lastChunk.isComplete).toBe(true);
+      expect(lastChunk.fullContent).toBeDefined();
+      expect(lastChunk.thinkingContent).toBeDefined();
+      expect(lastChunk.citations).toBeDefined();
+      expect(lastChunk.searchQueries).toBeDefined();
+      expect(lastChunk.metadata).toBeDefined();
+      expect(lastChunk.responseTime).toBeDefined();
+      expect(lastChunk.hasThinkingProcess).toBe(true);
+      expect(lastChunk.timestamp).toBeDefined();
+    });
+
+    test('should handle Task 4.2 bug scenario: stream stops after showing only thinking content', async () => {
+      // This is the exact scenario from Task 4.2 bug report
+      // "AI 問答回覆功能修復... it only show the '我需要'、'正在分析您的問題並搜尋相關資料...我' and then stopped"
+      const client = new PerplexityClient('test-key');
+
+      // Simulate the exact streaming pattern that caused the bug
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'think-part-1',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>我需要' },
+            finish_reason: null,
+          }],
+        }),
+        formatSSEChunk({
+          id: 'think-part-2',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '分析這個問題' },
+            finish_reason: 'stop',  // Bug trigger: isComplete here caused early exit
+          }],
+        }),
+        // These chunks were NOT received before the fix
+        formatSSEChunk({
+          id: 'think-part-3',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '</think>' },
+            finish_reason: null,
+          }],
+        }),
+        formatSSEChunk({
+          id: 'answer',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '這是完整的答案內容，用戶之前看不到這段' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: 'Task 4.2 重現場景',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      // After the fix: stream should continue until [DONE]
+      // and receive the full answer content
+      expect(chunks.length).toBeGreaterThanOrEqual(2);
+
+      const lastChunk = chunks[chunks.length - 1];
+      // Verify the answer that was previously cut off is now received
+      expect(lastChunk.fullContent).toContain('這是完整的答案內容');
+      expect(lastChunk.thinkingContent).toContain('我需要');
+      expect(lastChunk.isComplete).toBe(true);
     });
   });
 });

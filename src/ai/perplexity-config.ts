@@ -1,12 +1,24 @@
 /**
  * @fileOverview Perplexity AI configuration for the Red Mansion learning platform.
- * 
+ *
  * This file provides configuration and constants for integrating Perplexity Sonar API
  * to power AI-driven features including:
- * - Text analysis and explanations for classical Chinese literature  
+ * - Text analysis and explanations for classical Chinese literature
  * - Real-time web search grounding for accurate and cited responses
  * - Enhanced reasoning capabilities through sonar-reasoning models
  * - Streaming responses for better user experience
+ *
+ * @note CORS Limitation (aligned with LobeChat pattern):
+ * Perplexity API does NOT support browser CORS requests. All API calls must be made
+ * from server-side code (API routes, Server Components, Server Actions).
+ * This is why we use Next.js API routes (/api/perplexity-qa-stream) as a proxy.
+ * See: LobeChat's `disableBrowserRequest: true` setting for Perplexity provider.
+ *
+ * @note Temperature Constraint (aligned with LobeChat pattern):
+ * Perplexity API requires temperature < 2. Values >= 2 should be treated as undefined.
+ * This is enforced in createPerplexityConfig().
+ *
+ * @updated 2025-11-27 - Added LobeChat alignment (models, constraints, documentation)
  */
 
 /**
@@ -209,6 +221,10 @@ export function getDefaultHeaders(apiKey?: string) {
 /**
  * Generate generation config for different use cases
  * 為不同使用情境生成配置的輔助函數
+ *
+ * @note Temperature Constraint (aligned with LobeChat pattern):
+ * Perplexity API requires temperature < 2. If temperature >= 2, it is treated as undefined.
+ * This prevents API errors and aligns with LobeChat's implementation.
  */
 export function createPerplexityConfig(options?: {
   model?: PerplexityModelKey;
@@ -219,10 +235,15 @@ export function createPerplexityConfig(options?: {
 }) {
   const modelKey = options?.model || PERPLEXITY_CONFIG.DEFAULT_MODEL;
   const modelConfig = getModelConfig(modelKey);
-  
-  const config = {
+
+  // Temperature constraint: Perplexity API requires temperature < 2
+  // If >= 2, treat as undefined (let API use default)
+  // Aligned with LobeChat pattern: finalTemperature = temperature >= 2 ? undefined : temperature
+  const requestedTemperature = options?.temperature ?? PERPLEXITY_CONFIG.DEFAULT_TEMPERATURE;
+  const finalTemperature = requestedTemperature >= 2 ? undefined : requestedTemperature;
+
+  const config: Record<string, any> = {
     model: modelConfig.name,
-    temperature: options?.temperature ?? PERPLEXITY_CONFIG.DEFAULT_TEMPERATURE,
     max_tokens: Math.min(
       options?.maxTokens ?? PERPLEXITY_CONFIG.DEFAULT_MAX_TOKENS,
       modelConfig.maxTokens
@@ -230,9 +251,14 @@ export function createPerplexityConfig(options?: {
     stream: options?.enableStreaming ?? false,
   };
 
+  // Only include temperature if it's valid (< 2)
+  if (finalTemperature !== undefined) {
+    config.temperature = finalTemperature;
+  }
+
   // Add reasoning effort for reasoning-capable models
   if (supportsReasoning(modelKey) && options?.reasoningEffort) {
-    (config as any).reasoning_effort = options.reasoningEffort;
+    config.reasoning_effort = options.reasoningEffort;
   }
 
   return config;

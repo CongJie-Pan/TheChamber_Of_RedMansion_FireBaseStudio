@@ -9,7 +9,12 @@
  * - Global polyfills for Node.js environment
  * - Console.error suppression for cleaner test output
  * - Mock implementations for external dependencies (Next.js, Radix UI)
+ * - Environment variables loading from .env.local for integration tests
  */
+
+// Load environment variables from .env.local for integration tests
+// This enables real API testing with PERPLEXITYAI_API_KEY and other secrets
+require('dotenv').config({ path: '.env.local' });
 
 // Import Testing Library Jest DOM matchers
 require('@testing-library/jest-dom');
@@ -115,3 +120,7 @@ global.testUtils = {
     isEqual: (other) => other && other.seconds === Math.floor(date.getTime() / 1000),
   }),
 };
+
+// NOTE: Fetch API is now provided by node-fetch in jest.polyfills.js (setupFiles)
+// The previous fallback check here is no longer needed since node-fetch survives
+// jsdom initialization, unlike Node.js 22's native fetch which gets cleared.

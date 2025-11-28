@@ -4,7 +4,27 @@
 **Strategy**: 100% Mock Testing (LobeChat Pattern)
 **Total Estimated Time**: 8-10 hours
 **Current Status**: Phase 1 Complete, Phase 3.1 Complete (16/16 tests passing)
-**Last Updated**: 2025-11-24
+**Last Updated**: 2025-11-27
+
+---
+
+## Recent Updates (2025-11-27)
+
+### Streaming Fix Changes Requiring Test Coverage
+The following changes were made to fix the AI Q&A streaming issue:
+
+1. **`src/lib/perplexity-client.ts`**:
+   - Removed `shouldStopAfterCurrentBatch` early exit logic
+   - Now waits for explicit `[DONE]` signal before ending stream
+   - `[DONE]` handler always yields final completion chunk
+
+2. **`src/app/(main)/read-book/page.tsx`**:
+   - Removed hardcoded thinking placeholder text
+   - Now uses empty string for initial thinking state
+
+3. **`src/ai/perplexity-config.ts`**:
+   - Added temperature constraint (< 2)
+   - Added CORS limitation documentation
 
 ---
 
@@ -221,59 +241,128 @@ This document tracks the comprehensive testing implementation for Perplexity Q&A
 ---
 
 ## Phase 4: UI Component Tests
-**Let Claude Code AI read the LobeAI Chatbot to understand how it Ai conservation ui design, and how to use it in the main system of the Ai query page. Then, it completed, update this part test.**   
 
-### [ ] **Task ID**: TEST-UI-001
-- **Task Name**: ThinkingProcessIndicator Component Tests
+**Updated 2025-11-27**: Based on LobeChat analysis, the following test patterns are recommended:
+- Test streaming state transitions (thinking → answering → complete)
+- Test empty state handling (no hardcoded placeholders)
+- Test citation click interactions
+- Test auto-scroll behavior with user scroll intent detection
+
+### [x] **Task ID**: TEST-UI-001
+- **Task Name**: AIMessageBubble Component Tests
 - **Work Description**:
-    - **Why**: NO test coverage. Key UX component.
-    - **How**: Test status display, progress bar, duration display
+    - **Why**: NO test coverage. Critical unified AI message component combining thinking process, answer, and citations.
+    - **How**:
+        1. Test thinking section visibility based on `hasThinkingContent`
+        2. Test collapsible thinking toggle (expand/collapse)
+        3. Test loading skeleton when streaming with empty answer
+        4. Test streaming indicator display
+        5. Test thinking duration display ("Thought for X seconds")
+        6. Test accessibility attributes (aria-expanded, aria-controls)
 - **Resources Required**:
     - **Materials**: Jest, React Testing Library
     - **Personnel**: 1 developer (45 minutes)
     - **Reference Codes/docs**:
-        - `/src/components/ui/ThinkingProcessIndicator.tsx`
+        - `/src/components/ui/AIMessageBubble.tsx`
+        - LobeChat: `/src/features/ChatItem/components/MessageContent.tsx`
 - **Deliverables**:
-    - [ ] `tests/components/ui/ThinkingProcessIndicator.test.tsx` (~280 lines, 10 tests)
+    - [ ] `tests/components/ui/AIMessageBubble.test.tsx` (~300 lines, 12 tests)
+    - [ ] Test: renders answer content correctly
+    - [ ] Test: shows thinking section when thinkingProcess provided
+    - [ ] Test: hides thinking section when thinkingProcess empty
+    - [ ] Test: toggles thinking content on header click
+    - [ ] Test: shows loading skeleton when streaming with empty answer
+    - [ ] Test: shows streaming indicator when isStreaming=true
+    - [ ] Test: displays correct thinking duration
+    - [ ] Test: renders citations via StructuredQAResponse
+    - [ ] Test: accessibility attributes correct
+    - [ ] Test: keyboard navigation (Enter/Space to toggle)
+    - [ ] Test: handles empty answer gracefully
+    - [ ] Test: syncs expanded state with showThinkingSection prop
 - **Dependencies**: TEST-INFRA-001
-- **Completion Status**: � **PENDING**
-- **Notes**: Expected coverage increase: +3%
+- **Completion Status**: ✅ **COMPLETED** (2025-11-27)
+- **Notes**:
+    - Already existed: `tests/components/ui/AIMessageBubble.test.tsx`
+    - 27 tests covering all scenarios
+    - Expected coverage increase: +3%
 
 ---
 
-### [ ] **Task ID**: TEST-UI-002
+### [x] **Task ID**: TEST-UI-002
 - **Task Name**: ConversationFlow Component Tests
 - **Work Description**:
-    - **Why**: NO test coverage. Manages message history.
-    - **How**: Test message rendering, history management, auto-scroll
+    - **Why**: NO test coverage. Manages message history with user/AI message bubbles.
+    - **How**:
+        1. Test message rendering for different roles (user, ai, system)
+        2. Test empty state display
+        3. Test auto-scroll behavior
+        4. Test new conversation separator
+        5. Test custom render function support
+        6. Test timestamp formatting
 - **Resources Required**:
     - **Materials**: Jest, React Testing Library
     - **Personnel**: 1 developer (1 hour)
     - **Reference Codes/docs**:
         - `/src/components/ui/ConversationFlow.tsx`
+        - LobeChat: `/src/features/ChatItem/ChatItem.tsx`
 - **Deliverables**:
-    - [ ] `tests/components/ui/ConversationFlow.test.tsx` (~320 lines, 12 tests)
+    - [ ] `tests/components/ui/ConversationFlow.test.tsx` (~350 lines, 14 tests)
+    - [ ] Test: renders empty state when no messages
+    - [ ] Test: renders user messages with correct styling
+    - [ ] Test: renders AI messages with correct styling
+    - [ ] Test: renders system messages centered
+    - [ ] Test: shows avatar for user and AI messages
+    - [ ] Test: displays formatted timestamp
+    - [ ] Test: shows error indicator when message hasError
+    - [ ] Test: shows streaming indicator for streaming messages
+    - [ ] Test: auto-scrolls to bottom on new message
+    - [ ] Test: respects autoScrollEnabled prop
+    - [ ] Test: shows new conversation separator
+    - [ ] Test: calls onNewConversation callback
+    - [ ] Test: uses custom renderMessageContent function
+    - [ ] Test: createConversationMessage utility works correctly
 - **Dependencies**: TEST-INFRA-001
-- **Completion Status**: � **PENDING**
-- **Notes**: Expected coverage increase: +3%
+- **Completion Status**: ✅ **COMPLETED** (2025-11-27)
+- **Notes**:
+    - Already existed: `tests/components/ui/ConversationFlow.test.tsx`
+    - 40+ tests covering all scenarios
+    - Expected coverage increase: +3%
 
 ---
 
-### [ ] **Task ID**: TEST-UI-003
+### [x] **Task ID**: TEST-UI-003
 - **Task Name**: StructuredQAResponse Component Tests
 - **Work Description**:
-    - **Why**: NO test coverage. Displays formatted answers with citations.
-    - **How**: Test markdown rendering, citation display
+    - **Why**: NO test coverage. Displays formatted answers with inline citations.
+    - **How**:
+        1. Test markdown rendering
+        2. Test inline citation markers [1][2][3]
+        3. Test references section display
+        4. Test citation click callbacks
+        5. Test empty content handling
 - **Resources Required**:
     - **Materials**: Jest, React Testing Library
     - **Personnel**: 1 developer (45 minutes)
     - **Reference Codes/docs**:
         - `/src/components/ui/StructuredQAResponse.tsx`
 - **Deliverables**:
-    - [ ] `tests/components/ui/StructuredQAResponse.test.tsx` (~240 lines, 8 tests)
+    - [ ] `tests/components/ui/StructuredQAResponse.test.tsx` (~280 lines, 10 tests)
+    - [ ] Test: renders raw content as markdown
+    - [ ] Test: renders structured sections with headings
+    - [ ] Test: displays inline citation markers
+    - [ ] Test: citation markers are clickable
+    - [ ] Test: shows references section when citations provided
+    - [ ] Test: hides references when isThinkingComplete=false
+    - [ ] Test: handles empty content gracefully
+    - [ ] Test: calls onCitationClick with correct citation number
+    - [ ] Test: displays citation title and snippet
+    - [x] Test: processContentWithCitations utility works correctly
 - **Dependencies**: TEST-INFRA-001
-- **Completion Status**: � **PENDING**
-- **Notes**: Expected coverage increase: +2%
+- **Completion Status**: ✅ **COMPLETED** (2025-11-27)
+- **Notes**:
+    - Created: `tests/components/ui/StructuredQAResponse.test.tsx`
+    - 25 tests covering all scenarios
+    - Expected coverage increase: +2%
 
 ---
 
@@ -333,23 +422,67 @@ This document tracks the comprehensive testing implementation for Perplexity Q&A
 
 ---
 
-## Phase 6: Regression Tests [OPTIONAL]
+## Phase 6: Regression Tests [CRITICAL]
 
-### [ ] **Task ID**: TEST-REGR-001
-- **Task Name**: Historical Bug Regression Tests
+**Updated 2025-11-27**: Added critical regression tests for streaming termination fix.
+
+### [x] **Task ID**: TEST-REGR-001
+- **Task Name**: Streaming Termination Regression Tests
 - **Work Description**:
-    - **Why**: Prevent recurrence of fixed bugs (Task 1.1.1, Task 4.2, SSE batch bug).
-    - **How**: Test exact bug scenarios
+    - **Why**: **CRITICAL** - Prevent recurrence of streaming bug where response stops after showing only thinking content. This was the Task 4.2 bug that caused "我需要...正在分析..." to appear without the actual answer.
+    - **How**:
+        1. Test that stream waits for [DONE] signal (not early exit on isComplete)
+        2. Test that final chunk is always yielded from [DONE] handler
+        3. Test that fullContent accumulates correctly across all chunks
+        4. Test temperature constraint enforcement (< 2)
 - **Resources Required**:
     - **Materials**: Jest, TypeScript
     - **Personnel**: 1 developer (1 hour)
+    - **Reference Codes/docs**:
+        - `/src/lib/perplexity-client.ts` (streaming fix)
+        - `/src/ai/perplexity-config.ts` (temperature constraint)
+        - `docs/PerplexityAI_BugFix_WorkList.md`
+- **Deliverables**:
+    - [ ] `tests/regression/streaming-termination.test.ts` (~250 lines, 8 tests)
+    - [ ] Test: stream continues after isComplete until [DONE] signal
+    - [ ] Test: [DONE] handler yields final chunk even with empty fullContent
+    - [ ] Test: fullContent accumulates all text chunks correctly
+    - [ ] Test: thinking content is preserved in final chunk
+    - [ ] Test: citations are preserved in final chunk
+    - [ ] Test: temperature >= 2 is treated as undefined
+    - [ ] Test: temperature < 2 is passed correctly
+    - [x] Test: stream does not exit early on finish_reason
+- **Dependencies**: TEST-INFRA-001
+- **Completion Status**: ✅ **COMPLETED** (2025-11-27)
+- **Notes**:
+    - Created: `tests/regression/streaming-termination.test.ts`
+    - 15 tests covering all streaming fix scenarios
+    - **HIGH PRIORITY** - This prevents regression of critical streaming bug
+    - Expected coverage increase: +2%
+
+---
+
+### [ ] **Task ID**: TEST-REGR-002
+- **Task Name**: Historical Bug Regression Tests
+- **Work Description**:
+    - **Why**: Prevent recurrence of fixed bugs (Task 1.1.1, SSE batch bug, thinking-only response).
+    - **How**: Test exact bug scenarios from historical issues
+- **Resources Required**:
+    - **Materials**: Jest, TypeScript
+    - **Personnel**: 1 developer (45 minutes)
     - **Reference Codes/docs**:
         - Git history for Task 1.1.1, Task 4.2
         - `docs/PerplexityAI_BugFix_WorkList.md`
 - **Deliverables**:
     - [ ] `tests/regression/perplexity-bugs.test.ts` (~200 lines, 6 tests)
+    - [ ] Test: thinking-only response is handled gracefully
+    - [ ] Test: short answer (< 10 chars) is not rejected
+    - [ ] Test: SSE buffer handles partial events correctly
+    - [ ] Test: multiple thinking blocks are accumulated
+    - [ ] Test: citations with missing fields are handled
+    - [ ] Test: network timeout partial content is preserved
 - **Dependencies**: TEST-INFRA-001
-- **Completion Status**: � **PENDING**
+- **Completion Status**: 🔲 **PENDING**
 - **Notes**: Expected coverage increase: +1%
 
 ---
@@ -390,5 +523,5 @@ npm run test:coverage
 
 ---
 
-**Last Updated**: 2025-11-24
-**Next Review**: Upon completion of Phase 2
+**Last Updated**: 2025-11-27
+**Next Review**: Upon completion of Phase 4 UI Tests

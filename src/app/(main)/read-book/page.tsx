@@ -1620,8 +1620,12 @@ export default function ReadBookPage() {
           isSubmittingRef.current = false;
 
           // Initialize thinking process
+          // FIX: Use empty string instead of hardcoded text to avoid mixing
+          // placeholder with actual AI thinking content. The UI component
+          // (AIMessageBubble) will show "Thinking..." when thinkingProcess is empty
+          // but isThinkingComplete is false.
           setThinkingStatus('thinking');
-          setThinkingContent('正在分析您的問題並搜尋相關資料...');
+          setThinkingContent('');
           setStreamingProgress(0);
           // Task 3.3: mark submission time for duration calculation
           questionSubmittedAtRef.current = Date.now();
@@ -1701,9 +1705,24 @@ export default function ReadBookPage() {
               }
             }, 5000); // Check every 5 seconds
 
+            // Safety: Prevent runaway loops in UI (lower than backend since this affects browser)
+            const MAX_UI_READ_ITERATIONS = 5000;
+            let readCount = 0;
+
             try {
               let sawCompletion = false;
               while (true) {
+                // Safety check: prevent runaway loops that could freeze browser tab
+                if (++readCount > MAX_UI_READ_ITERATIONS) {
+                  console.error('[QA Module] Stream processing exceeded iteration limit', {
+                    iterations: readCount,
+                    chunksReceived: chunks.length,
+                  });
+                  throw new Error(
+                    '串流處理超過最大迭代限制。請重新嘗試或聯繫支援。'
+                  );
+                }
+
                 // Check for timeout error from watchdog
                 if (timeoutError) {
                   throw timeoutError;

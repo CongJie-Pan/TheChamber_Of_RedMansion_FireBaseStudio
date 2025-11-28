@@ -131,9 +131,13 @@ export class PerplexityStreamProcessor {
           // Add content from rawChunk that comes before the closing tag
           // closingTagPosition is in lookbackBuffer coordinates
           // Content before tag in rawChunk starts at position 0 and ends at (closingTagPosition - actualLookbackSize)
-          if (closingTagPosition > actualLookbackSize) {
+          // FIX: Use >= instead of > to handle edge case when </think> is at exact boundary
+          // (e.g., when </think> arrives as standalone chunk and closingTagPosition === actualLookbackSize)
+          if (closingTagPosition >= actualLookbackSize) {
             const contentBeforeTagInRaw = rawChunk.slice(0, closingTagPosition - actualLookbackSize);
-            this.thinkingBuffer += contentBeforeTagInRaw;
+            if (contentBeforeTagInRaw) {
+              this.thinkingBuffer += contentBeforeTagInRaw;
+            }
           }
 
           // Complete thinking block

@@ -480,7 +480,17 @@ export async function waitForSSECompletion(
   const chunks: any[] = [];
   let buffer = '';
 
+  // Safety limit for test utilities - prevents test hangs from malformed mocks
+  const TEST_MAX_READ_ITERATIONS = 5000;
+  let readCount = 0;
+
   while (true) {
+    if (++readCount > TEST_MAX_READ_ITERATIONS) {
+      throw new Error(
+        `Test stream exceeded ${TEST_MAX_READ_ITERATIONS} iterations - likely a mock configuration error`
+      );
+    }
+
     const { value, done } = await reader.read();
     if (done) break;
 
@@ -620,8 +630,18 @@ export async function consumeStreamToEnd(
   const decoder = new TextDecoder();
   let lastMessage = '';
 
+  // Safety limit for test utilities - prevents test hangs from malformed mocks
+  const TEST_MAX_READ_ITERATIONS = 5000;
+  let readCount = 0;
+
   try {
     while (true) {
+      if (++readCount > TEST_MAX_READ_ITERATIONS) {
+        throw new Error(
+          `Test stream exceeded ${TEST_MAX_READ_ITERATIONS} iterations - likely a mock configuration error`
+        );
+      }
+
       const { value, done } = await reader.read();
       if (done) break;
       lastMessage = decoder.decode(value);
@@ -659,8 +679,18 @@ export async function collectAllStreamMessages(
   const decoder = new TextDecoder();
   const messages: string[] = [];
 
+  // Safety limit for test utilities - prevents test hangs from malformed mocks
+  const TEST_MAX_READ_ITERATIONS = 5000;
+  let readCount = 0;
+
   try {
     while (true) {
+      if (++readCount > TEST_MAX_READ_ITERATIONS) {
+        throw new Error(
+          `Test stream exceeded ${TEST_MAX_READ_ITERATIONS} iterations - likely a mock configuration error`
+        );
+      }
+
       const { value, done } = await reader.read();
       if (done) break;
       messages.push(decoder.decode(value));

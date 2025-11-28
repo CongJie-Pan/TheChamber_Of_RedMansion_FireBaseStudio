@@ -105,7 +105,8 @@
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.1.2",
     "tsx": "^4.19.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "undici": "^7.16.0"
   },
   "overrides": {
     "@opentelemetry/context-async-hooks": "npm:@opentelemetry/context-base@^1.25.0"

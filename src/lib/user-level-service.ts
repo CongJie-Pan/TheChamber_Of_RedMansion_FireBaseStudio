@@ -48,33 +48,21 @@ import {
 } from './config/levels-config';
 
 // SQLITE-025: SQLite-only imports (server-side only)
-// Conditional import: only load SQLite modules on server-side to avoid loading
-// better-sqlite3 native modules in browser environment
-let userRepository: any;
-let fromUnixTimestamp: any;
-let toUnixTimestamp: any;
+// Standard ESM imports - these are resolved at build time by Next.js
+// The @libsql/client is excluded from client bundles via next.config.ts serverComponentsExternalPackages
+import * as userRepository from './repositories/user-repository';
+import { fromUnixTimestamp, toUnixTimestamp, getDatabase } from './sqlite-db';
 
 const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
 const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
 
-if (SQLITE_SERVER_ENABLED) {
-  try {
-    userRepository = require('./repositories/user-repository');
-    const sqliteDb = require('./sqlite-db');
-    fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
-    toUnixTimestamp = sqliteDb.toUnixTimestamp;
+// Log initialization status on server-side only
+if (typeof window === 'undefined') {
+  if (SQLITE_SERVER_ENABLED) {
     console.log('✅ [UserLevelService] SQLite modules loaded successfully');
-  } catch (error: any) {
-    console.error('❌ [UserLevelService] Failed to load SQLite modules');
-    console.error('   Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
-    const guidanceError = new Error(
-      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.',
-    );
-    (guidanceError as any).cause = error;
-    throw guidanceError;
+  } else {
+    console.warn('⚠️  [UserLevelService] USE_SQLITE flag disabled; service will not operate.');
   }
-} else if (typeof window === 'undefined') {
-  console.warn('⚠️  [UserLevelService] USE_SQLITE flag disabled; service will not operate.');
 }
 
 /**
@@ -845,21 +833,20 @@ export class UserLevelService {
 
       // For SQLite, we need to manually delete from all related tables
       // since we don't have CASCADE DELETE set up everywhere
-      const sqliteDb = require('./sqlite-db');
-      const db = sqliteDb.getDatabase();
+      const db = getDatabase();
 
       // Delete in reverse order of dependencies to avoid foreign key errors
       console.log('🗑️ Deleting all user-related data from SQLite...');
 
-      db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
+      await db.execute({ sql: 'DELETE FROM xp_transaction_locks WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM xp_transactions WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM level_ups WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM task_submissions WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM daily_progress WHERE userId = ?', args: [userId] });
 
       // Delete notes if they exist
       try {
-        db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
+        await db.execute({ sql: 'DELETE FROM notes WHERE userId = ?', args: [userId] });
       } catch (e) {
         // Notes table might not exist yet, skip
       }
@@ -937,31 +924,30 @@ export class UserLevelService {
       console.log(`🗄️  [UserLevelService] Resetting user account data`);
 
       // For SQLite, we need to manually delete from all related tables
-      const sqliteDb = require('./sqlite-db');
-      const db = sqliteDb.getDatabase();
+      const db = getDatabase();
 
       // Delete in reverse order of dependencies to avoid foreign key errors
       console.log('🗑️ Deleting all user-related data from SQLite...');
 
       // XP and level related
-      db.prepare('DELETE FROM xp_transaction_locks WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM xp_transactions WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM level_ups WHERE userId = ?').run(userId);
+      await db.execute({ sql: 'DELETE FROM xp_transaction_locks WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM xp_transactions WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM level_ups WHERE userId = ?', args: [userId] });
 
       // Task related
-      db.prepare('DELETE FROM task_submissions WHERE userId = ?').run(userId);
-      db.prepare('DELETE FROM daily_progress WHERE userId = ?').run(userId);
+      await db.execute({ sql: 'DELETE FROM task_submissions WHERE userId = ?', args: [userId] });
+      await db.execute({ sql: 'DELETE FROM daily_progress WHERE userId = ?', args: [userId] });
 
       // Notes and highlights
       try {
-        db.prepare('DELETE FROM notes WHERE userId = ?').run(userId);
+        await db.execute({ sql: 'DELETE FROM notes WHERE userId = ?', args: [userId] });
       } catch (e) {
         // Notes table might not exist yet, skip
         console.log('⚠️ Notes table not found, skipping...');
       }
 
       try {
-        db.prepare('DELETE FROM highlights WHERE userId = ?').run(userId);
+        await db.execute({ sql: 'DELETE FROM highlights WHERE userId = ?', args: [userId] });
       } catch (e) {
         // Highlights table might not exist yet, skip
         console.log('⚠️ Highlights table not found, skipping...');
@@ -970,7 +956,7 @@ export class UserLevelService {
       // Community related - hard delete posts and comments
       try {
         // Delete comments first (they may reference posts)
-        db.prepare('DELETE FROM comments WHERE authorId = ?').run(userId);
+        await db.execute({ sql: 'DELETE FROM comments WHERE authorId = ?', args: [userId] });
         console.log('✅ Comments deleted');
       } catch (e) {
         console.log('⚠️ Comments table not found, skipping...');
@@ -978,7 +964,7 @@ export class UserLevelService {
 
       try {
         // Delete posts
-        db.prepare('DELETE FROM posts WHERE authorId = ?').run(userId);
+        await db.execute({ sql: 'DELETE FROM posts WHERE authorId = ?', args: [userId] });
         console.log('✅ Posts deleted');
       } catch (e) {
         console.log('⚠️ Posts table not found, skipping...');

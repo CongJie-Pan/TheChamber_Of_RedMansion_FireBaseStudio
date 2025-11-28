@@ -2,9 +2,18 @@
 
 ## 1. Module Summary
 
-The `perplexity-client` module implements a comprehensive HTTP client for the Perplexity Sonar API, handling non-streaming (Axios) and streaming (native fetch with ReadableStream) completions for Dream of the Red Chamber Q&A. This module provides Red Chamber-specific prompt engineering, citation extraction with fallback sources, HTML tag cleaning, citation validation, and robust streaming response parsing with extensive debugging logs. The client supports three Perplexity models (sonar-pro, sonar-reasoning, sonar-reasoning-pro) with adaptive timeouts and reasoning effort controls.
+The `perplexity-client` module implements a comprehensive HTTP client for the Perplexity Sonar API, handling non-streaming (Axios) and streaming (native fetch with ReadableStream) completions for Dream of the Red Chamber Q&A. This module provides Red Chamber-specific prompt engineering, citation extraction with fallback sources, HTML tag cleaning, citation validation, and robust streaming response parsing with extensive debugging logs. The client supports 3 Perplexity models (sonar-pro, sonar-reasoning, sonar-reasoning-pro) with adaptive timeouts and reasoning effort controls.
 
 **2025-11-19 Update:** The streaming implementation was refactored from axios `responseType: 'stream'` to native `fetch` with `ReadableStream.getReader()` to resolve issues with axios streams not being properly async iterable in Next.js server environment. This change provides more reliable SSE streaming and better error handling for empty responses.
+
+**2025-11-27 Update (Critical Fix):** Fixed premature stream termination bug that caused AI Q&A responses to stop after showing only the thinking content (e.g., "我需要...正在分析..."). The fix includes:
+1. **Removed early exit on `isComplete`**: Previously, when `finish_reason !== null` was detected, the code would set `shouldStopAfterCurrentBatch=true` and exit before receiving the `[DONE]` signal. This is now fixed to continue processing until the explicit `[DONE]` signal is received, following LobeChat's pattern.
+2. **Always yield final completion chunk**: The `[DONE]` handler now always yields a final chunk with `isComplete: true`, even if `fullContent` is empty, ensuring the UI receives the complete state.
+3. **Removed hardcoded thinking placeholder**: The page.tsx no longer sets a hardcoded "正在分析您的問題並搜尋相關資料..." text that could be confused with actual AI thinking content.
+
+**2025-11-27 Update (LobeChat Alignment):** Aligned configuration with LobeChat patterns:
+1. **Temperature constraint**: Enforced temperature < 2 (Perplexity API limitation). Values >= 2 are treated as undefined.
+2. **CORS documentation**: Added documentation noting Perplexity doesn't support browser CORS (server-side only).
 
 ## 2. Module Dependencies
 
