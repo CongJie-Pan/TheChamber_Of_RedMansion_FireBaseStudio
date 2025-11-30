@@ -12,22 +12,24 @@ This document compacts the individual module infos under `docs/structure_module_
 - Tests: Collapsible behavior, streaming indicator, answer/citation rendering.
 
 ## ConversationFlow
-- Purpose: Chat-style conversation UI rendering user/AI/system messages with avatars, timestamps, auto-scroll, and separators.
+- Purpose: Chat-style conversation UI rendering user/AI/system messages with avatars, timestamps, auto-scroll, and separators. Includes improved empty state visibility for dark theme compatibility.
 - Internal deps: `@/lib/utils`, `@/types/perplexity-qa`.
 - External deps: `react`, `date-fns`, `lucide-react`.
 - Public API: `ConversationFlow(props)`, `createConversationMessage(...)`, types `ConversationMessage`, `MessageRole`.
 - File: `ConversationFlow.tsx`.
 - Usage: Maintain `messages: ConversationMessage[]`; render `<ConversationFlow messages={messages} />`.
 - Tests: Roles/styling, empty state, auto-scroll, `createConversationMessage` factory.
+- **Task 4.2 Update (2025-11-30):** Empty state styling improved with better contrast colors (`text-foreground/80`), border (`border-border/30`), background (`bg-background/20`), and minimum height (`min-h-[200px]`) for enhanced visibility in dark theme.
 
 ## StructuredQAResponse
-- Purpose: Renders structured QA answers with numbered sections, inline clickable citations, and a references list.
+- Purpose: Renders structured QA answers with numbered sections, inline clickable citations, and a references list. Includes improved empty content fallback styling for dark theme compatibility.
 - Internal deps: `@/types/perplexity-qa`, `@/lib/utils`.
 - External deps: `react`, `react-markdown`, `lucide-react`.
 - Public API: `StructuredQAResponse(props)`, `processContentWithCitations(content, ...)`, types `StructuredSection`.
 - File: `StructuredQAResponse.tsx`.
 - Usage: Provide `sections` or `rawContent` and `citations`; optional `onCitationClick`.
 - Tests: Citation parsing/injection, click handler, sections vs raw rendering.
+- **Task 4.2 Update (2025-11-30):** Empty content fallback improved with Chinese text ("內容載入中..." for inline empty content; "AI 回答載入中..." for fallback section) and enhanced visibility styling using `text-foreground/70`, `border border-border/30`, and `bg-background/20` for better contrast in dark theme.
 
 ## ThinkingProcessIndicator
 - Purpose: Visualizes AI thinking status with optional progress and collapsible detailed content; includes compact badge.
