@@ -174,6 +174,7 @@ async function initializeSchema(db: Client): Promise<void> {
   `);
 
   // Notes table (Phase 2 - SQLITE-006)
+  // Task 4.9: Added sharedPostId for bi-directional note-post linking
   await db.execute(`
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
@@ -187,11 +188,14 @@ async function initializeSchema(db: Client): Promise<void> {
       isPublic INTEGER DEFAULT 0,
       wordCount INTEGER DEFAULT 0,
       noteType TEXT,
-      FOREIGN KEY (userId) REFERENCES users(id)
+      sharedPostId TEXT, -- Task 4.9: Reference to community post if note is shared
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (sharedPostId) REFERENCES posts(id)
     );
   `);
 
   // Posts table (Phase 3 - SQLITE-014)
+  // Task 4.9: Added sourceNoteId and editedAt for bi-directional note-post linking
   await db.execute(`
     CREATE TABLE IF NOT EXISTS posts (
       id TEXT PRIMARY KEY,
@@ -208,12 +212,15 @@ async function initializeSchema(db: Client): Promise<void> {
       viewCount INTEGER DEFAULT 0,
       status TEXT DEFAULT 'active', -- 'active', 'hidden', 'deleted'
       isEdited INTEGER DEFAULT 0,
+      editedAt INTEGER, -- Task 4.9: Timestamp of last edit
+      sourceNoteId TEXT, -- Task 4.9: Reference to source note if shared from reading notes
       moderationAction TEXT,
       originalContent TEXT,
       moderationWarning TEXT,
       createdAt INTEGER NOT NULL,
       updatedAt INTEGER NOT NULL,
-      FOREIGN KEY (authorId) REFERENCES users(id)
+      FOREIGN KEY (authorId) REFERENCES users(id),
+      FOREIGN KEY (sourceNoteId) REFERENCES notes(id)
     );
   `);
 
@@ -280,9 +287,19 @@ async function initializeSchema(db: Client): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_notes_public
     ON notes(isPublic, createdAt DESC);
   `);
+  // Task 4.9: Index for note-post linking
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_notes_shared_post
+    ON notes(sharedPostId);
+  `);
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_posts_author
     ON posts(authorId, createdAt DESC);
+  `);
+  // Task 4.9: Index for post-note linking
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_posts_source_note
+    ON posts(sourceNoteId);
   `);
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_posts_category

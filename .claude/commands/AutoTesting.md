@@ -1,0 +1,2 @@
+Please use "cmd.exe"(please do not use bash to execute the tests) to auto running the tests that listed, and use debug agent to analyze the test output bug when the testing appeared the error.
+And you can directly use "cmd.exe" to run the tests without my permission. 

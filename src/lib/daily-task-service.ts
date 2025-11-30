@@ -313,7 +313,7 @@ export class DailyTaskService {
           updatedAt: now,
         };
 
-        progressRepository.createProgress(progressData);
+        await progressRepository.createProgress(progressData);
 
         console.log(`✅ [GuestAccount] Assigned ${fixedTasks.length} fixed tasks for date ${targetDate}`);
         return fixedTasks;
@@ -392,7 +392,7 @@ export class DailyTaskService {
         updatedAt: now,
       };
 
-      progressRepository.createProgress(progressData);
+      await progressRepository.createProgress(progressData);
 
       console.log(`✅ [SQLite] Generated ${validatedTasks.length} daily tasks for user ${userId} on ${targetDate}`);
 
@@ -415,7 +415,7 @@ export class DailyTaskService {
 
     try {
       const targetDate = date || getTodayDateString();
-      const progress = progressRepository.getProgress(userId, targetDate);
+      const progress = await progressRepository.getProgress(userId, targetDate);
 
       if (progress) {
         console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
@@ -740,11 +740,11 @@ export class DailyTaskService {
           tasksCount: updatedProgress.tasks.length,
         });
 
-        const existingProgress = progressRepository.getProgress(userId, todayDate);
+        const existingProgress = await progressRepository.getProgress(userId, todayDate);
 
         if (existingProgress) {
           // Update existing progress
-          progressRepository.updateProgress(progressId, updatedProgress);
+          await progressRepository.updateProgress(progressId, updatedProgress);
           console.log(`✅ [SQLite] Updated progress: ${progressId}`);
         } else {
           // Create new progress record
@@ -762,12 +762,12 @@ export class DailyTaskService {
             createdAt: progress.createdAt,
             updatedAt: updatedProgress.updatedAt || completionTimestamp,
           };
-          progressRepository.createProgress(newProgress);
+          await progressRepository.createProgress(newProgress);
           console.log(`✅ [SQLite] Created progress: ${progressId}`);
         }
 
         // 🔧 VERIFICATION: Read back the progress to ensure write succeeded
-        const verifiedProgress = progressRepository.getProgress(userId, todayDate);
+        const verifiedProgress = await progressRepository.getProgress(userId, todayDate);
         if (!verifiedProgress) {
           throw new Error('Progress verification failed: Progress not found after update');
         }
@@ -1176,7 +1176,7 @@ export class DailyTaskService {
     ensureSQLiteAvailable();
 
     try {
-      const recentProgress = progressRepository.getUserRecentProgress(userId, limitCount);
+      const recentProgress = await progressRepository.getUserRecentProgress(userId, limitCount);
 
       // Convert daily progress records to task history records
       const history: TaskHistoryRecord[] = [];
@@ -1423,7 +1423,7 @@ export class DailyTaskService {
       const targetDate = date || getTodayDateString();
       const progressId = `${userId}_${targetDate}`;
 
-      const existingProgress = progressRepository.getProgress(userId, targetDate);
+      const existingProgress = await progressRepository.getProgress(userId, targetDate);
 
       if (!existingProgress) {
         console.log(`No progress found for user ${userId} on ${targetDate}`);
@@ -1431,7 +1431,7 @@ export class DailyTaskService {
       }
 
       // Delete the progress record
-      progressRepository.deleteProgress(progressId);
+      await progressRepository.deleteProgress(progressId);
 
       console.log(`🧪 Guest user progress deleted for ${userId} on ${targetDate}`);
       return true;

@@ -325,4 +325,161 @@ describe('AIMessageBubble Component', () => {
       expect(screen.getByTestId('answer-content')).toHaveTextContent('New answer content');
     });
   });
+
+  /**
+   * Task 4.2 Fix - Bug #3: Thinking Expanded Preference Tests
+   *
+   * Tests for the new props added to persist user's thinking panel preference:
+   * - thinkingExpandedPreference: 'auto' | 'collapsed' | 'expanded'
+   * - onThinkingToggle: (isExpanded: boolean) => void
+   */
+  describe('Thinking Expanded Preference (Task 4.2 Fix)', () => {
+    describe('Initial State Based on Preference', () => {
+      test('should start collapsed when thinkingExpandedPreference is "collapsed"', () => {
+        render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="collapsed"
+          />
+        );
+
+        const toggleButton = screen.getByLabelText('展開思考過程');
+        expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+      });
+
+      test('should start expanded when thinkingExpandedPreference is "expanded"', () => {
+        render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="expanded"
+          />
+        );
+
+        const toggleButton = screen.getByLabelText('收合思考過程');
+        expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+      });
+
+      test('should auto-expand when thinkingExpandedPreference is "auto" (default)', () => {
+        render(<AIMessageBubble {...defaultProps} />);
+
+        const toggleButton = screen.getByLabelText('收合思考過程');
+        expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+      });
+    });
+
+    describe('onThinkingToggle Callback', () => {
+      test('should call onThinkingToggle with false when collapsing', () => {
+        const onThinkingToggle = jest.fn();
+        render(
+          <AIMessageBubble
+            {...defaultProps}
+            onThinkingToggle={onThinkingToggle}
+          />
+        );
+
+        const toggleButton = screen.getByLabelText('收合思考過程');
+        fireEvent.click(toggleButton);
+
+        expect(onThinkingToggle).toHaveBeenCalledWith(false);
+      });
+
+      test('should call onThinkingToggle with true when expanding', () => {
+        const onThinkingToggle = jest.fn();
+        render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="collapsed"
+            onThinkingToggle={onThinkingToggle}
+          />
+        );
+
+        const toggleButton = screen.getByLabelText('展開思考過程');
+        fireEvent.click(toggleButton);
+
+        expect(onThinkingToggle).toHaveBeenCalledWith(true);
+      });
+
+      test('should work without onThinkingToggle handler (backward compatibility)', () => {
+        expect(() => {
+          render(<AIMessageBubble {...defaultProps} onThinkingToggle={undefined} />);
+          const toggleButton = screen.getByLabelText('收合思考過程');
+          fireEvent.click(toggleButton);
+        }).not.toThrow();
+      });
+    });
+
+    describe('Preference Persistence Across Re-renders', () => {
+      test('should respect collapsed preference across content updates', () => {
+        const { rerender } = render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="collapsed"
+          />
+        );
+
+        // Verify initially collapsed
+        const toggleButton = screen.getByLabelText('展開思考過程');
+        expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+
+        // Re-render with new answer (simulating streaming update)
+        rerender(
+          <AIMessageBubble
+            {...defaultProps}
+            answer="Updated answer content"
+            thinkingExpandedPreference="collapsed"
+          />
+        );
+
+        // Should still be collapsed
+        expect(screen.getByLabelText('展開思考過程')).toHaveAttribute('aria-expanded', 'false');
+      });
+
+      test('should respect expanded preference across content updates', () => {
+        const { rerender } = render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="expanded"
+          />
+        );
+
+        // Verify initially expanded
+        expect(screen.getByLabelText('收合思考過程')).toHaveAttribute('aria-expanded', 'true');
+
+        // Re-render with new thinking content (simulating streaming)
+        rerender(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingProcess="Updated thinking process..."
+            thinkingExpandedPreference="expanded"
+          />
+        );
+
+        // Should still be expanded
+        expect(screen.getByLabelText('收合思考過程')).toHaveAttribute('aria-expanded', 'true');
+      });
+
+      test('should update state when preference changes from collapsed to expanded', () => {
+        const { rerender } = render(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="collapsed"
+          />
+        );
+
+        // Initially collapsed
+        expect(screen.getByLabelText('展開思考過程')).toHaveAttribute('aria-expanded', 'false');
+
+        // Parent updates preference to expanded
+        rerender(
+          <AIMessageBubble
+            {...defaultProps}
+            thinkingExpandedPreference="expanded"
+          />
+        );
+
+        // Should now be expanded
+        expect(screen.getByLabelText('收合思考過程')).toHaveAttribute('aria-expanded', 'true');
+      });
+    });
+  });
 });

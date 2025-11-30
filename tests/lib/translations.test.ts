@@ -279,8 +279,115 @@ describe('Translations Module - Task D.1.1 Internationalization Support', () => 
   });
 
   /**
-   * Test Category 6: Performance and Edge Cases
-   * 
+   * Test Category 6: Task 4.8 & 4.9 New Translation Keys
+   *
+   * Tests for new translation keys added for registration preferredName
+   * and community post sync features
+   */
+  describe('Task 4.8 & 4.9: New Translation Keys', () => {
+    describe('preferredName translations (Task 4.8)', () => {
+      test('should have preferredNameLabel in zh-TW', () => {
+        const value = getTranslation('zh-TW', 'register.preferredNameLabel', translations);
+        expect(value).toBe('顯示名稱 *');
+      });
+
+      test('should have preferredNameLabel in en-US', () => {
+        const value = getTranslation('en-US', 'register.preferredNameLabel', translations);
+        expect(typeof value).toBe('string');
+        expect(value.length).toBeGreaterThan(0);
+        expect(value.toLowerCase()).toContain('name');
+      });
+
+      test('should have preferredNamePlaceholder in all languages', () => {
+        const languages: Language[] = ['zh-TW', 'zh-CN', 'en-US'];
+
+        languages.forEach(lang => {
+          const value = getTranslation(lang, 'register.preferredNamePlaceholder', translations);
+          expect(typeof value).toBe('string');
+          expect(value.length).toBeGreaterThan(0);
+        });
+      });
+
+      test('should have preferredNameHint in all languages', () => {
+        const languages: Language[] = ['zh-TW', 'zh-CN', 'en-US'];
+
+        languages.forEach(lang => {
+          const value = getTranslation(lang, 'register.preferredNameHint', translations);
+          expect(typeof value).toBe('string');
+          expect(value.length).toBeGreaterThan(0);
+        });
+      });
+
+      test('should have all preferredName error messages in zh-TW', () => {
+        const errorKeys = [
+          'register.errors.preferredNameRequired',
+          'register.errors.preferredNameTooShort',
+          'register.errors.preferredNameTooLong',
+          'register.errors.preferredNameInvalid',
+        ];
+
+        errorKeys.forEach(key => {
+          const value = getTranslation('zh-TW', key, translations);
+          expect(typeof value).toBe('string');
+          expect(value.length).toBeGreaterThan(0);
+        });
+      });
+
+      test('should have all preferredName error messages in en-US', () => {
+        const errorKeys = [
+          'register.errors.preferredNameRequired',
+          'register.errors.preferredNameTooShort',
+          'register.errors.preferredNameTooLong',
+          'register.errors.preferredNameInvalid',
+        ];
+
+        errorKeys.forEach(key => {
+          const value = getTranslation('en-US', key, translations);
+          expect(typeof value).toBe('string');
+          expect(value.length).toBeGreaterThan(0);
+        });
+      });
+    });
+
+    describe('communityPost translations (Task 4.9)', () => {
+      test('should have communityPost.edited in zh-TW', () => {
+        const value = getTranslation('zh-TW', 'communityPost.edited', translations);
+        expect(value).toBe('已編輯');
+      });
+
+      test('should have communityPost.edited in en-US', () => {
+        const value = getTranslation('en-US', 'communityPost.edited', translations);
+        expect(value).toBe('Edited');
+      });
+
+      test('should have communityPost.syncedFromNote in zh-TW', () => {
+        const value = getTranslation('zh-TW', 'communityPost.syncedFromNote', translations);
+        expect(value).toBe('來自閱讀筆記');
+      });
+
+      test('should have communityPost.syncedFromNote in en-US', () => {
+        const value = getTranslation('en-US', 'communityPost.syncedFromNote', translations);
+        expect(value).toBe('From reading note');
+      });
+
+      test('should have communityPost translations in all languages', () => {
+        const languages: Language[] = ['zh-TW', 'zh-CN', 'en-US'];
+        const keys = ['communityPost.edited', 'communityPost.syncedFromNote'];
+
+        languages.forEach(lang => {
+          keys.forEach(key => {
+            const value = getTranslation(lang, key, translations);
+            expect(typeof value).toBe('string');
+            expect(value.length).toBeGreaterThan(0);
+          });
+        });
+      });
+    });
+  });
+
+  /**
+   * Test Category 7: Performance and Edge Cases
+   *
    * Tests edge cases and performance considerations
    */
   describe('Edge Cases and Performance', () => {

@@ -143,19 +143,13 @@ describe('AI Q&A XP Error Handling Integration', () => {
       // Setup: Mock network error
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      // Action & Assertion: Should not throw
-      await expect(async () => {
-        await handleAIInteraction('user-789', 'Explain the poetry in Chapter 5');
-      }).rejects.toThrow('Network error');
+      // Action: Handle AI interaction - should NOT throw
+      const result = await handleAIInteraction('user-789', 'Explain the poetry in Chapter 5');
 
-      // But in real implementation with try-catch, it would not throw
-      // Simulate with proper error handling
-      try {
-        await awardXP('user-789', 10, 'AI interaction', 'reading');
-      } catch (error) {
-        // Error caught, processing continues
-        expect(error).toBeDefined();
-      }
+      // Assertion: Function resolves successfully, AI answer still returned
+      expect(result.answer).toBe('AI answer to: Explain the poetry in Chapter 5');
+      expect(result.xpAwarded).toBe(false);
+      expect(result.error).toBe('Network error');
     });
   });
 

@@ -102,13 +102,17 @@ export function transformTextForLang(text: string | undefined, lang: Language, t
     // Basic placeholder for TW -> SC conversion
     return text
       .replace(/臺/g, '台')
+      .replace(/灣/g, '湾')
       .replace(/裡/g, '里')
       .replace(/蘋/g, '苹')
       .replace(/纔/g, '才')
       .replace(/眾/g, '众')
+      .replace(/紅/g, '红')
+      .replace(/樓/g, '楼')
       .replace(/夢/g, '梦')
       .replace(/寧/g, '宁')
       .replace(/寶/g, '宝')
+      .replace(/貝/g, '贝')
       .replace(/釵/g, '钗')
       .replace(/黛/g, '黛')
       .replace(/襲/g, '袭')
@@ -446,6 +450,11 @@ export const translations: Record<Language, Translations> = {
       achievements: '成就與目標',
       community: '紅學社',
     },
+    // Task 4.9: Community post edited marker
+    communityPost: {
+      edited: '已編輯',
+      syncedFromNote: '來自閱讀筆記',
+    },
     login: {
       welcomeBack: '歡迎回來',
       pageDescription: '登入以繼續您的紅樓慧讀之旅',
@@ -477,6 +486,9 @@ export const translations: Record<Language, Translations> = {
       firstNamePlaceholder: '姓氏',
       lastNameLabel: '請輸入名字',
       lastNamePlaceholder: '名字',
+      preferredNameLabel: '顯示名稱 *',
+      preferredNamePlaceholder: '輸入您希望顯示的名稱',
+      preferredNameHint: '此名稱將顯示在社群和個人檔案中',
       emailLabel: '電子郵件',
       passwordLabel: '密碼 (至少6位)',
       learningBackgroundLabel: '您的古典文學基礎？ (選填)',
@@ -507,6 +519,10 @@ export const translations: Record<Language, Translations> = {
       errors: {
         firstNameRequired: '姓氏不能為空',
         lastNameRequired: '名字不能為空',
+        preferredNameRequired: '顯示名稱不能為空',
+        preferredNameTooShort: '顯示名稱至少需要2個字元',
+        preferredNameTooLong: '顯示名稱不能超過30個字元',
+        preferredNameInvalid: '顯示名稱只能包含中文、英文、數字和底線',
         emailInvalid: '請輸入有效的電子郵件地址',
         passwordMinLength: '密碼長度至少為6位',
         generic: '發生錯誤，請稍後再試。',
@@ -1696,6 +1712,10 @@ export const translations: Record<Language, Translations> = {
       achievements: 'Achievements',
       community: 'Community',
     },
+    communityPost: {
+      edited: 'Edited',
+      syncedFromNote: 'From reading note',
+    },
     login: {
       welcomeBack: 'Welcome Back',
       pageDescription: 'Log in to continue your IntelliRedChamber journey',
@@ -1721,6 +1741,9 @@ export const translations: Record<Language, Translations> = {
       firstNamePlaceholder: 'First Name',
       lastNameLabel: 'Last Name',
       lastNamePlaceholder: 'Last Name',
+      preferredNameLabel: 'Display Name *',
+      preferredNamePlaceholder: 'Enter your preferred display name',
+      preferredNameHint: 'This name will be shown in community and profile',
       emailLabel: 'Email',
       passwordLabel: 'Password (min. 6 characters)',
       learningBackgroundLabel: 'Your classical literature background? (Optional)',
@@ -1751,6 +1774,10 @@ export const translations: Record<Language, Translations> = {
       errors: {
         firstNameRequired: 'First name cannot be empty',
         lastNameRequired: 'Last name cannot be empty',
+        preferredNameRequired: 'Display name cannot be empty',
+        preferredNameTooShort: 'Display name must be at least 2 characters',
+        preferredNameTooLong: 'Display name cannot exceed 30 characters',
+        preferredNameInvalid: 'Display name can only contain Chinese, English, numbers and underscore',
         emailInvalid: 'Please enter a valid email address',
         passwordMinLength: 'Password must be at least 6 characters long',
       }

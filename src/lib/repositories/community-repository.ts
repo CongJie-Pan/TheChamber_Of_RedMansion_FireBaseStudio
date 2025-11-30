@@ -30,6 +30,7 @@ type Timestamp = {
 
 /**
  * Post data interface for database operations
+ * Task 4.9: Added sourceNoteId and editedAt for bi-directional note-post linking
  */
 export interface PostRow {
   id: string;
@@ -46,6 +47,8 @@ export interface PostRow {
   viewCount: number;
   status: 'active' | 'hidden' | 'deleted';
   isEdited: number; // 0 or 1 (boolean)
+  editedAt: number | null; // Task 4.9: Timestamp of last edit
+  sourceNoteId: string | null; // Task 4.9: Reference to source note
   moderationAction: string | null;
   originalContent: string | null;
   moderationWarning: string | null;
@@ -55,6 +58,7 @@ export interface PostRow {
 
 /**
  * Post interface matching community-service.ts
+ * Task 4.9: Added sourceNoteId and editedAt for bi-directional note-post linking
  */
 export interface CommunityPost {
   id: string;
@@ -70,6 +74,8 @@ export interface CommunityPost {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   isEdited: boolean;
+  editedAt?: Timestamp; // Task 4.9: Timestamp of last edit
+  sourceNoteId?: string; // Task 4.9: Reference to source note if shared from reading notes
   category?: string;
   status: 'active' | 'hidden' | 'deleted';
   bookmarkedBy: string[];
@@ -80,6 +86,7 @@ export interface CommunityPost {
 
 /**
  * Convert database row to CommunityPost
+ * Task 4.9: Added sourceNoteId and editedAt fields
  */
 function rowToPost(row: PostRow): CommunityPost {
   return {
@@ -97,6 +104,8 @@ function rowToPost(row: PostRow): CommunityPost {
     viewCount: row.viewCount,
     status: row.status,
     isEdited: row.isEdited === 1,
+    editedAt: row.editedAt ? fromUnixTimestamp(row.editedAt) : undefined, // Task 4.9
+    sourceNoteId: row.sourceNoteId || undefined, // Task 4.9
     // Fixed: Handle both string primitives and legacy JSON format for moderationAction
     moderationAction: row.moderationAction ?
       (typeof row.moderationAction === 'string' &&
@@ -118,6 +127,7 @@ function rowToPost(row: PostRow): CommunityPost {
 /**
  * Create a new post
  * Note: Content moderation should be performed at the service layer before calling this function
+ * Task 4.9: Added sourceNoteId for bi-directional note-post linking
  *
  * @param post - Post data (content should already be moderated)
  * @returns Created post ID
@@ -131,6 +141,7 @@ export async function createPost(post: {
   tags?: string[];
   category?: string;
   status?: 'active' | 'hidden' | 'deleted';
+  sourceNoteId?: string; // Task 4.9: Reference to source note if shared from reading notes
   moderationAction?: string;
   originalContent?: string;
   moderationWarning?: string;
@@ -143,9 +154,9 @@ export async function createPost(post: {
     INSERT INTO posts (
       id, authorId, authorName, title, content, tags, category,
       likes, likedBy, bookmarkedBy, commentCount, viewCount,
-      status, isEdited, moderationAction, originalContent, moderationWarning,
+      status, isEdited, editedAt, sourceNoteId, moderationAction, originalContent, moderationWarning,
       createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
     args: [
     post.id,
@@ -162,6 +173,8 @@ export async function createPost(post: {
     0, // viewCount
     post.status || 'active',
     0, // isEdited
+    null, // editedAt (Task 4.9)
+    post.sourceNoteId || null, // sourceNoteId (Task 4.9)
     post.moderationAction || null,
     post.originalContent || null,
     post.moderationWarning || null,
@@ -170,7 +183,7 @@ export async function createPost(post: {
   ]
   });
 
-  console.log(`✅ [CommunityRepository] Created post: ${post.id}`);
+  console.log(`✅ [CommunityRepository] Created post: ${post.id}${post.sourceNoteId ? ` (from note: ${post.sourceNoteId})` : ''}`);
   return post.id;
 }
 
@@ -290,6 +303,10 @@ export async function updatePost(
 
     fields.push('isEdited = ?');
     params.push(1);
+
+    // Task 4.9: Set editedAt timestamp when content is modified
+    fields.push('editedAt = ?');
+    params.push(now);
   }
 
   if (updates.moderationAction !== undefined) {
@@ -805,4 +822,132 @@ export async function batchCreatePosts(posts: Array<Omit<CommunityPost, 'created
     console.error(`❌ [CommunityRepository] Batch create failed:`, error);
     throw error;
   }
+}
+
+// ============================================================================
+// Task 4.9: Note-Post Sync Functions
+// ============================================================================
+
+/**
+ * Get post by source note ID
+ * Task 4.9: Find the community post linked to a specific note
+ *
+ * @param noteId - Source note ID
+ * @returns Post or null if not found
+ */
+export async function getPostBySourceNoteId(noteId: string): Promise<CommunityPost | null> {
+  const db = getDatabase();
+
+  const result = await db.execute({
+    sql: `SELECT * FROM posts WHERE sourceNoteId = ?`,
+    args: [noteId]
+  });
+  const row = result.rows[0] as unknown as PostRow | undefined;
+
+  return row ? rowToPost(row) : null;
+}
+
+/**
+ * Sync post content from source note
+ * Task 4.9: Update post content and mark as edited when source note is modified
+ *
+ * @param postId - Post ID
+ * @param content - New content from source note
+ * @param selectedText - New selected text from source note
+ * @returns Updated post
+ */
+export async function syncPostFromNote(
+  postId: string,
+  content: string,
+  selectedText: string
+): Promise<CommunityPost> {
+  const db = getDatabase();
+  const now = Date.now();
+
+  // Format content to include selected text
+  const formattedContent = selectedText
+    ? `「${selectedText}」\n\n${content}`
+    : content;
+
+  await db.execute({
+    sql: `
+    UPDATE posts
+    SET content = ?, isEdited = 1, editedAt = ?, updatedAt = ?
+    WHERE id = ?
+  `,
+    args: [formattedContent, now, now, postId]
+  });
+
+  console.log(`✅ [CommunityRepository] Synced post ${postId} from source note`);
+
+  const updated = await getPostById(postId);
+  if (!updated) throw new Error(`Post not found after sync: ${postId}`);
+  return updated;
+}
+
+/**
+ * Link a post to its source note
+ * Task 4.9: Establish bi-directional link from post to note
+ *
+ * @param postId - Post ID
+ * @param noteId - Source note ID
+ */
+export async function linkPostToNote(postId: string, noteId: string): Promise<void> {
+  const db = getDatabase();
+
+  await db.execute({
+    sql: `UPDATE posts SET sourceNoteId = ?, updatedAt = ? WHERE id = ?`,
+    args: [noteId, Date.now(), postId]
+  });
+
+  console.log(`✅ [CommunityRepository] Linked post ${postId} to note ${noteId}`);
+}
+
+/**
+ * Create bi-directional link between note and post atomically
+ * Task 4.9: Uses batch operation for atomicity (prevents race conditions)
+ *
+ * @param postId - Post ID
+ * @param noteId - Source note ID
+ */
+export async function linkNoteAndPostBidirectional(postId: string, noteId: string): Promise<void> {
+  const db = getDatabase();
+  const now = Date.now();
+
+  // Use batch to ensure atomicity of both updates
+  await db.batch([
+    {
+      sql: `UPDATE posts SET sourceNoteId = ?, updatedAt = ? WHERE id = ?`,
+      args: [noteId, now, postId]
+    },
+    {
+      sql: `UPDATE notes SET sharedPostId = ?, lastModified = ? WHERE id = ?`,
+      args: [postId, now, noteId]
+    }
+  ], 'write');
+
+  console.log(`✅ [CommunityRepository] Bi-directional link established: note ${noteId} ↔ post ${postId}`);
+}
+
+/**
+ * Get all posts that were created from notes (shared notes)
+ * Task 4.9: Get posts linked to notes for a specific user
+ *
+ * @param authorId - Author user ID
+ * @returns Array of posts with sourceNoteId
+ */
+export async function getPostsFromNotesByAuthor(authorId: string): Promise<CommunityPost[]> {
+  const db = getDatabase();
+
+  const result = await db.execute({
+    sql: `
+    SELECT * FROM posts
+    WHERE authorId = ? AND sourceNoteId IS NOT NULL AND status = 'active'
+    ORDER BY updatedAt DESC
+  `,
+    args: [authorId]
+  });
+  const rows = result.rows as unknown as PostRow[];
+
+  return rows.map(rowToPost);
 }

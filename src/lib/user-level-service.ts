@@ -172,10 +172,10 @@ export class UserLevelService {
 
       console.log(`🗄️  [UserLevelService] Initializing user profile for ${userId}`);
 
-      const sqliteProfile = userRepository.createUser(userId, displayName, email);
+      const sqliteProfile = await userRepository.createUser(userId, displayName, email);
 
       // Update unlockedContent with level 0 exclusive content
-      const updatedProfile = userRepository.updateUser(userId, {
+      const updatedProfile = await userRepository.updateUser(userId, {
         unlockedContent: LEVELS_CONFIG[0].exclusiveContent,
       });
 
@@ -183,7 +183,7 @@ export class UserLevelService {
       return {
         userId: updatedProfile.userId,
         username: updatedProfile.username,
-        email: updatedProfile.email,
+        email: updatedProfile.email ?? '',
         currentLevel: updatedProfile.currentLevel,
         currentXP: updatedProfile.currentXP,
         totalXP: updatedProfile.totalXP,
@@ -194,10 +194,10 @@ export class UserLevelService {
         hasReceivedWelcomeBonus: updatedProfile.hasReceivedWelcomeBonus,
         attributes: updatedProfile.attributes,
         stats: updatedProfile.stats,
-        createdAt: fromUnixTimestamp(updatedProfile.createdAt.getTime()) as Timestamp,
-        updatedAt: fromUnixTimestamp(updatedProfile.updatedAt.getTime()) as Timestamp,
+        createdAt: fromUnixTimestamp(updatedProfile.createdAt?.getTime() ?? Date.now()) as Timestamp,
+        updatedAt: fromUnixTimestamp(updatedProfile.updatedAt?.getTime() ?? Date.now()) as Timestamp,
         lastActivityAt: updatedProfile.lastActivityAt
-          ? fromUnixTimestamp(updatedProfile.lastActivityAt.getTime()) as Timestamp
+          ? fromUnixTimestamp(updatedProfile.lastActivityAt?.getTime() ?? Date.now()) as Timestamp
           : fromUnixTimestamp(Date.now()) as Timestamp,
       };
     } catch (error) {
@@ -218,7 +218,7 @@ export class UserLevelService {
     }
 
     try {
-      const sqliteProfile = userRepository.getUserById(userId);
+      const sqliteProfile = await userRepository.getUserById(userId);
 
       if (!sqliteProfile) {
         return null;
@@ -229,7 +229,7 @@ export class UserLevelService {
       return {
         userId: sqliteProfile.userId,
         username: sqliteProfile.username,
-        email: sqliteProfile.email,
+        email: sqliteProfile.email ?? '',
         currentLevel: sqliteProfile.currentLevel,
         currentXP: sqliteProfile.currentXP,
         totalXP: sqliteProfile.totalXP,
@@ -240,10 +240,10 @@ export class UserLevelService {
         hasReceivedWelcomeBonus: sqliteProfile.hasReceivedWelcomeBonus,
         attributes: sqliteProfile.attributes,
         stats: sqliteProfile.stats,
-        createdAt: fromUnixTimestamp(sqliteProfile.createdAt.getTime()) as Timestamp,
-        updatedAt: fromUnixTimestamp(sqliteProfile.updatedAt.getTime()) as Timestamp,
+        createdAt: fromUnixTimestamp(sqliteProfile.createdAt?.getTime() ?? Date.now()) as Timestamp,
+        updatedAt: fromUnixTimestamp(sqliteProfile.updatedAt?.getTime() ?? Date.now()) as Timestamp,
         lastActivityAt: sqliteProfile.lastActivityAt
-          ? fromUnixTimestamp(sqliteProfile.lastActivityAt.getTime()) as Timestamp
+          ? fromUnixTimestamp(sqliteProfile.lastActivityAt?.getTime() ?? Date.now()) as Timestamp
           : fromUnixTimestamp(Date.now()) as Timestamp,
       };
     } catch (error) {
@@ -323,7 +323,7 @@ export class UserLevelService {
       console.log(`🗄️  [UserLevelService] Awarding XP: ${userId}, amount=${amount}, source=${source}, sourceId=${sourceId || 'none'}`);
 
       // Call repository's all-in-one atomic function
-      const result = userRepository.awardXPWithLevelUp(
+      const result = await userRepository.awardXPWithLevelUp(
         userId,
         amount,
         reason,
@@ -728,7 +728,7 @@ export class UserLevelService {
     }
 
     try {
-      const sqliteRecords = userRepository.getLevelUpsByUser(userId);
+      const sqliteRecords = await userRepository.getLevelUpsByUser(userId);
 
       // Convert to service format and apply limit
       const records: LevelUpRecord[] = sqliteRecords
@@ -763,7 +763,7 @@ export class UserLevelService {
     }
 
     try {
-      const sqliteTransactions = userRepository.getXPTransactionsByUser(userId, limitCount);
+      const sqliteTransactions = await userRepository.getXPTransactionsByUser(userId, limitCount);
 
       // Convert to service format
       const transactions: XPTransaction[] = sqliteTransactions.map((row: any) => ({

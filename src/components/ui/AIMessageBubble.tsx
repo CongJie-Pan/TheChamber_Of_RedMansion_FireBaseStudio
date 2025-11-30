@@ -24,6 +24,14 @@ import type { PerplexityCitation } from '@/types/perplexity-qa';
 import { StructuredQAResponse } from './StructuredQAResponse';
 
 /**
+ * User's thinking panel preference (persists across messages in a session)
+ * - 'auto': System decides (auto-expand on first appearance)
+ * - 'collapsed': User prefers collapsed (respects user's manual collapse)
+ * - 'expanded': User prefers expanded (respects user's manual expand)
+ */
+export type ThinkingExpandedPreference = 'auto' | 'collapsed' | 'expanded';
+
+/**
  * Component props interface
  */
 export interface AIMessageBubbleProps {
@@ -53,6 +61,21 @@ export interface AIMessageBubbleProps {
 
   /** Whether to render thinking process inline with the answer bubble */
   showThinkingInline?: boolean;
+
+  /**
+   * User's thinking panel preference (Task 4.2 Fix - Bug #3)
+   * Controlled by parent to persist across messages in a session.
+   * - 'auto': Auto-expand on first appearance (default)
+   * - 'collapsed': User manually collapsed, respect this choice
+   * - 'expanded': User manually expanded, respect this choice
+   */
+  thinkingExpandedPreference?: ThinkingExpandedPreference;
+
+  /**
+   * Callback when user manually toggles thinking panel (Task 4.2 Fix - Bug #3)
+   * Parent should update thinkingExpandedPreference based on this callback.
+   */
+  onThinkingToggle?: (isExpanded: boolean) => void;
 }
 
 /**
@@ -68,21 +91,36 @@ export function AIMessageBubble({
   onCitationClick,
   className,
   showThinkingInline = true,
+  thinkingExpandedPreference = 'auto',
+  onThinkingToggle,
 }: AIMessageBubbleProps) {
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
   // Show the thinking section ONLY when actual thinking content exists
   const showThinkingSection = hasThinkingContent && showThinkingInline;
-  // Initialize expanded state based on showThinkingSection prop
-  const [isThinkingExpanded, setIsThinkingExpanded] = useState<boolean>(showThinkingSection);
+
+  // Determine expanded state based on preference (Task 4.2 Fix - Bug #3)
+  // - 'auto': Expand when content is shown
+  // - 'collapsed': User prefers collapsed
+  // - 'expanded': User prefers expanded
+  // Track if user has manually overridden the preference within this component
+  const [hasLocalOverride, setHasLocalOverride] = useState(false);
+  const [localExpandedState, setLocalExpandedState] = useState(true);
   const collapseId = useId();
 
-  // Sync expanded state when showThinkingSection changes (deferred to avoid cascading render)
-  useEffect(() => {
-    if (showThinkingSection && !isThinkingExpanded) {
-      const timer = setTimeout(() => setIsThinkingExpanded(true), 0);
-      return () => clearTimeout(timer);
-    }
-  }, [showThinkingSection, isThinkingExpanded]);
+  // Compute effective expanded state from preference when no local override
+  // This avoids calling setState in useEffect by deriving state from props
+  const isThinkingExpanded = hasLocalOverride
+    ? localExpandedState
+    : (showThinkingSection && thinkingExpandedPreference !== 'collapsed');
+
+  // Handler for manual toggle - notifies parent to persist preference (Task 4.2 Fix - Bug #3)
+  const handleToggleThinking = () => {
+    const newState = !isThinkingExpanded;
+    setHasLocalOverride(true);
+    setLocalExpandedState(newState);
+    // Notify parent so it can persist the preference across all messages
+    onThinkingToggle?.(newState);
+  };
 
   return (
     <div className={cn('ai-message-bubble space-y-3', className)}>
@@ -92,7 +130,7 @@ export function AIMessageBubble({
           {/* Thinking Header - Clickable to expand/collapse */}
           <button
             type="button"
-            onClick={() => setIsThinkingExpanded(!isThinkingExpanded)}
+            onClick={handleToggleThinking}
             className={cn(
               'flex items-center gap-2 w-full text-[13px] text-muted-foreground',
               'hover:text-foreground transition-colors',
@@ -104,7 +142,7 @@ export function AIMessageBubble({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setIsThinkingExpanded(!isThinkingExpanded);
+                handleToggleThinking();
               }
             }}
           >
@@ -116,12 +154,12 @@ export function AIMessageBubble({
             </span>
           </button>
 
-          {/* Thinking Content - Collapsible with smooth height transition */}
+          {/* Thinking Content - Collapsible with smooth height transition and scrolling (Task 4.2 Fix) */}
           <div
             id={`thinking-collapse-${collapseId}`}
             className={cn(
-              'mt-2 px-2 overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out',
-              isThinkingExpanded ? 'max-h-[60vh] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+              'mt-2 px-2 transition-[max-height,opacity] duration-300 ease-in-out',
+              isThinkingExpanded ? 'max-h-[200px] opacity-100 overflow-y-auto' : 'max-h-0 opacity-0 overflow-hidden pointer-events-none'
             )}
             aria-hidden={!isThinkingExpanded}
           >

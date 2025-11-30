@@ -74,6 +74,12 @@ const getRegisterSchema = (t: (key: string) => string) => z.object({
   lastName: z.string().min(1, {
     message: t('register.errors.lastNameRequired')
   }),
+  preferredName: z.string()
+    .min(2, { message: t('register.errors.preferredNameTooShort') })
+    .max(30, { message: t('register.errors.preferredNameTooLong') })
+    .regex(/^[\u4e00-\u9fff\u3400-\u4dbf a-zA-Z0-9_]+$/, {
+      message: t('register.errors.preferredNameInvalid')
+    }),
   email: z.string().email({
     message: t('register.errors.emailInvalid')
   }),
@@ -116,6 +122,7 @@ export default function RegisterPage() {
           password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
+          preferredName: data.preferredName,
         }),
       });
 
@@ -204,6 +211,19 @@ export default function RegisterPage() {
                 />
                 {errors.lastName && <p className="text-xs text-destructive">{errors.lastName.message}</p>}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferredName">{t('register.preferredNameLabel')}</Label>
+              <Input
+                id="preferredName"
+                placeholder={t('register.preferredNamePlaceholder')}
+                {...register("preferredName")}
+                className={`bg-background/70 ${errors.preferredName ? 'border-destructive' : ''}`}
+              />
+              {errors.preferredName && <p className="text-xs text-destructive">{errors.preferredName.message}</p>}
+              <p className="text-xs text-muted-foreground">
+                {t('register.preferredNameHint')}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t('register.emailLabel')}</Label>

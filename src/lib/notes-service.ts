@@ -95,7 +95,7 @@ export async function getNotesByUserAndChapter(userId: string, chapterId: number
     throw new Error('[NotesService] Cannot get notes: SQLite only available server-side');
   }
 
-  const notes = noteRepository.getNotesByUserAndChapter(userId, chapterId);
+  const notes = await noteRepository.getNotesByUserAndChapter(userId, chapterId);
   console.log(`✅ [NotesService] Retrieved ${notes.length} notes from SQLite (user: ${userId}, chapter: ${chapterId})`);
   return notes;
 }
@@ -128,7 +128,7 @@ export async function getAllNotesByUser(userId: string): Promise<Note[]> {
     throw new Error('[NotesService] Cannot get notes: SQLite only available server-side');
   }
 
-  const notes = noteRepository.getAllNotesByUser(userId);
+  const notes = await noteRepository.getAllNotesByUser(userId);
   console.log(`✅ [NotesService] Retrieved ${notes.length} notes from SQLite (user: ${userId})`);
   return notes;
 }
@@ -161,7 +161,7 @@ export async function getPublicNotes(limit: number = 50): Promise<Note[]> {
     throw new Error('[NotesService] Cannot get public notes: SQLite only available server-side');
   }
 
-  const notes = noteRepository.getPublicNotes(limit);
+  const notes = await noteRepository.getPublicNotes(limit);
   console.log(`✅ [NotesService] Retrieved ${notes.length} public notes from SQLite`);
   return notes;
 }

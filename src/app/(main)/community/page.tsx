@@ -98,6 +98,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LevelUpModal } from '@/components/gamification/LevelUpModal';
 
 // Type definitions for local component state
+// Task 4.9: Added isEdited and sourceNoteId for note-post sync
 type LocalPost = {
   id: string;
   authorId: string;
@@ -114,6 +115,14 @@ type LocalPost = {
    * Array of user IDs who have bookmarked this post. Optional for backward compatibility.
    */
   bookmarkedBy?: string[];
+  /**
+   * Task 4.9: Whether the post has been edited after initial creation
+   */
+  isEdited?: boolean;
+  /**
+   * Task 4.9: Reference to source note if post was shared from reading notes
+   */
+  sourceNoteId?: string;
 };
 
 type LocalComment = {
@@ -184,7 +193,10 @@ const convertFirebasePost = (firebasePost: CommunityPost, currentUserId?: string
   commentCount: firebasePost.commentCount,
   isLiked: currentUserId ? firebasePost.likedBy.includes(currentUserId) : false,
   comments: [],
-  bookmarkedBy: Array.isArray((firebasePost as any).bookmarkedBy) ? (firebasePost as any).bookmarkedBy : []
+  bookmarkedBy: Array.isArray((firebasePost as any).bookmarkedBy) ? (firebasePost as any).bookmarkedBy : [],
+  // Task 4.9: Include isEdited and sourceNoteId for note-post sync
+  isEdited: (firebasePost as any).isEdited ?? false,
+  sourceNoteId: (firebasePost as any).sourceNoteId
 });
 
 function NewPostForm({ onPostSubmit, t, isLoading }: { 
@@ -457,7 +469,13 @@ function PostCard({
           ></i>
           <div>
             <p className="font-semibold text-white">{initialPost.authorName}</p>
-            <p className="text-xs text-muted-foreground">{initialPost.timestamp}</p>
+            <p className="text-xs text-muted-foreground">
+              {initialPost.timestamp}
+              {/* Task 4.9: Show edited marker if post was edited */}
+              {initialPost.isEdited && (
+                <span className="ml-2 text-muted-foreground/70">（已編輯）</span>
+              )}
+            </p>
           </div>
           {/* Show delete button only for the author */}
           {user && user.id === initialPost.authorId && (

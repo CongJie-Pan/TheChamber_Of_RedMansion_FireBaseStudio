@@ -1009,6 +1009,30 @@ export async function getUserByEmail(email: string): Promise<UserProfile | null>
 }
 
 /**
+ * Get user by username
+ *
+ * Task 4.8: Check username uniqueness during registration
+ *
+ * @param username - Username to look up
+ * @returns User profile or null if not found
+ */
+export async function getUserByUsername(username: string): Promise<UserProfile | null> {
+  const db = getDatabase();
+
+  const result = await db.execute({
+    sql: `SELECT * FROM users WHERE username = ?`,
+    args: [username]
+  });
+  const row = result.rows[0] as unknown as UserRow | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return rowToUserProfile(row);
+}
+
+/**
  * Get users by level range
  *
  * @param minLevel - Minimum level (inclusive)

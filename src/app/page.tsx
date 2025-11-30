@@ -60,11 +60,15 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { LANGUAGES } from '@/lib/translations';
 import type { Language } from '@/lib/translations';
 
+// Authentication
+import { useAuth } from '@/hooks/useAuth';
+
 /**
  * Main Homepage Component with Simplified Design
  */
 export default function HomePage() {
   const { language, setLanguage, t } = useLanguage();
+  const { user, userProfile, isLoading: isAuthLoading } = useAuth();
   // Use useState with true to avoid setting state in useEffect
   const [isLoaded, setIsLoaded] = useState(true);
 
@@ -193,16 +197,43 @@ export default function HomePage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Action Buttons */}
-            <Button variant="ghost" asChild>
-              <Link href="/login">{t('page.navLogin')}</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/dashboard">
-                <Compass className="w-4 h-4 mr-2" />
-                {t('page.navStartExplore')}
-              </Link>
-            </Button>
+            {/* Action Buttons - Conditional based on auth state */}
+            {isAuthLoading ? (
+              /* Loading state */
+              <div className="flex items-center space-x-2">
+                <div className="w-16 h-8 bg-gray-200 animate-pulse rounded" />
+                <div className="w-24 h-8 bg-gray-200 animate-pulse rounded" />
+              </div>
+            ) : user ? (
+              /* Authenticated user - show level/XP info */
+              <>
+                <div className="flex items-center space-x-2 text-sm text-foreground/70 bg-muted/50 px-3 py-1.5 rounded-md">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Lv.{userProfile?.currentLevel || 1}</span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>{userProfile?.currentXP || 0} XP</span>
+                </div>
+                <Button asChild>
+                  <Link href="/dashboard">
+                    <Compass className="w-4 h-4 mr-2" />
+                    {t('page.navStartExplore')}
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              /* Not authenticated - show login button */
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">{t('page.navLogin')}</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/dashboard">
+                    <Compass className="w-4 h-4 mr-2" />
+                    {t('page.navStartExplore')}
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>

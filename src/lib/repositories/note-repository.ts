@@ -11,6 +11,7 @@ import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '..
 
 /**
  * Note interface matching the service layer
+ * Task 4.9: Added sharedPostId for bi-directional note-post linking
  */
 export interface Note {
   id?: string;
@@ -24,10 +25,12 @@ export interface Note {
   wordCount?: number;
   lastModified?: Date;
   noteType?: string;
+  sharedPostId?: string; // Task 4.9: Reference to community post if note is shared
 }
 
 /**
  * Note data interface for database operations
+ * Task 4.9: Added sharedPostId for bi-directional note-post linking
  */
 interface NoteRow {
   id: string;
@@ -41,6 +44,7 @@ interface NoteRow {
   isPublic: number; // SQLite boolean (0 or 1)
   wordCount: number;
   noteType: string | null;
+  sharedPostId: string | null; // Task 4.9: Reference to community post
 }
 
 /**
@@ -52,6 +56,7 @@ function calculateWordCount(text: string): number {
 
 /**
  * Convert database row to Note
+ * Task 4.9: Added sharedPostId field
  */
 function rowToNote(row: NoteRow): Note {
   return {
@@ -66,6 +71,7 @@ function rowToNote(row: NoteRow): Note {
     isPublic: row.isPublic === 1,
     wordCount: row.wordCount,
     noteType: row.noteType || undefined,
+    sharedPostId: row.sharedPostId || undefined,
   };
 }
 
@@ -116,11 +122,18 @@ export async function createNote(note: Omit<Note, 'id' | 'createdAt'>): Promise<
 /**
  * Update note content
  *
+ * Task 4.9: If the note is linked to a community post, automatically sync the post
+ *
  * @param noteId - Note ID
  * @param content - New note content
+ * @returns Object indicating if the linked post was synced
  */
-export async function updateNoteContent(noteId: string, content: string): Promise<void> {
+export async function updateNoteContent(noteId: string, content: string): Promise<{ syncedPostId?: string }> {
   const db = getDatabase();
+  const now = Date.now();
+
+  // First, get the current note to check if it has a linked post
+  const note = await getNoteById(noteId);
 
   await db.execute({
     sql: `
@@ -131,12 +144,28 @@ export async function updateNoteContent(noteId: string, content: string): Promis
     args: [
     content,
     calculateWordCount(content),
-    Date.now(),
+    now,
     noteId
   ]
   });
 
   console.log(`✅ [NoteRepository] Updated note content: ${noteId}`);
+
+  // Task 4.9: Automatically sync the linked community post if it exists
+  if (note?.sharedPostId) {
+    try {
+      // Import syncPostFromNote dynamically to avoid circular dependency
+      const { syncPostFromNote } = await import('./community-repository');
+      await syncPostFromNote(note.sharedPostId, content, note.selectedText);
+      console.log(`✅ [NoteRepository] Auto-synced linked post: ${note.sharedPostId}`);
+      return { syncedPostId: note.sharedPostId };
+    } catch (error) {
+      console.error(`❌ [NoteRepository] Failed to auto-sync linked post ${note.sharedPostId}:`, error);
+      // Don't throw - note update succeeded, post sync is secondary
+    }
+  }
+
+  return {};
 }
 
 /**
@@ -456,4 +485,97 @@ export async function updateNoteType(noteId: string, noteType: string | null): P
   });
 
   console.log(`✅ [NoteRepository] Updated note type: ${noteId} (type: ${noteType})`);
+}
+
+// ============================================================================
+// Task 4.9: Note-Post Linking Functions
+// ============================================================================
+
+/**
+ * Link a note to a community post
+ * Task 4.9: Bi-directional note-post linking
+ *
+ * @param noteId - Note ID
+ * @param postId - Community post ID
+ */
+export async function linkNoteToPost(noteId: string, postId: string): Promise<void> {
+  const db = getDatabase();
+
+  await db.execute({
+    sql: `
+    UPDATE notes
+    SET sharedPostId = ?, lastModified = ?
+    WHERE id = ?
+  `,
+    args: [postId, Date.now(), noteId]
+  });
+
+  console.log(`✅ [NoteRepository] Linked note ${noteId} to post ${postId}`);
+}
+
+/**
+ * Unlink a note from its community post
+ * Task 4.9: Remove note-post link
+ *
+ * @param noteId - Note ID
+ */
+export async function unlinkNoteFromPost(noteId: string): Promise<void> {
+  const db = getDatabase();
+
+  await db.execute({
+    sql: `
+    UPDATE notes
+    SET sharedPostId = NULL, lastModified = ?
+    WHERE id = ?
+  `,
+    args: [Date.now(), noteId]
+  });
+
+  console.log(`✅ [NoteRepository] Unlinked note ${noteId} from post`);
+}
+
+/**
+ * Get note by its linked post ID
+ * Task 4.9: Find the source note for a community post
+ *
+ * @param postId - Community post ID
+ * @returns Note or null if not found
+ */
+export async function getNoteBySharedPostId(postId: string): Promise<Note | null> {
+  const db = getDatabase();
+
+  const result = await db.execute({
+    sql: `SELECT * FROM notes WHERE sharedPostId = ?`,
+    args: [postId]
+  });
+  const row = result.rows[0] as unknown as NoteRow | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return rowToNote(row);
+}
+
+/**
+ * Get all notes that have been shared to community posts
+ * Task 4.9: Get all linked notes for a user
+ *
+ * @param userId - User ID
+ * @returns Array of notes with sharedPostId
+ */
+export async function getSharedNotesByUser(userId: string): Promise<Note[]> {
+  const db = getDatabase();
+
+  const result = await db.execute({
+    sql: `
+    SELECT * FROM notes
+    WHERE userId = ? AND sharedPostId IS NOT NULL
+    ORDER BY lastModified DESC
+  `,
+    args: [userId]
+  });
+  const rows = result.rows as unknown as NoteRow[];
+
+  return rows.map(rowToNote);
 }

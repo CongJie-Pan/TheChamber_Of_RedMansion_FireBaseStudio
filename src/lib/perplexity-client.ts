@@ -529,8 +529,8 @@ export class PerplexityClient {
       await debugLog('PERPLEXITY_CLIENT', 'Making HTTP request to Perplexity API (native fetch)', {
         endpoint: fullUrl,
         requestDataKeys: Object.keys(requestData),
-        model: requestData.model,
-        stream: requestData.stream,
+        model: config.model,
+        stream: config.stream,
       });
 
       // Use native fetch for better streaming support
@@ -662,7 +662,10 @@ export class PerplexityClient {
                 // LobeChat pattern: explicit completion signal handling
                 console.log('🐛 [streamingCompletionRequest] Yielding final completion chunk:', {
                   fullContentLength: fullContent.length,
+                  fullContentPreview: fullContent.substring(0, 200) || '(empty)',
+                  finalChunkContent: finalChunk.content.substring(0, 100) || '(empty)',
                   thinkingLength: sanitizedThinking.length,
+                  thinkingPreview: sanitizedThinking.substring(0, 100) || '(empty)',
                   citationCount: citations.length,
                   processingTime,
                 });
@@ -744,6 +747,14 @@ export class PerplexityClient {
                     } else if (structured.type === 'text') {
                       // Accumulate answer text
                       fullContent += structured.content;
+
+                      // DEBUG: Log text chunk to diagnose "《" bug (Task 4.2)
+                      console.log('🐛 [perplexity-client] TEXT chunk from StreamProcessor:', {
+                        structuredContentLength: structured.content.length,
+                        structuredContentPreview: structured.content.substring(0, 100),
+                        accumulatedFullContentLength: fullContent.length,
+                        accumulatedFullContentPreview: fullContent.substring(0, 100),
+                      });
 
                       // Sanitize accumulated thinking
                       const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);

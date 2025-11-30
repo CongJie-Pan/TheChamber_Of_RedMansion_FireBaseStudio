@@ -287,7 +287,7 @@ export function ConversationFlow({
 
   // Auto-scroll to bottom when new messages arrive (if enabled - Fix Issue #7)
   useEffect(() => {
-    if (autoScroll && autoScrollEnabled && bottomRef.current) {
+    if (autoScroll && autoScrollEnabled && bottomRef.current?.scrollIntoView) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages, autoScroll, autoScrollEnabled]);

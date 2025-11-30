@@ -124,7 +124,7 @@ import { ThinkingProcessIndicator } from '@/components/ui/ThinkingProcessIndicat
 import type { ThinkingStatus } from '@/components/ui/ThinkingProcessIndicator';
 import { ConversationFlow } from '@/components/ui/ConversationFlow';
 import type { ConversationMessage, MessageRole } from '@/components/ui/ConversationFlow';
-import { AIMessageBubble } from '@/components/ui/AIMessageBubble';
+import { AIMessageBubble, type ThinkingExpandedPreference } from '@/components/ui/AIMessageBubble';
 
 // Citation and Error Handling Utilities
 // Citation processing handled within AI bubble components
@@ -565,6 +565,10 @@ export default function ReadBookPage() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const lastScrollTopRef = useRef(0);
+
+  // Task 4.2 Fix - Bug #3: User's thinking panel preference (persists across messages)
+  // Using useState to trigger re-render when preference changes
+  const [thinkingExpandedPreference, setThinkingExpandedPreference] = useState<ThinkingExpandedPreference>('auto');
 
   const [selectedTextInfo, setSelectedTextInfo] = useState<{ text: string; position: { top: number; left: number; } | null; range: Range | null; } | null>(null);
   const [activeHighlightInfo, setActiveHighlightInfo] = useState<{ text: string; position: { top: number; left: number; } } | null>(null);
@@ -1917,6 +1921,18 @@ export default function ReadBookPage() {
 
                   try {
                     const chunk: PerplexityStreamingChunk = JSON.parse(data);
+
+                    // DEBUG: Log chunk details to diagnose "《" bug (Task 4.2)
+                    console.log('[QA Module DEBUG] Chunk received:', {
+                      chunkIndex: chunk.chunkIndex,
+                      contentLength: chunk.content?.length || 0,
+                      fullContentLength: chunk.fullContent?.length || 0,
+                      thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
+                      isComplete: chunk.isComplete,
+                      contentPreview: chunk.content?.substring(0, 100) || '(empty)',
+                      fullContentPreview: chunk.fullContent?.substring(0, 100) || '(empty)',
+                    });
+
                     chunks.push(chunk);
                     setPerplexityStreamingChunks([...chunks]);
 
@@ -2025,6 +2041,16 @@ export default function ReadBookPage() {
                       // Server already cleaned content via StreamProcessor
                       const finalServerThinking = (chunk as any).thinkingContent || '';
                       const cleaned = chunk.fullContent || chunk.content || '';
+
+                      // DEBUG: Log final content to diagnose "《" bug (Task 4.2)
+                      console.log('[QA Module DEBUG] FINAL chunk - isComplete=true:', {
+                        fullContentLength: chunk.fullContent?.length || 0,
+                        contentLength: chunk.content?.length || 0,
+                        cleanedLength: cleaned.length,
+                        thinkingLength: finalServerThinking.length,
+                        cleanedPreview: cleaned.substring(0, 200) || '(empty)',
+                        fullContentPreview: chunk.fullContent?.substring(0, 200) || '(empty)',
+                      });
                       const finalResponse: PerplexityQAResponse = {
                         question: questionText,
                         answer: cleaned,
@@ -3504,7 +3530,7 @@ ${selectedTextContent}
       <Sheet open={isAiSheetOpen} onOpenChange={(open) => {setIsAiSheetOpen(open); if (!open) {setSelectedTextInfo(null); setTextExplanation(null); setAiAnalysisContent(null); setPerplexityResponse(null); setPerplexityStreamingChunks([]);} handleInteraction(); }}>
         <SheetContent
           side="right"
-          className="!w-[90vw] sm:!w-[80vw] md:!w-[60vw] lg:!w-[50vw] !max-w-none sm:!max-w-none md:!max-w-none lg:!max-w-none bg-card text-card-foreground p-0 flex flex-col h-full"
+          className="!w-[90vw] sm:!w-[80vw] md:!w-[60vw] lg:!w-[50vw] !max-w-none sm:!max-w-none md:!max-w-none lg:!max-w-none bg-card text-card-foreground p-0 flex flex-col h-full relative"
           data-no-selection="true"
           onClick={(e) => {e.stopPropagation(); handleInteraction();}}
         >
@@ -3673,6 +3699,12 @@ ${selectedTextContent}
                               }
                             }}
                             showThinkingInline={true}
+                            // Task 4.2 Fix - Bug #3: Pass preference to persist across messages
+                            thinkingExpandedPreference={thinkingExpandedPreference}
+                            onThinkingToggle={(isExpanded) => {
+                              // Update preference based on user's manual toggle
+                              setThinkingExpandedPreference(isExpanded ? 'expanded' : 'collapsed');
+                            }}
                           />
                         );
                       }
@@ -3681,42 +3713,6 @@ ${selectedTextContent}
                       return undefined;  // ✅ Not null - allows default blue bubble rendering
                     }}
                   />
-
-                  {/* Scroll to Bottom Button (Fix Issue #7) */}
-                  {!autoScrollEnabled && (
-                    <div className="sticky bottom-4 left-0 right-0 flex justify-center pointer-events-none">
-                      <Button
-                        onClick={() => {
-                          setAutoScrollEnabled(true);
-                          setUnreadMessageCount(0);
-                          // Scroll to bottom
-                          const viewport = document.getElementById('qa-viewport');
-                          if (viewport) {
-                            viewport.scrollTo({
-                              top: viewport.scrollHeight,
-                              behavior: 'smooth',
-                            });
-                          } else {
-                            // Fallback: scroll the bottom anchor into view
-                            const bottomAnchor = document.querySelector('.conversation-flow .h-px:last-child') as HTMLElement | null;
-                            bottomAnchor?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                          }
-                        }}
-                        className="shadow-lg rounded-full px-4 py-2 flex items-center gap-2 pointer-events-auto"
-                        aria-label="Scroll to bottom"
-                        title="回到底部"
-                        variant="secondary"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                        <span>回到底部</span>
-                        {unreadMessageCount > 0 && (
-                          <Badge variant="destructive" className="ml-1">
-                            {unreadMessageCount}
-                          </Badge>
-                        )}
-                      </Button>
-                    </div>
-                  )}
 
                   {/* Show standalone thinking indicator while waiting for first AI tokens */}
                   {thinkingStatus === 'thinking' && !hasStreamingAiMessage && (
@@ -3731,6 +3727,43 @@ ${selectedTextContent}
                 </div>
               )}
             </ScrollArea>
+
+            {/* Floating Scroll to Bottom Button (Task 4.2 Fix - Bug #1) */}
+            {/* Positioned outside ScrollArea for fixed/floating behavior like WhatsApp/Telegram */}
+            {!autoScrollEnabled && aiMode === 'perplexity-qa' && (
+              <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+                <Button
+                  onClick={() => {
+                    setAutoScrollEnabled(true);
+                    setUnreadMessageCount(0);
+                    // Scroll to bottom
+                    const viewport = document.getElementById('qa-viewport');
+                    if (viewport) {
+                      viewport.scrollTo({
+                        top: viewport.scrollHeight,
+                        behavior: 'smooth',
+                      });
+                    } else {
+                      // Fallback: scroll the bottom anchor into view
+                      const bottomAnchor = document.querySelector('.conversation-flow .h-px:last-child') as HTMLElement | null;
+                      bottomAnchor?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                  }}
+                  className="shadow-lg rounded-full px-4 py-2 flex items-center gap-2 pointer-events-auto bg-secondary hover:bg-secondary/80"
+                  aria-label="Scroll to bottom"
+                  title="回到底部"
+                  variant="secondary"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                  <span>回到底部</span>
+                  {unreadMessageCount > 0 && (
+                    <Badge variant="destructive" className="ml-1">
+                      {unreadMessageCount}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+            )}
 
             {/* Bottom Section with Action Buttons and Input */}
             <div className="shrink-0 p-4 border-t border-border bg-background/50">

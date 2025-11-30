@@ -43,7 +43,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { getUserByEmail, createUser } from '@/lib/repositories/user-repository';
+import { getUserByEmail, getUserByUsername, createUser } from '@/lib/repositories/user-repository';
 import {
   validatePasswordStrength,
   hashPassword,
@@ -101,42 +101,27 @@ const registerSchema = z.object({
     .min(1, { message: 'Last name is required' })
     .max(50, { message: 'Last name must be 50 characters or less' })
     .trim(),
+
+  /**
+   * User preferred display name (username)
+   * - 2-30 characters
+   * - Supports Chinese, English, numbers, and underscores
+   * - Will be used as the user's display name in the community
+   */
+  preferredName: z
+    .string()
+    .min(2, { message: 'Preferred name must be at least 2 characters' })
+    .max(30, { message: 'Preferred name must be 30 characters or less' })
+    .regex(/^[\u4e00-\u9fff\u3400-\u4dbf a-zA-Z0-9_]+$/, {
+      message: 'Preferred name can only contain Chinese, English, numbers, and underscores',
+    })
+    .trim(),
 });
 
 /**
  * Type for validated registration data
  */
 type RegisterData = z.infer<typeof registerSchema>;
-
-/**
- * Generate username from first and last name
- *
- * Creates a username by combining first and last name.
- * Ensures the username is URL-safe and database-compatible.
- *
- * @param firstName - User's first name
- * @param lastName - User's last name
- * @returns Generated username (3-40 characters)
- */
-function generateUsername(firstName: string, lastName: string): string {
-  // Combine first and last name
-  const combined = `${firstName}${lastName}`;
-
-  // Remove non-alphanumeric characters and convert to lowercase
-  let username = combined.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-
-  // Ensure minimum length (3 characters)
-  if (username.length < 3) {
-    username = username.padEnd(3, '0');
-  }
-
-  // Ensure maximum length (40 characters)
-  if (username.length > 40) {
-    username = username.substring(0, 40);
-  }
-
-  return username;
-}
 
 /**
  * POST /api/auth/register
@@ -173,7 +158,7 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    const { email, password, firstName, lastName } = validatedData;
+    const { email, password, firstName, lastName, preferredName } = validatedData;
 
     // Additional password strength validation
     const passwordValidation = validatePasswordStrength(password);
@@ -206,11 +191,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if username already exists (Task 4.8)
+    console.log(`🔍 [Registration] Checking username uniqueness: ${preferredName}`);
+    const existingUsername = await getUserByUsername(preferredName);
+
+    if (existingUsername) {
+      console.log(`❌ [Registration] Username already taken: ${preferredName}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'This display name is already taken. Please choose a different one.',
+          code: 'USERNAME_EXISTS',
+        },
+        { status: 409 } // 409 Conflict
+      );
+    }
+
     // Generate unique user ID
     const userId = uuidv4();
 
-    // Generate username from first and last name
-    const username = generateUsername(firstName, lastName);
+    // Use preferredName as username (user-provided display name)
+    const username = preferredName;
 
     console.log(`🔐 [Registration] Hashing password for user: ${userId}`);
 

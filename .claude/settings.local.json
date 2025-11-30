@@ -108,7 +108,21 @@
       "WebFetch(domain:flowbite.com)",
       "WebFetch(domain:github.com)",
       "Bash(npx jest --listTests)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/user-level-service-null-handling.test.ts\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/perplexity-thinking-utils.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/api/auth/register-route.test.ts\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/streaming/perplexity-stream-processor.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/daily-task-service-async-operations.test.ts\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/api/auth/register-route.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/repositories/user-repository.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/components/ui/AIMessageBubble.test.tsx 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/components/ui/ConversationFlow.test.tsx 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/homepage.test.tsx\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/note-repository.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/components/ui/StructuredQAResponse.test.tsx 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/community-repository.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/translations.test.ts 2>&1\")"
     ]
   },
   "outputStyle": "default"
