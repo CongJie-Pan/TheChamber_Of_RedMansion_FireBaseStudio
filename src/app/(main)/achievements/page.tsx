@@ -66,10 +66,11 @@ import {
 } from "lucide-react";
 
 // React hooks for component state management
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Custom hooks for application functionality
 import { useLanguage } from '@/hooks/useLanguage';
+import { useSession } from 'next-auth/react';
 
 // Gamification components
 import { LevelDisplay } from '@/components/gamification';
@@ -82,23 +83,89 @@ const getAchievedAchievementsData = (t: (key: string) => string) => [
   { id: "ach4", icon: ShieldCheck, name: "判詞解析者", description: "完成所有金陵十二釵判詞筆記", date: "2024-06-20", points: 200, category: "深度理解" },
 ];
 
-const getLearningStatsData = (t: (key: string) => string) => ({
-  totalReadingTime: `42 ${t('achievements.totalReadingTime').includes('Hours') ? 'Hours' : '小時'}`, // Example dynamic unit
-  chaptersCompleted: 35,
+/**
+ * Learning stats data interface
+ * Task 2.2: Dynamic data from API
+ */
+interface LearningStatsData {
+  totalReadingTime: string;
+  totalReadingTimeMinutes: number;
+  chaptersCompleted: number;
+  totalChapters: number;
+  notesTaken: number;
+  currentStreak: number;
+}
+
+/**
+ * Default/fallback learning stats
+ */
+const getDefaultLearningStats = (t: (key: string) => string): LearningStatsData => ({
+  totalReadingTime: `0 ${t('achievements.totalReadingTime').includes('Hours') ? 'Minutes' : '分鐘'}`,
+  totalReadingTimeMinutes: 0,
+  chaptersCompleted: 0,
   totalChapters: 120,
-  notesTaken: 12,
-  currentStreak: 10,
+  notesTaken: 0,
+  currentStreak: 0,
 });
 
 
 
 export default function AchievementsPage() {
   const { t } = useLanguage();
-  
+  const { data: session, status: sessionStatus } = useSession();
+
   const achievedAchievementsData = getAchievedAchievementsData(t);
-  const learningStatsData = getLearningStatsData(t);
 
   const [userAchievements, setUserAchievements] = useState(achievedAchievementsData);
+
+  // Task 2.2: Dynamic learning stats state
+  const [learningStatsData, setLearningStatsData] = useState<LearningStatsData>(getDefaultLearningStats(t));
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  // Task 2.2: Fetch learning stats from API (extracted to reusable function)
+  const fetchLearningStats = useCallback(async () => {
+    // Only fetch if user is authenticated
+    if (sessionStatus === 'loading') return;
+
+    if (sessionStatus !== 'authenticated' || !session?.user) {
+      setStatsLoading(false);
+      return;
+    }
+
+    try {
+      setStatsLoading(true);
+      setStatsError(null);
+
+      const response = await fetch('/api/user/learning-stats');
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.warn('📊 [Achievements] User not authenticated for stats');
+          setStatsLoading(false);
+          return;
+        }
+        throw new Error(`Failed to fetch stats: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.stats) {
+        setLearningStatsData(data.stats);
+        console.log('📊 [Achievements] Learning stats loaded:', data.stats);
+      }
+    } catch (error: any) {
+      console.error('❌ [Achievements] Failed to fetch learning stats:', error);
+      setStatsError(error.message || 'Failed to load learning statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [session, sessionStatus]);
+
+  // Task 2.2: Fetch stats on mount and when session changes
+  useEffect(() => {
+    fetchLearningStats();
+  }, [fetchLearningStats]);
 
   return (
     <div className="space-y-8">
@@ -158,37 +225,64 @@ export default function AchievementsPage() {
           <CardDescription>{t('achievements.learningStatsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="bg-card/50 p-4 rounded-lg">
-              <p className="text-2xl font-bold text-primary">{learningStatsData.totalReadingTime}</p>
-              <p className="text-sm text-muted-foreground">{t('achievements.totalReadingTime')}</p>
+          {/* Task 2.2: Loading state */}
+          {statsLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-card/50 p-4 rounded-lg animate-pulse">
+                  <div className="h-8 bg-muted rounded w-16 mx-auto mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-24 mx-auto"></div>
+                </div>
+              ))}
             </div>
-            <div className="bg-card/50 p-4 rounded-lg">
-              <p className="text-2xl font-bold text-primary">{learningStatsData.chaptersCompleted} <span className="text-base text-muted-foreground">/ {learningStatsData.totalChapters}</span></p>
-              <p className="text-sm text-muted-foreground">{t('achievements.chaptersCompletedFull')}</p>
+          ) : statsError ? (
+            /* Task 2.2: Error state with retry using extracted function */
+            <div className="text-center py-8">
+              <p className="text-destructive mb-2">{statsError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLearningStats}
+              >
+                {t('common.retry') || '重試'}
+              </Button>
             </div>
-            <div className="bg-card/50 p-4 rounded-lg">
-              <p className="text-2xl font-bold text-primary">{learningStatsData.notesTaken}</p>
-              <p className="text-sm text-muted-foreground">{t('achievements.notesTaken')}</p>
-            </div>
-            <div className="bg-card/50 p-4 rounded-lg">
-              <p className="text-2xl font-bold text-primary">{learningStatsData.currentStreak} {t('achievements.currentStreak').includes('Days') ? 'Days' : '天'}</p>
-              <p className="text-sm text-muted-foreground">{t('achievements.currentStreak')}</p>
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="overallProgress" className="text-sm text-muted-foreground">{t('achievements.overallProgress')}</Label>
-            <Progress 
-              id="overallProgress"
-              value={(learningStatsData.chaptersCompleted / learningStatsData.totalChapters) * 100} 
-              className="w-full h-3 mt-1" 
-              indicatorClassName="bg-gradient-to-r from-primary to-yellow-400"
-            />
-             <p className="text-xs text-right text-muted-foreground mt-1">
-              {learningStatsData.chaptersCompleted} / {learningStatsData.totalChapters} {t('achievements.chaptersUnit')}
-            </p>
-          </div>
-           <div className="text-right">
+          ) : (
+            /* Task 2.2: Data display */
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="bg-card/50 p-4 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">{learningStatsData.totalReadingTime}</p>
+                  <p className="text-sm text-muted-foreground">{t('achievements.totalReadingTime')}</p>
+                </div>
+                <div className="bg-card/50 p-4 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">{learningStatsData.chaptersCompleted} <span className="text-base text-muted-foreground">/ {learningStatsData.totalChapters}</span></p>
+                  <p className="text-sm text-muted-foreground">{t('achievements.chaptersCompletedFull')}</p>
+                </div>
+                <div className="bg-card/50 p-4 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">{learningStatsData.notesTaken}</p>
+                  <p className="text-sm text-muted-foreground">{t('achievements.notesTaken')}</p>
+                </div>
+                <div className="bg-card/50 p-4 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">{learningStatsData.currentStreak} {t('achievements.currentStreak').includes('Days') ? 'Days' : '天'}</p>
+                  <p className="text-sm text-muted-foreground">{t('achievements.currentStreak')}</p>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="overallProgress" className="text-sm text-muted-foreground">{t('achievements.overallProgress')}</Label>
+                <Progress
+                  id="overallProgress"
+                  value={learningStatsData.totalChapters > 0 ? (learningStatsData.chaptersCompleted / learningStatsData.totalChapters) * 100 : 0}
+                  className="w-full h-3 mt-1"
+                  indicatorClassName="bg-gradient-to-r from-primary to-yellow-400"
+                />
+                <p className="text-xs text-right text-muted-foreground mt-1">
+                  {learningStatsData.chaptersCompleted} / {learningStatsData.totalChapters} {t('achievements.chaptersUnit')}
+                </p>
+              </div>
+            </>
+          )}
+          <div className="text-right">
             <Button variant="link" onClick={() => alert(t('achievements.viewDetailedAnalysis'))} className="text-primary">
               {t('achievements.viewDetailedAnalysis')} &rarr;
             </Button>
