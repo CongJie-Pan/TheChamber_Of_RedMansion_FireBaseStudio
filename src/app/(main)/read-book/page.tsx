@@ -604,6 +604,9 @@ export default function ReadBookPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  // Task 4.5 V2: Native div viewport ref for bi-column mode (bypasses Radix ScrollArea limitations)
+  const paginationViewportRef = useRef<HTMLDivElement>(null);
+
   // Task 4.5 Fix: Dynamic toolbar height measurement (replaces hardcoded TOOLBAR_HEIGHT)
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [dynamicToolbarHeight, setDynamicToolbarHeight] = useState<number>(TOOLBAR_HEIGHT);
@@ -865,9 +868,11 @@ export default function ReadBookPage() {
     setIsToolbarVisible(true);
     // Reset chapter scroll completion state when changing chapters
     setHasScrolledToBottom(false);
-    // Scroll to top of chapter content when chapter changes
+    // Task 4.5 V2: Reset pagination state when chapter changes
+    setCurrentPage(1);
+    // Task 4.5 V2: Scroll to top of chapter content when chapter changes
     if (chapterContentRef.current) {
-      const viewportEl =
+      const viewportEl = paginationViewportRef.current ||
         (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
         (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
       if (viewportEl) {
@@ -885,13 +890,13 @@ export default function ReadBookPage() {
     });
   }, []);
 
-  // Task 4.5: Updated computePagination with epub.js patterns (2025-12-01)
-  // - Uses TOOLBAR_HEIGHT constant for consistent height calculation
-  // - Applies padding-based spacing (epub.js pattern: gap/2 on each side)
-  // - Adds WebKit glyph optimization
+  // Task 4.5 V2: Updated computePagination (2025-12-01)
+  // - Prioritizes paginationViewportRef for native div (bypasses ScrollArea)
+  // - Falls back to DOM query for compatibility
   const computePagination = useCallback(() => {
     if (!isPaginationMode) return;
-    const viewportEl =
+    // Task 4.5 V2: Use ref first, then fallback to DOM query
+    const viewportEl = paginationViewportRef.current ||
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     if (!viewportEl) return;
@@ -1036,8 +1041,8 @@ export default function ReadBookPage() {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         computePagination();
 
-        // Auto-focus the viewport for keyboard navigation
-        const viewportEl =
+        // Task 4.5 V2: Auto-focus using ref first
+        const viewportEl = paginationViewportRef.current ||
           (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
           (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
 
@@ -1080,7 +1085,8 @@ export default function ReadBookPage() {
       // 有選取內容，設置 selectedTextInfo
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
-      const scrollAreaElement =
+      // Task 4.5 V2: Use ref first
+      const scrollAreaElement = paginationViewportRef.current ||
         (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
         (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
       const scrollTop = scrollAreaElement?.scrollTop || 0;
@@ -1116,7 +1122,8 @@ export default function ReadBookPage() {
     // Skip if already marked as scrolled to bottom
     if (hasScrolledToBottom) return;
 
-    const scrollAreaElement =
+    // Task 4.5 V2: Use ref first
+    const scrollAreaElement = paginationViewportRef.current ||
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
 
@@ -1139,7 +1146,8 @@ export default function ReadBookPage() {
 
   useEffect(() => {
     document.addEventListener('mouseup', handleMouseUp);
-    const scrollAreaElement =
+    // Task 4.5 V2: Use ref first
+    const scrollAreaElement = paginationViewportRef.current ||
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     scrollAreaElement?.addEventListener('scroll', handleScroll, { passive: true, capture: true });
@@ -1161,7 +1169,8 @@ export default function ReadBookPage() {
   useEffect(() => {
     if (!isPaginationMode) return;
 
-    const viewportEl =
+    // Task 4.5 V2: Use ref first
+    const viewportEl = paginationViewportRef.current ||
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     const contentEl = chapterContentRef.current as HTMLElement | null;
@@ -1200,10 +1209,11 @@ export default function ReadBookPage() {
     };
   }, [isPaginationMode, computePagination]);
 
-  // Task 4.5: Refactored goToPage - no longer sets state internally (2025-12-01)
+  // Task 4.5 V2: Refactored goToPage - uses paginationViewportRef first (2025-12-01)
   // State is now managed by goNextPage/goPrevPage to avoid race conditions
   const goToPage = useCallback((page: number) => {
-    const el =
+    // Task 4.5 V2: Use ref first, then fallback to DOM query
+    const el = paginationViewportRef.current ||
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
     if (!el) {
@@ -1310,6 +1320,24 @@ export default function ReadBookPage() {
       return newPage;
     });
   }, [isPaginationMode, goToPage]);
+
+  // Task 4.5 V2: Wheel handler for bi-column pagination mode (2025-12-01)
+  // Extracted as standalone callback to use with native div (not ScrollArea's viewportProps)
+  const handlePaginationWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (!isPaginationMode) return;
+    e.preventDefault();
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] Wheel event:', {
+        deltaY: e.deltaY,
+        direction: e.deltaY > 0 ? 'down (next)' : 'up (prev)',
+      });
+    }
+    if (e.deltaY > 0) {
+      goNextPage();
+    } else if (e.deltaY < 0) {
+      goPrevPage();
+    }
+  }, [isPaginationMode, goNextPage, goPrevPage]);
 
   // Task 4.5 Phase 2: Touch/swipe handlers using ref for better performance (2025-12-01)
   // Using ref instead of state avoids function recreation on every touch
@@ -1871,6 +1899,22 @@ export default function ReadBookPage() {
           questionSubmittedAtRef.current = Date.now();
           responseStartedAtRef.current = null;
           firstChunkSeenRef.current = false;
+
+          // BUG FIX: Create AI placeholder message IMMEDIATELY after user submits
+          // This ensures the AI response appears in the correct position (within ConversationFlow)
+          // instead of below the "--開啟新對話--" separator
+          const aiPlaceholderId = `ai-thinking-${Date.now()}`;
+          streamingAIMessageIdRef.current = aiPlaceholderId;
+          const aiPlaceholderMessage: ConversationMessage = {
+            id: aiPlaceholderId,
+            role: 'ai' as MessageRole,
+            content: '', // Empty - AIMessageBubble will show loading skeleton
+            timestamp: new Date(),
+            citations: [],
+            thinkingProcess: '', // Will be updated during streaming
+            isStreaming: true,
+          };
+          setActiveSessionMessages(prev => [...prev, aiPlaceholderMessage]);
           // Declare watchdog timer outside try/catch so it is visible in catch blocks
           let watchdogInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -2234,7 +2278,9 @@ export default function ReadBookPage() {
                         // Task 4.2 Fix: Trust fullContent as single source of truth
                         // fullContent accumulates all content server-side, no client concatenation needed
                         const updatedText = chunk.fullContent || m.content;
-                        const newThinking = extractedThinkingText || m.thinkingProcess || '';
+                        // BUG FIX: Use latestThinkingText to ensure thinking content streams incrementally
+                        // This fixes the issue where thinking content only showed after completion
+                        const newThinking = extractedThinkingText || latestThinkingText || m.thinkingProcess || '';
                         return {
                           ...m,
                           content: updatedText,
@@ -2244,23 +2290,41 @@ export default function ReadBookPage() {
                         };
                       }));
                     } else {
-                      // Task 4.2 Fix: Create streaming message immediately on first chunk
-                      // This ensures content updates work even when early chunks have only thinking/search data
-                      const initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
-
-                      console.log('[QA Module] Creating streaming AI message placeholder immediately');
-                      const aiMsgId = `ai-stream-${Date.now()}`;
-                      streamingAIMessageIdRef.current = aiMsgId;
-                      const aiStreamingMessage: ConversationMessage = {
-                        id: aiMsgId,
-                        role: 'ai',
-                        content: initialContent || '', // Empty is OK - will update incrementally
-                        timestamp: new Date(),
-                        citations: chunk.citations || [],
-                        thinkingProcess: extractedThinkingText || thinkingContent || '',
-                        isStreaming: true,
-                      };
-                      setActiveSessionMessages(prev => [...prev, aiStreamingMessage]);
+                      // Fallback: This should rarely happen since we create placeholder on submit
+                      // But keep it as safety net for edge cases
+                      // BUG FIX: Add duplicate message prevention check
+                      console.warn('[QA Module] No streaming message ID found - checking for existing streaming message');
+                      setActiveSessionMessages(prev => {
+                        // Check if there's already a streaming AI message to prevent duplicates
+                        const existingStreamingMsg = prev.find(m => m.role === 'ai' && m.isStreaming);
+                        if (existingStreamingMsg) {
+                          // Update existing message instead of creating new one
+                          console.warn('[QA Module] Found existing streaming message, updating instead of creating new');
+                          streamingAIMessageIdRef.current = existingStreamingMsg.id;
+                          return prev.map(m => {
+                            if (m.id !== existingStreamingMsg.id) return m;
+                            return {
+                              ...m,
+                              content: chunk.fullContent || chunk.content || m.content,
+                              citations: chunk.citations || m.citations,
+                              thinkingProcess: extractedThinkingText || latestThinkingText || m.thinkingProcess || '',
+                            };
+                          });
+                        }
+                        // No existing streaming message, create new one
+                        const aiMsgId = `ai-stream-${Date.now()}`;
+                        streamingAIMessageIdRef.current = aiMsgId;
+                        const aiStreamingMessage: ConversationMessage = {
+                          id: aiMsgId,
+                          role: 'ai',
+                          content: chunk.fullContent || chunk.content || '',
+                          timestamp: new Date(),
+                          citations: chunk.citations || [],
+                          thinkingProcess: extractedThinkingText || latestThinkingText || thinkingContent || '',
+                          isStreaming: true,
+                        };
+                        return [...prev, aiStreamingMessage];
+                      });
                     }
 
                     if (chunk.isComplete) {
@@ -3388,89 +3452,85 @@ ${selectedTextContent}
         </div>
       </div>
 
-      <ScrollArea
-        className={cn(
-          "flex-grow pb-10 px-4 md:px-8", // Task 4.5 Fix: Using dynamicToolbarHeight for padding
-          selectedTheme.readingBgClass,
-          isPaginationMode ? 'overflow-hidden' : ''
-        )}
-        style={{ paddingTop: `${dynamicToolbarHeight}px` }} // Dynamic from measured toolbar height
-        id="chapter-content-scroll-area"
-        ref={scrollAreaRef as any}
-        viewportProps={{
-          id: 'chapter-content-viewport',
-          tabIndex: isPaginationMode ? 0 : -1, // Enable keyboard focus in pagination mode
-          style: isPaginationMode ? ({
-            overscrollBehavior: 'contain',
-            outline: 'none', // Remove default focus outline, use custom styling if needed
-            // Task 4.5 Fix: Use dynamicToolbarHeight for responsive height calculation
-            // - Fixed height forces columns to break and flow horizontally
-            // - overflow-x scroll allows JS-controlled horizontal scrolling (was 'hidden' - blocked scrollTo!)
-            // - overflow-y hidden prevents vertical scrolling
-            height: `calc(100vh - ${dynamicToolbarHeight}px)`, // Fixed height = viewport minus toolbar
-            overflowX: 'scroll', // CRITICAL FIX: Changed from 'hidden' to allow scrollTo() to work
-            overflowY: 'hidden',
-            scrollBehavior: 'smooth', // Smooth scrolling for better UX
-            scrollbarWidth: 'none', // Hide scrollbar (Firefox)
-            msOverflowStyle: 'none', // Hide scrollbar (IE/Edge)
-          } as React.CSSProperties) : undefined,
-          'aria-label': isPaginationMode ? '雙欄閱讀模式 - 使用左右方向鍵翻頁' : undefined,
-          onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
-            if (!isPaginationMode) return;
-            if (e.defaultPrevented) return; // global handler already took over
-            e.preventDefault();
-            // Task 4.5 Phase 3: Wheel event logging (2025-12-01)
-            if (DEBUG_PAGINATION) {
-              console.log('[Pagination] Wheel event:', {
-                deltaY: e.deltaY,
-                direction: e.deltaY > 0 ? 'down (next)' : 'up (prev)',
-                isPaginationMode,
-              });
-            }
-            if (e.deltaY > 0) {
-              goNextPage();
-            } else if (e.deltaY < 0) {
-              goPrevPage();
-            }
-          },
-          onWheelCapture: (e: React.WheelEvent<HTMLDivElement>) => {
-            if (!isPaginationMode) return;
-            e.preventDefault();
-          },
-        } as any}
-      >
+      {/* Task 4.5 V2: Conditional rendering - Native div for bi-column, ScrollArea for single-column */}
+      {/* Radix ScrollArea's internal structure breaks CSS multi-column layout, so we bypass it in pagination mode */}
+      {isPaginationMode ? (
+        // Bi-column mode: Use native div to bypass Radix ScrollArea limitations
         <div
-          ref={chapterContentRef}
+          id="chapter-content-viewport"
+          ref={paginationViewportRef}
+          tabIndex={0}
           className={cn(
-            "prose prose-sm sm:prose-base lg:prose-lg max-w-none mx-auto select-text",
-            !isPaginationMode ? getColumnClass() : '', // Task 4.5 Fix: Only use Tailwind class when NOT in pagination mode (avoid conflict with inline styles)
-            selectedFontFamily.class || '',
-            selectedTheme.readingTextClass,
-            activeThemeKey === 'night' ? 'prose-invert' : ''
+            "flex-grow px-4 md:px-8",
+            selectedTheme.readingBgClass,
           )}
           style={{
-            fontSize: `${currentNumericFontSize}px`,
-            fontFamily: (selectedFontFamily as any).family || undefined,
-            // Task 4.5 Fix: Updated CSS Layout Constraints with dynamicToolbarHeight
-            ...(columnLayout === 'double' && isPaginationMode ? {
-              // Explicit height constraint (matches viewport exactly)
+            paddingTop: `${dynamicToolbarHeight}px`,
+            height: '100vh',
+            overflowX: 'scroll',
+            overflowY: 'hidden',
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'none', // Hide scrollbar (Firefox)
+            msOverflowStyle: 'none', // Hide scrollbar (IE/Edge)
+            overscrollBehavior: 'contain',
+            outline: 'none',
+          } as React.CSSProperties}
+          onWheel={handlePaginationWheel}
+          aria-label="雙欄閱讀模式 - 使用左右方向鍵翻頁"
+        >
+          <div
+            ref={chapterContentRef}
+            className={cn(
+              "prose prose-sm sm:prose-base lg:prose-lg max-w-none mx-auto select-text",
+              selectedFontFamily.class || '',
+              selectedTheme.readingTextClass,
+              activeThemeKey === 'night' ? 'prose-invert' : ''
+            )}
+            style={{
+              fontSize: `${currentNumericFontSize}px`,
+              fontFamily: (selectedFontFamily as any).family || undefined,
+              // CSS Multi-column layout for bi-column reading
               height: `calc(100vh - ${dynamicToolbarHeight}px)`,
-              // Allow width to expand automatically
               width: 'auto',
-              // Column settings
               columnCount: 2,
-              columnWidth: 'auto', // Let column-count take precedence
               columnGap: '3rem',
               columnFill: 'auto',
-              // Layout related
-              position: 'relative' as const,
-              boxSizing: 'border-box' as const,
-            } : {})
-          }}
-        >
-          {processContent(currentChapter)}
+              position: 'relative',
+              boxSizing: 'border-box',
+            }}
+          >
+            {processContent(currentChapter)}
+          </div>
         </div>
-      </ScrollArea>
+      ) : (
+        // Single-column mode: Use ScrollArea (preserves original behavior)
+        <ScrollArea
+          className={cn(
+            "flex-grow pb-10 px-4 md:px-8",
+            selectedTheme.readingBgClass,
+          )}
+          style={{ paddingTop: `${dynamicToolbarHeight}px` }}
+          id="chapter-content-scroll-area"
+          ref={scrollAreaRef as any}
+        >
+          <div
+            ref={chapterContentRef}
+            className={cn(
+              "prose prose-sm sm:prose-base lg:prose-lg max-w-none mx-auto select-text",
+              getColumnClass(),
+              selectedFontFamily.class || '',
+              selectedTheme.readingTextClass,
+              activeThemeKey === 'night' ? 'prose-invert' : ''
+            )}
+            style={{
+              fontSize: `${currentNumericFontSize}px`,
+              fontFamily: (selectedFontFamily as any).family || undefined,
+            }}
+          >
+            {processContent(currentChapter)}
+          </div>
+        </ScrollArea>
+      )}
 
       {/* Task 4.5: Kindle-style Edge Navigation Zones (2025-12-01) */}
       {/* Invisible click/tap zones on left and right edges for intuitive page navigation */}
@@ -4013,7 +4073,7 @@ ${selectedTextContent}
                             answer={message.content}  // ✅ Use message data, not global state
                             citations={message.citations || []}  // ✅ Use message data
                             thinkingProcess={message.thinkingProcess}  // ✅ Use message data
-                            thinkingDuration={message.thinkingDuration || 10}  // ✅ Use message data
+                            thinkingDuration={message.thinkingDuration}  // ✅ Use message data (undefined shows "思考完成")
                             isThinkingComplete={!message.isStreaming}
                             isStreaming={message.isStreaming || false}
                             onCitationClick={(citationId) => {
@@ -4040,16 +4100,9 @@ ${selectedTextContent}
                     }}
                   />
 
-                  {/* Show standalone thinking indicator while waiting for first AI tokens */}
-                  {thinkingStatus === 'thinking' && !hasStreamingAiMessage && (
-                    <ThinkingProcessIndicator
-                      status={thinkingStatus}
-                      content={thinkingContent}
-                      isExpandable={true}
-                      defaultExpanded={true}
-                      // ✅ Removed progress prop to hide progress bar and percentage
-                    />
-                  )}
+                  {/* BUG FIX: Removed standalone ThinkingProcessIndicator
+                      The AI placeholder message now handles thinking display within ConversationFlow
+                      This fixes the position bug where thinking appeared BELOW the separator */}
                   </>
                   )}
                 </div>

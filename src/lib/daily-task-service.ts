@@ -51,6 +51,33 @@ let sqliteModulesLoaded = false;
 let moduleLoadAttempted = false;
 
 /**
+ * Helper function to resolve ESM default exports from require()
+ * In serverless environments, ESM modules loaded via require() may have
+ * their exports wrapped in a .default property
+ *
+ * Phase 4.6 Fix: Enhanced to handle multiple module formats in Next.js 15 serverless:
+ * 1. Direct named exports: { getProgress, updateProgress, ... }
+ * 2. Default export wrapper: { default: { getProgress, ... } }
+ * 3. Mixed exports: { default: {...}, getProgress, ... }
+ */
+function resolveModule(mod: any): any {
+  if (!mod) return mod;
+
+  // If module has a default export and it's an object with functions, use it
+  if (mod.default && typeof mod.default === 'object') {
+    // Check if default has the functions we need (for repositories)
+    if (typeof mod.default.getProgress === 'function' ||
+        typeof mod.default.getUserById === 'function' ||
+        typeof mod.default.getTaskById === 'function') {
+      return mod.default;
+    }
+  }
+
+  // Otherwise return the module as-is (named exports case)
+  return mod;
+}
+
+/**
  * Lazy initialization function for Turso/SQLite modules
  * Called on first use instead of at module load time to prevent build errors
  */
@@ -67,29 +94,114 @@ function ensureModulesLoaded(): void {
     return;
   }
 
+  // Debug flag for verbose logging (only enable in development or when debugging)
+  const DEBUG_MODULE_LOADING = process.env.NODE_ENV === 'development' || process.env.DEBUG_MODULE_LOADING === 'true';
+  const MAX_LOG_KEYS = 8; // Limit keys in diagnostic output
+
   try {
-    userRepository = require('./repositories/user-repository');
-    taskRepository = require('./repositories/task-repository');
-    progressRepository = require('./repositories/progress-repository');
+    // Load modules with ESM default export resolution
+    // This handles both CommonJS and ESM module formats in serverless environments
+    console.log('[DailyTaskService] Loading repository modules...');
+
+    const userRepo = require('./repositories/user-repository');
+    const taskRepo = require('./repositories/task-repository');
+    const progressRepo = require('./repositories/progress-repository');
     const sqliteDb = require('./sqlite-db');
-    fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
+
+    // Debug logging BEFORE resolution (development only to reduce log noise)
+    if (DEBUG_MODULE_LOADING) {
+      console.log('[DailyTaskService] Raw module structure:', {
+        userRepo: {
+          type: typeof userRepo,
+          hasDefault: !!userRepo?.default,
+          keys: Object.keys(userRepo || {}).slice(0, MAX_LOG_KEYS),
+          defaultKeys: userRepo?.default ? Object.keys(userRepo.default).slice(0, MAX_LOG_KEYS) : 'N/A'
+        },
+        progressRepo: {
+          type: typeof progressRepo,
+          hasDefault: !!progressRepo?.default,
+          keys: Object.keys(progressRepo || {}).slice(0, MAX_LOG_KEYS),
+          defaultKeys: progressRepo?.default ? Object.keys(progressRepo.default).slice(0, MAX_LOG_KEYS) : 'N/A',
+          getProgressType: typeof progressRepo?.getProgress,
+          defaultGetProgressType: typeof progressRepo?.default?.getProgress
+        },
+        sqliteDb: {
+          type: typeof sqliteDb,
+          hasDefault: !!sqliteDb?.default,
+          keys: Object.keys(sqliteDb || {}).slice(0, MAX_LOG_KEYS)
+        }
+      });
+    }
+
+    userRepository = resolveModule(userRepo);
+    taskRepository = resolveModule(taskRepo);
+    progressRepository = resolveModule(progressRepo);
+
+    // Handle fromUnixTimestamp with fallback
+    const resolvedSqliteDb = resolveModule(sqliteDb);
+    fromUnixTimestamp = resolvedSqliteDb?.fromUnixTimestamp ?? sqliteDb?.fromUnixTimestamp;
+
+    if (typeof fromUnixTimestamp !== 'function') {
+      console.warn('⚠️ [DailyTaskService] fromUnixTimestamp not found, using fallback');
+      fromUnixTimestamp = (timestamp: number) => ({
+        toMillis: () => timestamp,
+        toDate: () => new Date(timestamp),
+        isEqual: (other: any) => other?.toMillis?.() === timestamp,
+        toJSON: () => ({ seconds: Math.floor(timestamp / 1000), nanoseconds: (timestamp % 1000) * 1000000 }),
+        seconds: Math.floor(timestamp / 1000),
+        nanoseconds: (timestamp % 1000) * 1000000,
+      });
+    }
+
+    // Debug logging AFTER resolution (development only)
+    if (DEBUG_MODULE_LOADING) {
+      console.log('[DailyTaskService] Resolved module structure:', {
+        progressRepository: {
+          type: typeof progressRepository,
+          getProgressType: typeof progressRepository?.getProgress,
+          updateProgressType: typeof progressRepository?.updateProgress,
+          createProgressType: typeof progressRepository?.createProgress,
+          keys: Object.keys(progressRepository || {}).slice(0, MAX_LOG_KEYS)
+        }
+      });
+    }
+
     sqliteModulesLoaded = true;
     console.log('✅ [DailyTaskService] Turso modules loaded successfully');
 
-    // Verify all required progressRepository functions are accessible
+    // Phase 4.6 Fix: Validate repository functions with proper fallback retry logic
+    // First, try primary resolution; if fails, try default export fallback
     const requiredFunctions = ['getProgress', 'updateProgress', 'createProgress'];
-    for (const fn of requiredFunctions) {
-      if (typeof progressRepository[fn] !== 'function') {
-        console.error(`❌ [DailyTaskService] progressRepository.${fn} is not available`);
-        console.error('   Available exports:', Object.keys(progressRepository));
-        sqliteModulesLoaded = false;
-        return;
-      }
+    let allFunctionsValid = requiredFunctions.every(fn => typeof progressRepository?.[fn] === 'function');
+
+    // If primary resolution failed, try default export as fallback
+    if (!allFunctionsValid && progressRepo?.default) {
+      console.log('[DailyTaskService] Primary resolution failed, trying default export fallback...');
+      progressRepository = progressRepo.default;
+      allFunctionsValid = requiredFunctions.every(fn => typeof progressRepository?.[fn] === 'function');
     }
+
+    // Final validation - log missing functions if still failing
+    if (!allFunctionsValid) {
+      console.error('❌ [DailyTaskService] progressRepository validation failed');
+      console.error('   progressRepository type:', typeof progressRepository);
+      console.error('   Available exports:', Object.keys(progressRepository || {}));
+      for (const fn of requiredFunctions) {
+        if (typeof progressRepository?.[fn] !== 'function') {
+          console.error(`   Missing function: ${fn}`);
+        }
+      }
+      sqliteModulesLoaded = false;
+      return;
+    }
+
     console.log('✅ [DailyTaskService] All progressRepository functions verified');
   } catch (error: any) {
     sqliteModulesLoaded = false;
     console.error('❌ [DailyTaskService] Failed to load Turso modules:', error.message);
+    if (DEBUG_MODULE_LOADING) {
+      console.error('   Stack trace:', error.stack);
+    }
     console.error('   Ensure TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are configured.');
     // Don't throw here - let ensureSQLiteAvailable() handle the error at runtime
   }

@@ -95,8 +95,10 @@ export function AIMessageBubble({
   onThinkingToggle,
 }: AIMessageBubbleProps) {
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
-  // Show the thinking section ONLY when actual thinking content exists
-  const showThinkingSection = hasThinkingContent && showThinkingInline;
+  // BUG FIX: Show thinking section header during streaming even without content
+  // This ensures users see "深度思考中..." while waiting for thinking content to stream
+  // Show when: (has content) OR (still streaming/thinking in progress)
+  const showThinkingSection = showThinkingInline && (hasThinkingContent || !isThinkingComplete);
 
   // Determine expanded state based on preference (Task 4.2 Fix - Bug #3)
   // - 'auto': Expand when content is shown
@@ -151,8 +153,8 @@ export function AIMessageBubble({
             <ChevronDown className={cn('w-4 h-4 flex-shrink-0 transition-transform', isThinkingExpanded ? 'rotate-0' : '-rotate-90')} />
             <span className="font-medium">
               {isThinkingComplete
-                ? (typeof thinkingDuration === 'number' ? `Thought for ${Math.max(0, thinkingDuration)} seconds` : 'Thought complete')
-                : 'Thinking…'}
+                ? (typeof thinkingDuration === 'number' ? `思考了 ${Math.max(0, thinkingDuration)} 秒` : '思考完成')
+                : '深度思考中…'}
             </span>
           </button>
 
