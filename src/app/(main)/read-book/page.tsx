@@ -604,6 +604,10 @@ export default function ReadBookPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  // Task 4.5 Fix: Dynamic toolbar height measurement (replaces hardcoded TOOLBAR_HEIGHT)
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [dynamicToolbarHeight, setDynamicToolbarHeight] = useState<number>(TOOLBAR_HEIGHT);
+
   // Task 4.5 Phase 2: Touch/swipe ref for mobile navigation (2025-12-01)
   // Using ref instead of state to avoid unnecessary re-renders during touch handling
   const touchStartXRef = useRef<number | null>(null);
@@ -617,6 +621,32 @@ export default function ReadBookPage() {
     currentPageRef.current = currentPage;
     totalPagesRef.current = totalPages;
   }, [currentPage, totalPages]);
+
+  // Task 4.5 Fix: Measure toolbar height dynamically using ResizeObserver
+  useEffect(() => {
+    const measureToolbar = () => {
+      if (toolbarRef.current) {
+        const height = toolbarRef.current.getBoundingClientRect().height;
+        if (height > 0 && Math.abs(height - dynamicToolbarHeight) > 2) {
+          setDynamicToolbarHeight(height);
+          if (DEBUG_PAGINATION) {
+            console.log('[Pagination] Toolbar height measured:', height);
+          }
+        }
+      }
+    };
+
+    // Initial measurement
+    measureToolbar();
+
+    // Re-measure on resize
+    const resizeObserver = new ResizeObserver(measureToolbar);
+    if (toolbarRef.current) {
+      resizeObserver.observe(toolbarRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [dynamicToolbarHeight]);
 
   const selectedTheme = themes[activeThemeKey];
 
@@ -903,7 +933,7 @@ export default function ReadBookPage() {
     const expandedWidth = pageCount * singlePageWidth;
 
     // Task 4.5: Apply critical layout styles with epub.js patterns (2025-12-01)
-    // - Uses TOOLBAR_HEIGHT constant for consistent height
+    // - Uses dynamicToolbarHeight for responsive height calculation
     // - Adds padding-based spacing for UI avoidance
     // - Includes WebKit glyph optimization
     setImportantStyles(contentEl, {
@@ -911,7 +941,7 @@ export default function ReadBookPage() {
       'column-count': '2',
       'column-gap': `${gap}px`,
       'column-fill': 'auto',
-      'height': `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+      'height': `calc(100vh - ${dynamicToolbarHeight}px)`,
       'box-sizing': 'border-box',
       'position': 'relative',
       'padding-left': `${sidePadding}px`,
@@ -920,7 +950,7 @@ export default function ReadBookPage() {
       '-webkit-line-box-contain': 'block glyphs replaced', // WebKit glyph optimization
     });
 
-    // Validation: verify expansion succeeded
+    // Validation: verify expansion succeeded and columns rendered
     requestAnimationFrame(() => {
       const actualWidth = contentEl.offsetWidth;
       if (Math.abs(actualWidth - expandedWidth) > 10) {
@@ -932,17 +962,34 @@ export default function ReadBookPage() {
           });
         }
       }
+
+      // Task 4.5 Fix: Verify columns actually rendered, force recovery if not
+      const verifyStyle = window.getComputedStyle(contentEl);
+      const renderedColumnCount = verifyStyle.columnCount;
+
+      if (renderedColumnCount === 'auto' || renderedColumnCount === '1') {
+        console.error('[Pagination] CRITICAL: Columns failed to render!', {
+          expected: 2,
+          actual: renderedColumnCount,
+          height: contentEl.offsetHeight,
+          width: contentEl.scrollWidth,
+        });
+
+        // Force column styles with !important as recovery
+        contentEl.style.setProperty('column-count', '2', 'important');
+        contentEl.style.setProperty('height', `${window.innerHeight - dynamicToolbarHeight}px`, 'important');
+      }
     });
 
     // Task 4.5 Phase 3: Toolbar/Height calculation logging (2025-12-01)
     if (DEBUG_PAGINATION) {
       console.log('[Pagination] Toolbar/Height calculation:', {
-        TOOLBAR_HEIGHT,
-        viewportHeightCSS: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+        dynamicToolbarHeight,
+        viewportHeightCSS: `calc(100vh - ${dynamicToolbarHeight}px)`,
         actualViewportHeight: viewportEl.clientHeight,
         windowInnerHeight: window.innerHeight,
-        expectedContentHeight: window.innerHeight - TOOLBAR_HEIGHT,
-        heightDiff: Math.abs(viewportEl.clientHeight - (window.innerHeight - TOOLBAR_HEIGHT)),
+        expectedContentHeight: window.innerHeight - dynamicToolbarHeight,
+        heightDiff: Math.abs(viewportEl.clientHeight - (window.innerHeight - dynamicToolbarHeight)),
       });
     }
 
@@ -976,7 +1023,7 @@ export default function ReadBookPage() {
     setTotalPages(pageCount);
     const clamped = Math.min(pageCount, Math.max(1, currentPage));
     setCurrentPage(clamped);
-  }, [isPaginationMode, currentPage, setImportantStyles]);
+  }, [isPaginationMode, currentPage, setImportantStyles, dynamicToolbarHeight]);
 
   // Enable pagination automatically for double-column layout
   useEffect(() => {
@@ -1164,10 +1211,24 @@ export default function ReadBookPage() {
       return;
     }
 
+    // Task 4.5 Fix: Verify columns are rendered, trigger recovery if not
+    const contentEl = chapterContentRef.current;
+    if (contentEl) {
+      const computedStyle = window.getComputedStyle(contentEl);
+      const actualColumnCount = parseInt(computedStyle.columnCount) || 1;
+
+      if (actualColumnCount < 2 && isPaginationMode) {
+        if (DEBUG_PAGINATION) console.warn('[Pagination] goToPage: columns not rendered, triggering recovery...');
+        // Force recompute pagination
+        requestAnimationFrame(() => computePagination());
+        return;
+      }
+    }
+
     // Task 4.5: Verify column layout is still active before scrolling (2025-12-01)
     const computedStyle = window.getComputedStyle(el);
     if (computedStyle.columnCount === 'auto' || computedStyle.columnCount === '1') {
-      if (DEBUG_PAGINATION) console.warn('[Pagination] goToPage: columns not rendered, skipping navigation');
+      if (DEBUG_PAGINATION) console.warn('[Pagination] goToPage: viewport columns not rendered, skipping navigation');
       return;
     }
 
@@ -1202,7 +1263,7 @@ export default function ReadBookPage() {
       });
     }
     // Note: setCurrentPage is now handled by caller (goNextPage/goPrevPage)
-  }, []);
+  }, [isPaginationMode, computePagination]);
 
   // Task 4.5: Fixed navigation using functional state updates (2025-12-01)
   // This fixes the "cannot go to previous page" bug caused by stale ref values
@@ -3135,6 +3196,7 @@ ${selectedTextContent}
   return (
     <div className="h-full flex flex-col">
       <div
+        ref={toolbarRef}
         className={cn(
           "fixed top-0 left-0 right-0 z-50 backdrop-blur-md shadow-lg p-2 transition-all duration-300 ease-in-out",
           isToolbarVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full",
@@ -3328,11 +3390,11 @@ ${selectedTextContent}
 
       <ScrollArea
         className={cn(
-          "flex-grow pb-10 px-4 md:px-8", // Task 4.5 Phase 2: Removed pt-24, using inline style with TOOLBAR_HEIGHT constant
+          "flex-grow pb-10 px-4 md:px-8", // Task 4.5 Fix: Using dynamicToolbarHeight for padding
           selectedTheme.readingBgClass,
           isPaginationMode ? 'overflow-hidden' : ''
         )}
-        style={{ paddingTop: `${TOOLBAR_HEIGHT}px` }} // Dynamic from constant to avoid dual source of truth
+        style={{ paddingTop: `${dynamicToolbarHeight}px` }} // Dynamic from measured toolbar height
         id="chapter-content-scroll-area"
         ref={scrollAreaRef as any}
         viewportProps={{
@@ -3341,13 +3403,16 @@ ${selectedTextContent}
           style: isPaginationMode ? ({
             overscrollBehavior: 'contain',
             outline: 'none', // Remove default focus outline, use custom styling if needed
-            // Task 4.5: Use TOOLBAR_HEIGHT constant for consistent height (2025-12-01)
+            // Task 4.5 Fix: Use dynamicToolbarHeight for responsive height calculation
             // - Fixed height forces columns to break and flow horizontally
-            // - overflow-x hidden allows JS-controlled horizontal scrolling
+            // - overflow-x scroll allows JS-controlled horizontal scrolling (was 'hidden' - blocked scrollTo!)
             // - overflow-y hidden prevents vertical scrolling
-            height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`, // Fixed height = viewport minus toolbar
-            overflowX: 'hidden',
+            height: `calc(100vh - ${dynamicToolbarHeight}px)`, // Fixed height = viewport minus toolbar
+            overflowX: 'scroll', // CRITICAL FIX: Changed from 'hidden' to allow scrollTo() to work
             overflowY: 'hidden',
+            scrollBehavior: 'smooth', // Smooth scrolling for better UX
+            scrollbarWidth: 'none', // Hide scrollbar (Firefox)
+            msOverflowStyle: 'none', // Hide scrollbar (IE/Edge)
           } as React.CSSProperties) : undefined,
           'aria-label': isPaginationMode ? '雙欄閱讀模式 - 使用左右方向鍵翻頁' : undefined,
           onWheel: (e: React.WheelEvent<HTMLDivElement>) => {
@@ -3378,7 +3443,7 @@ ${selectedTextContent}
           ref={chapterContentRef}
           className={cn(
             "prose prose-sm sm:prose-base lg:prose-lg max-w-none mx-auto select-text",
-            getColumnClass(),
+            !isPaginationMode ? getColumnClass() : '', // Task 4.5 Fix: Only use Tailwind class when NOT in pagination mode (avoid conflict with inline styles)
             selectedFontFamily.class || '',
             selectedTheme.readingTextClass,
             activeThemeKey === 'night' ? 'prose-invert' : ''
@@ -3386,10 +3451,10 @@ ${selectedTextContent}
           style={{
             fontSize: `${currentNumericFontSize}px`,
             fontFamily: (selectedFontFamily as any).family || undefined,
-            // Task 4.5: Updated CSS Layout Constraints with TOOLBAR_HEIGHT (2025-12-01)
+            // Task 4.5 Fix: Updated CSS Layout Constraints with dynamicToolbarHeight
             ...(columnLayout === 'double' && isPaginationMode ? {
               // Explicit height constraint (matches viewport exactly)
-              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+              height: `calc(100vh - ${dynamicToolbarHeight}px)`,
               // Allow width to expand automatically
               width: 'auto',
               // Column settings
@@ -3424,9 +3489,9 @@ ${selectedTextContent}
             onTouchEnd={handleTouchEnd}
             className="fixed left-0 z-30 cursor-w-resize group"
             style={{
-              top: `${TOOLBAR_HEIGHT}px`,
+              top: `${dynamicToolbarHeight}px`,
               width: '8%', // Task 4.5 Phase 2: Reduced from 15% to minimize text selection interference
-              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+              height: `calc(100vh - ${dynamicToolbarHeight}px)`,
               background: 'transparent',
             }}
             aria-label="上一頁"
@@ -3453,9 +3518,9 @@ ${selectedTextContent}
             onTouchEnd={handleTouchEnd}
             className="fixed right-0 z-30 cursor-e-resize group"
             style={{
-              top: `${TOOLBAR_HEIGHT}px`,
+              top: `${dynamicToolbarHeight}px`,
               width: '8%', // Task 4.5 Phase 2: Reduced from 15% to minimize text selection interference
-              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+              height: `calc(100vh - ${dynamicToolbarHeight}px)`,
               background: 'transparent',
             }}
             aria-label="下一頁"
@@ -3779,20 +3844,22 @@ ${selectedTextContent}
       
       <Sheet open={isAiSheetOpen} onOpenChange={(open) => {setIsAiSheetOpen(open); if (!open) {setSelectedTextInfo(null); setTextExplanation(null); setAiAnalysisContent(null); setPerplexityResponse(null); setPerplexityStreamingChunks([]);} handleInteraction(); }}>
         <SheetContent
-          side="right"
-          className="!w-[90vw] sm:!w-[80vw] md:!w-[60vw] lg:!w-[50vw] !max-w-none sm:!max-w-none md:!max-w-none lg:!max-w-none bg-card text-card-foreground p-0 flex flex-col h-full relative"
+          side="bottom"
+          className="h-screen w-screen bg-black text-white p-0 flex flex-col fixed inset-0 z-50"
+          aria-label="AI 問答對話視窗"
           data-no-selection="true"
           onClick={(e) => {e.stopPropagation(); handleInteraction();}}
+          onCloseAutoFocus={(e) => e.preventDefault()}
         >
-            {/* Header */}
-            <SheetHeader className="p-4 border-b border-border shrink-0">
-                <SheetTitle className="text-primary text-xl font-artistic">
+            {/* Header - Task 4.2: Updated for fullscreen black background */}
+            <SheetHeader className="p-4 border-b border-white/20 shrink-0">
+                <SheetTitle className="text-red-400 text-xl font-artistic">
                   {aiMode === 'new-conversation' && '開啟新對話'}
                   {aiMode === 'book-sources' && '書籍引源 · 11'}
                   {aiMode === 'ai-analysis' && `AI 問書 《紅樓夢》`}
                   {aiMode === 'perplexity-qa' && `問 AI`}
                 </SheetTitle>
-                <SheetDescription>
+                <SheetDescription className="text-gray-400">
                   {aiMode === 'new-conversation' && '請選擇您想了解的內容或直接提問'}
                   {aiMode === 'book-sources' && '相關書籍文獻資料與背景資訊'}
                   {aiMode === 'ai-analysis' && `第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」`}
@@ -3813,7 +3880,7 @@ ${selectedTextContent}
                 },
               }}
             >
-              {/* New Conversation Mode */}
+              {/* New Conversation Mode - Task 4.2: Updated for black background */}
               {aiMode === 'new-conversation' && (
                 <div className="space-y-4">
                   {/* Suggestion Questions */}
@@ -3822,7 +3889,7 @@ ${selectedTextContent}
                       <Button
                         key={index}
                         variant="outline"
-                        className="w-full h-auto p-4 text-left whitespace-normal justify-start text-sm bg-background/50 hover:bg-pink-100 dark:hover:bg-pink-950 border-primary/20 transition-colors duration-200 text-foreground hover:text-black dark:hover:text-white"
+                        className="w-full h-auto p-4 text-left whitespace-normal justify-start text-sm bg-white/10 hover:bg-red-900/50 border-white/20 transition-colors duration-200 text-white hover:text-white"
                         onClick={() => handleSuggestionClick(question)}
                       >
                         {question}
@@ -3832,36 +3899,36 @@ ${selectedTextContent}
                 </div>
               )}
 
-              {/* Book Sources Mode */}
+              {/* Book Sources Mode - Task 4.2: Updated for black background */}
               {aiMode === 'book-sources' && (
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Button variant="ghost" className="w-full p-4 text-left justify-between">
+                    <div className="border border-white/20 rounded-lg overflow-hidden">
+                      <Button variant="ghost" className="w-full p-4 text-left justify-between text-white hover:bg-white/10">
                         <span>① 賈寶玉《紅樓夢》走進名著</span>
                         <ChevronDown className="h-4 w-4" />
                       </Button>
-                      <div className="px-4 pb-4 text-sm text-muted-foreground">
+                      <div className="px-4 pb-4 text-sm text-gray-400">
                         <p>三、內容解析 《了不起的蓋茨比》生動地展現了「一戰」結束（1918年）到經濟大蕭條（1929年）這一時期美國年輕人對幸福感謎的精神狀況，隨著戰爭平息，和平...</p>
                       </div>
                     </div>
-                    
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Button variant="ghost" className="w-full p-4 text-left justify-between">
+
+                    <div className="border border-white/20 rounded-lg overflow-hidden">
+                      <Button variant="ghost" className="w-full p-4 text-left justify-between text-white hover:bg-white/10">
                         <span>② 白又彰《貞節知識萬花筒》</span>
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Button variant="ghost" className="w-full p-4 text-left justify-between">
+                    <div className="border border-white/20 rounded-lg overflow-hidden">
+                      <Button variant="ghost" className="w-full p-4 text-left justify-between text-white hover:bg-white/10">
                         <span>③ 柳筠九等《世界名著大師課合集》</span>
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Button variant="ghost" className="w-full p-4 text-left justify-between">
+                    <div className="border border-white/20 rounded-lg overflow-hidden">
+                      <Button variant="ghost" className="w-full p-4 text-left justify-between text-white hover:bg-white/10">
                         <span>④ 貳周月刊《股市亮席若欲州 香港風月刊2025年第9期》</span>
                         <ChevronDown className="h-4 w-4" />
                       </Button>
@@ -3870,31 +3937,31 @@ ${selectedTextContent}
                 </div>
               )}
 
-              {/* AI Analysis Mode */}
+              {/* AI Analysis Mode - Task 4.2: Updated for black background */}
               {aiMode === 'ai-analysis' && (
                 <div className="space-y-4">
                   {isLoadingExplanation && (
-                    <div className="p-8 flex flex-col items-center justify-center text-muted-foreground">
-                      <Lightbulb className="h-8 w-8 mb-2 animate-pulse text-primary" />
+                    <div className="p-8 flex flex-col items-center justify-center text-gray-400">
+                      <Lightbulb className="h-8 w-8 mb-2 animate-pulse text-red-400" />
                       <p>AI 正在分析中...</p>
                     </div>
                   )}
-                  
+
                   {/* Display AI content - prioritize aiAnalysisContent over textExplanation to avoid duplication */}
                   {(aiAnalysisContent || textExplanation) && (
-                    <div className="prose prose-sm dark:prose-invert max-w-none bg-background/20 rounded-lg p-4 border border-border/50">
-                      <ReactMarkdown 
-                        className="text-foreground leading-relaxed"
+                    <div className="prose prose-sm prose-invert max-w-none bg-white/5 rounded-lg p-4 border border-white/10">
+                      <ReactMarkdown
+                        className="text-gray-200 leading-relaxed"
                         components={{
-                          h1: ({node, ...props}) => <h1 className="text-xl font-bold text-primary mb-4" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-lg font-semibold text-primary mb-3" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-base font-medium text-primary mb-2" {...props} />,
-                          p: ({node, ...props}) => <p className="text-foreground mb-3 leading-relaxed" {...props} />,
-                          ul: ({node, ...props}) => <ul className="text-foreground mb-3 pl-6 space-y-1" {...props} />,
-                          ol: ({node, ...props}) => <ol className="text-foreground mb-3 pl-6 space-y-1" {...props} />,
-                          li: ({node, ...props}) => <li className="text-foreground" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-semibold text-primary" {...props} />,
-                          em: ({node, ...props}) => <em className="italic text-muted-foreground" {...props} />,
+                          h1: ({node, ...props}) => <h1 className="text-xl font-bold text-red-400 mb-4" {...props} />,
+                          h2: ({node, ...props}) => <h2 className="text-lg font-semibold text-red-400 mb-3" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-base font-medium text-red-400 mb-2" {...props} />,
+                          p: ({node, ...props}) => <p className="text-gray-200 mb-3 leading-relaxed" {...props} />,
+                          ul: ({node, ...props}) => <ul className="text-gray-200 mb-3 pl-6 space-y-1" {...props} />,
+                          ol: ({node, ...props}) => <ol className="text-gray-200 mb-3 pl-6 space-y-1" {...props} />,
+                          li: ({node, ...props}) => <li className="text-gray-200" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-semibold text-red-400" {...props} />,
+                          em: ({node, ...props}) => <em className="italic text-gray-400" {...props} />,
                         }}
                       >
                         {aiAnalysisContent || textExplanation}
@@ -3904,15 +3971,15 @@ ${selectedTextContent}
                 </div>
               )}
 
-              {/* Perplexity QA Mode - Redesigned UI (Fix Issue #4 & #5) */}
+              {/* Perplexity QA Mode - Task 4.2: Updated for black background */}
               {aiMode === 'perplexity-qa' && (
                 <div className="space-y-4 qa-module">
                   {/* Task 4.2 Fix: Show loading state while sessions initialize (Vercel SSR fix) */}
                   {!isSessionInitialized ? (
                     <div className="flex flex-col items-center justify-center py-16 min-h-[200px]">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4" />
-                      <p className="text-foreground/80 font-medium">載入對話記錄中...</p>
-                      <p className="text-foreground/60 text-sm mt-1">請稍候</p>
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-400 mb-4" />
+                      <p className="text-white/80 font-medium">載入對話記錄中...</p>
+                      <p className="text-white/60 text-sm mt-1">請稍候</p>
                     </div>
                   ) : (
                   <>
@@ -3989,7 +4056,7 @@ ${selectedTextContent}
               )}
             </ScrollArea>
 
-            {/* Floating Scroll to Bottom Button (Task 4.2 Fix - Issue #3) */}
+            {/* Floating Scroll to Bottom Button (Task 4.2 Fix - Issue #3) - Updated for black background */}
             {/* Positioned above input area, right-aligned for less content overlap */}
             {!autoScrollEnabled && aiMode === 'perplexity-qa' && (
               <div className="absolute bottom-[180px] right-4 z-50 pointer-events-none">
@@ -4012,7 +4079,7 @@ ${selectedTextContent}
                       bottomAnchor?.scrollIntoView({ behavior: 'smooth', block: 'end' });
                     }
                   }}
-                  className="shadow-lg rounded-full px-4 py-2 flex items-center gap-2 pointer-events-auto bg-secondary hover:bg-secondary/80"
+                  className="shadow-lg rounded-full px-4 py-2 flex items-center gap-2 pointer-events-auto bg-white/20 hover:bg-white/30 text-white border border-white/30"
                   aria-label="Scroll to bottom"
                   title="回到底部"
                   variant="secondary"
@@ -4028,18 +4095,18 @@ ${selectedTextContent}
               </div>
             )}
 
-            {/* Bottom Section with Action Buttons and Input */}
-            <div className="shrink-0 p-4 border-t border-border bg-background/50">
+            {/* Bottom Section with Action Buttons and Input - Task 4.2: Updated for black background */}
+            <div className="shrink-0 p-4 border-t border-white/20 bg-black/80">
 
               {/* Action Buttons */}
               <div className="flex gap-2 mb-4">
                 <Button
                   variant="outline"
                   className={cn(
-                    "flex-1 text-sm bg-background/70",
-                    "hover:bg-pink-100 dark:hover:bg-pink-950",
+                    "flex-1 text-sm bg-white/10 border-white/20",
+                    "hover:bg-red-900/50",
                     "transition-colors duration-200",
-                    "text-foreground hover:text-black dark:hover:text-white"
+                    "text-white hover:text-white"
                   )}
                   onClick={handleBookHighlights}
                   disabled={isLoadingExplanation}
@@ -4049,10 +4116,10 @@ ${selectedTextContent}
                 <Button
                   variant="outline"
                   className={cn(
-                    "flex-1 text-sm bg-background/70",
-                    "hover:bg-pink-100 dark:hover:bg-pink-950",
+                    "flex-1 text-sm bg-white/10 border-white/20",
+                    "hover:bg-red-900/50",
                     "transition-colors duration-200",
-                    "text-foreground hover:text-black dark:hover:text-white"
+                    "text-white hover:text-white"
                   )}
                   onClick={handleBackgroundReading}
                   disabled={isLoadingExplanation}
@@ -4062,10 +4129,10 @@ ${selectedTextContent}
                 <Button
                   variant="outline"
                   className={cn(
-                    "flex-1 text-sm bg-background/70",
-                    "hover:bg-pink-100 dark:hover:bg-pink-950",
+                    "flex-1 text-sm bg-white/10 border-white/20",
+                    "hover:bg-red-900/50",
                     "transition-colors duration-200",
-                    "text-foreground hover:text-black dark:hover:text-white"
+                    "text-white hover:text-white"
                   )}
                   onClick={handleKeyConcepts}
                   disabled={isLoadingExplanation}
@@ -4080,7 +4147,7 @@ ${selectedTextContent}
                   value={userQuestionInput}
                   onChange={(e) => setUserQuestionInput(e.target.value)}
                   placeholder="提出問題，獲得來自書籍的解答..."
-                  className="flex-1 bg-background/70"
+                  className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-gray-500"
                   disabled={isLoadingExplanation}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -4097,6 +4164,7 @@ ${selectedTextContent}
                     "shrink-0 rounded-full h-10 w-10 p-0 transition-all duration-200",
                     "hover:scale-105 active:scale-95",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "bg-red-600 hover:bg-red-700 text-white",
                     // Change color when showing stop button (Fix Issue #3)
                     isLoadingExplanation && "bg-destructive hover:bg-destructive/90"
                   )}

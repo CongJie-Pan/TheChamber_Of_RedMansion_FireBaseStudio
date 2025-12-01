@@ -53,11 +53,23 @@ if (SQLITE_SERVER_ENABLED) {
   try {
     userRepository = require('./repositories/user-repository');
     taskRepository = require('./repositories/task-repository');
+    // Task 4.2 Fix: CommonJS require of ES6 module - named exports are available directly
     progressRepository = require('./repositories/progress-repository');
     const sqliteDb = require('./sqlite-db');
     fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
     sqliteModulesLoaded = true;
     console.log('✅ [DailyTaskService] SQLite modules loaded successfully');
+
+    // Task 4.2 Fix: Verify all required progressRepository functions are accessible
+    const requiredFunctions = ['getProgress', 'updateProgress', 'createProgress'];
+    for (const fn of requiredFunctions) {
+      if (typeof progressRepository[fn] !== 'function') {
+        console.error(`❌ [DailyTaskService] progressRepository.${fn} is not available`);
+        console.error('   Available exports:', Object.keys(progressRepository));
+        throw new Error(`progressRepository.${fn} is not a function - module export issue`);
+      }
+    }
+    console.log('✅ [DailyTaskService] All progressRepository functions verified');
   } catch (error: any) {
     sqliteModulesLoaded = false;
     console.error('❌ [DailyTaskService] Failed to load SQLite modules');

@@ -221,6 +221,15 @@ body {
 }
 
 /**
+ * Task 4.5 Fix: Hide scrollbar for bi-column pagination viewport
+ * This allows horizontal scrolling via JavaScript while hiding the visible scrollbar
+ * for a cleaner reading experience similar to e-readers like Kindle.
+ */
+#chapter-content-viewport::-webkit-scrollbar {
+  display: none;  /* Hide scrollbar on WebKit browsers (Chrome, Safari, Edge) */
+}
+
+/**
  * Custom Scrollbar Styling - Museum Aesthetic
  *
  * Creates an elegant scrollbar that matches the museum-observed color scheme.
