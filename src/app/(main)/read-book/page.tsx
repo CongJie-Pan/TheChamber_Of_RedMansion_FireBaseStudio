@@ -551,6 +551,8 @@ export default function ReadBookPage() {
 
   const [sessions, setSessions] = useState<ConversationSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // Task 4.2 Fix: Track session initialization for SSR/Vercel hydration compatibility
+  const [isSessionInitialized, setIsSessionInitialized] = useState(false);
   const [thinkingContent, setThinkingContent] = useState<string>('');
   const [thinkingStatus, setThinkingStatus] = useState<ThinkingStatus>('idle');
   const [streamingProgress, setStreamingProgress] = useState<number>(0);
@@ -677,7 +679,11 @@ export default function ReadBookPage() {
   };
 
   // Load sessions (with legacy migration)
+  // Task 4.2 Fix: Added isSessionInitialized flag for Vercel SSR/hydration compatibility
   useEffect(() => {
+    // Guard: Only run on client side (localStorage not available during SSR)
+    if (typeof window === 'undefined') return;
+
     try {
       const storedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
       if (storedSessions) {
@@ -695,6 +701,7 @@ export default function ReadBookPage() {
           const sid = startNewSession();
           setActiveSessionId(sid);
         }
+        setIsSessionInitialized(true); // Mark initialization complete
         return;
       }
 
@@ -715,16 +722,19 @@ export default function ReadBookPage() {
         const fresh = createSession();
         setSessions([historical, fresh]);
         setActiveSessionId(fresh.id);
+        setIsSessionInitialized(true); // Mark initialization complete
         return;
       }
 
       // Nothing stored → create fresh session
       const sid = startNewSession();
       setActiveSessionId(sid);
+      setIsSessionInitialized(true); // Mark initialization complete
     } catch (error) {
       console.error('Failed to load conversation sessions:', error);
       const sid = startNewSession();
       setActiveSessionId(sid);
+      setIsSessionInitialized(true); // Mark initialization complete even on error
     }
   }, [createSession, startNewSession]);
 
@@ -3657,6 +3667,15 @@ ${selectedTextContent}
               {/* Perplexity QA Mode - Redesigned UI (Fix Issue #4 & #5) */}
               {aiMode === 'perplexity-qa' && (
                 <div className="space-y-4 qa-module">
+                  {/* Task 4.2 Fix: Show loading state while sessions initialize (Vercel SSR fix) */}
+                  {!isSessionInitialized ? (
+                    <div className="flex flex-col items-center justify-center py-16 min-h-[200px]">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4" />
+                      <p className="text-foreground/80 font-medium">載入對話記錄中...</p>
+                      <p className="text-foreground/60 text-sm mt-1">請稍候</p>
+                    </div>
+                  ) : (
+                  <>
                   {/* Conversation Flow with Integrated Thinking Process */}
                   <ConversationFlow
                     messages={activeSessionMessages}
@@ -3723,6 +3742,8 @@ ${selectedTextContent}
                       defaultExpanded={true}
                       // ✅ Removed progress prop to hide progress bar and percentage
                     />
+                  )}
+                  </>
                   )}
                 </div>
               )}
