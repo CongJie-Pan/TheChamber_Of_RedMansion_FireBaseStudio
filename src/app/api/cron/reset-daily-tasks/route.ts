@@ -73,19 +73,33 @@ function getTodayDateString(): string {
   return localDate.toISOString().split('T')[0];
 }
 
-// SQLite User Repository - loaded dynamically to avoid client-side issues
+// SQLite/Turso User Repository - lazy loaded to avoid build-time errors in serverless environments
 let userRepository: any;
+let userRepoLoadAttempted = false;
 
-const SQLITE_SERVER_ENABLED = typeof window === 'undefined';
+/**
+ * Lazy initialization for user repository
+ * Loads the repository on first use instead of at module load time
+ * This prevents Vercel build errors
+ */
+function getUserRepository(): any {
+  if (userRepoLoadAttempted) return userRepository;
+  userRepoLoadAttempted = true;
 
-if (SQLITE_SERVER_ENABLED) {
+  // Only load on server-side
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️ [CronResetDailyTasks] Attempted to load user repository in browser');
+    return null;
+  }
+
   try {
     userRepository = require('@/lib/repositories/user-repository');
-    console.log('✅ [CronResetDailyTasks] SQLite user repository loaded');
+    console.log('✅ [CronResetDailyTasks] User repository loaded');
   } catch (error: any) {
-    console.error('❌ [CronResetDailyTasks] Failed to load user repository');
-    throw new Error('Failed to load SQLite user repository');
+    console.error('❌ [CronResetDailyTasks] Failed to load user repository:', error.message);
+    // Don't throw - return null and let caller handle it
   }
+  return userRepository;
 }
 
 /**
@@ -155,13 +169,27 @@ export async function POST(request: NextRequest) {
 
     console.log('[Cron] ✅ Cron secret verified');
 
-    // 2. Query all active users from SQLite database
+    // 2. Query all active users from SQLite/Turso database
     // Active users = users who logged in within the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoUnix = Math.floor(thirtyDaysAgo.getTime() / 1000);
 
-    const allUsers = userRepository.getAllUsers();
+    // Lazy load user repository
+    const repo = getUserRepository();
+    if (!repo) {
+      console.error('[Cron] ❌ User repository not available');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User repository not available. Check TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 500 }
+      );
+    }
+
+    const allUsers = repo.getAllUsers();
 
     // Filter active users (logged in within last 30 days)
     const activeUsers = allUsers.filter((user: any) => {

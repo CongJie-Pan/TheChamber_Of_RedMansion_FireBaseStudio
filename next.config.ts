@@ -20,12 +20,13 @@ const nextConfig: NextConfig = {
       exclude: ['error', 'warn'],
     } : false,
   },
+  // Next.js 15+: serverExternalPackages moved from experimental to top-level
+  // Exclude @libsql/client from serverless function bundling to prevent module resolution issues
+  serverExternalPackages: ['@libsql/client'],
   experimental: {
     // optimizeCss requires 'critters' package - install with: npm install --save-dev critters
     optimizeCss: true, // Re-enabled for better CSS optimization
     // Note: instrumentationHook is deprecated in Next.js 15 - instrumentation is auto-enabled
-    // Exclude @libsql/client from serverless function bundling to prevent module resolution issues
-    serverComponentsExternalPackages: ['@libsql/client'],
     optimizePackageImports: [
       'lucide-react',
       'd3',

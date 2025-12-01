@@ -37,9 +37,9 @@ import { taskGenerator } from './task-generator';
 import { isGuestAccount, logGuestAction } from './middleware/guest-account';
 import { getGuestTaskIdsArray } from './constants/guest-account';
 
-// SQLite Database Integration (Server-side only)
-// Conditional import: Load SQLite modules only on server-side
-// Avoid loading better-sqlite3 native module on client-side (browser)
+// SQLite/Turso Database Integration (Server-side only)
+// Lazy initialization pattern: Load modules on first use, not at module load time
+// This prevents build-time errors in serverless environments like Vercel
 let userRepository: any;
 let taskRepository: any;
 let progressRepository: any;
@@ -48,41 +48,51 @@ let fromUnixTimestamp: any;
 const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
 const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
 let sqliteModulesLoaded = false;
+let moduleLoadAttempted = false;
 
-if (SQLITE_SERVER_ENABLED) {
+/**
+ * Lazy initialization function for Turso/SQLite modules
+ * Called on first use instead of at module load time to prevent build errors
+ */
+function ensureModulesLoaded(): void {
+  // Only attempt to load once
+  if (moduleLoadAttempted) return;
+  moduleLoadAttempted = true;
+
+  // Skip if not in server environment or SQLite is disabled
+  if (!SQLITE_SERVER_ENABLED) {
+    if (typeof window === 'undefined' && !SQLITE_FLAG_ENABLED) {
+      console.warn('⚠️ [DailyTaskService] USE_SQLITE flag disabled; service will not operate.');
+    }
+    return;
+  }
+
   try {
     userRepository = require('./repositories/user-repository');
     taskRepository = require('./repositories/task-repository');
-    // Task 4.2 Fix: CommonJS require of ES6 module - named exports are available directly
     progressRepository = require('./repositories/progress-repository');
     const sqliteDb = require('./sqlite-db');
     fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
     sqliteModulesLoaded = true;
-    console.log('✅ [DailyTaskService] SQLite modules loaded successfully');
+    console.log('✅ [DailyTaskService] Turso modules loaded successfully');
 
-    // Task 4.2 Fix: Verify all required progressRepository functions are accessible
+    // Verify all required progressRepository functions are accessible
     const requiredFunctions = ['getProgress', 'updateProgress', 'createProgress'];
     for (const fn of requiredFunctions) {
       if (typeof progressRepository[fn] !== 'function') {
         console.error(`❌ [DailyTaskService] progressRepository.${fn} is not available`);
         console.error('   Available exports:', Object.keys(progressRepository));
-        throw new Error(`progressRepository.${fn} is not a function - module export issue`);
+        sqliteModulesLoaded = false;
+        return;
       }
     }
     console.log('✅ [DailyTaskService] All progressRepository functions verified');
   } catch (error: any) {
     sqliteModulesLoaded = false;
-    console.error('❌ [DailyTaskService] Failed to load SQLite modules');
-    console.error('   Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
-    const guidanceError = new Error(
-      'Failed to load SQLite modules. Run "pnpm run doctor:sqlite" to rebuild better-sqlite3.',
-    );
-    (guidanceError as any).cause = error;
-    throw guidanceError;
+    console.error('❌ [DailyTaskService] Failed to load Turso modules:', error.message);
+    console.error('   Ensure TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are configured.');
+    // Don't throw here - let ensureSQLiteAvailable() handle the error at runtime
   }
-} else if (typeof window === 'undefined') {
-  console.error('❌ [DailyTaskService] USE_SQLITE flag disabled; service cannot operate.');
-  throw new Error('[DailyTaskService] SQLite is required but disabled. Enable USE_SQLITE environment variable.');
 }
 import {
   DailyTask,
@@ -149,15 +159,19 @@ export const BASE_XP_REWARDS = {
 };
 
 /**
- * Verify SQLite is available for server-side operations
+ * Verify SQLite/Turso is available for server-side operations
+ * Triggers lazy module loading on first call
  * @throws Error if SQLite is not available
  */
 function ensureSQLiteAvailable(): void {
+  // Trigger lazy initialization on first use
+  ensureModulesLoaded();
+
   if (!SQLITE_SERVER_ENABLED) {
-    throw new Error('[DailyTaskService] Cannot operate: SQLite only available server-side');
+    throw new Error('[DailyTaskService] Cannot operate: Turso only available server-side');
   }
   if (!sqliteModulesLoaded) {
-    throw new Error('[DailyTaskService] SQLite modules failed to load. Run "pnpm run doctor:sqlite"');
+    throw new Error('[DailyTaskService] Turso modules failed to load. Check TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.');
   }
 }
 
