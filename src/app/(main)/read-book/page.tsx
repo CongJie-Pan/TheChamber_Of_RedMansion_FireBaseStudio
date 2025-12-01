@@ -2128,7 +2128,10 @@ export default function ReadBookPage() {
                     if (!sawCompletion && chunks.length > 0) {
                       const last = chunks[chunks.length - 1];
                       // Server already separated thinking and answer via StreamProcessor
-                      const combined = last.fullContent || '';
+                      // FALLBACK: If fullContent is empty, use thinkingContent as answer
+                      const combined = last.fullContent?.trim()
+                        ? last.fullContent
+                        : ((last as any).thinkingContent?.trim() || '');
                       if (!latestThinkingText && last.thinkingContent) {
                         latestThinkingText = last.thinkingContent;
                       }
@@ -2277,7 +2280,10 @@ export default function ReadBookPage() {
                         if (m.id !== msgId) return m;
                         // Task 4.2 Fix: Trust fullContent as single source of truth
                         // fullContent accumulates all content server-side, no client concatenation needed
-                        const updatedText = chunk.fullContent || m.content;
+                        // FALLBACK: If fullContent is empty, try using thinkingContent as display content
+                        const updatedText = chunk.fullContent?.trim()
+                          ? chunk.fullContent
+                          : ((chunk as any).thinkingContent?.trim() || m.content);
                         // BUG FIX: Use latestThinkingText to ensure thinking content streams incrementally
                         // This fixes the issue where thinking content only showed after completion
                         const newThinking = extractedThinkingText || latestThinkingText || m.thinkingProcess || '';
@@ -2338,7 +2344,10 @@ export default function ReadBookPage() {
                       // Create final response from last chunk
                       // Server already cleaned content via StreamProcessor
                       const finalServerThinking = (chunk as any).thinkingContent || '';
-                      const cleaned = chunk.fullContent || chunk.content || '';
+                      // FALLBACK: If fullContent is empty, use thinkingContent as the answer
+                      const cleaned = chunk.fullContent?.trim()
+                        ? chunk.fullContent
+                        : (finalServerThinking.trim() || chunk.content || '');
                       console.log('[QA Module] Final content - cleaned.length:', cleaned.length, ', thinkingLength:', finalServerThinking.length);
 
                       // DEBUG: Log final content to diagnose "《" bug (Task 4.2)

@@ -249,6 +249,25 @@ export class PerplexityStreamProcessor {
             // Nested closing tag
             this.thinkingBuffer += '</think>';
           }
+        } else {
+          // CORE FIX: Handle unmatched </think> tag (tagDepth === 0)
+          // This occurs when the closing tag was already processed in the sliding window
+          // and the remaining content after </think> is being processed recursively.
+          // We need to:
+          // 1. Emit any text content that came before this tag
+          // 2. Skip the tag itself so it's not included in subsequent text output
+          if (this.state === 'outside' && i > textStart) {
+            const textContent = this.buffer.slice(textStart, i).trim();
+            if (textContent) {
+              chunks.push({
+                type: 'text',
+                content: textContent,
+                timestamp: Date.now(),
+              });
+            }
+          }
+          // Skip past the closing tag
+          textStart = i + 8;
         }
 
         i += 8;

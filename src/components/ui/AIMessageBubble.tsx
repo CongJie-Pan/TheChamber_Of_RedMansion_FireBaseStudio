@@ -95,6 +95,13 @@ export function AIMessageBubble({
   onThinkingToggle,
 }: AIMessageBubbleProps) {
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
+
+  // FALLBACK FIX: When answer is empty but thinkingProcess has content,
+  // use thinkingProcess as the display content. This handles cases where
+  // the API/StreamProcessor doesn't properly separate thinking from answer.
+  const displayAnswer = answer?.trim()
+    ? answer
+    : (thinkingProcess?.trim() || '');
   // BUG FIX: Show thinking section header during streaming even without content
   // This ensures users see "深度思考中..." while waiting for thinking content to stream
   // Show when: (has content) OR (still streaming/thinking in progress)
@@ -185,7 +192,7 @@ export function AIMessageBubble({
       {/* Answer Section - Main Content */}
       <div className="answer-section">
         {/* Loading skeleton when content is empty but streaming (Fix Issue #2) */}
-        {answer.length === 0 && isStreaming ? (
+        {displayAnswer.length === 0 && isStreaming ? (
           <div className="space-y-2 animate-pulse">
             <div className="h-4 bg-muted rounded w-3/4"></div>
             <div className="h-4 bg-muted rounded w-full"></div>
@@ -193,7 +200,7 @@ export function AIMessageBubble({
           </div>
         ) : (
           <StructuredQAResponse
-            rawContent={answer}
+            rawContent={displayAnswer}
             citations={citations}
             isThinkingComplete={isThinkingComplete}
             onCitationClick={onCitationClick}

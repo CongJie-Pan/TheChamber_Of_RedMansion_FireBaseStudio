@@ -15,12 +15,15 @@ The `perplexity-client` module implements a comprehensive HTTP client for the Pe
 1. **Temperature constraint**: Enforced temperature < 2 (Perplexity API limitation). Values >= 2 are treated as undefined.
 2. **CORS documentation**: Added documentation noting Perplexity doesn't support browser CORS (server-side only).
 
+**2025-12-01 Update (Stream Processing Architecture):** The streaming functionality now integrates with `PerplexityStreamProcessor` for robust handling of `<think>` tags. See `perplexity-stream-processor_module_info.md` for details on buffered tag parsing, sliding window algorithm for split tags, and critical bug fixes for unmatched closing tag handling.
+
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
   * `@/types/perplexity-qa` - Type definitions for QA inputs, responses, citations, streaming chunks, and errors.
   * `@/ai/perplexity-config` - Configuration constants, model definitions, API key retrieval, and header generation.
   * `@/lib/terminal-logger` - Development logging utilities for debugging async generators and streaming.
+  * `@/lib/streaming/perplexity-stream-processor` - Buffered stream processor for handling incomplete `<think>` tags (used in API routes, not directly in this client).
 * **External Dependencies:**
   * `axios` - HTTP client for REST API requests and streaming responses.
 

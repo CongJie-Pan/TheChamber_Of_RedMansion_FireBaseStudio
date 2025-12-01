@@ -673,6 +673,16 @@ export class PerplexityClient {
                 }
 
                 const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+
+                // FALLBACK FIX: When fullContent is empty but we have thinking content,
+                // use the thinking content as the answer. This handles cases where
+                // the API response doesn't properly separate thinking from answer,
+                // or when the StreamProcessor doesn't detect </think> correctly.
+                if (!fullContent.trim() && sanitizedThinking.trim()) {
+                  console.warn('[PerplexityClient] Fallback: fullContent is empty, using thinking as answer');
+                  fullContent = sanitizedThinking;
+                }
+
                 const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
                 const processingTime = (Date.now() - startTime) / 1000;
 

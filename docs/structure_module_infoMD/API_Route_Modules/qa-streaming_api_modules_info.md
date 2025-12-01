@@ -6,6 +6,8 @@ This API route module provides Server-Sent Events (SSE) streaming endpoints for 
 
 **2025-11-19 Update:** Enhanced error handling to send a user-friendly error chunk when no chunks are received from the Perplexity API generator. This provides clear feedback to users instead of silently closing the stream, with actionable suggestions for troubleshooting.
 
+**2025-12-01 Update (Stream Processing):** The streaming implementation now uses `PerplexityStreamProcessor` for robust handling of `<think>` tags in SSE responses. This ensures proper separation of AI thinking process from formal answer content, with critical bug fixes for handling closing tags that span chunk boundaries. See `perplexity-stream-processor_module_info.md` for technical details.
+
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
@@ -13,6 +15,7 @@ This API route module provides Server-Sent Events (SSE) streaming endpoints for 
   * `@/types/perplexity-qa` - TypeScript interfaces for QA input/output structures
   * `@/ai/perplexity-config` - Adaptive timeout configuration system
   * `@/lib/perplexity-error-handler` - Comprehensive error classification and recovery
+  * `@/lib/streaming/perplexity-stream-processor` - Buffered stream processor for handling `<think>` tags in SSE responses
 
 * **External Dependencies:**
   * `next/server` - NextRequest, NextResponse for API routing
