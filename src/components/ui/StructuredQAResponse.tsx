@@ -71,9 +71,9 @@ function processContentWithCitations(
   citations: PerplexityCitation[],
   onCitationClick?: (citationId: number) => void
 ): React.ReactNode {
-  // Handle empty content by returning empty fragment instead of null
+  // Handle empty content - Task 4.2 Fix: Improved visibility on dark backgrounds
   if (!content || content.trim().length === 0) {
-    return <span className="text-muted-foreground italic">No content available</span>;
+    return <span className="text-foreground/70 italic">內容載入中...</span>;
   }
 
   // Split content by citation patterns like [1], [2], [3]
@@ -208,10 +208,10 @@ export function StructuredQAResponse({
       );
     }
 
-    // Fallback for when no content is provided
+    // Fallback for when no content is provided - Task 4.2 Fix: Improved visibility
     return (
-      <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground italic">
-        No answer content available
+      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/70 italic p-4 border border-border/30 rounded-lg bg-background/20">
+        AI 回答載入中...
       </div>
     );
   }, [sections, rawContent, citations, onCitationClick]);

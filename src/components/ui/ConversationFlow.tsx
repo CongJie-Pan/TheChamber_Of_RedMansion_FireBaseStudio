@@ -313,15 +313,15 @@ export function ConversationFlow({
           ))}
         </div>
       ) : (
-        // Empty state
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center mb-4">
-            <MessageSquare className="w-8 h-8 text-muted-foreground" />
+        // Empty state - Task 4.2 Fix: Improved visibility on dark backgrounds
+        <div className="flex flex-col items-center justify-center py-12 text-center min-h-[200px] border border-border/30 rounded-lg bg-background/20">
+          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+            <MessageSquare className="w-8 h-8 text-primary/80" />
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-foreground/80 font-medium">
             尚無對話記錄
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-foreground/60 mt-1">
             開始提出您的問題吧
           </p>
         </div>
