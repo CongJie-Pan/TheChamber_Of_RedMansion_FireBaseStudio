@@ -62,6 +62,7 @@ export enum TaskStatus {
  * Text passage for morning reading task
  */
 export interface TextPassage {
+  id?: string;               // 題目唯一識別碼 (Task 3.2: 預生成題庫)
   chapter: number;           // 章回編號
   startLine: number;         // 起始行號
   endLine: number;           // 結束行號

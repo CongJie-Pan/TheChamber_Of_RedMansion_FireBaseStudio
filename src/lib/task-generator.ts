@@ -35,6 +35,14 @@ import {
   type TaskContentGenerationParams,
 } from './ai-task-content-generator';
 
+// Task 3.2: Pre-generated question bank
+import {
+  getRandomMorningReading,
+  getRandomCharacterInsight,
+  getRandomCulturalExploration,
+  getRandomCommentaryDecode,
+} from './question-bank-loader';
+
 /**
  * Task generation configuration
  */
@@ -486,6 +494,7 @@ export class TaskGenerator {
 
   /**
    * Generate task-specific content
+   * Task 3.2: Priority order - Question Bank > AI > Hardcoded
    * Phase 2.9.2: Enhanced with AI-powered content generation
    */
   private async generateTaskContent(
@@ -494,7 +503,18 @@ export class TaskGenerator {
     userLevel?: number,
     taskHistory?: TaskHistoryRecord[]
   ): Promise<DailyTask['content']> {
-    // Phase 2.9.2: Try AI-powered content generation first
+    // Task 3.2: Try question bank first (pre-generated questions)
+    try {
+      const questionBankContent = await this.tryGetQuestionBankContent(type, difficulty);
+      if (questionBankContent) {
+        console.log(`✅ Using question bank content for ${type}`);
+        return questionBankContent;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Question bank failed, trying AI generation:`, error);
+    }
+
+    // Phase 2.9.2: Try AI-powered content generation as fallback
     if (userLevel !== undefined) {
       try {
         const aiContent = await this.tryGenerateAIContent(
@@ -513,8 +533,53 @@ export class TaskGenerator {
       }
     }
 
-    // Fallback to hardcoded content generation
+    // Final fallback to hardcoded content generation
     return this.generateHardcodedContent(type, difficulty);
+  }
+
+  /**
+   * Try to get content from the pre-generated question bank
+   * Task 3.2: Pre-generated question system
+   */
+  private async tryGetQuestionBankContent(
+    type: DailyTaskType,
+    difficulty: TaskDifficulty
+  ): Promise<DailyTask['content'] | null> {
+    switch (type) {
+      case DailyTaskType.MORNING_READING: {
+        const passage = await getRandomMorningReading(difficulty);
+        if (passage) {
+          return { textPassage: passage };
+        }
+        break;
+      }
+
+      case DailyTaskType.CHARACTER_INSIGHT: {
+        const character = await getRandomCharacterInsight(difficulty);
+        if (character) {
+          return { character };
+        }
+        break;
+      }
+
+      case DailyTaskType.CULTURAL_EXPLORATION: {
+        const cultural = await getRandomCulturalExploration(difficulty);
+        if (cultural) {
+          return { culturalElement: cultural };
+        }
+        break;
+      }
+
+      case DailyTaskType.COMMENTARY_DECODE: {
+        const commentary = await getRandomCommentaryDecode(difficulty);
+        if (commentary) {
+          return { commentary };
+        }
+        break;
+      }
+    }
+
+    return null;
   }
 
   /**
