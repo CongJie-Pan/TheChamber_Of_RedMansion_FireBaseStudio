@@ -167,3 +167,9 @@ graph LR
   ```
 * **Testing:** Unit tests for this component would be in `tests/components/gamification/LevelUpModal.test.tsx`. They would verify that the correct new permissions and content are displayed, and that the `onExploreFeatures` callback is triggered correctly.
 
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-11-30
+**Notes:** Documentation verified accurate against current implementation. Minor version update to align with documentation audit cycle.
+

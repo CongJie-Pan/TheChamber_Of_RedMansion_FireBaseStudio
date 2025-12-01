@@ -4,6 +4,11 @@
 
 The `perplexity-config` module provides comprehensive configuration infrastructure for integrating Perplexity Sonar API into the Dream of Red Chamber learning platform, enabling AI-powered question answering with real-time web search grounding and enhanced reasoning capabilities. This module defines three distinct Sonar model configurations (pro, reasoning, reasoning-pro), implements an adaptive timeout calculation algorithm that adjusts based on question complexity and model type, and exports 15+ helper functions for model validation, configuration generation, and timeout management. The configuration system ensures optimal performance by matching model capabilities to question requirements while maintaining reliability through intelligent timeout and retry strategies.
 
+> [!NOTE]
+> **LobeChat Alignment (2025-11-27):** This module follows patterns from the LobeChat Perplexity provider implementation, including:
+> - **CORS Limitation:** All Perplexity API calls must be made server-side (API routes, Server Components, Server Actions) as browser CORS is not supported
+> - **Temperature Constraint:** Perplexity API requires temperature < 2; values >= 2 are treated as undefined
+
 ## 2. Module Dependencies
 
 * **Internal Dependencies:** None (this is a configuration module with no internal dependencies)
@@ -24,8 +29,9 @@ The `perplexity-config` module provides comprehensive configuration infrastructu
 * `getModelConfig(modelKey): ModelConfig` - Returns configuration object for specified model
 * `supportsReasoning(modelKey): boolean` - Checks if model supports reasoning capabilities
 * `getDefaultHeaders(apiKey?): object` - Generates HTTP headers for Perplexity API requests
-* `createPerplexityConfig(options?): object` - Factory function generating request configuration for Perplexity API calls
+* `createPerplexityConfig(options?): object` - Factory function generating request configuration for Perplexity API calls. **Temperature Constraint:** Values >= 2 are treated as undefined (aligned with LobeChat pattern)
 * `calculateAdaptiveTimeout(options): number` - Calculates optimal timeout in milliseconds based on model, reasoning effort, question length, and context
+* `REASONING_MODEL_TIMEOUT_MS` - Exported constant (180000ms = 3 minutes) for reasoning model timeout operations
 * `getTimeoutSummary(timeout): object` - Formats timeout value into human-readable summary with seconds, minutes, and localized string
 
 ## 4. Code File Breakdown
@@ -45,7 +51,7 @@ The `perplexity-config` module provides comprehensive configuration infrastructu
 
     * `getDefaultHeaders(apiKey?: string): object` - Generates the standard HTTP headers required for Perplexity API requests, including Content-Type (application/json), Authorization bearer token (using provided apiKey or falling back to environment variable), and User-Agent identification (RedMansion-Learning-Platform/1.0). Returns an object with three string properties. Does not validate if API key exists; callers should check configuration first.
 
-    * `createPerplexityConfig(options?: { model?: PerplexityModelKey; temperature?: number; maxTokens?: number; reasoningEffort?: ReasoningEffort; enableStreaming?: boolean }): object` - Factory function that constructs a complete Perplexity API request configuration object by merging provided options with intelligent defaults. Applies model-specific maxTokens ceiling (prevents exceeding model limits), conditionally includes reasoning_effort for reasoning-capable models, and sets up streaming based on enableStreaming flag. Returns configuration object with model, temperature, max_tokens, stream, and optionally reasoning_effort properties. Does not throw errors; invalid options are silently replaced with defaults.
+    * `createPerplexityConfig(options?: { model?: PerplexityModelKey; temperature?: number; maxTokens?: number; reasoningEffort?: ReasoningEffort; enableStreaming?: boolean }): object` - Factory function that constructs a complete Perplexity API request configuration object by merging provided options with intelligent defaults. Applies model-specific maxTokens ceiling (prevents exceeding model limits), conditionally includes reasoning_effort for reasoning-capable models, and sets up streaming based on enableStreaming flag. **Temperature Constraint (aligned with LobeChat pattern):** If temperature >= 2, it is converted to `undefined` to prevent API errors and allow the API to use its default value. Returns configuration object with model, temperature (if valid), max_tokens, stream, and optionally reasoning_effort properties. Does not throw errors; invalid options are silently replaced with defaults.
 
     * `calculateAdaptiveTimeout(options: { modelKey: PerplexityModelKey; reasoningEffort?: ReasoningEffort; questionLength?: number; questionContext?: QuestionContext }): number` - Implements sophisticated timeout calculation algorithm that determines optimal request timeout in milliseconds based on multiple factors: base timeout (45s), reasoning multiplier (1.5x for reasoning models), reasoning effort bonuses (+15s for high, +7.5s for medium), question length bonuses (+30s for >200 chars, +15s for >100 chars), and context-specific adjustments (+10s for theme/character contexts). Enforces minimum (30s) and maximum (120s) timeout boundaries. Returns timeout value in milliseconds. This prevents premature timeouts for complex reasoning operations while avoiding excessively long waits for simple questions.
 
@@ -72,7 +78,7 @@ The `perplexity-config` module provides comprehensive configuration infrastructu
     * `PERPLEXITY_CONFIG`: Exported master configuration object (with `as const` assertion) containing 11 configuration categories:
       - **API endpoints**: BASE_URL ('https://api.perplexity.ai'), CHAT_COMPLETIONS_ENDPOINT ('/chat/completions')
       - **Default model settings**: DEFAULT_MODEL ('sonar-reasoning-pro'), DEFAULT_REASONING_EFFORT ('high'), DEFAULT_TEMPERATURE (0.2), DEFAULT_MAX_TOKENS (2000)
-      - **Request settings**: REQUEST_TIMEOUT_MS (60000), MAX_RETRIES (3), RETRY_DELAY_MS (2000)
+      - **Request settings**: REQUEST_TIMEOUT_MS (60000), REASONING_MODEL_TIMEOUT_MS (180000 - 3 minutes for reasoning models), MAX_RETRIES (3), RETRY_DELAY_MS (2000)
       - **Adaptive timeout**: BASE_TIMEOUT (45000ms), REASONING_MULTIPLIER (1.5), COMPLEX_QUESTION_BONUS (30000ms), MAX_TIMEOUT (120000ms), MIN_TIMEOUT (30000ms)
       - **Streaming settings**: STREAM_CHUNK_DELAY_MS (50), STREAM_UPDATE_FREQUENCY (15)
       - **Citation settings**: MAX_CITATIONS (10), CITATION_TIMEOUT_MS (5000), ENABLE_CITATION_PARSING (true)
@@ -215,3 +221,9 @@ const timeout = calculateAdaptiveTimeout({
 ```
 
 * **Testing:** This module consists of pure configuration constants and utility functions without unit tests. Integration testing occurs through the `perplexity-client.ts` service and `perplexity-red-chamber-qa.ts` AI flow that consume these configurations. The adaptive timeout algorithm can be validated by observing API request performance in production logs using the `terminal-logger` module. Configuration validation is tested through the `isPerplexityConfigured()` guard function used in API routes.
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-11-30 (Added temperature constraint, REASONING_MODEL_TIMEOUT_MS, LobeChat alignment notes)
+**Previous Version:** 1.0 (initial documentation)

@@ -53,9 +53,13 @@ This module exports a series of specialized React components, each serving a dis
 ### 4.2. `ChunkErrorBoundary.tsx`
 
 *   **Purpose:** This is a React Error Boundary specifically designed to catch and handle errors related to dynamic imports (chunk loading failures). It prevents the entire application from crashing due to network issues or build problems. It provides a user-friendly fallback UI with options to retry or reload the page.
+*   **Props:**
+    *   `maxRetries?: number`: Maximum number of automatic retry attempts (default: 3)
+    *   `enableAutoRetry?: boolean`: Whether to automatically retry failed chunk loads (default: true)
+    *   `onError?: (error: Error, errorInfo: React.ErrorInfo) => void`: Callback fired when an error is caught
 *   **Functions:**
     *   `getDerivedStateFromError(error: Error): Partial<ChunkErrorBoundaryState>`: A static lifecycle method that updates the component's state when an error is thrown by a child component.
-    *   `componentDidCatch(error: Error, errorInfo: React.ErrorInfo)`: A lifecycle method that logs the error and can trigger side effects, like reporting the error to a logging service.
+    *   `componentDidCatch(error: Error, errorInfo: React.ErrorInfo)`: A lifecycle method that logs the error and can trigger side effects, like reporting the error to a logging service. Also calls `onError` callback if provided.
     *   `handleRetry()`: A method to reset the error state and attempt to re-render the child components.
 *   **Key Classes / Constants / Variables:**
     *   `ChunkErrorBoundary`: The class-based component that implements the error boundary logic.
@@ -63,14 +67,17 @@ This module exports a series of specialized React components, each serving a dis
 ### 4.3. `ClientOnly.tsx`
 
 *   **Purpose:** This utility component solves server-side rendering (SSR) hydration mismatch errors. It ensures that its children are only rendered on the client after the initial mount. This is crucial for components that rely on browser-specific APIs like `window` or `localStorage`.
+*   **Implementation:** Uses `useSyncExternalStore` from React for safe hydration handling. This is the recommended approach as of React 18 for coordinating state between server and client renders.
 *   **Functions:**
     *   `ClientOnly({ children, fallback }: ClientOnlyProps): JSX.Element`: A functional component that delays the rendering of its children until the component has mounted on the client.
 *   **Key Classes / Constants / Variables:**
-    *   `hasMounted`: A boolean state variable that tracks whether the component has mounted. It is `false` on the server and during the initial client render, and becomes `true` in a `useEffect` hook.
+    *   Uses `useSyncExternalStore` with a server snapshot of `false` and client snapshot of `true` to safely track client-side rendering state without hydration mismatches.
 
 ### 4.4. `HorizontalScrollContainer.tsx`
 
 *   **Purpose:** This component provides a panoramic, horizontal scrolling experience with smooth, momentum-based physics. It is designed to support a traditional right-to-left reading flow, mimicking classical Chinese scrolls. It includes features like parallax effects and keyboard navigation to create an immersive and accessible interface.
+*   **Props:**
+    *   `onScroll?: (scrollPosition: number, scrollPercentage: number) => void`: Callback fired on scroll events, providing current position and percentage scrolled
 *   **Functions:**
     *   `HorizontalScrollContainer(props: HorizontalScrollContainerProps): React.FC`: The main component that wraps content to provide the horizontal scrolling behavior.
 *   **Key Classes / Constants / Variables:**
@@ -87,6 +94,11 @@ This module exports a series of specialized React components, each serving a dis
 ### 4.6. `KnowledgeGraphViewer.tsx`
 
 *   **Purpose:** This component renders a dynamic, interactive force-directed graph to visualize the complex relationships between characters, locations, and events in the novel. It uses the D3.js library to handle the physics simulation and rendering. The component allows for zooming, panning, and node interaction to explore the data.
+*   **Control UI Buttons:**
+    *   **Play/Pause**: Toggle the force simulation animation on/off
+    *   **Zoom In/Out**: Adjust the graph zoom level
+    *   **Search**: Text input to find and highlight specific nodes by name
+    *   **Reset View**: Return to initial zoom and pan position
 *   **Functions:**
     *   `KnowledgeGraphViewer(props: KnowledgeGraphViewerProps): React.FC`: The main component that sets up the D3 simulation and renders the SVG-based graph.
 *   **Key Classes / Constants / Variables:**
@@ -130,6 +142,8 @@ This module exports a series of specialized React components, each serving a dis
 ### 4.11. `ParallaxSection.tsx`
 
 *   **Purpose:** This component is a container that creates a parallax scrolling effect for its children. It allows different layers of content to move at different speeds as the user scrolls, creating a sense of depth. It is used to build immersive, visually engaging sections, particularly on the landing page.
+*   **Props:**
+    *   `onScrollProgress?: (progress: number) => void`: Callback fired during scroll, providing a 0-1 progress value indicating how far through the section the user has scrolled
 *   **Functions:**
     *   `ParallaxSection(props: ParallaxSectionProps): React.FC`: The main container component that sets up the scroll event listeners and applies the parallax transforms.
     *   `ParallaxLayer(props: ParallaxLayerProps): React.FC`: A child component used to define an individual layer within the `ParallaxSection`, with its own specific speed.
@@ -223,4 +237,15 @@ graph LR
     {filteredNotes.map(note => <NoteCard key={note.id} note={note} />)}
     ```
 *   **Testing:** Components in this module are primarily tested via integration tests using React Testing Library and Jest. Tests are located in the `/tests/components/` directory and focus on rendering the components with mock data, simulating user interactions (clicks, text input), and asserting that the UI updates as expected. Visual regression testing can also be used to catch unintended styling changes.
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-11-30
+**Changes in v1.1:**
+- Updated ClientOnly.tsx to document `useSyncExternalStore` usage (React 18 best practice)
+- Added ChunkErrorBoundary props: `maxRetries`, `enableAutoRetry`, `onError`
+- Added HorizontalScrollContainer `onScroll` callback prop
+- Added KnowledgeGraphViewer control UI documentation (Play/Pause, Zoom, Search, Reset)
+- Added ParallaxSection `onScrollProgress` callback prop
 

@@ -13,12 +13,16 @@ This module provides a collection of custom React hooks designed to encapsulate 
 * **External Dependencies:**
     * `react`: Core library for building the UI.
     * `next-auth/react`: NextAuth.js authentication library for React (Phase 4 - SQLITE-022).
+    * `@tanstack/react-query`: React Query for caching and prefetching (useComments hook).
 
 ## 3. Public API / Exports
 
 * `useAuth()`: A hook that provides access to the authentication state and methods.
 * `useLanguage()`: A hook that provides access to the language state and translation function.
 * `useIsMobile()`: A hook that detects if the current viewport is of mobile size.
+* `useComments(postId, enabled)`: A hook that fetches and caches comments for a community post using React Query.
+* `usePrefetchComments()`: A hook that returns a prefetch function for loading comments on hover/touch.
+* `useCommentsInView(postId, elementRef)`: A hook that prefetches comments when a post element scrolls into view.
 
 ## 4. Code File Breakdown
 
@@ -45,6 +49,23 @@ This module provides a collection of custom React hooks designed to encapsulate 
     * `useIsMobile(): boolean` - The main hook function that returns `true` if the viewport is mobile-sized.
 * **Key Classes / Constants / Variables:**
     * `MOBILE_BREAKPOINT`: A constant set to 768, defining the pixel width threshold for mobile detection.
+
+### 4.4. `useComments.ts`
+
+* **Purpose:** This hook provides a React Query-based solution for fetching, caching, and prefetching comments for community posts. It leverages the React Query library (`@tanstack/react-query`) for intelligent caching with configurable stale time and garbage collection, reducing unnecessary API calls and improving UX.
+* **Functions:**
+    * `useComments(postId: string, enabled?: boolean): UseQueryResult<PostComment[]>` - Main hook that fetches comments from `/api/community/posts/{postId}/comments` with caching. Returns React Query result with `data`, `isLoading`, `error`, etc. Caching config: staleTime 60s, gcTime 5min, auto-refresh every 60s when enabled.
+    * `usePrefetchComments(): (postId: string) => void` - Returns a function to prefetch comments for a specific post. Useful for hover/touch interactions to preload data before user clicks.
+    * `useCommentsInView(postId: string, elementRef: RefObject<HTMLElement>): boolean` - Uses IntersectionObserver to automatically prefetch comments when the post element enters the viewport (with 100px rootMargin). Returns `isInView` boolean. Only prefetches once per post.
+* **Key Types:**
+    * `PostComment`: Interface defining comment structure (id, postId, authorId, authorName, content, parentCommentId, depth, replyCount, likes, likedBy, createdAt, updatedAt, isEdited, status).
+* **Dependencies:**
+    * `@tanstack/react-query` - React Query for caching and state management
+    * `react` - useEffect, useRef, useState hooks
+* **Caching Configuration:**
+    * `staleTime`: 60 seconds - Data considered fresh for 1 minute
+    * `gcTime`: 5 minutes - Cached data retained for 5 minutes after becoming unused
+    * `refetchInterval`: 60 seconds when enabled - Auto-refresh for real-time updates
 
 ## 5. System and Data Flow
 
@@ -160,6 +181,14 @@ graph LR
 ---
 
 ## 7. Changelog
+
+### 2025-11-30 - Added useComments Hook Documentation
+**Changes:**
+- Added `useComments.ts` to Code File Breakdown (Section 4.4)
+- Added 3 new exports to Public API: `useComments()`, `usePrefetchComments()`, `useCommentsInView()`
+- Added `@tanstack/react-query` to External Dependencies
+- Documented `PostComment` interface and caching configuration
+- **Impact:** Custom Hooks module now includes all community-related hooks
 
 ### 2025-10-30 - SQLITE-023: UI Components NextAuth Migration
 **Changes:**

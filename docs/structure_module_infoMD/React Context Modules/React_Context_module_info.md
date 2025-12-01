@@ -30,16 +30,30 @@ This module provides global state management for the application using React's C
 * **Purpose:** This file implements the authentication context and provider for the application (Phase 4 - SQLITE-022). It manages the user's session state by interfacing with NextAuth.js authentication, fetches and provides the user's profile data from SQLite (including level, XP, and guest status), and handles the initial loading state. This provider is intended to wrap the entire application to provide universal access to authentication status. Replaces Firebase Authentication with NextAuth.js + SQLite integration.
 
 * **Components:**
-    * `AuthLoadingScreen({ message, subMessage })`: Full-screen loading component displayed during authentication initialization and route transitions. **Updated 2025-11-19**: Replaced border-trick spinner with SVG-based spinner for better reliability and visibility. Features:
-      - **SVG Spinner**: Industry-standard rotating arc pattern (h-44 w-44 = 176px diameter)
-      - **High Contrast**: White (`text-white`) spinner on dark red background for maximum visibility
+    * `AuthLoadingScreen({ message, subMessage })`: Full-screen loading component displayed during authentication initialization and route transitions. Features:
+      - **CSS Conic Gradient Spinner**: White gradient ring with smooth trailing fade effect (64px × 64px diameter)
+      - **High Contrast**: White conic gradient spinner on dark red background (`hsl(0 60% 25%)`) for maximum visibility
       - **Performance**: GPU-accelerated with `willChange: 'transform'`
-      - **Accessibility**: Includes `role="status"`, `aria-live="polite"`, and `aria-label="載入中"`
-      - **Centered Logo**: 120x120px circular logo with backdrop blur effect
+      - **Accessibility**: Includes `role="status"` and `aria-label="載入中"` (screen reader: "Loading")
+      - **Centered Logo**: h-24 w-24 (96px) container with backdrop blur effect, logo is h-20 w-20 (80px)
       - **Optional Messages**: Displays `message` (primary) and `subMessage` (secondary) text
 
 * **Functions:**
     * `AuthProvider({ children }: AuthProviderProps)`: The main provider component that manages and provides the authentication state.
+    * `refreshUserProfile(): Promise<void>`: Fetches updated user profile from `/api/user/profile`. Used to refresh XP and level after completing tasks. Implements silent failure pattern (logs errors but doesn't throw).
+
+* **useAuth Hook Returns:**
+    * `user`: NextAuth session user object (`id`, `name`, `email`, `image`)
+    * `userProfile`: SQLite profile data (`currentLevel`, `totalXP`, `isGuest`, etc.)
+    * `isLoading`: Boolean indicating authentication initialization in progress
+    * `refreshUserProfile`: Function to manually refresh profile data
+    * `logout(): Promise<void>`: Calls NextAuth `signOut()` with redirect to `/login`
+    * `getUserDisplayInfo()`: Returns user display info with guest detection (checks `@redmansion.local` email domain)
+
+* **Guest User Detection:**
+    * Guest users are identified by the email domain `@redmansion.local`
+    * The `getUserDisplayInfo()` function returns `{ isGuest: true, displayName: 'Guest' }` for guest accounts
+    * Guest accounts have limited functionality (e.g., no community posting, ephemeral progress)
 
 * **Key Classes / Constants / Variables:**
     * `AuthContext`: The React Context object created to hold and transmit authentication data.
@@ -167,3 +181,14 @@ graph LR
 - Initial implementation with Firebase Authentication
 - Language context implemented with localStorage persistence
 - Support for Traditional Chinese, Simplified Chinese, and English
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- Fixed AuthLoadingScreen specs: 64px CSS conic-gradient spinner (not 176px SVG)
+- Added `useAuth` hook return values documentation (`logout()`, `getUserDisplayInfo()`)
+- Added Guest User Detection documentation (`@redmansion.local` domain)
+- Added `refreshUserProfile()` function documentation
+- Corrected logo container size to h-24 w-24 (96px)

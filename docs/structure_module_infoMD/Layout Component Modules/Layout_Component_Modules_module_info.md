@@ -11,9 +11,11 @@ This module provides the primary layout structure for the authenticated sections
     * `@/components/ui/button`: For interactive button elements.
     * `@/components/ui/separator`: For visual dividers.
     * `@/components/ui/dropdown-menu`: For user and language selection menus.
+    * `@/components/ui/chinese-window-nav-button`: For traditional Chinese window-styled navigation buttons.
+    * `@/types/chinese-window`: For `WindowShape` type definitions.
     * `@/hooks/useAuth`: To access user authentication state.
     * `@/hooks/useLanguage`: To manage internationalization.
-    * `@/lib/daily-task-service`: To check for incomplete daily tasks.
+    * `@/lib/daily-task-client-service`: To check for incomplete daily tasks (uses API routes, not direct SQLite).
     * `@/lib/translations`: For language definitions.
     * `@/lib/utils`: For utility functions like `cn`.
 * **External Dependencies:**
@@ -40,8 +42,35 @@ This module provides the primary layout structure for the authenticated sections
     * `handleLogout(): Promise<void>` - **Updated in SQLITE-024**: Signs the user out using NextAuth.js `signOut()` function with automatic redirect to `/login` via `callbackUrl` parameter. Previously used Firebase authentication. Logs any errors to the console.
 * **Layout Fix (Task 1.3 - 2025-11-19)**: Fixed horizontal scroll overflow issue by migrating `SidebarProvider` from Flex to CSS Grid layout in `src/components/ui/sidebar.tsx`. The root cause was using `w-full` (100vw) on a flex container with a fixed 256px sidebar, resulting in total width exceeding viewport. The Grid solution uses `grid-template-columns: var(--sidebar-width) 1fr` which automatically calculates remaining space without manual width calculations. This is the 2025 industry best practice for fixed sidebar + flexible content layouts.
 * **Key Classes / Constants / Variables:**
-    * `navItems`: A constant array of objects that defines the structure of the main navigation menu. Each object contains a path (`href`), a translation key for the label (`labelKey`), an `icon`, and an optional `badge` for notifications.
+    * `navItems`: A constant array of objects that defines the structure of the main navigation menu. Each object contains a path (`href`), a translation key for the label (`labelKey`), an `icon`, a `windowShape` for traditional Chinese window styling, and an optional `badge` for notifications.
     * `hasIncompleteTasks`: A state variable (`boolean`) that tracks whether the currently logged-in user has any pending daily tasks. This is used to display a notification dot on the "Daily Tasks" navigation item.
+
+### 4.2. `ChineseWindowNavButton` (Traditional Chinese Window Navigation)
+
+* **Purpose:** This component renders navigation buttons styled as traditional Chinese window frames. It provides culturally-appropriate hover effects using different window shapes that carry symbolic meanings.
+* **Window Shapes and Symbolism:**
+    * `circular` (月門/Moon Gate): Represents completeness and harmony - used for Dashboard and Community
+    * `hexagonal` (六角窗/Hexagonal Window): Represents six directions of exploration - used for Reading
+    * `octagonal` (八角窗/Octagonal Window): Represents eight trigrams (八卦) - used for Daily Tasks challenge
+    * `quatrefoil` (四葉窗/Quatrefoil Window): Represents four seasons cycle - used for Achievements progress
+* **Props:**
+    * `icon: LucideIcon`: Icon component to display
+    * `label: string`: Text label for the navigation item
+    * `href: string`: Route path for navigation
+    * `isActive: boolean`: Whether this item is the current active page
+    * `windowShape: WindowShape`: The traditional window frame shape to use
+    * `badge?: boolean | number`: Optional notification indicator
+    * `tooltip?: string`: Optional tooltip text
+
+### 4.3. Active Path Logic
+
+* **Special Edge Case:** The `/read-book` path should highlight the `/read` navigation item, allowing users to see they're still in the "reading" section while viewing a specific book. This is handled by:
+  ```typescript
+  const isActive =
+    pathname === item.href ||
+    (pathname.startsWith(item.href + '/') && item.href !== '/') ||
+    (pathname === '/read-book' && item.href === '/read');
+  ```
 
 ## 5. System and Data Flow
 
@@ -103,3 +132,14 @@ graph LR
   }
   ```
 * **Testing:** This component is primarily tested through integration tests that verify navigation, authentication state changes, and responsive behavior. Unit tests could be added for specific logic like the active path determination or logout handling by mocking the required hooks and services.
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- Added `ChineseWindowNavButton` component documentation with window shapes and symbolism
+- Updated dependency from `daily-task-service` to `daily-task-client-service`
+- Added `@/components/ui/chinese-window-nav-button` and `@/types/chinese-window` dependencies
+- Added Active Path Logic section documenting `/read-book` → `/read` highlighting edge case
+- Updated `navItems` description to include `windowShape` property

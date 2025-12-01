@@ -1,15 +1,20 @@
 # Module: `note-repository.ts`
 
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** This module has been migrated from synchronous `better-sqlite3` to **async Turso libSQL client**. All functions are now `async` and return `Promise<T>`. The database is accessed via `db.execute({ sql, args })` pattern.
+
 ## 1. Module Summary
 
-The `note-repository` module provides comprehensive SQLite data access layer for note CRUD operations with advanced features: tag management (JSON serialization), visibility control (public/private), automatic word count calculation, and full-text search capabilities. This repository implements 14 synchronous functions including transaction-based batch operations, tag filtering, and community note queries, replacing Firebase Firestore for server-side note persistence (~470 lines, ~10x performance improvement over Firebase). Handles complex data transformations (tags array ↔ JSON string, boolean ↔ INTEGER, Date ↔ Unix milliseconds) transparently at the repository boundary.
+The `note-repository` module provides comprehensive SQLite data access layer for note CRUD operations with advanced features: tag management (JSON serialization), visibility control (public/private), automatic word count calculation, and full-text search capabilities. This repository implements 14 **asynchronous** functions including batch operations, tag filtering, and community note queries, replacing Firebase Firestore for server-side note persistence (~470 lines, ~10x performance improvement over Firebase). Handles complex data transformations (tags array ↔ JSON string, boolean ↔ INTEGER, Date ↔ Unix milliseconds) transparently at the repository boundary.
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`).
+  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`), `Client` type.
 * **External Dependencies:**
-  * `better-sqlite3` - Synchronous SQLite3 API (accessed via sqlite-db module).
+  * `@libsql/client` - **Turso libSQL async client** (accessed via sqlite-db module).
+* **Database Access Pattern:**
+  * Uses `db.execute({ sql, args })` for all queries (async)
+  * Returns `Promise<T>` from all functions
 * **Database Schema:**
   * Table: `notes` (11 columns: id TEXT PRIMARY KEY, userId TEXT, chapterId INTEGER, selectedText TEXT, note TEXT, createdAt INTEGER, lastModified INTEGER, tags TEXT, isPublic INTEGER, wordCount INTEGER, noteType TEXT)
   * Indexes: `idx_notes_user_chapter` on (userId, chapterId), `idx_notes_user` on (userId), `idx_notes_public` on (isPublic, createdAt)
@@ -19,35 +24,35 @@ The `note-repository` module provides comprehensive SQLite data access layer for
 * **Type Exports:**
   * `Note` - Interface matching service layer (10 fields including optional tags, isPublic, wordCount, lastModified, noteType).
 
-* **Function Exports (14 total):**
+* **Function Exports (14 total - ALL ASYNC):**
 
   **CREATE/UPDATE Operations:**
-  * `createNote(note: Omit<Note, 'id' | 'createdAt'>): string` - Create note with auto-calculated fields (wordCount, timestamps, JSON tags).
-  * `updateNoteContent(noteId: string, content: string): void` - Update note content, recalculate wordCount, update lastModified.
-  * `updateNoteVisibility(noteId: string, isPublic: boolean): void` - Toggle public/private visibility.
-  * `updateNoteTags(noteId: string, tags: string[]): void` - Update tags with JSON serialization.
-  * `updateNoteType(noteId: string, noteType: string | null): void` - Update note type categorization.
+  * `createNote(note: Omit<Note, 'id' | 'createdAt'>): Promise<string>` - Create note with auto-calculated fields (wordCount, timestamps, JSON tags).
+  * `updateNoteContent(noteId: string, content: string): Promise<{ syncedPostId?: string }>` - Update note content, recalculate wordCount, update lastModified. Returns `syncedPostId` if note is linked to a community post (Task 4.9 integration).
+  * `updateNoteVisibility(noteId: string, isPublic: boolean): Promise<void>` - Toggle public/private visibility.
+  * `updateNoteTags(noteId: string, tags: string[]): Promise<void>` - Update tags with JSON serialization.
+  * `updateNoteType(noteId: string, noteType: string | null): Promise<void>` - Update note type categorization.
 
   **READ/QUERY Operations:**
-  * `getNotesByUserAndChapter(userId: string, chapterId: number): Note[]` - Query notes by user+chapter, sorted newest first.
-  * `getAllNotesByUser(userId: string): Note[]` - Get all user notes across chapters, sorted newest first.
-  * `getNoteById(noteId: string): Note | null` - Get single note by ID or null.
-  * `getPublicNotes(limit?: number): Note[]` - Get public notes with LIMIT (community feed).
-  * `getNotesByTag(userId: string, tag: string): Note[]` - Filter user notes by tag using JSON LIKE search.
-  * `getNoteCount(userId: string, chapterId?: number): number` - Count notes with optional chapter filter.
+  * `getNotesByUserAndChapter(userId: string, chapterId: number): Promise<Note[]>` - Query notes by user+chapter, sorted newest first.
+  * `getAllNotesByUser(userId: string): Promise<Note[]>` - Get all user notes across chapters, sorted newest first.
+  * `getNoteById(noteId: string): Promise<Note | null>` - Get single note by ID or null.
+  * `getPublicNotes(limit?: number): Promise<Note[]>` - Get public notes with LIMIT (community feed).
+  * `getNotesByTag(userId: string, tag: string): Promise<Note[]>` - Filter user notes by tag using JSON LIKE search.
+  * `getNoteCount(userId: string, chapterId?: number): Promise<number>` - Count notes with optional chapter filter.
 
   **DELETE Operations:**
-  * `deleteNote(noteId: string): void` - Delete single note by ID.
-  * `deleteNotesByUserAndChapter(userId: string, chapterId: number): number` - Batch delete, returns count.
+  * `deleteNote(noteId: string): Promise<void>` - Delete single note by ID.
+  * `deleteNotesByUserAndChapter(userId: string, chapterId: number): Promise<number>` - Batch delete, returns count.
 
   **BATCH Operations:**
-  * `batchCreateNotes(notes: Array<Omit<Note, 'id' | 'createdAt'>>): string[]` - Transaction-based batch insert with JSON serialization.
+  * `batchCreateNotes(notes: Array<Omit<Note, 'id' | 'createdAt'>>): Promise<string[]>` - Batch insert with JSON serialization.
 
 ## 4. Code File Breakdown
 
 ### 4.1. `note-repository.ts` (441 lines)
 
-* **Purpose:** Provides feature-rich data access layer for notes with complex data transformations and scholarly annotation features. Unlike highlight-repository (simple text marking), note-repository handles structured metadata (tags, visibility, word count, note types), enabling advanced query patterns for collaborative learning. Key design decisions: (1) **JSON tag storage** - Stores string arrays as JSON TEXT for SQLite compatibility, deserializes on read; (2) **Boolean-to-INTEGER mapping** - SQLite lacks native boolean, uses 0/1 for isPublic with conversion in rowToNote; (3) **Automatic word count** - Calculates on every create/update for analytics without service layer overhead; (4) **Dual timestamp tracking** - createdAt immutable, lastModified updates on edit/tag/visibility changes; (5) **Tag search strategy** - Uses LIKE '%"tag"%' for JSON array search (simpler than json_each, sufficient for our use case); (6) **Public note indexing** - Composite index on (isPublic, createdAt) optimizes community feed queries.
+* **Purpose:** Provides feature-rich data access layer for notes with complex data transformations and scholarly annotation features. Unlike highlight-repository (simple text marking), note-repository handles structured metadata (tags, visibility, word count, note types), enabling advanced query patterns for collaborative learning. Key design decisions: (1) **Async operations** - Uses Turso libSQL async client with `await db.execute()` for all database operations; (2) **JSON tag storage** - Stores string arrays as JSON TEXT for SQLite compatibility, deserializes on read; (3) **Boolean-to-INTEGER mapping** - SQLite lacks native boolean, uses 0/1 for isPublic with conversion in rowToNote; (4) **Automatic word count** - Calculates on every create/update for analytics without service layer overhead; (5) **Dual timestamp tracking** - createdAt immutable, lastModified updates on edit/tag/visibility changes; (6) **Tag search strategy** - Uses LIKE '%"tag"%' for JSON array search (simpler than json_each, sufficient for our use case); (7) **Public note indexing** - Composite index on (isPublic, createdAt) optimizes community feed queries; (8) **Task 4.9 Note-Post Linking** - Supports `sharedPostId` field for linking notes to community posts.
 
 * **Interfaces:**
     * `Note: interface` - Public interface matching service layer. 10 fields: `id` (optional string), `userId` (string), `chapterId` (number), `selectedText` (string), `note` (content string), `createdAt` (Date), optional: `tags` (string[]), `isPublic` (boolean), `wordCount` (number), `lastModified` (Date), `noteType` (string for categorization).
@@ -445,3 +450,15 @@ console.log(`Migrated ${createdIds.length} notes atomically`);
   - No test dependencies or shared state
   - Tests run in parallel without conflicts
   - Automatic cleanup (memory-only)
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- **CRITICAL UPDATE**: Documented migration from synchronous `better-sqlite3` to async Turso libSQL client
+- Updated all function signatures to show `Promise<T>` return types
+- Changed database operation descriptions from `stmt.run()`/`stmt.get()` to `await db.execute({ sql, args })`
+- Updated Module Dependencies section to reflect `@libsql/client` dependency
+- Added Task 4.9 fields documentation: `sharedPostId` for note-post linking
+- Updated `updateNoteContent()` return type to `Promise<{ syncedPostId?: string }>`

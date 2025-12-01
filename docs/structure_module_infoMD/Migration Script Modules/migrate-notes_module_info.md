@@ -1,5 +1,8 @@
 # Module: `migrate-notes.ts`
 
+> **⚠️ DEPRECATION NOTICE (2025-11-30):**
+> This migration script has been moved to `scripts/obsolete-migrations/migrate-notes.ts`. The Firebase-to-SQLite migration has been completed and these scripts are preserved for historical reference only. The modern database approach uses **Turso libSQL async client** directly. **Do not use for new migrations.**
+
 ## 1. Module Summary
 
 The `migrate-notes` module provides executable migration script for transferring all note records from Firebase Firestore to SQLite database with comprehensive feature preservation validation. This concrete migrator (309 lines) extends BaseMigrator with note-specific validation (userId, chapterId, selectedText, note content, tags array check, isPublic boolean check), transformation with defaults (tags→[], isPublic→false), feature statistics tracking (tags usage %, public notes %, typed notes %, avg word count), and post-migration feature verification queries (ensuring tags/visibility/types preserved correctly in SQLite). Supports same CLI flags as highlight migration (dry-run, verbose, no-validate) with batch processing (default 500 records).
@@ -403,3 +406,12 @@ npm run migrate:notes -- --dry-run
   - Test batch processing with large notes (1000+ word content) performs adequately
   - Test feature statistics calculation doesn't significantly slow migration (< 5% overhead)
   - Test feature verification queries complete in < 1 second total
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- Added DEPRECATION NOTICE - script moved to `scripts/obsolete-migrations/`
+- Documented that modern approach uses Turso libSQL async client directly
+- File path updated to reflect `/obsolete-migrations/` location

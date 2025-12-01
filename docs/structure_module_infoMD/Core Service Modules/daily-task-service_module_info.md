@@ -2,28 +2,29 @@
 
 ## 1. Module Summary
 
-The `daily-task-service` module is the main orchestration service for the Daily Task System (每日修身) gamification feature, managing task generation, assignment, progress tracking, completion evaluation, reward distribution, and streak maintenance. This service integrates with task-generator for content generation, user-level-service for XP/attribute rewards, and ai-feedback-generator for personalized feedback, implementing atomic operations, anti-farming mechanisms (sourceId deduplication, cross-system duplicate prevention), performance optimizations (5-minute task caching, timeout wrappers), and graceful degradation (ephemeral assignments, task recovery from IDs) to ensure robust task management. **Phase 2.9 Update:** Implemented dual-mode operation with conditional imports pattern - uses SQLite repositories when running server-side (Node.js), falls back to Firebase when running client-side (browser), preventing better-sqlite3 native module loading errors in browser environments.
+The `daily-task-service` module is the main orchestration service for the Daily Task System (每日修身) gamification feature, managing task generation, assignment, progress tracking, completion evaluation, reward distribution, and streak maintenance. This service integrates with task-generator for content generation, user-level-service for XP/attribute rewards, and ai-feedback-generator for personalized feedback, implementing atomic operations, anti-farming mechanisms (sourceId deduplication, cross-system duplicate prevention), performance optimizations (5-minute task caching, timeout wrappers), and graceful degradation (ephemeral assignments, task recovery from IDs) to ensure robust task management.
+
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** This service now operates in **SQLite-only mode**. There is NO Firebase fallback - if SQLite is unavailable, the service throws an error. Client-side components must use `dailyTaskClientService` which calls server-side API routes.
 
 ## 2. Module Dependencies
 
-* **Internal Dependencies (Server-side SQLite mode):**
-  * `@/lib/repositories/user-repository` - User CRUD operations, XP rewards, level calculations (conditional import)
-  * `@/lib/repositories/task-repository` - Task storage, retrieval, and caching (conditional import)
-  * `@/lib/repositories/progress-repository` - Progress tracking, submissions, history (conditional import)
-  * `@/lib/sqlite-db` - Database instance and timestamp conversion utilities (conditional import)
+* **Internal Dependencies (Server-side SQLite mode - REQUIRED):**
+  * `@/lib/repositories/user-repository` - User CRUD operations, XP rewards, level calculations
+  * `@/lib/repositories/task-repository` - Task storage, retrieval, and caching
+  * `@/lib/repositories/progress-repository` - Progress tracking, submissions, history
+  * `@/lib/sqlite-db` - Database instance and timestamp conversion utilities
   * `@/lib/user-level-service` - XP rewards, attribute points, level-up logic, duplicate reward checking
   * `@/lib/task-generator` - Personalized task content generation with adaptive difficulty
   * `@/lib/ai-feedback-generator` - GPT-5-Mini powered personalized feedback generation
   * `@/lib/types/daily-task` - Type definitions for tasks, progress, assignments, rewards, history, statistics
   * `@/lib/types/user-level` - AttributePoints type definition
-* **Internal Dependencies (Client-side Firebase mode):**
-  * `@/lib/firebase` - Firestore database client for persistence operations (fallback when browser environment)
 * **External Dependencies:**
-  * `firebase/firestore` - Firestore operations when USE_SQLITE=false (browser environment)
-* **Conditional Loading Pattern:**
-  * Uses `typeof window === 'undefined'` to detect server vs browser environment
-  * SQLite repositories loaded via `require()` only in Node.js environment
-  * Firebase used as fallback in browser environments or when SQLite unavailable
+  * None (Firebase removed - SQLite-only architecture)
+* **Server-Side Only Pattern:**
+  * Uses `typeof window === 'undefined'` to detect server environment
+  * **Throws error if SQLite modules fail to load** (no fallback)
+  * **Throws error if USE_SQLITE flag is disabled** (no fallback)
+  * Client-side components must use `dailyTaskClientService` via API routes
 
 ## 3. Public API / Exports
 
@@ -69,12 +70,12 @@ The `daily-task-service` module is the main orchestration service for the Daily 
     * `deleteTodayProgress(userId: string, date?: string): Promise<boolean>` - **Guest user progress reset**. Calculates progressId `${userId}_${targetDate}`. Fetches progress document. Returns false if not found. Deletes progress document with `deleteDoc`. Logs success message with test tube emoji. Returns true. ⚠️ WARNING: Only for guest/anonymous users to allow repeated testing. Should not be used for regular users.
 * **Key Classes / Constants / Variables:**
     * `STREAK_MILESTONES: const StreakMilestone[]` - Milestone configuration with 4 entries: 7 days (1.1x, 'streak-7-days', '七日連擊'), 30 days (1.2x, 'streak-30-days', '月度堅持'), 100 days (1.3x, 'streak-100-days', '百日修行'), 365 days (1.5x, 'streak-365-days', '年度大師'). Defines bonus multipliers and Traditional Chinese titles.
-    * `BASE_XP_REWARDS: const Record<DailyTaskType, number>` - Base XP per task type: MORNING_READING=10, POETRY=8, CHARACTER_INSIGHT=12, CULTURAL_EXPLORATION=15, COMMENTARY_DECODE=18. Higher values for more complex tasks.
-    * `ATTRIBUTE_REWARDS: const Record<DailyTaskType, Partial<AttributePoints>>` - Attribute distribution per task type. MORNING_READING: analyticalThinking+1, culturalKnowledge+1. POETRY: poetrySkill+2, culturalKnowledge+1. CHARACTER_INSIGHT: analyticalThinking+2, socialInfluence+1. CULTURAL_EXPLORATION: culturalKnowledge+3. COMMENTARY_DECODE: analyticalThinking+2, culturalKnowledge+2. Rewards align with task focus areas.
+    * `BASE_XP_REWARDS: const Record<DailyTaskType, number>` - Base XP per 4 task types: MORNING_READING=10 (晨讀時光), CHARACTER_INSIGHT=12 (人物洞察), CULTURAL_EXPLORATION=15 (文化探秘), COMMENTARY_DECODE=18 (脂批解密). Higher values for more complex tasks.
+    * `ATTRIBUTE_REWARDS: const Record<DailyTaskType, Partial<AttributePoints>>` - Attribute distribution per 4 task types. MORNING_READING: analyticalThinking+1, culturalKnowledge+1. CHARACTER_INSIGHT: analyticalThinking+2, socialInfluence+1. CULTURAL_EXPLORATION: culturalKnowledge+3. COMMENTARY_DECODE: analyticalThinking+2, culturalKnowledge+2. Rewards align with task focus areas.
     * `SUBMISSION_COOLDOWN_MS: const` - 5000 milliseconds (5 seconds). Prevents spam submissions.
     * `AI_EVALUATION_TIMEOUT_MS: const` - 3000 milliseconds (3 seconds). Phase 4.8 performance optimization to prevent hanging AI calls (currently unused, preserved for future).
     * `TASK_CACHE_TTL_MS: const` - 300000 milliseconds (5 minutes). Phase 4.8 caching for reduced Firestore reads.
-    * `DailyTaskService: class` - Main service class with 3 Firestore collection references: `dailyTasksCollection` (tasks collection), `dailyTaskProgressCollection` (daily progress documents), `dailyTaskHistoryCollection` (long-term history records). Private state: `lastSubmissionTimes` Map for cooldown tracking, `taskCache` Map for performance optimization.
+    * `DailyTaskService: class` - Main service class using SQLite repositories for persistence. Private state: `lastSubmissionTimes` Map for cooldown tracking, `taskCache` Map for performance optimization. **Requires server-side execution** - throws error if called client-side.
     * Helper functions: `getTodayDateString(): string` - Returns YYYY-MM-DD format in UTC+8 (Taipei timezone). `areConsecutiveDates(date1: string, date2: string): boolean` - Checks if dates are 1 day apart (unused, preserved for future). `withTimeout<T>(promise, timeoutMs, fallbackValue): Promise<T>` - Generic timeout wrapper using `Promise.race` (Phase 4.8, currently unused).
 
 ## 5. System and Data Flow
@@ -283,3 +284,14 @@ console.log('Guest user progress cleared for fresh testing');
   - Test `getTaskStatistics` returns current streak from progress
   - Test `deleteTodayProgress` deletes progress document
   - Test `deleteTodayProgress` returns false if no progress exists
+
+---
+
+**Document Version:** 3.0
+**Last Updated:** 2025-11-30
+**Changes in v3.0:**
+- **CRITICAL FIX**: Removed Firebase fallback documentation - service is now SQLite-ONLY
+- **CRITICAL FIX**: Removed POETRY task type from BASE_XP_REWARDS (only 4 types exist: MORNING_READING, CHARACTER_INSIGHT, CULTURAL_EXPLORATION, COMMENTARY_DECODE)
+- **CRITICAL FIX**: Removed POETRY from ATTRIBUTE_REWARDS section
+- Updated dependencies to reflect SQLite-only architecture
+- Updated DailyTaskService class description to reflect SQLite usage

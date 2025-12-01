@@ -208,12 +208,18 @@ The `commentary-interpretation` module implements an AI-powered evaluation syste
 
 ---
 
-# Module: `poetry-quality-assessment` (DEPRECATED)
+# Module: `poetry-quality-assessment` (⚠️ DEPRECATED)
 
 ## 1. Module Summary
 
-> [!WARNING]
-> **DEPRECATED:** This module has been deprecated as of 2025-10-30. Poetry recitation tasks were removed from the daily task system due to the inability to prevent copy-paste cheating. This documentation is retained for historical reference only.
+> [!CAUTION]
+> ## ⚠️ DEPRECATED - Module Removed from Active Use
+>
+> **Status:** This module has been deprecated and removed from active use
+> **Deprecation Date:** 2025-10-30
+> **Reason:** Poetry recitation tasks removed from daily task system due to inability to prevent copy-paste cheating
+>
+> The function is still exported for backward compatibility but should NOT be used in new development. This documentation is retained for historical reference only.
 
 The `poetry-quality-assessment` module implements an AI-powered grading system for evaluating user recitations or compositions of poetry from "Dream of the Red Chamber" using character-by-character comparison against original texts. This OpenAI GPT-5-mini-powered flow assesses accuracy percentage, completeness percentage, and overall quality through weighted scoring while identifying specific mistakes (missing lines, incorrect characters, extra content) with line-by-line error tracking. The module provides literary analysis and appreciation guidance in Traditional Chinese markdown to deepen students' understanding of classical Chinese poetry aesthetics.
 
@@ -321,7 +327,7 @@ Run tests: `npm test -- tests/ai/flows/`
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** 2025-11-21 (Verification)
+**Document Version:** 2.2
+**Last Updated:** 2025-11-30 (Documentation update)
 **Migration Date:** 2025-10-30
 **Previous Version:** GenKit/Gemini-based (see git history before 2025-10-30)

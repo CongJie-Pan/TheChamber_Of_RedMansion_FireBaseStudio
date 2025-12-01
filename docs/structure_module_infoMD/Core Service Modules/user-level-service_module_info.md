@@ -2,205 +2,24 @@
 
 ## 1. Module Summary
 
-The `user-level-service` module is the core gamification service managing the Red Mansion Cultivation Path (紅樓修行路) progression system, handling user profiles, experience points (XP), levels (0-7), attribute points (5 types), permissions, and content unlocking. This 1188-line service implements atomic transactional XP awards with sourceId-based idempotency locks preventing duplicate rewards, automatic NaN corruption detection and repair for profile data integrity, level-up detection with cascade content unlocking and permission granting, comprehensive XP economy configuration (30+ reward types including reading, daily tasks, community, AI interactions, achievements), chapter completion tracking for cross-system deduplication, attribute and statistics management, permission checking (async and synchronous), audit trail logging (level-ups and XP transactions), and guest user complete data reset for testing scenarios.
+The `user-level-service` module is the core gamification service managing the Red Mansion Cultivation Path (紅樓修行路) progression system, handling user profiles, experience points (XP), levels (0-7), attribute points (5 types), permissions, and content unlocking. This service implements atomic transactional XP awards with sourceId-based idempotency locks preventing duplicate rewards, automatic NaN corruption detection and repair for profile data integrity, level-up detection with cascade content unlocking and permission granting, comprehensive XP economy configuration (30+ reward types including reading, daily tasks, community, AI interactions, achievements), chapter completion tracking for cross-system deduplication, attribute and statistics management, permission checking (async and synchronous), audit trail logging (level-ups and XP transactions), and guest user complete data reset for testing scenarios.
 
-**SQLITE-016 Dual-Mode Architecture (2025-10-30)**: Following the completion of SQLITE-016, this service now implements a dual-mode architecture with automatic SQLite → Firebase fallback for 12 core methods (initializeUserProfile, getUserProfile, checkDuplicateReward, awardXP, updateAttributes, updateStats, completeTask, getLevelUpHistory, getXPHistory, resetGuestUserData, recordLevelUp, logXPTransaction). When running server-side with SQLite available, operations execute through the high-performance user-repository layer (5-10x faster than Firebase); if SQLite modules fail to load or any error occurs, operations automatically fall back to the original Firebase implementation, ensuring zero-downtime resilience. This architecture delivers significant performance gains (awardXP: 50-100ms → <10ms, getUserProfile: 20-50ms → <5ms) while maintaining 100% backward compatibility and reliability through automatic failover.
-
-## 1.5. Dual-Mode Architecture (SQLITE-016 Implementation)
-
-### Overview
-
-The user-level-service implements a **dual-mode architecture** where 12 core methods intelligently route operations to either SQLite (fast, local) or Firebase (reliable, cloud) based on runtime availability. This pattern provides:
-
-1. **5-10x Performance Improvement**: SQLite operations execute in <10ms vs Firebase 50-100ms
-2. **Zero-Downtime Resilience**: Automatic Firebase fallback if SQLite unavailable
-3. **100% Backward Compatibility**: No breaking changes to API contracts
-4. **Progressive Enhancement**: Existing Firebase implementation preserved as fallback
-
-### Architecture Pattern
-
-```typescript
-// Pattern used across all 12 dual-mode methods
-if (checkSQLiteAvailability()) {
-  try {
-    // PRIMARY PATH: High-performance SQLite execution
-    const result = userRepository.[method](...);
-    console.log('🗄️  [UserLevelService] SQLite operation complete');
-    return result;
-  } catch (sqliteError) {
-    // Automatic fallback on any SQLite error
-    console.error('⚠️ [UserLevelService] SQLite failed, falling back to Firebase:', sqliteError);
-    // Continue to Firebase path below
-  }
-}
-
-// FALLBACK PATH: Original Firebase implementation
-console.log('☁️  [UserLevelService] Using Firebase');
-// ... existing Firebase logic preserved ...
-```
-
-### SQLite Availability Check
-
-The `checkSQLiteAvailability()` function (lines 107-120) validates three conditions:
-
-1. **Server-side execution**: `typeof window === 'undefined'` (SQLite cannot run in browser)
-2. **Environment flag**: `process.env.USE_SQLITE !== '0'` (allows manual disable)
-3. **Modules loaded**: SQLite native modules (better-sqlite3) successfully loaded
-
-Returns `false` if any condition fails, triggering automatic Firebase fallback.
-
-### Conditional Module Loading
-
-SQLite modules are conditionally imported at service initialization (lines 67-95) to prevent browser-side errors:
-
-```typescript
-// Phase 3 - SQLITE-016: Dual-Mode Architecture
-let userRepository: any;
-let fromUnixTimestamp: any;
-let toUnixTimestamp: any;
-
-const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
-const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
-let sqliteModulesLoaded = false;
-
-if (SQLITE_SERVER_ENABLED) {
-  try {
-    userRepository = require('./repositories/user-repository');
-    const sqliteDb = require('./sqlite-db');
-    fromUnixTimestamp = sqliteDb.fromUnixTimestamp;
-    toUnixTimestamp = sqliteDb.toUnixTimestamp;
-    sqliteModulesLoaded = true;
-    console.log('✅ [UserLevelService] SQLite modules loaded successfully');
-  } catch (error) {
-    sqliteModulesLoaded = false;
-    console.error('❌ [UserLevelService] Failed to load SQLite modules');
-    console.error('   Ensure better-sqlite3 is rebuilt (pnpm run doctor:sqlite).');
-  }
-}
-```
-
-This conditional loading ensures:
-- **Client-side safety**: No native module loading in browser (Next.js client components)
-- **Graceful degradation**: Failed SQLite initialization doesn't crash the service
-- **Clear diagnostics**: Console logging indicates SQLite status at startup
-
-### Dual-Mode Method Categories
-
-**Category A: User Profile CRUD (3 methods)**
-- `initializeUserProfile()` (line 229) - Creates new user with SQLite performance
-- `getUserProfile()` (line 309) - Fetches profile with <5ms SQLite response
-- `resetGuestUserData()` (line 1350) - Complete data wipe with SQLite speed
-
-**Category B: XP Transaction System (3 methods)**
-- `awardXP()` (line 482) - Core XP awarding with atomic SQLite transactions
-- `checkDuplicateReward()` (line 421) - Fast XP lock checking
-- `logXPTransaction()` (line 859) - Audit trail logging (private method)
-
-**Category C: Level-Up System (1 method)**
-- `recordLevelUp()` (line 816) - Level-up history recording (private method)
-
-**Category D: User Progress Management (3 methods)**
-- `updateAttributes()` (line 1091) - Attribute points update
-- `updateStats()` (line 1135) - Statistics update
-- `completeTask()` (line 1176) - Task completion tracking
-
-**Category E: History Retrieval (2 methods)**
-- `getLevelUpHistory()` (line 1207) - Level-up records query
-- `getXPHistory()` (line 1263) - XP transaction history query
-
-### Performance Comparison Table
-
-| Operation | Firebase (ms) | SQLite (ms) | Improvement | Critical Path |
-|-----------|---------------|-------------|-------------|---------------|
-| **awardXP()** | 50-100 | <10 | **5-10x faster** | ✅ Yes (user XP flow) |
-| **getUserProfile()** | 20-50 | <5 | **4-10x faster** | ✅ Yes (every page load) |
-| **checkDuplicateReward()** | 15-30 | <3 | **5-10x faster** | ✅ Yes (XP validation) |
-| **initializeUserProfile()** | 30-60 | <8 | **4-8x faster** | ⚠️ Infrequent (registration) |
-| **updateAttributes()** | 15-30 | <5 | **3-6x faster** | ⚠️ Moderate (learning progress) |
-| **updateStats()** | 15-30 | <5 | **3-6x faster** | ⚠️ Moderate (activity tracking) |
-| **completeTask()** | 15-25 | <5 | **3-5x faster** | ⚠️ Moderate (task completion) |
-| **getLevelUpHistory()** | 20-40 | <5 | **4-8x faster** | ❌ No (analytics only) |
-| **getXPHistory()** | 20-40 | <5 | **4-8x faster** | ❌ No (analytics only) |
-| **recordLevelUp()** | 15-25 | <5 | **3-5x faster** | ❌ No (async logging) |
-| **logXPTransaction()** | 15-25 | <5 | **3-5x faster** | ❌ No (async logging) |
-| **resetGuestUserData()** | 100-200 | 10-20 | **10-20x faster** | ❌ No (testing only) |
-
-**Critical Path Impact**: The three most impactful operations (awardXP, getUserProfile, checkDuplicateReward) represent 80%+ of service calls and achieve 5-10x performance improvements, directly enhancing user experience.
-
-### Error Handling Strategy
-
-**Design Principle**: Prioritize reliability over performance; any SQLite error triggers immediate Firebase fallback.
-
-**Error Scenarios Handled**:
-1. **SQLite module load failure** (line 86): Service starts in Firebase-only mode
-2. **Database connection error**: `checkSQLiteAvailability()` returns false
-3. **Repository method error**: Caught in try-catch, logged, falls back to Firebase
-4. **Data corruption**: SQLite returns invalid data → Firebase fallback
-5. **Concurrent transaction conflicts**: SQLite BUSY error → Firebase fallback
-
-**Logging Strategy**:
-- `🗄️` emoji: SQLite operation started
-- `☁️` emoji: Firebase operation (fallback or primary)
-- `⚠️` emoji: SQLite error, falling back to Firebase
-- `✅` emoji: Operation completed successfully
-- `❌` emoji: Fatal error (both paths failed)
-
-### Type Conversion Layer
-
-SQLite and Firebase use different timestamp representations, requiring conversion:
-
-**Firebase → SQLite** (service → repository):
-- Firebase Timestamp objects → Unix timestamp integers via `toUnixTimestamp()`
-- Example: `Timestamp.now()` → `1730246400` (seconds since epoch)
-
-**SQLite → Firebase** (repository → service):
-- Unix timestamp integers → Firebase Timestamp objects via `fromUnixTimestamp()`
-- Example: `1730246400` → `Timestamp { seconds: 1730246400, nanoseconds: 0 }`
-
-**Automatic conversion locations**:
-- `getUserProfile()` line 321: Converts SQLite dates to Firebase Timestamps for API consistency
-- `getLevelUpHistory()` line 1215: Converts SQLite timestamps for history records
-- `getXPHistory()` line 1269: Converts SQLite timestamps for transaction history
-
-### Testing Strategy
-
-**Unit Tests**: Each dual-mode method requires dual test coverage:
-1. **SQLite path test**: Mock `checkSQLiteAvailability()` to return true, verify repository calls
-2. **Firebase path test**: Mock `checkSQLiteAvailability()` to return false, verify Firebase calls
-3. **Fallback test**: Mock SQLite failure, verify automatic Firebase fallback
-4. **Equivalence test**: Verify SQLite and Firebase paths return identical data structures
-
-**Integration Tests**:
-- Test SQLite → Firebase fallback under real error conditions
-- Verify timestamp conversion correctness
-- Validate transactional consistency across modes
-- Performance benchmarking (SQLite should be 3-10x faster)
-
-**Production Monitoring**:
-- Log SQLite availability status at service startup
-- Track fallback frequency (should be <1% in healthy deployment)
-- Monitor performance metrics for SQLite vs Firebase operations
-- Alert on sustained Firebase-only mode (indicates SQLite issue)
-
-### Migration Strategy
-
-**Phase 1 (Completed - SQLITE-016)**: Dual-mode implementation with automatic fallback
-**Phase 2 (Future - SQLITE-017)**: Data migration from Firebase → SQLite for existing users
-**Phase 3 (Future - SQLITE-018)**: SQLite-primary mode with Firebase backup only
-
-**Current State**: All methods operate in **SQLite-first mode** (try SQLite, fallback to Firebase). No data migration has occurred; Firebase remains source of truth for existing users. New users automatically get SQLite profiles if server-side.
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** This service now operates in **SQLite-only mode**. There is NO Firebase fallback - if SQLite is unavailable, the service throws an error. This delivers significant performance gains (awardXP: 50-100ms → <10ms, getUserProfile: 20-50ms → <5ms). Client-side components must use API routes to access user level data.
 
 ## 2. Module Dependencies
 
-* **Internal Dependencies:**
-  * `@/lib/firebase` - Firestore database client for persistence operations (Firebase fallback path).
-  * `@/lib/repositories/user-repository` - **[SQLITE-016]** SQLite repository layer providing 29 high-performance user data management functions (SQLite primary path).
-  * `@/lib/sqlite-db` - **[SQLITE-016]** SQLite database connection, initialization, and timestamp conversion utilities (fromUnixTimestamp, toUnixTimestamp).
-  * `@/lib/types/user-level` - Type definitions for UserProfile, UserLevel, LevelUpRecord, XPTransaction, LevelPermission, AttributePoints, LevelRequirementCheck.
-  * `@/lib/config/levels-config` - Level configuration data (LEVELS_CONFIG, MAX_LEVEL), utility functions (getLevelConfig, getAllPermissionsForLevel, calculateLevelFromXP, calculateXPProgress).
+* **Internal Dependencies (Server-side SQLite mode - REQUIRED):**
+  * `@/lib/repositories/user-repository` - SQLite repository layer providing high-performance user data management functions
+  * `@/lib/sqlite-db` - SQLite database connection, initialization, and timestamp conversion utilities (fromUnixTimestamp, toUnixTimestamp)
+  * `@/lib/types/user-level` - Type definitions for UserProfile, UserLevel, LevelUpRecord, XPTransaction, LevelPermission, AttributePoints, LevelRequirementCheck
+  * `@/lib/config/levels-config` - Level configuration data (LEVELS_CONFIG, MAX_LEVEL), utility functions (getLevelConfig, getAllPermissionsForLevel, calculateLevelFromXP, calculateXPProgress)
 * **External Dependencies:**
-  * `firebase/firestore` - Comprehensive Firestore operations including atomic transactions (collection, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getDocs, increment, serverTimestamp, Timestamp, runTransaction).
-  * `better-sqlite3` - **[SQLITE-016]** Native SQLite3 bindings for Node.js, conditionally loaded server-side only (via user-repository and sqlite-db).
+  * `better-sqlite3` - Native SQLite3 bindings for Node.js (via user-repository and sqlite-db)
+* **Server-Side Only Pattern:**
+  * Uses `typeof window === 'undefined'` to detect server environment
+  * **Throws error if SQLite modules fail to load** (no fallback)
+  * **Throws error if USE_SQLITE flag is disabled** (no fallback)
+  * Client-side components must use API routes to access user level data
 
 ## 3. Public API / Exports
 
@@ -581,3 +400,13 @@ console.log('Special event completion:', XP_REWARDS.SPECIAL_EVENT_COMPLETION); /
   - Test `resetGuestUserData` deletes daily tasks
   - Test `resetGuestUserData` reinitializes fresh profile
   - Test XP_REWARDS constants are all positive integers
+
+---
+
+**Document Version:** 3.0
+**Last Updated:** 2025-11-30
+**Changes in v3.0:**
+- **CRITICAL FIX**: Removed entire Section 1.5 "Dual-Mode Architecture" - outdated as service is now SQLite-ONLY
+- **CRITICAL FIX**: Removed all Firebase fallback documentation - service throws error if SQLite unavailable
+- Updated dependencies to reflect SQLite-only architecture
+- Added architecture update callout box in Module Summary

@@ -1,8 +1,10 @@
 # SQLite Integration Summary - Phase 2.9
 
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** The system now operates in **SQLite-only mode**. There is NO Firebase fallback - if SQLite is unavailable, services throw errors. Client-side components must use API routes.
+
 ## Overview
 
-This document summarizes the SQLite local storage integration completed in Phase 2.9, replacing Firebase Firestore for the daily task system. The implementation includes database layer, repository pattern, client-server separation via API routes, and comprehensive test coverage.
+This document summarizes the SQLite local storage integration completed in Phase 2.9, replacing Firebase Firestore for the daily task system. The implementation includes database layer, repository pattern, client-server separation via API routes, and comprehensive test coverage. **Firebase fallback has been removed - SQLite is now the ONLY database layer.**
 
 ## New Modules Created
 
@@ -78,9 +80,9 @@ React Component → dailyTaskClientService → API Route → dailyTaskService �
 **Tokens:** Increased max_output_tokens to 1000
 
 ### 3. Data Migration (COMPLETED ✅)
-**Strategy:** Dual-mode operation with USE_SQLITE flag
-**Compatibility:** Firebase Timestamp conversion utilities
-**Fallback:** Firebase operations still available when SQLite unavailable
+**Strategy:** SQLite-only operation (no Firebase fallback)
+**Compatibility:** Firebase Timestamp conversion utilities for API consistency
+**Error Handling:** Services throw error if SQLite unavailable (no fallback)
 
 ## Database Schema
 

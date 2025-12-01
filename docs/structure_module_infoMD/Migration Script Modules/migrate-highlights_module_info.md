@@ -1,5 +1,8 @@
 # Module: `migrate-highlights.ts`
 
+> **⚠️ DEPRECATION NOTICE (2025-11-30):**
+> This migration script has been moved to `scripts/obsolete-migrations/migrate-highlights.ts`. The Firebase-to-SQLite migration has been completed and these scripts are preserved for historical reference only. The modern database approach uses **Turso libSQL async client** directly. **Do not use for new migrations.**
+
 ## 1. Module Summary
 
 The `migrate-highlights` module provides executable migration script for transferring all highlight records from Firebase Firestore to SQLite database using the BaseMigrator framework. This concrete migrator (213 lines) implements highlight-specific validation (userId string check, chapterId ≥ 1, selectedText non-empty), transformation (Firestore → SQLite format stripping unnecessary fields), batch processing (default 500 records/batch), and integrity verification (count matching). Supports CLI flags for dry-run testing, verbose logging, and validation control, making it production-ready for one-time or incremental migrations.
@@ -391,3 +394,12 @@ npm run migrate:highlights -- --verbose --no-validate  # ⚠️  DANGEROUS
   - Test batch processing overhead is minimal (< 10% vs single transaction)
   - Test dry-run is faster than production (no SQLite I/O)
   - Test verbose mode doesn't significantly slow migration (< 20% overhead)
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- Added DEPRECATION NOTICE - script moved to `scripts/obsolete-migrations/`
+- Documented that modern approach uses Turso libSQL async client directly
+- File path updated to reflect `/obsolete-migrations/` location

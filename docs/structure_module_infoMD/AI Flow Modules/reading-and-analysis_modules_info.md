@@ -115,10 +115,13 @@ The `context-aware-analysis` module implements an AI-powered contextual reading 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/ai/flows/perplexity-red-chamber-qa` - Perplexity Q&A flow providing Sonar API integration
+  * `@/ai/flows/perplexity-red-chamber-qa` - Perplexity Q&A flow providing Sonar API integration (specifically uses `perplexityRedChamberQA` and `createPerplexityQAInputForFlow`)
   * `@/lib/perplexity-client` - Perplexity client configuration
 * **External Dependencies:**
   * `zod` - Schema validation library for type-safe inputs and outputs
+
+> [!NOTE]
+> **Internal Dependency:** This module depends on `perplexity-red-chamber-qa` for all AI operations. It uses the `createPerplexityQAInputForFlow()` helper to construct inputs and delegates API calls to the core QA flow.
 
 ## 3. Public API / Exports
 
@@ -277,7 +280,7 @@ Run tests: `npm test -- tests/ai/flows/`
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** 2025-11-21 (Verification)
+**Document Version:** 2.2
+**Last Updated:** 2025-11-30 (Documentation update - added internal dependency notes)
 **Migration Date:** 2025-10-30
 **Previous Version:** GenKit/Gemini-based (see git history before 2025-10-30)

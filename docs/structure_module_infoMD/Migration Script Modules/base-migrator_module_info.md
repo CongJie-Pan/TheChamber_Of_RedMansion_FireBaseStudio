@@ -1,5 +1,8 @@
 # Module: `base-migrator.ts`
 
+> **⚠️ DEPRECATION NOTICE (2025-11-30):**
+> This migration script has been moved to `scripts/obsolete-migrations/base-migrator.ts`. The Firebase-to-SQLite migration has been completed and these scripts are preserved for historical reference only. The modern database approach uses **Turso libSQL async client** directly without migration frameworks. **Do not use for new migrations.**
+
 ## 1. Module Summary
 
 The `base-migrator` module provides an abstract migration framework for Firebase-to-SQLite data migrations with reusable utilities for batch processing, validation, error handling, and progress tracking. This abstract class (242 lines) implements common migration patterns: configurable batch processing (default 1000 records), dry-run mode for testing, verbose logging with timestamps, data validation hooks, integrity verification, and performance metrics (records/sec, success rate). Concrete migrators extend this class to implement entity-specific migration logic (validateRecord, migrate, getRecordCount) while inheriting robust error handling, statistics tracking, and Firebase timestamp normalization.
@@ -435,3 +438,12 @@ if (checksumBefore === checksumAfter) {
   - Test production run successfully migrates all valid records
   - Test multiple migrations are idempotent (no duplicates)
   - Test migration performance (records/sec within acceptable range)
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- Added DEPRECATION NOTICE - scripts moved to `scripts/obsolete-migrations/`
+- Documented that modern approach uses Turso libSQL async client directly
+- File path updated to reflect `/obsolete-migrations/` location

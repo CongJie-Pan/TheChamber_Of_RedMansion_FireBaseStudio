@@ -1,15 +1,20 @@
 # Module: `highlight-repository.ts`
 
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** This module has been migrated from synchronous `better-sqlite3` to **async Turso libSQL client**. All functions are now `async` and return `Promise<T>`. The database is accessed via `db.execute({ sql, args })` pattern.
+
 ## 1. Module Summary
 
-The `highlight-repository` module provides SQLite data access layer for highlight CRUD operations in the Red Mansion reading application. This repository implements 8 synchronous functions for creating, querying, and deleting highlights with transaction-based batch operations, replacing Firebase Firestore for server-side highlight persistence. The module handles timestamp conversions (Date ↔ Unix milliseconds), ID generation (highlight-{timestamp}-{random}), and indexed queries for optimal performance (~5-10ms per operation vs ~50-200ms for Firestore).
+The `highlight-repository` module provides SQLite data access layer for highlight CRUD operations in the Red Mansion reading application. This repository implements 8 **asynchronous** functions for creating, querying, and deleting highlights with batch operations, replacing Firebase Firestore for server-side highlight persistence. The module handles timestamp conversions (Date ↔ Unix milliseconds), ID generation (highlight-{timestamp}-{random}), and indexed queries for optimal performance (~5-10ms per operation vs ~50-200ms for Firestore).
 
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`).
+  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`), `Client` type.
 * **External Dependencies:**
-  * `better-sqlite3` - Synchronous SQLite3 API (accessed via sqlite-db module).
+  * `@libsql/client` - **Turso libSQL async client** (accessed via sqlite-db module).
+* **Database Access Pattern:**
+  * Uses `db.execute({ sql, args })` for all queries (async)
+  * Returns `Promise<T>` from all functions
 * **Database Schema:**
   * Table: `highlights` (columns: id TEXT PRIMARY KEY, userId TEXT, chapterId INTEGER, selectedText TEXT, createdAt INTEGER)
   * Indexes: `idx_highlights_user_chapter` on (userId, chapterId), `idx_highlights_user` on (userId)
@@ -18,21 +23,21 @@ The `highlight-repository` module provides SQLite data access layer for highligh
 
 * **Type Exports:**
   * `Highlight` - Interface matching service layer (id, userId, chapterId, selectedText, createdAt as Date).
-* **Function Exports:**
-  * `createHighlight(highlight: Omit<Highlight, 'id' | 'createdAt'>): string` - Create single highlight, returns generated ID.
-  * `getHighlightsByUserAndChapter(userId: string, chapterId: number): Highlight[]` - Query highlights by user+chapter with ORDER BY createdAt DESC.
-  * `getHighlightById(highlightId: string): Highlight | null` - Get single highlight by ID or null if not found.
-  * `getHighlightsByUser(userId: string): Highlight[]` - Get all user highlights across all chapters, sorted newest first.
-  * `deleteHighlight(highlightId: string): void` - Delete single highlight by ID.
-  * `deleteHighlightsByUserAndChapter(userId: string, chapterId: number): number` - Batch delete, returns count of deleted rows.
-  * `batchCreateHighlights(highlights: Array<Omit<Highlight, 'id' | 'createdAt'>>): string[]` - Transaction-based batch insert, returns array of generated IDs.
-  * `getHighlightCount(userId: string, chapterId?: number): number` - Count highlights with optional chapter filter.
+* **Function Exports (ALL ASYNC):**
+  * `createHighlight(highlight: Omit<Highlight, 'id' | 'createdAt'>): Promise<string>` - Create single highlight, returns generated ID.
+  * `getHighlightsByUserAndChapter(userId: string, chapterId: number): Promise<Highlight[]>` - Query highlights by user+chapter with ORDER BY createdAt DESC.
+  * `getHighlightById(highlightId: string): Promise<Highlight | null>` - Get single highlight by ID or null if not found.
+  * `getHighlightsByUser(userId: string): Promise<Highlight[]>` - Get all user highlights across all chapters, sorted newest first.
+  * `deleteHighlight(highlightId: string): Promise<void>` - Delete single highlight by ID.
+  * `deleteHighlightsByUserAndChapter(userId: string, chapterId: number): Promise<number>` - Batch delete, returns count of deleted rows.
+  * `batchCreateHighlights(highlights: Array<Omit<Highlight, 'id' | 'createdAt'>>): Promise<string[]>` - Batch insert, returns array of generated IDs.
+  * `getHighlightCount(userId: string, chapterId?: number): Promise<number>` - Count highlights with optional chapter filter.
 
 ## 4. Code File Breakdown
 
 ### 4.1. `highlight-repository.ts` (262 lines)
 
-* **Purpose:** Provides pure data access layer for highlights with no business logic, focusing on efficient SQLite operations. The repository pattern separates database concerns from service logic, enabling easier testing (in-memory SQLite for tests), database migration, and performance optimization. Key design decisions: (1) **Synchronous operations** - SQLite's synchronous API simplifies code vs async Firebase, no callback hell; (2) **ID generation at repository level** - `highlight-{timestamp}-{random}` format ensures uniqueness and sortability; (3) **Timestamp storage as Unix milliseconds** - Stores integers for efficient indexing and range queries; (4) **Transaction-wrapped batch operations** - Ensures atomicity for multi-record inserts; (5) **Query optimization** - Uses indexed columns (userId, chapterId) and ORDER BY with DESC for recent-first retrieval.
+* **Purpose:** Provides pure data access layer for highlights with no business logic, focusing on efficient SQLite operations. The repository pattern separates database concerns from service logic, enabling easier testing (in-memory SQLite for tests), database migration, and performance optimization. Key design decisions: (1) **Async operations** - Uses Turso libSQL async client with `await db.execute()` for all database operations; (2) **ID generation at repository level** - `highlight-{timestamp}-{random}` format ensures uniqueness and sortability; (3) **Timestamp storage as Unix milliseconds** - Stores integers for efficient indexing and range queries; (4) **Batch operations** - Supports multi-record inserts; (5) **Query optimization** - Uses indexed columns (userId, chapterId) and ORDER BY with DESC for recent-first retrieval.
 
 * **Interfaces:**
     * `Highlight: interface` - Public interface matching service layer. 5 fields: `id` (optional string), `userId` (string), `chapterId` (number), `selectedText` (string), `createdAt` (JavaScript Date). Used as return type for all query functions.
@@ -297,3 +302,14 @@ console.log(`Cleared ${deletedCount} highlights from chapter 5`);
   - No test dependencies or shared state between tests
   - Tests run in parallel without conflicts
   - Teardown happens automatically (memory-only, no cleanup needed)
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- **CRITICAL UPDATE**: Documented migration from synchronous `better-sqlite3` to async Turso libSQL client
+- Updated all function signatures to show `Promise<T>` return types
+- Changed database operation descriptions from `stmt.run()`/`stmt.get()` to `await db.execute({ sql, args })`
+- Updated Module Dependencies section to reflect `@libsql/client` dependency
+- Removed "transaction-based" terminology as Turso handles operations differently

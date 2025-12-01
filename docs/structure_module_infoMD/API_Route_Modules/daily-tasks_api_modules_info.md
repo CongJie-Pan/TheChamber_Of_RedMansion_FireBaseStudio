@@ -1,8 +1,19 @@
+# Daily Tasks API Routes - Module Documentation
+
+> [!NOTE]
+> **Architecture Update (2025-11-30):**
+> - **Authentication:** Migrated from Firebase Auth to NextAuth.js with SQLite backend
+> - **Database:** Uses SQLite via repositories pattern (task-repository, user-repository) instead of Firestore
+> - **Guest Accounts:** Supports guest authentication (SQLITE-021) with fixed task IDs for anonymous users
+> - **Client-Server Separation:** New routes (tasks, progress, history) enable client components to access data without direct SQLite access
+
+---
+
 # Module: `daily-tasks/generate`
 
 ## 1. Module Summary
 
-This API route module provides server-side task generation endpoints that create personalized daily learning challenges for users through OpenAI API calls. It implements multiple execution paths including Firebase authentication with fallback, Admin SDK persistence when client SDK lacks permissions, and ephemeral generation mode for LLM-only environments without database dependencies. The module ensures GPT model logs appear in terminal output for debugging while maintaining robust error handling and graceful degradation.
+This API route module provides server-side task generation endpoints that create personalized daily learning challenges for users through OpenAI API calls. The module uses NextAuth.js session authentication with SQLite-backed user storage, implements guest account handling with fixed task IDs, and supports ephemeral generation mode for LLM-only environments. The module ensures GPT model logs appear in terminal output for debugging while maintaining robust error handling and graceful degradation.
 
 ## 2. Module Dependencies
 
@@ -105,6 +116,95 @@ flowchart TD
 ```
 
 
+# Module: `daily-tasks/tasks` (NEW - Phase 2)
+
+## 1. Module Summary
+
+This API route module provides a GET endpoint to fetch task details by task IDs without regenerating them. It enables cache-efficient task loading by retrieving existing task definitions from the task repository, supporting the client-server separation architecture where SQLite operations occur server-side only.
+
+## 2. Module Dependencies
+
+* **Internal Dependencies:**
+  * `@/lib/repositories/task-repository` - Task repository for fetching task definitions (`getTaskById`)
+* **External Dependencies:**
+  * `next/server` - NextRequest, NextResponse for API routing
+
+## 3. Public API / Exports
+
+* `GET(request)`: Fetches task details for given comma-separated task IDs
+
+## 4. Code File Breakdown
+
+### 4.1. `route.ts`
+
+* **Purpose:** Provides efficient task loading without regeneration, supporting cache control and client-server separation.
+* **Query Parameters:**
+  * `taskIds` (string, required): Comma-separated list of task IDs to fetch
+* **Response:**
+  * `{ success, tasks, requestedCount, returnedCount }` on success
+  * `{ error }` with status 400/404/500 on failure
+
+---
+
+# Module: `daily-tasks/progress` (NEW - Phase 2.9)
+
+## 1. Module Summary
+
+This API route module provides a GET endpoint to fetch user's daily task progress. This API is called from client components to avoid loading SQLite on the browser, supporting the client-server separation architecture for SQLite integration.
+
+## 2. Module Dependencies
+
+* **Internal Dependencies:**
+  * `@/lib/daily-task-service` - Core service for task progress management (`getUserDailyProgress`)
+* **External Dependencies:**
+  * `next/server` - NextRequest, NextResponse for API routing
+
+## 3. Public API / Exports
+
+* `GET(request)`: Fetches daily task progress for a given user ID
+
+## 4. Code File Breakdown
+
+### 4.1. `route.ts`
+
+* **Purpose:** Server-side endpoint for client components to fetch user progress without direct SQLite access.
+* **Query Parameters:**
+  * `userId` (string, required): The user ID to fetch progress for
+* **Response:**
+  * `DailyTaskProgress` object or `null` if no progress exists
+
+---
+
+# Module: `daily-tasks/history` (NEW - Phase 2.9)
+
+## 1. Module Summary
+
+This API route module provides a GET endpoint to fetch user's task completion history. This API supports the client-server separation architecture where SQLite operations occur server-side only, enabling client components to access historical data without direct database access.
+
+## 2. Module Dependencies
+
+* **Internal Dependencies:**
+  * `@/lib/daily-task-service` - Core service for task history management (`getTaskHistory`)
+* **External Dependencies:**
+  * `next/server` - NextRequest, NextResponse for API routing
+
+## 3. Public API / Exports
+
+* `GET(request)`: Fetches task completion history for a given user ID with optional limit
+
+## 4. Code File Breakdown
+
+### 4.1. `route.ts`
+
+* **Purpose:** Server-side endpoint for client components to fetch task history without direct SQLite access.
+* **Query Parameters:**
+  * `userId` (string, required): The user ID to fetch history for
+  * `limit` (number, optional): Maximum entries to return (default: 100, max: 1000)
+* **Response:**
+  * Array of `DailyTaskProgress` objects representing historical progress
+
+---
+
 # Module: `cron/reset-daily-tasks`
 
 ## 1. Module Summary
@@ -155,3 +255,8 @@ flowchart TD
     J -- No --> K[Return execution report]
 ```
 
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30 (Added tasks/progress/history routes, architecture update notes)
+**Previous Version:** 1.0 (Firebase-based architecture)

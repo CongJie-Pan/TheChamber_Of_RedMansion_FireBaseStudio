@@ -24,15 +24,32 @@ The `perplexity-red-chamber-qa` module implements the core AI-powered question a
 
 ## 3. Public API / Exports
 
+### Core Functions
+
 * `perplexityRedChamberQA(input: PerplexityQAInput): Promise<PerplexityQAResponse>` - Main async function for standard non-streaming Q&A requests with complete response
-* `perplexityRedChamberQAStreaming(input: PerplexityQAInput): AsyncGenerator<PerplexityStreamingChunk>` - Async generator function for real-time streaming responses with progressive content delivery
-* `perplexityRedChamberQABatch(input: PerplexityBatchQAInput): Promise<PerplexityBatchQAResponse>` - Async function for processing multiple questions concurrently with controlled parallelism
-* `createPerplexityQAInputForFlow(userQuestion, selectedTextInfo?, chapterContextSnippet?, currentChapter?, options?): Promise<PerplexityQAInput>` - Helper function to create properly formatted input from flow parameters
-* `getModelCapabilities(modelKey: PerplexityModelKey): Promise<object>` - Helper function returning capability flags for specified model
-* `getSuggestedQuestions(): Promise<Record<QuestionContext, string[]>>` - Helper function providing pre-written example questions for each context type
-* `formatPerplexityResponse(response: PerplexityQAResponse): Promise<object>` - Helper function formatting responses for UI display
-* `getPerplexityQAInputSchema(): Promise<ZodSchema>` - Async function returning input validation schema (Server Actions compatibility)
-* `getPerplexityQAOutputSchema(): Promise<ZodSchema>` - Async function returning output validation schema (Server Actions compatibility)
+
+### Streaming Support
+
+* `perplexityRedChamberQAStreaming(input: PerplexityQAInput): AsyncGenerator<PerplexityStreamingChunk>` - Async generator function for real-time streaming responses with progressive content delivery. Uses `for await` loop to yield chunks progressively. Validates async iterator compatibility and includes comprehensive debug logging via `terminalLogger`.
+
+### Batch Processing
+
+* `perplexityRedChamberQABatch(input: PerplexityBatchQAInput): Promise<PerplexityBatchQAResponse>` - Async function for processing multiple questions concurrently with semaphore-based concurrency control (default: 3 concurrent requests). Returns aggregated responses with batch metadata including total/successful/failed counts and timing statistics.
+
+### Helper Functions
+
+* `createPerplexityQAInputForFlow(userQuestion, selectedTextInfo?, chapterContextSnippet?, currentChapter?, options?): Promise<PerplexityQAInput>` - Helper function to create properly formatted input from flow parameters. **Used by other flows** (context-aware-analysis, explain-text-selection, interactive-character-relationship-map) to construct Perplexity inputs consistently.
+* `getModelCapabilities(modelKey: PerplexityModelKey): Promise<object>` - Helper function returning capability flags (supportsReasoning, supportsStreaming, supportsCitations, supportsWebSearch) for specified model
+* `getSuggestedQuestions(): Promise<Record<QuestionContext, string[]>>` - Helper function providing pre-written example questions for each context type (character, plot, theme, general)
+* `formatPerplexityResponse(response: PerplexityQAResponse): Promise<object>` - Helper function formatting responses for UI display with citationSummary, processingInfo, and modelInfo fields
+
+### Schema Exports (Server Actions Compatibility)
+
+* `getPerplexityQAInputSchema(): Promise<ZodSchema>` - Async function returning input validation schema
+* `getPerplexityQAOutputSchema(): Promise<ZodSchema>` - Async function returning output validation schema
+
+> [!IMPORTANT]
+> **Internal Dependency Hub:** This module serves as the central Perplexity integration point. Other flows (context-aware-analysis, explain-text-selection, interactive-character-relationship-map) depend on this module's `createPerplexityQAInputForFlow()` and `perplexityRedChamberQA()` functions.
 
 ## 4. Code File Breakdown
 
@@ -352,8 +369,8 @@ Run tests: `npm test -- tests/ai/flows/`
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** 2025-11-21 (Verification)
+**Document Version:** 2.2
+**Last Updated:** 2025-11-30 (Documentation update - added streaming/batch/helper function details)
 **Migration Date:** 2025-10-30
 **Previous Version:** GenKit/Gemini-based (see git history before 2025-10-30)
 

@@ -1,8 +1,10 @@
 # Module: `community-repository.ts`
 
+> **⚠️ ARCHITECTURE UPDATE (2025-11-30):** This module has been migrated from synchronous `better-sqlite3` to **async Turso libSQL client**. All functions are now `async` and return `Promise<T>`. The database is accessed via `db.execute({ sql, args })` pattern.
+
 ## 1. Module Summary
 
-The `community-repository` module provides SQLite data access layer for community posts CRUD operations in the Red Mansion reading application. This repository implements 18 synchronous functions for creating, querying, updating, and deleting posts with advanced features like likes, bookmarks, view tracking, trending algorithm, and moderation support, replacing Firebase Firestore for server-side community post persistence. The module handles timestamp conversions (Date ↔ Unix milliseconds), JSON array operations for likes/bookmarks, and indexed queries for optimal performance (~5-20ms per operation vs ~50-300ms for Firestore).
+The `community-repository` module provides SQLite data access layer for community posts CRUD operations in the Red Mansion reading application. This repository implements 18 **asynchronous** functions for creating, querying, updating, and deleting posts with advanced features like likes, bookmarks, view tracking, trending algorithm, and moderation support, replacing Firebase Firestore for server-side community post persistence. The module handles timestamp conversions (Date ↔ Unix milliseconds), JSON array operations for likes/bookmarks, and indexed queries for optimal performance (~5-20ms per operation vs ~50-300ms for Firestore).
 
 **Key Features:**
 - 6 Basic CRUD operations (create, read, update, delete, exists check, bulk query)
@@ -16,11 +18,14 @@ The `community-repository` module provides SQLite data access layer for communit
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**
-  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`).
+  * `@/lib/sqlite-db` - Database instance provider (`getDatabase()`), timestamp utilities (`toUnixTimestamp`, `fromUnixTimestamp`), `Client` type.
   * `@/lib/content-filter-service` - Type imports for `ModerationAction` interface (actual moderation logic resides in service layer).
 * **External Dependencies:**
-  * `better-sqlite3` - Synchronous SQLite3 API (accessed via sqlite-db module).
+  * `@libsql/client` - **Turso libSQL async client** (accessed via sqlite-db module).
   * `firebase/firestore` - Timestamp type import for interface compatibility.
+* **Database Access Pattern:**
+  * Uses `db.execute({ sql, args })` for all queries (async)
+  * Returns `Promise<T>` from all functions
 * **Database Schema:**
   * Table: `posts` (columns: id, authorId, authorName, title, content, tags (JSON), category, likes, likedBy (JSON), bookmarkedBy (JSON), commentCount, viewCount, status, isEdited, moderationAction, originalContent, moderationWarning, createdAt, updatedAt)
   * Indexes:
@@ -35,39 +40,39 @@ The `community-repository` module provides SQLite data access layer for communit
   * `PostRow` - Internal database row representation with JSON strings for arrays.
   * `CommunityPost` - Public interface matching service layer (id, authorId, authorName, title, content, tags[], likes, likedBy[], bookmarkedBy[], commentCount, viewCount, status, isEdited, category, moderationAction, originalContent, moderationWarning, createdAt as Timestamp, updatedAt as Timestamp).
 
-* **Function Exports (18 total):**
+* **Function Exports (18 total - ALL ASYNC):**
 
 ### A. Basic CRUD (6 functions)
-  * `createPost(post: {...}): string` - Create post (content should be pre-moderated by service layer), returns post ID.
-  * `getPostById(postId: string): CommunityPost | null` - Get single post by ID or null if not found.
-  * `getPosts(options: {...}): CommunityPost[]` - Advanced query with filters (category, status, tags, limit, offset, sortBy).
-  * `updatePost(postId: string, updates: Partial<{...}>): CommunityPost` - Update post fields (content should be pre-moderated).
-  * `deletePost(postId: string): void` - Soft delete post (sets status = 'deleted').
-  * `postExists(postId: string): boolean` - Fast existence check.
+  * `createPost(post: {...}): Promise<string>` - Create post (content should be pre-moderated by service layer), returns post ID.
+  * `getPostById(postId: string): Promise<CommunityPost | null>` - Get single post by ID or null if not found.
+  * `getPosts(options: {...}): Promise<CommunityPost[]>` - Advanced query with filters (category, status, tags, limit, offset, sortBy).
+  * `updatePost(postId: string, updates: Partial<{...}>): Promise<CommunityPost>` - Update post fields (content should be pre-moderated).
+  * `deletePost(postId: string): Promise<void>` - Soft delete post (sets status = 'deleted').
+  * `postExists(postId: string): Promise<boolean>` - Fast existence check.
 
 ### B. Post Interactions (5 functions)
-  * `likePost(postId: string, userId: string): CommunityPost` - Add userId to likedBy array, increment likes counter (duplicate-safe).
-  * `unlikePost(postId: string, userId: string): CommunityPost` - Remove userId from likedBy array, decrement likes counter.
-  * `bookmarkPost(postId: string, userId: string): CommunityPost` - Add userId to bookmarkedBy array (duplicate-safe).
-  * `unbookmarkPost(postId: string, userId: string): CommunityPost` - Remove userId from bookmarkedBy array.
-  * `incrementViewCount(postId: string): void` - Atomic view count increment.
+  * `likePost(postId: string, userId: string): Promise<CommunityPost>` - Add userId to likedBy array, increment likes counter (duplicate-safe).
+  * `unlikePost(postId: string, userId: string): Promise<CommunityPost>` - Remove userId from likedBy array, decrement likes counter.
+  * `bookmarkPost(postId: string, userId: string): Promise<CommunityPost>` - Add userId to bookmarkedBy array (duplicate-safe).
+  * `unbookmarkPost(postId: string, userId: string): Promise<CommunityPost>` - Remove userId from bookmarkedBy array.
+  * `incrementViewCount(postId: string): Promise<void>` - Atomic view count increment.
 
 ### C. Post Queries (5 functions)
-  * `getPostsByAuthor(authorId: string, limit: number = 20): CommunityPost[]` - Get posts by author, newest first.
-  * `getPostsByTag(tag: string, limit: number = 20): CommunityPost[]` - Filter posts by tag (JSON array search with LIKE).
-  * `getPostsByCategory(category: string, limit: number = 20): CommunityPost[]` - Filter posts by category.
-  * `getTrendingPosts(limit: number = 20): CommunityPost[]` - Get trending posts using time-decayed popularity score.
-  * `getBookmarkedPostsByUser(userId: string): CommunityPost[]` - Get user's bookmarked posts (JSON array search with LIKE).
+  * `getPostsByAuthor(authorId: string, limit: number = 20): Promise<CommunityPost[]>` - Get posts by author, newest first.
+  * `getPostsByTag(tag: string, limit: number = 20): Promise<CommunityPost[]>` - Filter posts by tag (JSON array search with LIKE).
+  * `getPostsByCategory(category: string, limit: number = 20): Promise<CommunityPost[]>` - Filter posts by category.
+  * `getTrendingPosts(limit: number = 20): Promise<CommunityPost[]>` - Get trending posts using time-decayed popularity score.
+  * `getBookmarkedPostsByUser(userId: string): Promise<CommunityPost[]>` - Get user's bookmarked posts (JSON array search with LIKE).
 
 ### D. Post Moderation (2 functions)
-  * `moderatePost(postId: string, moderationResult: {...}): CommunityPost` - Store moderation metadata (manual moderation by admins).
-  * `incrementCommentCount(postId: string, delta: number): void` - Update denormalized comment count (+/- delta).
+  * `moderatePost(postId: string, moderationResult: {...}): Promise<CommunityPost>` - Store moderation metadata (manual moderation by admins).
+  * `incrementCommentCount(postId: string, delta: number): Promise<void>` - Update denormalized comment count (+/- delta).
 
 ## 4. Code File Breakdown
 
 ### 4.1. `community-repository.ts` (689 lines)
 
-* **Purpose:** Provides pure data access layer for community posts with no business logic (content moderation happens at service layer). The repository pattern separates database concerns from service logic, enabling easier testing (in-memory SQLite for tests), database migration, and performance optimization. Key design decisions: (1) **Synchronous operations** - SQLite's synchronous API simplifies code vs async Firebase; (2) **JSON array storage** - Uses TEXT fields with `JSON.stringify()/JSON.parse()` for likes/bookmarks, enables LIKE queries for membership checks; (3) **Soft delete pattern** - Sets `status = 'deleted'` instead of hard delete, preserves post structure for comments; (4) **Denormalized counters** - Stores likes, commentCount, viewCount for fast queries without JOINs; (5) **Trending algorithm** - Time-decayed popularity scoring `(likes*2 + comments*3 + views) / age_hours` for homepage feed; (6) **Content moderation at service layer** - Repository accepts pre-moderated content, stores moderation metadata.
+* **Purpose:** Provides pure data access layer for community posts with no business logic (content moderation happens at service layer). The repository pattern separates database concerns from service logic, enabling easier testing (in-memory SQLite for tests), database migration, and performance optimization. Key design decisions: (1) **Async operations** - Uses Turso libSQL async client with `await db.execute()` for all database operations; (2) **JSON array storage** - Uses TEXT fields with `JSON.stringify()/JSON.parse()` for likes/bookmarks, enables LIKE queries for membership checks; (3) **Soft delete pattern** - Sets `status = 'deleted'` instead of hard delete, preserves post structure for comments; (4) **Denormalized counters** - Stores likes, commentCount, viewCount for fast queries without JOINs; (5) **Trending algorithm** - Time-decayed popularity scoring `(likes*2 + comments*3 + views) / age_hours` for homepage feed; (6) **Content moderation at service layer** - Repository accepts pre-moderated content, stores moderation metadata.
 
 * **Interfaces:**
     * `PostRow: interface` - Internal database row representation. 18 fields including JSON strings for tags, likedBy, bookmarkedBy arrays. Fields: id, authorId, authorName, title, content, tags (string), category, likes, likedBy (string), bookmarkedBy (string), commentCount, viewCount, status ('active'|'hidden'|'deleted'), isEdited (0|1), moderationAction (string), originalContent, moderationWarning, createdAt (number), updatedAt (number).
@@ -321,3 +326,14 @@ export async function createCommunityPost(postData: CreatePostData) {
 - **`community-service.ts`**: Service layer for community features (to be updated in SQLITE-017)
 - **`content-filter-service.ts`**: Content moderation service (provides moderation at service layer)
 - **`sqlite-db.ts`**: Database initialization and utilities (provides getDatabase, timestamp functions)
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-30
+**Changes in v2.0:**
+- **CRITICAL UPDATE**: Documented migration from synchronous `better-sqlite3` to async Turso libSQL client
+- Updated all function signatures to show `Promise<T>` return types
+- Changed database operation descriptions from `stmt.run()`/`stmt.get()` to `await db.execute({ sql, args })`
+- Updated Module Dependencies section to reflect `@libsql/client` dependency
+- Added Task 4.9 fields documentation: `sourceNoteId`, `editedAt` for note-post linking
