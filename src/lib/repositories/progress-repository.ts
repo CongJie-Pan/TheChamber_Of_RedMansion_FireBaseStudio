@@ -127,6 +127,9 @@ export async function createProgress(progress: DailyTaskProgress): Promise<Daily
  * @returns Progress record or null if not found
  */
 export async function getProgress(userId: string, date: string): Promise<DailyTaskProgress | null> {
+  // Task 4.2 Logging: Track getProgress calls
+  console.log('[Progress] getProgress called for userId=' + userId + ', date=' + date);
+
   const db = getDatabase();
   const progressId = `${userId}_${date}`;
 
@@ -139,9 +142,11 @@ export async function getProgress(userId: string, date: string): Promise<DailyTa
   const row = result.rows[0] as unknown as ProgressRow | undefined;
 
   if (!row) {
+    console.log('[Progress] getProgress returned: null (no record found)');
     return null;
   }
 
+  console.log('[Progress] getProgress returned: record found');
   return rowToProgress(row);
 }
 

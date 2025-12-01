@@ -35,6 +35,7 @@ const CreatePostSchema = z.object({
   content: z.string().min(1, 'Content is required').max(10000, 'Content too long'),
   tags: z.array(z.string()).default([]),
   category: z.string().optional(),
+  sourceNoteId: z.string().optional(),  // Task 4.9/4.10: Link to source note
 });
 
 /**
@@ -64,6 +65,9 @@ const CreatePostSchema = z.object({
  * - 500: Internal server error
  */
 export async function POST(request: NextRequest) {
+  // Task 4.9/4.10 Debug Logging
+  console.log(`📥 [API /community/posts] POST request received`);
+
   try {
     // Step 1: Authentication check
     const session = await getServerSession(authOptions);
@@ -105,6 +109,14 @@ export async function POST(request: NextRequest) {
 
     const postData = validationResult.data;
 
+    // Task 4.9/4.10 Debug Logging
+    console.log(`✅ [API] Validated post data:`, {
+      authorId: postData.authorId,
+      contentLength: postData.content.length,
+      tags: postData.tags,
+      sourceNoteId: postData.sourceNoteId || 'NONE'
+    });
+
     // Step 3: Verify author ID matches session user
     // Security: Prevent users from creating posts on behalf of others
     if (postData.authorId !== session.user.id) {
@@ -138,7 +150,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 6: Return success response with full post data
+    // Step 6: Establish bi-directional link if sourceNoteId provided (Task 4.9/4.10)
+    if (postData.sourceNoteId) {
+      console.log(`🔗 [API] Attempting to link post ${createResult.id} to note ${postData.sourceNoteId}`);
+      try {
+        const { linkNoteAndPostBidirectional } = await import('@/lib/repositories/community-repository');
+        await linkNoteAndPostBidirectional(createResult.id, postData.sourceNoteId);
+        console.log(`✅ [API] Successfully linked post to note:`, {
+          postId: createResult.id,
+          noteId: postData.sourceNoteId
+        });
+      } catch (linkError) {
+        console.error(`⚠️ [API] Failed to link post to note:`, linkError);
+        // Don't fail the request - post was created successfully
+      }
+    } else {
+      console.log(`ℹ️ [API] No sourceNoteId provided, skipping bi-directional link`);
+    }
+
+    // Step 7: Return success response with full post data
     return NextResponse.json(
       {
         success: true,

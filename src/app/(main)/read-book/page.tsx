@@ -72,6 +72,8 @@ import {
   Copy,                         // Copy selected text
   Quote,                        // Quote/annotation
   ChevronDown,                  // Dropdown indicators
+  ChevronLeft,                  // Task 4.5: Edge navigation zone indicator
+  ChevronRight,                 // Task 4.5: Edge navigation zone indicator
   ArrowUp,                      // Submit question button (circular design)
   Square                        // Stop streaming button (for Phase 2)
 } from "lucide-react";
@@ -146,6 +148,10 @@ import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
 // Development logging control - 僅在明確啟用時才輸出分頁除錯日誌
 const DEBUG_PAGINATION = typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PAGINATION === 'true';
+
+// Task 4.5: Fixed toolbar height for consistent pagination (2025-12-01)
+// Using fixed height avoids pagination recalculation when toolbar content changes
+const TOOLBAR_HEIGHT = 96; // Fixed height in pixels (p-2 padding + content height)
 
 
 interface Annotation {
@@ -598,6 +604,10 @@ export default function ReadBookPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  // Task 4.5 Phase 2: Touch/swipe ref for mobile navigation (2025-12-01)
+  // Using ref instead of state to avoid unnecessary re-renders during touch handling
+  const touchStartXRef = useRef<number | null>(null);
+
   // Refs to store latest pagination values (避免 useCallback dependencies 導致函數重新創建)
   const currentPageRef = useRef<number>(1);
   const totalPagesRef = useRef<number>(1);
@@ -656,6 +666,14 @@ export default function ReadBookPage() {
    * @throws Error if API request fails
    */
   const shareToCommunity = async (postData: CreatePostData): Promise<void> => {
+    // Task 4.9/4.10 Debug Logging
+    console.log(`📤 [ShareToCommunity] Starting share with data:`, {
+      authorId: postData.authorId,
+      contentLength: postData.content.length,
+      tags: postData.tags,
+      sourceNoteId: postData.sourceNoteId || 'NOT PROVIDED'
+    });
+
     const response = await fetch('/api/community/posts', {
       method: 'POST',
       headers: {
@@ -666,6 +684,7 @@ export default function ReadBookPage() {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error(`❌ [ShareToCommunity] API request failed:`, { status: response.status, error: errorData });
       throw new Error(errorData.error || `Failed to share note to community (${response.status})`);
     }
 
@@ -675,12 +694,17 @@ export default function ReadBookPage() {
       throw new Error(result.error || 'Failed to create community post');
     }
 
-    console.log(`✅ Community post created successfully: ${result.postId}`);
+    console.log(`✅ [ShareToCommunity] Post created successfully:`, {
+      postId: result.postId,
+      sourceNoteId: postData.sourceNoteId || 'NONE'
+    });
   };
 
   // Load sessions (with legacy migration)
   // Task 4.2 Fix: Added isSessionInitialized flag for Vercel SSR/hydration compatibility
   useEffect(() => {
+    // Task 4.2 Logging: Track SSR/hydration flow
+    console.log('[QA Module] Session useEffect triggered - typeof window:', typeof window);
     // Guard: Only run on client side (localStorage not available during SSR)
     if (typeof window === 'undefined') return;
 
@@ -694,6 +718,8 @@ export default function ReadBookPage() {
           messages: (s.messages || []).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })),
         }));
         setSessions(restored);
+        // Task 4.2 Logging: Sessions loaded from localStorage
+        console.log('[QA Module] Sessions loaded from localStorage: count=' + restored.length);
         // Select last session or create a fresh one if none
         if (restored.length > 0) {
           setActiveSessionId(restored[restored.length - 1].id);
@@ -701,6 +727,7 @@ export default function ReadBookPage() {
           const sid = startNewSession();
           setActiveSessionId(sid);
         }
+        console.log('[QA Module] Setting isSessionInitialized=true (from stored sessions)');
         setIsSessionInitialized(true); // Mark initialization complete
         return;
       }
@@ -722,6 +749,7 @@ export default function ReadBookPage() {
         const fresh = createSession();
         setSessions([historical, fresh]);
         setActiveSessionId(fresh.id);
+        console.log('[QA Module] Setting isSessionInitialized=true (from legacy migration)');
         setIsSessionInitialized(true); // Mark initialization complete
         return;
       }
@@ -729,11 +757,13 @@ export default function ReadBookPage() {
       // Nothing stored → create fresh session
       const sid = startNewSession();
       setActiveSessionId(sid);
+      console.log('[QA Module] Setting isSessionInitialized=true (fresh session)');
       setIsSessionInitialized(true); // Mark initialization complete
     } catch (error) {
-      console.error('Failed to load conversation sessions:', error);
+      console.error('[QA Module] Failed to load conversation sessions:', error);
       const sid = startNewSession();
       setActiveSessionId(sid);
+      console.log('[QA Module] Setting isSessionInitialized=true (error fallback)');
       setIsSessionInitialized(true); // Mark initialization complete even on error
     }
   }, [createSession, startNewSession]);
@@ -825,6 +855,10 @@ export default function ReadBookPage() {
     });
   }, []);
 
+  // Task 4.5: Updated computePagination with epub.js patterns (2025-12-01)
+  // - Uses TOOLBAR_HEIGHT constant for consistent height calculation
+  // - Applies padding-based spacing (epub.js pattern: gap/2 on each side)
+  // - Adds WebKit glyph optimization
   const computePagination = useCallback(() => {
     if (!isPaginationMode) return;
     const viewportEl =
@@ -848,6 +882,10 @@ export default function ReadBookPage() {
       return;
     }
 
+    // Task 4.5: epub.js padding model - gap/2 on each side for UI avoidance (2025-12-01)
+    const gap = 48; // 3rem = 48px
+    const sidePadding = gap / 2; // 24px each side
+
     // Task 1.1: Container Dynamic Expansion (2025-11-24 fix)
     // Use single page width as base unit, not total width
     const singlePageWidth = Math.max(1, viewportEl.clientWidth || viewportEl.offsetWidth || 0);
@@ -864,16 +902,22 @@ export default function ReadBookPage() {
     // Dynamically expand container to accommodate all columns
     const expandedWidth = pageCount * singlePageWidth;
 
-    // Task 3.1: Apply critical layout styles with !important flag (2025-11-24 fix)
-    // Prevent content CSS from overriding these essential layout properties
+    // Task 4.5: Apply critical layout styles with epub.js patterns (2025-12-01)
+    // - Uses TOOLBAR_HEIGHT constant for consistent height
+    // - Adds padding-based spacing for UI avoidance
+    // - Includes WebKit glyph optimization
     setImportantStyles(contentEl, {
       'width': `${expandedWidth}px`,
       'column-count': '2',
-      'column-gap': '3rem',
+      'column-gap': `${gap}px`,
       'column-fill': 'auto',
-      'height': 'calc(100vh - 6rem)',
+      'height': `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
       'box-sizing': 'border-box',
       'position': 'relative',
+      'padding-left': `${sidePadding}px`,
+      'padding-right': `${sidePadding}px`,
+      'margin': '0',
+      '-webkit-line-box-contain': 'block glyphs replaced', // WebKit glyph optimization
     });
 
     // Validation: verify expansion succeeded
@@ -890,18 +934,42 @@ export default function ReadBookPage() {
       }
     });
 
-    // Task 6.1: Enhanced debug logging (2025-11-24)
-    // Controlled by DEBUG_PAGINATION constant - only logs in development when explicitly enabled
+    // Task 4.5 Phase 3: Toolbar/Height calculation logging (2025-12-01)
     if (DEBUG_PAGINATION) {
-      console.log('[Pagination] Calculation:', {
+      console.log('[Pagination] Toolbar/Height calculation:', {
+        TOOLBAR_HEIGHT,
+        viewportHeightCSS: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+        actualViewportHeight: viewportEl.clientHeight,
+        windowInnerHeight: window.innerHeight,
+        expectedContentHeight: window.innerHeight - TOOLBAR_HEIGHT,
+        heightDiff: Math.abs(viewportEl.clientHeight - (window.innerHeight - TOOLBAR_HEIGHT)),
+      });
+    }
+
+    // Task 4.5 Phase 3: epub.js styles logging (2025-12-01)
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] epub.js styles applied:', {
+        gap,
+        sidePadding,
+        columnCount: 2,
+        columnGap: `${gap}px`,
+        paddingLeft: `${sidePadding}px`,
+        paddingRight: `${sidePadding}px`,
+        boxSizing: 'border-box',
+        webkitOptimization: '-webkit-line-box-contain: block glyphs replaced',
+      });
+    }
+
+    // Task 4.5 Phase 3: Page calculation logging (2025-12-01)
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] Page calculation:', {
         singlePageWidth,
         contentWidth,
         contentRect: { width: contentRect.width, height: contentRect.height },
         pageCount,
         expandedWidth,
         columnCount: computedStyle.columnCount,
-        viewportHeight: viewportEl.clientHeight,
-        contentHeight: contentEl.scrollHeight,
+        currentPage,
       });
     }
 
@@ -1085,47 +1153,144 @@ export default function ReadBookPage() {
     };
   }, [isPaginationMode, computePagination]);
 
+  // Task 4.5: Refactored goToPage - no longer sets state internally (2025-12-01)
+  // State is now managed by goNextPage/goPrevPage to avoid race conditions
   const goToPage = useCallback((page: number) => {
     const el =
       (document.getElementById('chapter-content-viewport') as HTMLElement | null) ||
       (document.getElementById('chapter-content-scroll-area') as HTMLElement | null);
-    if (!el) return;
+    if (!el) {
+      if (DEBUG_PAGINATION) console.warn('[Pagination] goToPage: viewport element not found');
+      return;
+    }
+
+    // Task 4.5: Verify column layout is still active before scrolling (2025-12-01)
+    const computedStyle = window.getComputedStyle(el);
+    if (computedStyle.columnCount === 'auto' || computedStyle.columnCount === '1') {
+      if (DEBUG_PAGINATION) console.warn('[Pagination] goToPage: columns not rendered, skipping navigation');
+      return;
+    }
 
     // Task 4.1: Use stored page width for consistency (2025-11-24 fix)
-    // Use singlePageWidth instead of recalculating to ensure accuracy
     const singlePageWidth = el.clientWidth;
 
     // Page 1 = scroll 0, Page 2 = scroll singlePageWidth, etc.
     const target = Math.max(0, (page - 1) * singlePageWidth);
 
-    // Task 6.1: Enhanced debug logging (2025-11-24)
-    // Controlled by global DEBUG_PAGINATION constant
+    // Task 4.5 Phase 3: Enhanced scroll position logging with before/after (2025-12-01)
     if (DEBUG_PAGINATION) {
       console.log('[Pagination] goToPage:', {
         targetPage: page,
         singlePageWidth,
         scrollTarget: target,
         currentScrollLeft: el.scrollLeft,
+        viewportWidth: el.clientWidth,
+        columnCount: computedStyle.columnCount,
       });
     }
 
     el.scrollTo({ left: target, behavior: 'smooth' });
-    setCurrentPage(page);
+
+    // Task 4.5 Phase 3: Log scroll completion after animation settles (2025-12-01)
+    if (DEBUG_PAGINATION) {
+      requestAnimationFrame(() => {
+        console.log('[Pagination] goToPage complete:', {
+          actualScrollLeft: el.scrollLeft,
+          expectedScrollLeft: target,
+          scrollDiff: Math.abs(el.scrollLeft - target),
+        });
+      });
+    }
+    // Note: setCurrentPage is now handled by caller (goNextPage/goPrevPage)
   }, []);
 
+  // Task 4.5: Fixed navigation using functional state updates (2025-12-01)
+  // This fixes the "cannot go to previous page" bug caused by stale ref values
   const goNextPage = useCallback(() => {
     if (!isPaginationMode) return;
-    // 使用 ref 避免因 currentPage/totalPages 變化導致函數重新創建
-    const next = Math.min(totalPagesRef.current, currentPageRef.current + 1);
-    if (next !== currentPageRef.current) goToPage(next);
+    setCurrentPage(prev => {
+      const next = Math.min(totalPagesRef.current, prev + 1);
+      // Task 4.5 Phase 3: Navigation state logging (2025-12-01)
+      if (DEBUG_PAGINATION) {
+        console.log('[Pagination] goNextPage called:', {
+          isPaginationMode,
+          currentPage: prev,
+          nextPage: next,
+          totalPages: totalPagesRef.current,
+          willNavigate: next !== prev,
+        });
+      }
+      if (next !== prev) {
+        // Schedule scroll in next frame to ensure state is updated
+        requestAnimationFrame(() => goToPage(next));
+      }
+      return next;
+    });
   }, [isPaginationMode, goToPage]);
 
+  // Task 4.5: Fixed navigation using functional state updates (2025-12-01)
   const goPrevPage = useCallback(() => {
     if (!isPaginationMode) return;
-    // 使用 ref 避免因 currentPage 變化導致函數重新創建
-    const prev = Math.max(1, currentPageRef.current - 1);
-    if (prev !== currentPageRef.current) goToPage(prev);
+    setCurrentPage(prev => {
+      const newPage = Math.max(1, prev - 1);
+      // Task 4.5 Phase 3: Navigation state logging (2025-12-01)
+      if (DEBUG_PAGINATION) {
+        console.log('[Pagination] goPrevPage called:', {
+          isPaginationMode,
+          currentPage: prev,
+          prevPage: newPage,
+          willNavigate: newPage !== prev,
+        });
+      }
+      if (newPage !== prev) {
+        // Schedule scroll in next frame to ensure state is updated
+        requestAnimationFrame(() => goToPage(newPage));
+      }
+      return newPage;
+    });
   }, [isPaginationMode, goToPage]);
+
+  // Task 4.5 Phase 2: Touch/swipe handlers using ref for better performance (2025-12-01)
+  // Using ref instead of state avoids function recreation on every touch
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isPaginationMode) return;
+    touchStartXRef.current = e.touches[0].clientX;
+    // Task 4.5 Phase 3: Touch start logging (2025-12-01)
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] Touch start:', {
+        clientX: e.touches[0].clientX,
+        isPaginationMode,
+      });
+    }
+  }, [isPaginationMode]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isPaginationMode || touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartXRef.current - touchEndX;
+    const threshold = 50; // Minimum swipe distance in pixels
+
+    // Task 4.5 Phase 3: Touch end logging (2025-12-01)
+    if (DEBUG_PAGINATION) {
+      console.log('[Pagination] Touch end:', {
+        startX: touchStartXRef.current,
+        endX: touchEndX,
+        diff,
+        threshold,
+        direction: diff > 0 ? 'left (next)' : 'right (prev)',
+        willNavigate: Math.abs(diff) > threshold,
+      });
+    }
+
+    if (Math.abs(diff) > threshold) {
+      if (diff > 0) {
+        goNextPage(); // Swipe left = next page
+      } else {
+        goPrevPage(); // Swipe right = previous page
+      }
+    }
+    touchStartXRef.current = null;
+  }, [isPaginationMode, goNextPage, goPrevPage]); // Removed touchStartX from dependencies
 
   // Keyboard navigation for pagination:
   // - Left/Right = prev/next page
@@ -2005,8 +2170,9 @@ export default function ReadBookPage() {
                       const msgId = streamingAIMessageIdRef.current;
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
-                        // Server provides clean content via StreamProcessor
-                        const updatedText = chunk.fullContent?.length ? chunk.fullContent : (m.content + (chunk.content || ''));
+                        // Task 4.2 Fix: Trust fullContent as single source of truth
+                        // fullContent accumulates all content server-side, no client concatenation needed
+                        const updatedText = chunk.fullContent || m.content;
                         const newThinking = extractedThinkingText || m.thinkingProcess || '';
                         return {
                           ...m,
@@ -2017,32 +2183,29 @@ export default function ReadBookPage() {
                         };
                       }));
                     } else {
-                      // Create streaming message once actual answer tokens arrive
-                      // Server provides clean content via StreamProcessor - no client cleaning needed
+                      // Task 4.2 Fix: Create streaming message immediately on first chunk
+                      // This ensures content updates work even when early chunks have only thinking/search data
                       const initialContent = chunk.fullContent?.length ? chunk.fullContent : (chunk.content || '');
 
-                      // Only create message if we have actual answer content
-                      if (initialContent && initialContent.trim().length > 0) {
-                        console.log('[QA Module] Creating streaming AI message after first answer tokens');
-                        const aiMsgId = `ai-stream-${Date.now()}`;
-                        streamingAIMessageIdRef.current = aiMsgId;
-                        const aiStreamingMessage: ConversationMessage = {
-                          id: aiMsgId,
-                          role: 'ai',
-                          content: initialContent,
-                          timestamp: new Date(),
-                          citations: chunk.citations || [],
-                          thinkingProcess: extractedThinkingText || thinkingContent || '',
-                          isStreaming: true,
-                        };
-                        setActiveSessionMessages(prev => [...prev, aiStreamingMessage]);
-                      } else {
-                        console.log('[QA Module] Deferring AI message creation until answer content is available');
-                      }
+                      console.log('[QA Module] Creating streaming AI message placeholder immediately');
+                      const aiMsgId = `ai-stream-${Date.now()}`;
+                      streamingAIMessageIdRef.current = aiMsgId;
+                      const aiStreamingMessage: ConversationMessage = {
+                        id: aiMsgId,
+                        role: 'ai',
+                        content: initialContent || '', // Empty is OK - will update incrementally
+                        timestamp: new Date(),
+                        citations: chunk.citations || [],
+                        thinkingProcess: extractedThinkingText || thinkingContent || '',
+                        isStreaming: true,
+                      };
+                      setActiveSessionMessages(prev => [...prev, aiStreamingMessage]);
                     }
 
                     if (chunk.isComplete) {
                       sawCompletion = true;
+                      // Task 4.2 Logging: Track stream completion
+                      console.log('[QA Module] Stream complete - sawCompletion:', sawCompletion);
                       // Mark thinking as complete
                       setThinkingStatus('complete');
                       setStreamingProgress(100);
@@ -2051,6 +2214,7 @@ export default function ReadBookPage() {
                       // Server already cleaned content via StreamProcessor
                       const finalServerThinking = (chunk as any).thinkingContent || '';
                       const cleaned = chunk.fullContent || chunk.content || '';
+                      console.log('[QA Module] Final content - cleaned.length:', cleaned.length, ', thinkingLength:', finalServerThinking.length);
 
                       // DEBUG: Log final content to diagnose "《" bug (Task 4.2)
                       console.log('[QA Module DEBUG] FINAL chunk - isComplete=true:', {
@@ -2587,6 +2751,12 @@ export default function ReadBookPage() {
 
           // If changed from private to public, share to community
           if (isNotePublic && !previousPublicStatus) {
+            // Task 4.9/4.10 Debug Logging
+            console.log(`🔄 [NoteSync] Visibility changed from private to public for note:`, {
+              noteId: currentNoteObj.id,
+              chapterId: currentChapter.id,
+              contentLength: currentNote.length
+            });
             try {
               const chapterTitle = getChapterTitle(currentChapter.titleKey);
               const postContent = `我的閱讀筆記
@@ -2603,11 +2773,12 @@ ${selectedTextContent}
                 authorName: user.name || '匿名讀者',
                 content: postContent,
                 tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
-                category: 'discussion'
+                category: 'discussion',
+                sourceNoteId: currentNoteObj.id  // Task 4.9/4.10: Link note to post
               };
 
               await shareToCommunity(postData);
-              console.log(`✅ Updated note shared to community`);
+              console.log(`✅ [NoteSync] Updated note shared to community (linked to note ${currentNoteObj.id})`);
             } catch (communityError) {
               console.error('Error sharing updated note to community:', communityError);
             }
@@ -2625,10 +2796,19 @@ ${selectedTextContent}
           isPublic: isNotePublic,
         };
         const noteId = await saveNoteAPI(noteToSave);
-        console.log(`📝 Note saved with ID: ${noteId}, content length: ${currentNote.length} chars, isPublic: ${isNotePublic}`);
+        // Task 4.9/4.10 Debug Logging
+        console.log(`📝 [NoteSync] Note saved with ID: ${noteId}`, {
+          contentLength: currentNote.length,
+          isPublic: isNotePublic,
+          chapterId: currentChapter.id
+        });
 
         // If note is public, share it to community
         if (isNotePublic) {
+          console.log(`📝 [NoteSync] New public note created, sharing to community...`, {
+            noteId,
+            chapterId: currentChapter.id
+          });
           try {
             const chapterTitle = getChapterTitle(currentChapter.titleKey);
             // Format community post with simplified format to avoid content filter
@@ -2646,11 +2826,12 @@ ${selectedTextContent}
               authorName: user.name || '匿名讀者',
               content: postContent,
               tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
-              category: 'discussion'
+              category: 'discussion',
+              sourceNoteId: noteId  // Task 4.9/4.10: Link note to post
             };
 
             await shareToCommunity(postData);
-            console.log(`✅ Public note shared to community`);
+            console.log(`✅ [NoteSync] Public note shared to community (linked to note ${noteId})`);
           } catch (communityError) {
             console.error('Error sharing note to community:', communityError);
             // Don't fail note save if community post fails
@@ -3085,6 +3266,8 @@ ${selectedTextContent}
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => {
               const activeSession = getActiveSession();
               const hasHistory = activeSession && activeSession.messages.length > 0;
+              // Task 4.2 Logging: Track aiMode determination
+              console.log('[QA Module] AI button clicked - activeSession:', !!activeSession, ', hasHistory:', hasHistory, ', setting aiMode to:', hasHistory ? 'perplexity-qa' : 'new-conversation');
               setAiMode(hasHistory ? 'perplexity-qa' : 'new-conversation');
               setIsAiSheetOpen(true);
               handleInteraction();
@@ -3145,10 +3328,11 @@ ${selectedTextContent}
 
       <ScrollArea
         className={cn(
-          "flex-grow pt-24 pb-10 px-4 md:px-8", // pt-24 to account for toolbar height
+          "flex-grow pb-10 px-4 md:px-8", // Task 4.5 Phase 2: Removed pt-24, using inline style with TOOLBAR_HEIGHT constant
           selectedTheme.readingBgClass,
           isPaginationMode ? 'overflow-hidden' : ''
         )}
+        style={{ paddingTop: `${TOOLBAR_HEIGHT}px` }} // Dynamic from constant to avoid dual source of truth
         id="chapter-content-scroll-area"
         ref={scrollAreaRef as any}
         viewportProps={{
@@ -3157,11 +3341,11 @@ ${selectedTextContent}
           style: isPaginationMode ? ({
             overscrollBehavior: 'contain',
             outline: 'none', // Remove default focus outline, use custom styling if needed
-            // Critical for CSS multi-column horizontal pagination:
+            // Task 4.5: Use TOOLBAR_HEIGHT constant for consistent height (2025-12-01)
             // - Fixed height forces columns to break and flow horizontally
             // - overflow-x hidden allows JS-controlled horizontal scrolling
             // - overflow-y hidden prevents vertical scrolling
-            height: 'calc(100vh - 6rem)', // Fixed height = viewport minus toolbar
+            height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`, // Fixed height = viewport minus toolbar
             overflowX: 'hidden',
             overflowY: 'hidden',
           } as React.CSSProperties) : undefined,
@@ -3170,6 +3354,14 @@ ${selectedTextContent}
             if (!isPaginationMode) return;
             if (e.defaultPrevented) return; // global handler already took over
             e.preventDefault();
+            // Task 4.5 Phase 3: Wheel event logging (2025-12-01)
+            if (DEBUG_PAGINATION) {
+              console.log('[Pagination] Wheel event:', {
+                deltaY: e.deltaY,
+                direction: e.deltaY > 0 ? 'down (next)' : 'up (prev)',
+                isPaginationMode,
+              });
+            }
             if (e.deltaY > 0) {
               goNextPage();
             } else if (e.deltaY < 0) {
@@ -3194,10 +3386,10 @@ ${selectedTextContent}
           style={{
             fontSize: `${currentNumericFontSize}px`,
             fontFamily: (selectedFontFamily as any).family || undefined,
-            // Task 2.1: Enhanced CSS Layout Constraints (2025-11-24 fix)
+            // Task 4.5: Updated CSS Layout Constraints with TOOLBAR_HEIGHT (2025-12-01)
             ...(columnLayout === 'double' && isPaginationMode ? {
               // Explicit height constraint (matches viewport exactly)
-              height: 'calc(100vh - 6rem)',
+              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
               // Allow width to expand automatically
               width: 'auto',
               // Column settings
@@ -3206,8 +3398,8 @@ ${selectedTextContent}
               columnGap: '3rem',
               columnFill: 'auto',
               // Layout related
-              position: 'relative',
-              boxSizing: 'border-box',
+              position: 'relative' as const,
+              boxSizing: 'border-box' as const,
             } : {})
           }}
         >
@@ -3215,27 +3407,75 @@ ${selectedTextContent}
         </div>
       </ScrollArea>
 
-      {/* Pagination controls: left and right edge buttons only (no bottom bar) */}
+      {/* Task 4.5: Kindle-style Edge Navigation Zones (2025-12-01) */}
+      {/* Invisible click/tap zones on left and right edges for intuitive page navigation */}
       {isPaginationMode && (
         <>
-          <Button
-            variant="ghost"
-            className="fixed left-4 bottom-6 h-10 px-4 z-40"
-            onClick={goPrevPage}
-            disabled={currentPage <= 1}
+          {/* Left edge zone - Previous page */}
+          <div
+            onClick={() => {
+              // Task 4.5 Phase 3: Edge zone click logging (2025-12-01)
+              if (DEBUG_PAGINATION) {
+                console.log('[Pagination] Left edge zone clicked - going to previous page');
+              }
+              goPrevPage();
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="fixed left-0 z-30 cursor-w-resize group"
+            style={{
+              top: `${TOOLBAR_HEIGHT}px`,
+              width: '8%', // Task 4.5 Phase 2: Reduced from 15% to minimize text selection interference
+              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+              background: 'transparent',
+            }}
+            aria-label="上一頁"
+            role="button"
+            tabIndex={-1}
             data-no-selection="true"
           >
-            ‹ 上一頁
-          </Button>
-          <Button
-            variant="ghost"
-            className="fixed right-4 bottom-6 h-10 px-4 z-40"
-            onClick={goNextPage}
-            disabled={currentPage >= totalPages}
+            {/* Subtle hover indicator */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-200">
+              <ChevronLeft className="w-10 h-10 text-gray-500" />
+            </div>
+          </div>
+
+          {/* Right edge zone - Next page */}
+          <div
+            onClick={() => {
+              // Task 4.5 Phase 3: Edge zone click logging (2025-12-01)
+              if (DEBUG_PAGINATION) {
+                console.log('[Pagination] Right edge zone clicked - going to next page');
+              }
+              goNextPage();
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="fixed right-0 z-30 cursor-e-resize group"
+            style={{
+              top: `${TOOLBAR_HEIGHT}px`,
+              width: '8%', // Task 4.5 Phase 2: Reduced from 15% to minimize text selection interference
+              height: `calc(100vh - ${TOOLBAR_HEIGHT}px)`,
+              background: 'transparent',
+            }}
+            aria-label="下一頁"
+            role="button"
+            tabIndex={-1}
             data-no-selection="true"
           >
-            下一頁 ›
-          </Button>
+            {/* Subtle hover indicator */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-opacity duration-200">
+              <ChevronRight className="w-10 h-10 text-gray-500" />
+            </div>
+          </div>
+
+          {/* Page indicator at bottom center */}
+          <div
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1 rounded-full bg-black/50 text-white text-sm"
+            data-no-selection="true"
+          >
+            {currentPage} / {totalPages}
+          </div>
         </>
       )}
 
@@ -3749,12 +3989,14 @@ ${selectedTextContent}
               )}
             </ScrollArea>
 
-            {/* Floating Scroll to Bottom Button (Task 4.2 Fix - Bug #1) */}
-            {/* Positioned outside ScrollArea for fixed/floating behavior like WhatsApp/Telegram */}
+            {/* Floating Scroll to Bottom Button (Task 4.2 Fix - Issue #3) */}
+            {/* Positioned above input area, right-aligned for less content overlap */}
             {!autoScrollEnabled && aiMode === 'perplexity-qa' && (
-              <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+              <div className="absolute bottom-[180px] right-4 z-50 pointer-events-none">
                 <Button
                   onClick={() => {
+                    // Task 4.2 Logging: Track button click
+                    console.log('[QA Module] Scroll to bottom button clicked');
                     setAutoScrollEnabled(true);
                     setUnreadMessageCount(0);
                     // Scroll to bottom

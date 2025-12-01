@@ -26,6 +26,7 @@ export interface CreatePostData {
   content: string;
   tags: string[];
   category?: string;
+  sourceNoteId?: string;  // Task 4.9/4.10: Link to source note for bi-directional sync
 }
 
 /**

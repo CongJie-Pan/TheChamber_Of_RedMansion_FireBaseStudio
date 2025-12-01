@@ -129,11 +129,20 @@ export async function createNote(note: Omit<Note, 'id' | 'createdAt'>): Promise<
  * @returns Object indicating if the linked post was synced
  */
 export async function updateNoteContent(noteId: string, content: string): Promise<{ syncedPostId?: string }> {
+  // Task 4.9/4.10 Debug Logging
+  console.log(`📝 [NoteRepo] updateNoteContent called:`, {
+    noteId,
+    contentLength: content.length
+  });
+
   const db = getDatabase();
   const now = Date.now();
 
   // First, get the current note to check if it has a linked post
   const note = await getNoteById(noteId);
+
+  // Task 4.9/4.10 Debug Logging - Check for sharedPostId
+  console.log(`🔍 [NoteRepo] Note sharedPostId:`, note?.sharedPostId || 'NULL - no linked post');
 
   await db.execute({
     sql: `
@@ -149,20 +158,26 @@ export async function updateNoteContent(noteId: string, content: string): Promis
   ]
   });
 
-  console.log(`✅ [NoteRepository] Updated note content: ${noteId}`);
+  console.log(`✅ [NoteRepo] Updated note content: ${noteId}`);
 
   // Task 4.9: Automatically sync the linked community post if it exists
   if (note?.sharedPostId) {
+    console.log(`🔄 [NoteRepo] Found linked post, triggering auto-sync to: ${note.sharedPostId}`);
     try {
       // Import syncPostFromNote dynamically to avoid circular dependency
       const { syncPostFromNote } = await import('./community-repository');
       await syncPostFromNote(note.sharedPostId, content, note.selectedText);
-      console.log(`✅ [NoteRepository] Auto-synced linked post: ${note.sharedPostId}`);
+      console.log(`✅ [NoteRepo] Auto-sync completed successfully:`, {
+        noteId,
+        postId: note.sharedPostId
+      });
       return { syncedPostId: note.sharedPostId };
     } catch (error) {
-      console.error(`❌ [NoteRepository] Failed to auto-sync linked post ${note.sharedPostId}:`, error);
+      console.error(`❌ [NoteRepo] Failed to auto-sync linked post ${note.sharedPostId}:`, error);
       // Don't throw - note update succeeded, post sync is secondary
     }
+  } else {
+    console.log(`ℹ️ [NoteRepo] No sharedPostId, skipping community post sync`);
   }
 
   return {};

@@ -116,6 +116,8 @@ export function AIMessageBubble({
   // Handler for manual toggle - notifies parent to persist preference (Task 4.2 Fix - Bug #3)
   const handleToggleThinking = () => {
     const newState = !isThinkingExpanded;
+    // Task 4.2 Logging: Track thinking panel toggle
+    console.log('[AIBubble] Thinking toggle - newState:', newState, ', preference:', thinkingExpandedPreference);
     setHasLocalOverride(true);
     setLocalExpandedState(newState);
     // Notify parent so it can persist the preference across all messages

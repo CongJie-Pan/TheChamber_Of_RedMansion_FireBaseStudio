@@ -861,6 +861,13 @@ export async function syncPostFromNote(
   content: string,
   selectedText: string
 ): Promise<CommunityPost> {
+  // Task 4.9/4.10 Debug Logging
+  console.log(`🔄 [CommunityRepo] syncPostFromNote called:`, {
+    postId,
+    contentLength: content.length,
+    selectedTextLength: selectedText?.length || 0
+  });
+
   const db = getDatabase();
   const now = Date.now();
 
@@ -878,7 +885,11 @@ export async function syncPostFromNote(
     args: [formattedContent, now, now, postId]
   });
 
-  console.log(`✅ [CommunityRepository] Synced post ${postId} from source note`);
+  console.log(`✅ [CommunityRepo] Post synced with isEdited=1:`, {
+    postId,
+    editedAt: now,
+    formattedContentLength: formattedContent.length
+  });
 
   const updated = await getPostById(postId);
   if (!updated) throw new Error(`Post not found after sync: ${postId}`);
@@ -911,6 +922,9 @@ export async function linkPostToNote(postId: string, noteId: string): Promise<vo
  * @param noteId - Source note ID
  */
 export async function linkNoteAndPostBidirectional(postId: string, noteId: string): Promise<void> {
+  // Task 4.9/4.10 Debug Logging
+  console.log(`🔗 [CommunityRepo] linkNoteAndPostBidirectional called:`, { postId, noteId });
+
   const db = getDatabase();
   const now = Date.now();
 
@@ -926,7 +940,11 @@ export async function linkNoteAndPostBidirectional(postId: string, noteId: strin
     }
   ], 'write');
 
-  console.log(`✅ [CommunityRepository] Bi-directional link established: note ${noteId} ↔ post ${postId}`);
+  console.log(`✅ [CommunityRepo] Bi-directional link established:`, {
+    'posts.sourceNoteId': noteId,
+    'notes.sharedPostId': postId,
+    timestamp: now
+  });
 }
 
 /**

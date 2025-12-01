@@ -261,6 +261,9 @@ export class PerplexityClient {
    * 清理 HTML 標籤並處理思考標籤
    */
   private cleanResponse(text: string, showThinking: boolean = true): string {
+    // Task 4.2 Logging: Track cleanResponse input
+    console.log('[perplexity-client] cleanResponse input.length:', text?.length || 0);
+
     if (!text) return '';
 
     let cleanText = text;
@@ -271,7 +274,9 @@ export class PerplexityClient {
     const incompleteThinkPattern = /<think[^>]*>([\s\S]*?)(?=<(?!\/?think)|$)/gs;
     cleanText = cleanText.replace(incompleteThinkPattern, '');
 
-    // Clean other HTML tags
+    // Task 4.2 Fix: Clean specific HTML tags only, avoid overly aggressive regex
+    // The previous catch-all pattern /<\/?[a-zA-Z][^>]*>/gi was too aggressive
+    // and could corrupt Chinese characters like 《》 if chunks split mid-content
     const htmlPatterns = [
       /<div[^>]*>/gi, /<\/div>/gi,
       /<small[^>]*>/gi, /<\/small>/gi,
@@ -280,7 +285,18 @@ export class PerplexityClient {
       /<p[^>]*>/gi, /<\/p>/gi,
       /<br[^>]*\/?>/gi,
       /<think[^>]*>/gi, /<\/think>/gi,
-      /<\/?[a-zA-Z][^>]*>/gi, // Clean any remaining HTML tags
+      // More specific patterns for common HTML elements only
+      /<a[^>]*>/gi, /<\/a>/gi,
+      /<em[^>]*>/gi, /<\/em>/gi,
+      /<i[^>]*>/gi, /<\/i>/gi,
+      /<b[^>]*>/gi, /<\/b>/gi,
+      /<h[1-6][^>]*>/gi, /<\/h[1-6]>/gi,
+      /<ul[^>]*>/gi, /<\/ul>/gi,
+      /<ol[^>]*>/gi, /<\/ol>/gi,
+      /<li[^>]*>/gi, /<\/li>/gi,
+      /<blockquote[^>]*>/gi, /<\/blockquote>/gi,
+      /<code[^>]*>/gi, /<\/code>/gi,
+      /<pre[^>]*>/gi, /<\/pre>/gi,
     ];
 
     htmlPatterns.forEach(pattern => {
@@ -291,7 +307,10 @@ export class PerplexityClient {
     cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
     cleanText = cleanText.replace(/[ \t]+/g, ' ');
 
-    return cleanText.trim();
+    const result = cleanText.trim();
+    // Task 4.2 Logging: Track cleanResponse output
+    console.log('[perplexity-client] cleanResponse output.length:', result.length);
+    return result;
   }
 
   /**
@@ -762,8 +781,21 @@ export class PerplexityClient {
                       // Extract citations from current full content
                       const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
 
+                      // Task 4.2 Debug: Log BEFORE cleanResponse to diagnose "《" symbol bug
+                      console.log('🐛 [perplexity-client] BEFORE cleanResponse:', {
+                        rawContent: structured.content?.substring(0, 300) || '(empty)',
+                        rawLength: structured.content?.length || 0,
+                      });
+
                       // Clean the incremental content
                       const incrementalContent = this.cleanResponse(structured.content, false);
+
+                      // Task 4.2 Debug: Log AFTER cleanResponse
+                      console.log('🐛 [perplexity-client] AFTER cleanResponse:', {
+                        cleanedContent: incrementalContent?.substring(0, 300) || '(empty)',
+                        cleanedLength: incrementalContent?.length || 0,
+                        contentChanged: structured.content !== incrementalContent,
+                      });
 
                       yield {
                         content: incrementalContent,

@@ -415,7 +415,10 @@ export class DailyTaskService {
 
     try {
       const targetDate = date || getTodayDateString();
+      // Task 4.2 Logging: Track progressRepository.getProgress calls
+      console.log('[DailyTask] Calling progressRepository.getProgress for userId=' + userId + ', date=' + targetDate);
       const progress = await progressRepository.getProgress(userId, targetDate);
+      console.log('[DailyTask] progressRepository.getProgress returned:', progress ? 'record found' : 'null');
 
       if (progress) {
         console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
@@ -423,7 +426,7 @@ export class DailyTaskService {
 
       return progress;
     } catch (error) {
-      console.error('Error fetching daily progress:', error);
+      console.error('[DailyTask] Error fetching daily progress:', error);
       return null;
     }
   }

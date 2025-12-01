@@ -38,7 +38,7 @@ Before analysis, you will:
 2. Examine relevant test files that are failing
 3. Review recently modified files (check git history)
 4. Identify related issues or PRs in the project
-5. Understand the project structure from docs/structure_module_infoMD/project_structure.md
+5. Understand the project structure from docs/structure_module_infoMD/project_structure.md and read the related docs in the "docs\structure_module_infoMD".
 
 ### Phase 3: Root Cause Analysis (Deep Thinking Mode)
 
