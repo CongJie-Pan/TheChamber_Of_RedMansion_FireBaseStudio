@@ -16,8 +16,10 @@ const nextConfig: NextConfig = {
   // Phase 4-T3: Performance Optimizations
   // Note: swcMinify is now enabled by default in Next.js 15
   compiler: {
+    // DEBUG: Temporarily added 'log' to exclude for debugging AI Q&A issue
+    // TODO: Remove 'log' from exclude after debugging is complete
     removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'],
+      exclude: ['error', 'warn', 'log'],
     } : false,
   },
   // Next.js 15+: serverExternalPackages moved from experimental to top-level
