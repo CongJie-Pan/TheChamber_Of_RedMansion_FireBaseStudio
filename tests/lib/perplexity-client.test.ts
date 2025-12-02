@@ -1885,5 +1885,49 @@ describe('PerplexityClient', () => {
       expect(lastChunk.thinkingContent).toContain('我需要');
       expect(lastChunk.isComplete).toBe(true);
     });
+
+    test('should derive answer from thinking-only stream when no answer chunks are present', async () => {
+      const client = new PerplexityClient('test-key');
+
+      const sseChunks = [
+        formatSSEChunk({
+          id: 'think-only',
+          object: 'chat.completion.chunk',
+          created: Date.now(),
+          model: 'sonar-reasoning',
+          choices: [{
+            index: 0,
+            delta: { content: '<think>分析資料中，答案：最終結論是寶黛愛情象徵封建崩解</think>' },
+            finish_reason: 'stop',
+          }],
+        }),
+        'data: [DONE]\n\n',
+      ];
+
+      const mockStream = createMockSSEStream(sseChunks);
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: mockStream,
+        headers: new Map([['content-type', 'text/event-stream']]),
+      } as any);
+
+      const input: PerplexityQAInput = {
+        userQuestion: '僅有思考內容時也要回傳答案',
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks: any[] = [];
+      for await (const chunk of client.streamingCompletionRequest(input)) {
+        chunks.push(chunk);
+      }
+
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.isComplete).toBe(true);
+      expect(lastChunk.fullContent).toContain('最終結論');
+      expect(lastChunk.contentDerivedFromThinking).toBe(true);
+      expect(lastChunk.thinkingContent).toContain('分析資料中');
+    });
   });
 });
