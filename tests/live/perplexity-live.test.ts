@@ -11,8 +11,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { PerplexityClient } from '@/lib/perplexity-client';
-import type { PerplexityQAInput, PerplexityStreamingChunk } from '@/types/perplexity-qa';
+import { createPerplexityConfig, PERPLEXITY_CONFIG } from '@/ai/perplexity-config';
 
 // Increase timeout for live network call
 jest.setTimeout(60_000);
@@ -23,60 +22,82 @@ const shouldRun = Boolean(apiKey && apiKey.trim().length > 0);
 const maybe = shouldRun ? describe : describe.skip;
 
 maybe('Perplexity live streaming smoke test', () => {
-  test('returns non-empty answer content (not only thinking)', async () => {
-    const client = new PerplexityClient(apiKey);
-    const input: PerplexityQAInput = {
-      userQuestion: '請用極短的中文回答：紅樓夢的作者是誰？（限制30字內）',
-      modelKey: 'sonar-reasoning-pro',
+  test('saves raw SSE response from real Perplexity API', async () => {
+    const question = '請回答：紅樓夢的作者是誰？請直接作答並補充一句說明。';
+    const config = createPerplexityConfig({
+      model: 'sonar-reasoning-pro',
       reasoningEffort: 'low',
       enableStreaming: true,
-      showThinkingProcess: true,
-      maxTokens: 120,
-      temperature: 0.2,
+      // 不額外限制 maxTokens，讓回應自然結束（遵循預設 2000）
+      temperature: 0.3,
+    });
+
+    const requestData = {
+      ...config,
+      messages: [
+        {
+          role: 'user',
+          content: question,
+        },
+      ],
     };
 
-    let finalChunk: PerplexityStreamingChunk | null = null;
-    let firstThinking: string | null = null;
+    const response = await fetch(
+      `${PERPLEXITY_CONFIG.BASE_URL}${PERPLEXITY_CONFIG.CHAT_COMPLETIONS_ENDPOINT}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(requestData),
+      }
+    );
 
-    for await (const chunk of client.streamingCompletionRequest(input)) {
-      finalChunk = chunk;
-      if (!firstThinking && (chunk.thinkingContent || '').trim()) {
-        firstThinking = (chunk.thinkingContent || '').trim();
+    expect(response.ok).toBe(true);
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+
+    let rawSSE = '';
+    const decoder = new TextDecoder();
+    const firstDataEvents: string[] = [];
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        rawSSE += decoder.decode(value, { stream: true });
       }
     }
 
-    expect(finalChunk).not.toBeNull();
-    expect(finalChunk?.isComplete).toBe(true);
-    // Ensure we received some answer text (fallback or real answer)
-    expect((finalChunk?.fullContent || '').trim().length).toBeGreaterThan(0);
-    // Also ensure we saw thinking content somewhere in the stream
-    expect((firstThinking || (finalChunk?.thinkingContent || '')).trim().length).toBeGreaterThan(0);
+    // Capture a few data events for quick preview
+    rawSSE.split('\n').forEach((line) => {
+      if (line.startsWith('data: ') && !line.includes('[DONE]') && firstDataEvents.length < 3) {
+        firstDataEvents.push(line.slice(6));
+      }
+    });
 
-    // Optional: emit concise debug to help inspect real API shape (not failing the test)
-    // eslint-disable-next-line no-console
-    console.log('[Perplexity Live] Thinking preview:', (firstThinking || '').slice(0, 200));
-    // eslint-disable-next-line no-console
-    console.log('[Perplexity Live] Final answer preview:', (finalChunk?.fullContent || '').slice(0, 200));
-
-    // Persist full outputs for inspection
+    // Persist raw SSE to log file
     const logDir = path.join('docs', 'testing', 'perplexity_api_running_test_log');
     fs.mkdirSync(logDir, { recursive: true });
-    const logPath = path.join(logDir, `live-run-${Date.now()}.txt`);
+    const logPath = path.join(logDir, `live-run-raw-${Date.now()}.txt`);
     const logContent = [
       `Timestamp: ${new Date().toISOString()}`,
-      `Question: ${input.userQuestion}`,
-      `Model: ${input.modelKey}`,
-      `ReasoningEffort: ${input.reasoningEffort}`,
+      `Question: ${question}`,
+      `Model: ${config.model}`,
+      `ReasoningEffort: ${config.reasoning_effort || 'n/a'}`,
       '',
-      '--- Thinking (full) ---',
-      firstThinking || finalChunk?.thinkingContent || '(none)',
+      '--- Raw SSE (below) ---',
+      rawSSE,
       '',
-      '--- Final Answer (fullContent) ---',
-      finalChunk?.fullContent || '(none)',
-      '',
-      'contentDerivedFromThinking: ' + (finalChunk?.contentDerivedFromThinking ? 'yes' : 'no'),
-      'chunkIndex: ' + (finalChunk?.chunkIndex ?? 'n/a'),
+      '--- First data events (preview) ---',
+      ...firstDataEvents,
     ].join('\n');
     fs.writeFileSync(logPath, logContent, 'utf8');
+
+    expect(rawSSE.trim().length).toBeGreaterThan(0);
+    expect(rawSSE.includes('data:')).toBe(true);
+    expect(rawSSE.includes('[DONE]')).toBe(true);
   });
 });
