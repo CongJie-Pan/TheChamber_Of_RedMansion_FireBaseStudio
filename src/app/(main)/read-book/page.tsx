@@ -2123,7 +2123,7 @@ export default function ReadBookPage() {
 
                   // Check for completion signal
                   if (data === '[DONE]') {
-                    console.log('Received completion signal');
+                    console.log('%c[QA Module] ✅ Received [DONE] signal', 'background: #0f0; color: #000; font-size: 16px;');
                     // Finalize if generator didn't send explicit isComplete chunk
                     if (!sawCompletion && chunks.length > 0) {
                       const last = chunks[chunks.length - 1];
@@ -2132,6 +2132,18 @@ export default function ReadBookPage() {
                       const combined = last.fullContent?.trim()
                         ? last.fullContent
                         : ((last as any).thinkingContent?.trim() || '');
+
+                      // Task 4.2: Log final state for debugging
+                      console.log('%c[QA Module] 🏁 FINAL STATE on [DONE]', 'background: #00f; color: #fff; font-size: 16px;', {
+                        totalChunks: chunks.length,
+                        lastChunkIndex: last.chunkIndex,
+                        lastFullContentLength: last.fullContent?.length || 0,
+                        lastFullContentPreview: last.fullContent?.substring(0, 300) || '(empty)',
+                        lastThinkingContentLength: (last as any).thinkingContent?.length || 0,
+                        combinedContentLength: combined.length,
+                        combinedPreview: combined.substring(0, 300) || '(empty)',
+                        usedFallback: !last.fullContent?.trim(),
+                      });
                       if (!latestThinkingText && last.thinkingContent) {
                         latestThinkingText = last.thinkingContent;
                       }
@@ -2205,16 +2217,31 @@ export default function ReadBookPage() {
                   try {
                     const chunk: PerplexityStreamingChunk = JSON.parse(data);
 
-                    // DEBUG: Log chunk details to diagnose "《" bug (Task 4.2)
-                    console.log('[QA Module DEBUG] Chunk received:', {
-                      chunkIndex: chunk.chunkIndex,
+                    // DEBUG: Log chunk details to diagnose streaming issue (Task 4.2)
+                    console.log('%c[QA Module] 📦 Chunk #' + chunk.chunkIndex, 'background: #222; color: #bada55; font-size: 14px;', {
+                      // Content lengths
                       contentLength: chunk.content?.length || 0,
                       fullContentLength: chunk.fullContent?.length || 0,
                       thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
+                      // Flags
                       isComplete: chunk.isComplete,
-                      contentPreview: chunk.content?.substring(0, 100) || '(empty)',
-                      fullContentPreview: chunk.fullContent?.substring(0, 100) || '(empty)',
+                      hasError: !!chunk.error,
+                      // Content previews (first 200 chars)
+                      contentPreview: chunk.content?.substring(0, 200) || '(empty)',
+                      fullContentPreview: chunk.fullContent?.substring(0, 200) || '(empty)',
+                      thinkingPreview: (chunk as any).thinkingContent?.substring(0, 200) || '(empty)',
+                      // Raw data for inspection
+                      rawChunk: chunk,
                     });
+
+                    // Task 4.2: Alert if fullContent is empty but thinkingContent exists
+                    if (!(chunk.fullContent?.trim()) && (chunk as any).thinkingContent?.trim()) {
+                      console.warn('%c[QA Module] ⚠️ WARNING: fullContent is EMPTY but thinkingContent exists!',
+                        'background: #ff0; color: #000; font-size: 16px;', {
+                        fullContentLength: chunk.fullContent?.length || 0,
+                        thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
+                      });
+                    }
 
                     chunks.push(chunk);
                     setPerplexityStreamingChunks([...chunks]);
