@@ -681,13 +681,17 @@ export async function closeDatabase(): Promise<void> {
  * Execute a transaction
  * Note: Turso supports transactions but with different API than better-sqlite3
  *
+ * Bug Fix (2025-12-02): Added safe rollback handling for serverless/Turso environments.
+ * In HTTP-based connections, transactions may become inactive due to timeouts or
+ * network issues. The rollback now gracefully handles "no transaction is active" errors.
+ *
  * @param callback - Transaction callback function
  * @returns Transaction result
  */
 export async function transaction<T>(
   callback: (db: Client) => Promise<T>
 ): Promise<T> {
-  const db = await getDatabase();
+  const db = getDatabase();
 
   try {
     await db.execute('BEGIN');
@@ -695,7 +699,20 @@ export async function transaction<T>(
     await db.execute('COMMIT');
     return result;
   } catch (error) {
-    await db.execute('ROLLBACK');
+    // 🛡️ Safe rollback: Handle case where transaction is already inactive
+    // This can happen in serverless/Turso environments where:
+    // 1. HTTP connection times out
+    // 2. Transaction already auto-rolled back
+    // 3. Network interruption occurred
+    try {
+      await db.execute('ROLLBACK');
+    } catch (rollbackError) {
+      // Log warning but don't throw - the original error is more important
+      console.warn(
+        '[Turso] Rollback failed (transaction may already be inactive):',
+        rollbackError instanceof Error ? rollbackError.message : rollbackError
+      );
+    }
     throw error;
   }
 }

@@ -323,9 +323,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         );
 
       default:
+        // 🛡️ Defensive check: Log unknown task type for debugging
+        // Bug Fix (2025-12-02): Added detailed logging to help diagnose taskType mismatches
+        console.error(
+          `[TaskModal] Unknown task type: "${task.type}" for task ID: ${task.id}. ` +
+          `Expected one of: morning_reading, character_insight, cultural_exploration, commentary_decode. ` +
+          `Full task object:`, task
+        );
         return (
-          <div className="text-center py-8 text-muted-foreground">
-            未知的任務類型
+          <div className="text-center py-8 space-y-2">
+            <p className="text-muted-foreground">未知的任務類型</p>
+            <p className="text-xs text-muted-foreground/60">
+              任務類型: {String(task.type)} | 任務 ID: {task.id}
+            </p>
+            <p className="text-xs text-destructive">
+              請聯繫管理員或重新整理頁面
+            </p>
           </div>
         );
     }

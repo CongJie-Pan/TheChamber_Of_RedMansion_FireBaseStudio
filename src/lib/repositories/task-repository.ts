@@ -8,8 +8,14 @@
  */
 
 import { getDatabase, type Client, toUnixTimestamp, fromUnixTimestamp } from '../sqlite-db';
-import type { DailyTask, DailyTaskType, TaskDifficulty } from '../types/daily-task';
+import type { DailyTask, TaskDifficulty } from '../types/daily-task';
+import { DailyTaskType } from '../types/daily-task';
 import { XP_REWARD_TABLE, ATTRIBUTE_REWARD_TABLE } from '../task-generator';
+
+/**
+ * Valid DailyTaskType values for validation
+ */
+const VALID_TASK_TYPES = Object.values(DailyTaskType) as string[];
 
 /**
  * Task data interface for database operations
@@ -34,12 +40,26 @@ interface TaskRow {
  * Phase 4-T1: Enhanced to auto-generate xpReward and attributeRewards
  * from REWARD_TABLEs when not present in database content JSON.
  * This ensures backward compatibility with existing tasks that only have baseXP.
+ *
+ * Bug Fix (2025-12-02): Added taskType validation to prevent "未知的任務類型" UI error.
+ * Now validates taskType against DailyTaskType enum before use.
  */
 function rowToTask(row: TaskRow): DailyTask {
   const content = row.content ? JSON.parse(row.content) : {};
 
-  // Extract type and difficulty for reward calculation
-  const taskType = row.taskType as DailyTaskType;
+  // 🛡️ Validate taskType against enum values
+  // If invalid, log warning and default to MORNING_READING for graceful fallback
+  let taskType: DailyTaskType;
+  if (VALID_TASK_TYPES.includes(row.taskType)) {
+    taskType = row.taskType as DailyTaskType;
+  } else {
+    console.warn(
+      `⚠️ [TaskRepository] Invalid taskType "${row.taskType}" for task ${row.id}. ` +
+      `Valid types: ${VALID_TASK_TYPES.join(', ')}. Defaulting to morning_reading.`
+    );
+    taskType = DailyTaskType.MORNING_READING;
+  }
+
   const difficulty = row.difficulty as TaskDifficulty;
 
   // Generate xpReward: Priority order
@@ -432,8 +452,16 @@ export async function batchCreateTasks(tasks: DailyTask[]): Promise<DailyTask[]>
     console.log(`✅ [TaskRepository] Batch created ${tasks.length} tasks`);
     return tasks;
   } catch (error) {
-    // Rollback transaction on error
-    await db.execute('ROLLBACK');
+    // 🛡️ Safe rollback: Handle case where transaction is already inactive (serverless/Turso)
+    try {
+      await db.execute('ROLLBACK');
+    } catch (rollbackError) {
+      // Ignore rollback error - transaction may already be rolled back or inactive
+      console.warn(
+        `⚠️ [TaskRepository] Rollback failed (transaction may already be inactive):`,
+        rollbackError
+      );
+    }
     console.error(`❌ [TaskRepository] Batch create failed:`, error);
     throw error;
   }

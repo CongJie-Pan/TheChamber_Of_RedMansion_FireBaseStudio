@@ -282,7 +282,14 @@ export async function seedGuestAccount(reset: boolean = true): Promise<void> {
     console.log(`\n`);
 
   } catch (error: any) {
-    await db.execute('ROLLBACK');
+    // 🛡️ Safe rollback: Handle case where transaction is already inactive (serverless/Turso)
+    // Bug Fix (2025-12-02): Prevent "cannot rollback - no transaction is active" crash
+    try {
+      await db.execute('ROLLBACK');
+    } catch (rollbackError: any) {
+      // Log warning but don't re-throw - the original error is more important
+      console.warn(`⚠️ Rollback failed (transaction may already be inactive): ${rollbackError.message}`);
+    }
     console.error(`\n❌ Error seeding guest account: ${error.message}`);
     console.error(error.stack);
     process.exit(1);
