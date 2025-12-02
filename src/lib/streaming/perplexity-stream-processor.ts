@@ -115,8 +115,9 @@ export class PerplexityStreamProcessor {
     // without re-processing the buffer
     if (this.state === 'inside') {
       // PHASE 4.1 FIX: Use sliding window to detect closing tags across chunk boundaries
-      // Create lookback buffer: last 7 chars from thinkingBuffer + current rawChunk
-      const maxLookbackSize = 7;
+      // Create lookback buffer: last 8 chars from thinkingBuffer + current rawChunk
+      // NOTE: </think> is 8 characters, so lookback must be at least 8 to detect split tags
+      const maxLookbackSize = 8;
       const lookbackFromPrevious = this.thinkingBuffer.slice(-maxLookbackSize);
       // IMPORTANT: Use actual lookback size, not max, when thinkingBuffer has fewer chars
       const actualLookbackSize = lookbackFromPrevious.length;

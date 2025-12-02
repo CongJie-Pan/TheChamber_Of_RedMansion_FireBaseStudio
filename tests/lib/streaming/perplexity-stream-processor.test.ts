@@ -86,6 +86,139 @@ describe('PerplexityStreamProcessor', () => {
       });
     });
 
+    /**
+     * CRITICAL TEST: maxLookbackSize = 8 fix validation
+     *
+     * These tests verify that the sliding window correctly detects </think>
+     * tags split across chunk boundaries. The </think> tag is 8 characters,
+     * so maxLookbackSize must be at least 8 to detect all possible splits.
+     */
+    describe('Closing tag split across chunks (maxLookbackSize=8 fix)', () => {
+      test('should detect </think> split at position 1: "<" + "/think>"', () => {
+        processor.processChunk('<think>思考內容<');
+        const chunks = processor.processChunk('/think>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 2: "</" + "think>"', () => {
+        processor.processChunk('<think>思考內容</');
+        const chunks = processor.processChunk('think>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 3: "</t" + "hink>"', () => {
+        processor.processChunk('<think>思考內容</t');
+        const chunks = processor.processChunk('hink>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 4: "</th" + "ink>"', () => {
+        processor.processChunk('<think>思考內容</th');
+        const chunks = processor.processChunk('ink>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 5: "</thi" + "nk>"', () => {
+        processor.processChunk('<think>思考內容</thi');
+        const chunks = processor.processChunk('nk>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 6: "</thin" + "k>"', () => {
+        processor.processChunk('<think>思考內容</thin');
+        const chunks = processor.processChunk('k>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> split at position 7: "</think" + ">" (CRITICAL - requires maxLookbackSize >= 7)', () => {
+        processor.processChunk('<think>思考內容</think');
+        const chunks = processor.processChunk('>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should detect </think> at exact chunk boundary (CRITICAL - requires maxLookbackSize = 8)', () => {
+        // This is the critical case that was failing with maxLookbackSize = 7
+        // When thinkingBuffer ends with full 8-char "</think>" but it arrives as standalone chunk
+        processor.processChunk('<think>思考內容');
+        const chunks = processor.processChunk('</think>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should handle </think> arriving as standalone chunk after long thinking content', () => {
+        // Simulate real API pattern where </think> arrives separately
+        processor.processChunk('<think>這是一段很長的思考內容，AI 正在分析問題並思考答案');
+        processor.processChunk('。經過深入分析後，我認為');
+        const chunks = processor.processChunk('</think>');
+        const finalChunks = processor.processChunk('正式回答內容在這裡');
+
+        const allChunks = [...chunks, ...finalChunks];
+        const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+        const textChunks = allChunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toContain('這是一段很長的思考內容');
+        expect(thinkingChunks[0].content).toContain('經過深入分析後');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答內容在這裡');
+      });
+    });
+
     test('should handle tag split across multiple chunks', () => {
       // Realistic chunking pattern where tags complete within same chunk
       const chunks1 = processor.processChunk('<think>開始');
