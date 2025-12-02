@@ -34,14 +34,26 @@ maybe('Perplexity live streaming smoke test', () => {
     };
 
     let finalChunk: PerplexityStreamingChunk | null = null;
+    let firstThinking: string | null = null;
 
     for await (const chunk of client.streamingCompletionRequest(input)) {
       finalChunk = chunk;
+      if (!firstThinking && (chunk.thinkingContent || '').trim()) {
+        firstThinking = (chunk.thinkingContent || '').trim();
+      }
     }
 
     expect(finalChunk).not.toBeNull();
     expect(finalChunk?.isComplete).toBe(true);
     // Ensure we received some answer text (fallback or real answer)
     expect((finalChunk?.fullContent || '').trim().length).toBeGreaterThan(0);
+    // Also ensure we saw thinking content somewhere in the stream
+    expect((firstThinking || (finalChunk?.thinkingContent || '')).trim().length).toBeGreaterThan(0);
+
+    // Optional: emit concise debug to help inspect real API shape (not failing the test)
+    // eslint-disable-next-line no-console
+    console.log('[Perplexity Live] Thinking preview:', (firstThinking || '').slice(0, 200));
+    // eslint-disable-next-line no-console
+    console.log('[Perplexity Live] Final answer preview:', (finalChunk?.fullContent || '').slice(0, 200));
   });
 });
