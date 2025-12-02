@@ -2305,12 +2305,15 @@ export default function ReadBookPage() {
                       const msgId = streamingAIMessageIdRef.current;
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
-                        // Task 4.2 Fix: Trust fullContent as single source of truth
-                        // fullContent accumulates all content server-side, no client concatenation needed
-                        // FALLBACK: If fullContent is empty, try using thinkingContent as display content
-                        const updatedText = chunk.fullContent?.trim()
+                        // Task 4.2 Fix: Prefer fullContent; if missing, append incremental chunk.content to existing text
+                        // This prevents empty fullContent from wiping previously accumulated answer
+                        const hasFull = !!(chunk.fullContent && chunk.fullContent.trim().length > 0);
+                        const hasContent = !!(chunk.content && chunk.content.trim().length > 0);
+                        const updatedText = hasFull
                           ? chunk.fullContent
-                          : ((chunk as any).thinkingContent?.trim() || m.content);
+                          : hasContent
+                            ? `${m.content || ''}${chunk.content}`
+                            : ((chunk as any).thinkingContent?.trim() || m.content);
                         // BUG FIX: Use latestThinkingText to ensure thinking content streams incrementally
                         // This fixes the issue where thinking content only showed after completion
                         const newThinking = extractedThinkingText || latestThinkingText || m.thinkingProcess || '';
@@ -2338,7 +2341,11 @@ export default function ReadBookPage() {
                             if (m.id !== existingStreamingMsg.id) return m;
                             return {
                               ...m,
-                              content: chunk.fullContent || chunk.content || m.content,
+                              content: chunk.fullContent?.trim()
+                                ? chunk.fullContent
+                                : (chunk.content?.trim()
+                                  ? `${m.content || ''}${chunk.content}`
+                                  : m.content),
                               citations: chunk.citations || m.citations,
                               thinkingProcess: extractedThinkingText || latestThinkingText || m.thinkingProcess || '',
                             };
