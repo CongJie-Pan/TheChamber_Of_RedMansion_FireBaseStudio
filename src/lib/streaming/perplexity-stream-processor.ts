@@ -87,6 +87,16 @@ export class PerplexityStreamProcessor {
   processChunk(rawChunk: string): StructuredChunk[] {
     const chunks: StructuredChunk[] = [];
 
+    // Task 4.2 Debug: Log every processChunk call
+    console.log('[StreamProcessor] processChunk called:', {
+      rawChunkLength: rawChunk.length,
+      rawChunkPreview: rawChunk.substring(0, 100).replace(/\n/g, '\\n'),
+      currentState: this.state,
+      tagDepth: this.tagDepth,
+      bufferLength: this.buffer.length,
+      thinkingBufferLength: this.thinkingBuffer.length,
+    });
+
     // When we're inside a thinking tag, process only the new chunk directly
     // without re-processing the buffer
     if (this.state === 'inside') {
@@ -154,15 +164,33 @@ export class PerplexityStreamProcessor {
           this.state = 'outside';
           this.thinkingBuffer = '';
 
+          // Task 4.2 Debug: Log state transition to outside
+          console.log('[StreamProcessor] STATE TRANSITION: inside -> outside (closing tag found in sliding window)', {
+            thinkingContentEmitted: thinkingContent.length,
+          });
+
           // Calculate where remaining content starts in rawChunk
           // rawChunk starts at position actualLookbackSize in lookbackBuffer
           // Remaining content starts after the tag ends
           const remainingStartInRaw = Math.max(0, tagEndInLookback - actualLookbackSize);
           const remaining = rawChunk.slice(remainingStartInRaw);
 
+          // Task 4.2 Debug: Log remaining content after </think>
+          console.log('[StreamProcessor] REMAINING CONTENT after </think>:', {
+            remainingStartInRaw,
+            remainingLength: remaining.length,
+            remainingPreview: remaining.substring(0, 150).replace(/\n/g, '\\n'),
+            hasRemaining: !!remaining,
+          });
+
           if (remaining) {
             // Recursively process the remaining part
+            console.log('[StreamProcessor] RECURSIVE CALL to process remaining content');
             const remainingChunks = this.processChunk(remaining);
+            console.log('[StreamProcessor] RECURSIVE RESULT:', {
+              chunksReturned: remainingChunks.length,
+              chunkTypes: remainingChunks.map(c => c.type),
+            });
             chunks.push(...remainingChunks);
           }
 
@@ -294,6 +322,11 @@ export class PerplexityStreamProcessor {
         if (potentialTagStart > 0) {
           const textContent = remaining.slice(0, potentialTagStart).trim();
           if (textContent) {
+            // Task 4.2 Debug: Log text chunk emission (potential tag case)
+            console.log('[StreamProcessor] EMITTING TEXT CHUNK (before potential tag):', {
+              textContentLength: textContent.length,
+              textContentPreview: textContent.substring(0, 100).replace(/\n/g, '\\n'),
+            });
             chunks.push({
               type: 'text',
               content: textContent,
@@ -308,6 +341,11 @@ export class PerplexityStreamProcessor {
         // No potential tag, emit all as text
         const textContent = remaining.trim();
         if (textContent) {
+          // Task 4.2 Debug: Log text chunk emission (no potential tag)
+          console.log('[StreamProcessor] EMITTING TEXT CHUNK (no potential tag):', {
+            textContentLength: textContent.length,
+            textContentPreview: textContent.substring(0, 100).replace(/\n/g, '\\n'),
+          });
           chunks.push({
             type: 'text',
             content: textContent,
@@ -377,6 +415,16 @@ export class PerplexityStreamProcessor {
    * @returns Final chunk with any remaining content
    */
   finalize(): StructuredChunk {
+    // Task 4.2 Debug: Log finalize state
+    console.log('[StreamProcessor] finalize() called:', {
+      currentState: this.state,
+      bufferLength: this.buffer.length,
+      bufferPreview: this.buffer.substring(0, 100).replace(/\n/g, '\\n'),
+      thinkingBufferLength: this.thinkingBuffer.length,
+      thinkingBufferPreview: this.thinkingBuffer.substring(0, 100).replace(/\n/g, '\\n'),
+      tagDepth: this.tagDepth,
+    });
+
     let finalContent = '';
 
     // If we're still inside a thinking tag, include it as thinking
@@ -407,6 +455,13 @@ export class PerplexityStreamProcessor {
     this.thinkingBuffer = '';
     this.state = 'outside';
     this.tagDepth = 0;
+
+    // Task 4.2 Debug: Log finalize result
+    console.log('[StreamProcessor] finalize() returning:', {
+      type: 'complete',
+      finalContentLength: finalContent.length,
+      finalContentPreview: finalContent.substring(0, 100).replace(/\n/g, '\\n'),
+    });
 
     return {
       type: 'complete',

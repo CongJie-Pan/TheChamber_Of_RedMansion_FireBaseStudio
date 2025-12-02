@@ -740,7 +740,22 @@ export class PerplexityClient {
                   const isComplete = chunk.choices[0].finish_reason !== null;
 
                   // Process content through StreamProcessor to separate thinking and text
+                  // Task 4.2 Debug: Log raw content BEFORE StreamProcessor
+                  console.log('[perplexity-client] RAW CONTENT before StreamProcessor:', {
+                    rawContentLength: rawContent.length,
+                    rawContentPreview: rawContent.substring(0, 200).replace(/\n/g, '\\n'),
+                    containsThinkOpen: rawContent.includes('<think>'),
+                    containsThinkClose: rawContent.includes('</think>'),
+                  });
+
                   const structuredChunks = processor.processChunk(rawContent);
+
+                  // Task 4.2 Debug: Log StreamProcessor output
+                  console.log('[perplexity-client] StreamProcessor OUTPUT:', {
+                    chunksCount: structuredChunks.length,
+                    chunkTypes: structuredChunks.map(c => c.type),
+                    chunkLengths: structuredChunks.map(c => c.content.length),
+                  });
 
                   for (const structured of structuredChunks) {
                     if (structured.type === 'thinking') {

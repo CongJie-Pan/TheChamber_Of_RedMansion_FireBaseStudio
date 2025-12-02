@@ -278,8 +278,18 @@ export async function* perplexityRedChamberQAStreaming(
     await terminalLogger.logForAwaitStart('PERPLEXITY_STREAMING', 'client.streamingCompletionRequest', streamGenerator);
     
     for await (const chunk of streamGenerator) {
+      // Task 4.2 Debug: Log chunk being yielded from flow
+      console.log('[perplexity-red-chamber-qa] Yielding chunk:', {
+        chunkIndex: chunk.chunkIndex,
+        contentLength: chunk.content?.length || 0,
+        fullContentLength: chunk.fullContent?.length || 0,
+        thinkingContentLength: chunk.thinkingContent?.length || 0,
+        isComplete: chunk.isComplete,
+        hasError: !!chunk.error,
+      });
+
       yield chunk;
-      
+
       if (chunk.isComplete) {
         console.log('Perplexity streaming QA completed:', {
           chunkIndex: chunk.chunkIndex,

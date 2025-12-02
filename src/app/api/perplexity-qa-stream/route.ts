@@ -102,13 +102,19 @@ export async function POST(request: NextRequest) {
               chunkCounter++;
               hasReceivedAnyChunks = true;
 
+              // Task 4.2 Debug: Enhanced chunk logging
               console.log(`[Perplexity Stream API] Chunk ${chunkCounter}:`, {
                 hasContent: !!chunk.content,
                 contentLength: chunk.content?.length || 0,
+                contentPreview: chunk.content?.substring(0, 100)?.replace(/\n/g, '\\n') || '(empty)',
                 fullContentLength: chunk.fullContent?.length || 0,
+                fullContentPreview: chunk.fullContent?.substring(0, 100)?.replace(/\n/g, '\\n') || '(empty)',
+                thinkingContentLength: chunk.thinkingContent?.length || 0,
+                thinkingContentPreview: chunk.thinkingContent?.substring(0, 50)?.replace(/\n/g, '\\n') || '(empty)',
                 isComplete: chunk.isComplete,
                 hasError: !!chunk.error,
-                chunkIndex: chunk.chunkIndex
+                chunkIndex: chunk.chunkIndex,
+                hasThinkingProcess: chunk.hasThinkingProcess,
               });
 
               // Store partial content for error recovery
