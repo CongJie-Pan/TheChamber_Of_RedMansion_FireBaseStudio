@@ -66,5 +66,6 @@ tests/obsolete-firebase-tests/
 .env.local.firebase_backup_*
 *.env.backup
 data/backups/*.db
+docs/testing/perplexity_api_running_test_log
 
 .env.vercel

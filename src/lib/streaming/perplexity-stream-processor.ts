@@ -79,6 +79,20 @@ export class PerplexityStreamProcessor {
   private accumulatedThinking: string[] = [];
 
   /**
+   * Track all emitted text content when outside thinking tags.
+   * Used to retroactively classify as thinking when we encounter
+   * </think> without a matching <think> (API inconsistency handling).
+   */
+  private preThinkTextBuffer: string = '';
+
+  /**
+   * Track chunks emitted in current processChunk call.
+   * Used to retroactively reclassify text chunks as thinking
+   * when encountering unmatched </think>.
+   */
+  private emittedTextInCurrentStream: string[] = [];
+
+  /**
    * Process a raw chunk from the stream
    *
    * @param rawChunk - Raw text chunk from Perplexity API
@@ -243,6 +257,9 @@ export class PerplexityStreamProcessor {
         if (this.tagDepth === 1) {
           this.state = 'inside';
           this.thinkingBuffer = '';
+          // Clear pre-think buffers - content before <think> was genuine text
+          this.preThinkTextBuffer = '';
+          this.emittedTextInCurrentStream = [];
         } else {
           // Nested tag - include in thinking content
           this.thinkingBuffer += '<think>';
@@ -278,22 +295,49 @@ export class PerplexityStreamProcessor {
             this.thinkingBuffer += '</think>';
           }
         } else {
-          // CORE FIX: Handle unmatched </think> tag (tagDepth === 0)
-          // This occurs when the closing tag was already processed in the sliding window
-          // and the remaining content after </think> is being processed recursively.
-          // We need to:
-          // 1. Emit any text content that came before this tag
-          // 2. Skip the tag itself so it's not included in subsequent text output
+          // CRITICAL FIX: Handle unmatched </think> tag (tagDepth === 0)
+          // This occurs when the Perplexity API sends thinking content WITHOUT
+          // the opening <think> tag (API inconsistency). In this case:
+          // 1. All content before </think> was actually THINKING content
+          // 2. Content after </think> should be treated as TEXT (answer)
+          //
+          // Since text chunks from previous processChunk calls are already returned,
+          // we emit a THINKING chunk with the accumulated content. The caller
+          // may receive duplicate content (once as text, once as thinking) and
+          // should handle this by using the thinking chunk when available.
+
+          console.log('[StreamProcessor] UNMATCHED </think> DETECTED - API sent thinking without <think> tag');
+
+          // Collect any content in current buffer before </think>
+          let contentBeforeCloseTag = '';
           if (this.state === 'outside' && i > textStart) {
-            const textContent = this.buffer.slice(textStart, i).trim();
-            if (textContent) {
-              chunks.push({
-                type: 'text',
-                content: textContent,
-                timestamp: Date.now(),
-              });
-            }
+            contentBeforeCloseTag = this.buffer.slice(textStart, i).trim();
           }
+
+          // Combine all accumulated "pre-think" text content
+          const combinedThinkingContent = (this.preThinkTextBuffer + ' ' + contentBeforeCloseTag).trim();
+
+          console.log('[StreamProcessor] Emitting accumulated content as thinking:', {
+            preThinkTextBufferLength: this.preThinkTextBuffer.length,
+            contentBeforeCloseTagLength: contentBeforeCloseTag.length,
+            combinedLength: combinedThinkingContent.length,
+            combinedPreview: combinedThinkingContent.substring(0, 100).replace(/\n/g, '\\n'),
+          });
+
+          // Emit as THINKING chunk (caller should prefer this over earlier text chunks)
+          if (combinedThinkingContent) {
+            this.accumulatedThinking.push(combinedThinkingContent);
+            chunks.push({
+              type: 'thinking',
+              content: combinedThinkingContent,
+              timestamp: Date.now(),
+            });
+          }
+
+          // Reset tracking buffers - content after </think> is genuine text
+          this.preThinkTextBuffer = '';
+          this.emittedTextInCurrentStream = [];
+
           // Skip past the closing tag
           textStart = i + 8;
         }
@@ -332,6 +376,9 @@ export class PerplexityStreamProcessor {
               content: textContent,
               timestamp: Date.now(),
             });
+            // Track for potential retroactive reclassification
+            this.emittedTextInCurrentStream.push(textContent);
+            this.preThinkTextBuffer += textContent;
           }
         }
 
@@ -351,6 +398,9 @@ export class PerplexityStreamProcessor {
             content: textContent,
             timestamp: Date.now(),
           });
+          // Track for potential retroactive reclassification
+          this.emittedTextInCurrentStream.push(textContent);
+          this.preThinkTextBuffer += textContent;
         }
         this.buffer = '';
       }
@@ -492,5 +542,7 @@ export class PerplexityStreamProcessor {
     this.state = 'outside';
     this.tagDepth = 0;
     this.accumulatedThinking = [];
+    this.preThinkTextBuffer = '';
+    this.emittedTextInCurrentStream = [];
   }
 }

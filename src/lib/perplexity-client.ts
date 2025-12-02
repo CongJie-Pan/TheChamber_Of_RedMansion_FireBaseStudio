@@ -917,6 +917,66 @@ export class PerplexityClient {
           }
           // FIX: Removed shouldStopAfterCurrentBatch check - continue processing until [DONE] or stream end
         }
+
+        // FIX: Handle stream ending without [DONE] signal
+        // When HTTP stream ends (done=true) but we never received [DONE]:
+        // - We need to finalize the processor to flush any buffered content
+        // - We need to yield a final chunk with accumulated content
+        // This is the CRITICAL fix for the bug where answer content was lost
+        console.log('🐛 [streamingCompletionRequest] Stream ended - checking if finalization needed');
+
+        // Only yield final chunk if we haven't already (via [DONE] handler's return)
+        // Check: if we get here, it means we broke from the loop via done=true, not [DONE]'s return
+        const finalChunk = processor.finalize();
+        if (finalChunk.content.trim()) {
+          fullContent += finalChunk.content;
+        }
+
+        const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
+
+        // FALLBACK: When fullContent is empty but we have thinking content
+        let contentDerivedFromThinking = false;
+        if (!fullContent.trim() && sanitizedThinking.trim()) {
+          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty, using thinking as answer');
+          let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
+          if (extractedAnswer.length < 50) {
+            extractedAnswer = sanitizedThinking;
+          }
+          fullContent = extractedAnswer;
+          contentDerivedFromThinking = true;
+        }
+
+        const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
+        const processingTime = (Date.now() - startTime) / 1000;
+
+        // Yield final completion chunk when stream ends without [DONE]
+        console.log('🐛 [streamingCompletionRequest] Yielding final chunk (stream ended without [DONE]):', {
+          fullContentLength: fullContent.length,
+          fullContentPreview: fullContent.substring(0, 200) || '(empty)',
+          thinkingLength: sanitizedThinking.length,
+          contentDerivedFromThinking,
+        });
+
+        yield {
+          content: finalChunk.content.trim() || '',
+          fullContent: fullContent,
+          thinkingContent: sanitizedThinking,
+          contentDerivedFromThinking: contentDerivedFromThinking,
+          timestamp: new Date().toISOString(),
+          citations,
+          searchQueries: collectedSearchQueries,
+          metadata: {
+            searchQueries: collectedSearchQueries,
+            webSources: citations.filter(c => c.type === 'web_citation'),
+            groundingSuccessful: collectedCitations.length > 0,
+            confidenceScore: collectedCitations.length ? Math.min(collectedCitations.length / 5, 1) : 0,
+          },
+          responseTime: processingTime,
+          isComplete: true,  // Stream ended, so mark as complete
+          chunkIndex: chunkIndex + 1,
+          hasThinkingProcess: sanitizedThinking.length > 0,
+        };
+
       } finally {
         reader.releaseLock();
       }
