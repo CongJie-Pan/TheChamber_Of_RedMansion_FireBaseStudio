@@ -9,6 +9,8 @@
  * - Uses a tiny prompt and low maxTokens to minimize usage.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { PerplexityClient } from '@/lib/perplexity-client';
 import type { PerplexityQAInput, PerplexityStreamingChunk } from '@/types/perplexity-qa';
 
@@ -55,5 +57,26 @@ maybe('Perplexity live streaming smoke test', () => {
     console.log('[Perplexity Live] Thinking preview:', (firstThinking || '').slice(0, 200));
     // eslint-disable-next-line no-console
     console.log('[Perplexity Live] Final answer preview:', (finalChunk?.fullContent || '').slice(0, 200));
+
+    // Persist full outputs for inspection
+    const logDir = path.join('docs', 'testing', 'perplexity_api_running_test_log');
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, `live-run-${Date.now()}.txt`);
+    const logContent = [
+      `Timestamp: ${new Date().toISOString()}`,
+      `Question: ${input.userQuestion}`,
+      `Model: ${input.modelKey}`,
+      `ReasoningEffort: ${input.reasoningEffort}`,
+      '',
+      '--- Thinking (full) ---',
+      firstThinking || finalChunk?.thinkingContent || '(none)',
+      '',
+      '--- Final Answer (fullContent) ---',
+      finalChunk?.fullContent || '(none)',
+      '',
+      'contentDerivedFromThinking: ' + (finalChunk?.contentDerivedFromThinking ? 'yes' : 'no'),
+      'chunkIndex: ' + (finalChunk?.chunkIndex ?? 'n/a'),
+    ].join('\n');
+    fs.writeFileSync(logPath, logContent, 'utf8');
   });
 });
