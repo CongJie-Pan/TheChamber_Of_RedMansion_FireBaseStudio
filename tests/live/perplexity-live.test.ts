@@ -78,11 +78,34 @@ maybe('Perplexity live streaming smoke test', () => {
       }
     });
 
+    // Reconstruct a linear view of the streaming content (including <think> if present)
+    let reconstructed = '';
+    let sawDone = rawSSE.includes('[DONE]');
+    rawSSE.split('\n').forEach((line) => {
+      if (!line.startsWith('data: ')) return;
+      const payload = line.slice(6);
+      if (payload === '[DONE]') return;
+      try {
+        const json = JSON.parse(payload);
+        const content = json?.choices?.[0]?.delta?.content;
+        if (typeof content === 'string') {
+          reconstructed += content;
+        }
+      } catch {
+        // ignore malformed JSON
+      }
+    });
+    if (sawDone) {
+      reconstructed += '[DONE]';
+    }
+
     // Persist raw SSE to log file
     const logDir = path.join('docs', 'testing', 'perplexity_api_running_test_log');
     fs.mkdirSync(logDir, { recursive: true });
-    const logPath = path.join(logDir, `live-run-raw-${Date.now()}.txt`);
-    const logContent = [
+    const timestamp = Date.now();
+    const rawPath = path.join(logDir, `live-run-raw-${timestamp}.txt`);
+    const prettyPath = path.join(logDir, `live-run-pretty-${timestamp}.txt`);
+    const rawContent = [
       `Timestamp: ${new Date().toISOString()}`,
       `Question: ${question}`,
       `Model: ${config.model}`,
@@ -94,7 +117,19 @@ maybe('Perplexity live streaming smoke test', () => {
       '--- First data events (preview) ---',
       ...firstDataEvents,
     ].join('\n');
-    fs.writeFileSync(logPath, logContent, 'utf8');
+    const prettyContent = [
+      `Timestamp: ${new Date().toISOString()}`,
+      `Question: ${question}`,
+      `Model: ${config.model}`,
+      `ReasoningEffort: ${config.reasoning_effort || 'n/a'}`,
+      '',
+      '--- Reconstructed content (concatenated delta.content) ---',
+      reconstructed || '(none)',
+      '',
+      `saw [DONE]: ${sawDone ? 'yes' : 'no'}`,
+    ].join('\n');
+    fs.writeFileSync(rawPath, rawContent, 'utf8');
+    fs.writeFileSync(prettyPath, prettyContent, 'utf8');
 
     expect(rawSSE.trim().length).toBeGreaterThan(0);
     expect(rawSSE.includes('data:')).toBe(true);
