@@ -921,13 +921,24 @@ export class PerplexityClient {
         reader.releaseLock();
       }
 
-      // If we got here without yielding any chunks, yield an error
+      // If we got here without yielding any chunks, finalize processor and derive a best-effort answer
       if (chunkIndex === 0) {
         console.error('🐛 [streamingCompletionRequest] No chunks yielded from stream');
         const processingTime = (Date.now() - startTime) / 1000;
+
+        // Finalize processor to flush any buffered thinking
+        const finalChunk = processor.finalize();
+        const combinedThinking = [accumulatedThinking, finalChunk.content].filter(Boolean).join('\n\n');
+        const sanitizedThinking = sanitizeThinkingContent(combinedThinking);
+        const derivedAnswer = deriveAnswerFromThinking(sanitizedThinking);
+        const finalAnswer = derivedAnswer || sanitizedThinking || '錯誤：AI 未回傳任何內容。請稍後再試。';
+        const derivedFromThinking = !!(derivedAnswer || sanitizedThinking);
+
         yield {
-          content: '',
-          fullContent: '錯誤：AI 未回傳任何內容。請稍後再試。',
+          content: derivedFromThinking ? '' : finalAnswer,
+          fullContent: finalAnswer,
+          thinkingContent: sanitizedThinking,
+          contentDerivedFromThinking: derivedFromThinking,
           timestamp: new Date().toISOString(),
           citations: [],
           searchQueries: [],
@@ -939,7 +950,7 @@ export class PerplexityClient {
           responseTime: processingTime,
           isComplete: true,
           chunkIndex: 1,
-          error: 'No content received from API',
+          error: derivedFromThinking ? undefined : 'No content received from API',
         };
       }
 
