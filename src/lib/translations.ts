@@ -303,6 +303,7 @@ export const translations: Record<Language, Translations> = {
       noteDeleted: '筆記已刪除',
       clearSearch: '清除搜尋',
       readAloud: '朗讀',
+      menu: '選單',
     },
     placeholders: {
       searchPosts: '搜索發文內容、作者或標籤...',
@@ -955,6 +956,7 @@ export const translations: Record<Language, Translations> = {
       noteDeleted: '笔记已删除',
       clearSearch: '清除搜索',
       readAloud: '朗读',
+      menu: '菜单',
     },
     placeholders: {
       searchPosts: '搜索博文内容、作者或标签...',
@@ -1574,6 +1576,7 @@ export const translations: Record<Language, Translations> = {
       noteDeleted: 'Note has been deleted',
       clearSearch: 'Clear Search',
       readAloud: 'Read Aloud',
+      menu: 'Menu',
     },
     placeholders: {
       searchPosts: 'Search posts, authors, or tags...',

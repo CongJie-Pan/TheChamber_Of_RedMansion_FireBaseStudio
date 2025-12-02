@@ -75,7 +75,8 @@ import {
   ChevronLeft,                  // Task 4.5: Edge navigation zone indicator
   ChevronRight,                 // Task 4.5: Edge navigation zone indicator
   ArrowUp,                      // Submit question button (circular design)
-  Square                        // Stop streaming button (for Phase 2)
+  Square,                       // Stop streaming button (for Phase 2)
+  Menu                          // Mobile menu trigger
 } from "lucide-react";
 
 // Third-party libraries for content rendering
@@ -508,6 +509,7 @@ export default function ReadBookPage() {
 
   const [isKnowledgeGraphSheetOpen, setIsKnowledgeGraphSheetOpen] = useState(false);
   const [isTocSheetOpen, setIsTocSheetOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
   const [currentNote, setCurrentNote] = useState("");
@@ -2143,6 +2145,43 @@ export default function ReadBookPage() {
                         ? last.fullContent
                         : ((last as any).thinkingContent?.trim() || '');
 
+                      // ═══════════════════════════════════════════════════════════════
+                      // 🔧 FINAL STATE ANALYSIS - ALL 3 HYPOTHESES
+                      // ═══════════════════════════════════════════════════════════════
+                      console.log('%c╔═══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold;');
+                      console.log('%c║  🏁 STREAM COMPLETE - FINAL HYPOTHESIS ANALYSIS              ║', 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+                      console.log('%c╚═══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold;');
+
+                      // 🅰️ HYPOTHESIS A: Did sliding window work?
+                      const hadFullContent = chunks.some(c => c.fullContent?.trim().length > 10);
+                      console.log('%c🅰️ [HYPOTHESIS A] Final Sliding Window Status:', 'background: #2196F3; color: white; padding: 4px 8px; border-radius: 4px;');
+                      console.log(`   └─ Any chunk had fullContent > 10 chars: ${hadFullContent ? '✅ YES' : '❌ NO'}`);
+                      if (!hadFullContent) {
+                        console.log('%c   └─ ⚠️ SLIDING WINDOW MAY HAVE FAILED - Check backend logs for "🅰️ [HYPOTHESIS A]"', 'color: #f44336;');
+                      }
+
+                      // 🅱️ HYPOTHESIS B: Did incremental chunks work?
+                      const thinkingChunks = chunks.filter(c => (c as any).thinkingContent?.trim().length > 0);
+                      const textChunks = chunks.filter(c => c.fullContent?.trim().length > 0 && !(c as any).contentDerivedFromThinking);
+                      console.log('%c🅱️ [HYPOTHESIS B] Final Chunk Distribution:', 'background: #FF9800; color: black; padding: 4px 8px; border-radius: 4px;');
+                      console.log(`   └─ Total chunks: ${chunks.length}`);
+                      console.log(`   └─ Thinking chunks: ${thinkingChunks.length}`);
+                      console.log(`   └─ Text chunks (real answer): ${textChunks.length}`);
+                      if (textChunks.length === 0 && thinkingChunks.length > 0) {
+                        console.log('%c   └─ ⚠️ NO TEXT CHUNKS - Answer may be missing!', 'color: #f44336;');
+                      }
+
+                      // 🅲️ HYPOTHESIS C: Is final content reasonable?
+                      console.log('%c🅲️ [HYPOTHESIS C] Final Content Verification:', 'background: #9C27B0; color: white; padding: 4px 8px; border-radius: 4px;');
+                      console.log(`   └─ Final fullContent length: ${last.fullContent?.length || 0}`);
+                      console.log(`   └─ Final thinkingContent length: ${(last as any).thinkingContent?.length || 0}`);
+                      console.log(`   └─ Combined output length: ${combined.length}`);
+                      console.log(`   └─ Used fallback (thinking as answer): ${!last.fullContent?.trim() ? '⚠️ YES' : '✅ NO'}`);
+
+                      if (combined.length < 50) {
+                        console.log('%c   └─ 🚨 FINAL CONTENT VERY SHORT - Possible truncation!', 'color: #f44336; font-weight: bold;');
+                      }
+
                       // Task 4.2: Log final state for debugging
                       console.log('%c[QA Module] 🏁 FINAL STATE on [DONE]', 'background: #00f; color: #fff; font-size: 16px;', {
                         totalChunks: chunks.length,
@@ -2234,7 +2273,37 @@ export default function ReadBookPage() {
                     const hasThinkingContent = !!((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0);
                     const contentDerivedFromThinking = (chunk as any).contentDerivedFromThinking === true;
 
-                    console.log('%c═══════════════════════════════════════════════════', 'color: #888;');
+                    // ═══════════════════════════════════════════════════════════════
+                    // 🔧 ENHANCED DEBUGGING FOR ALL 3 HYPOTHESES (Frontend)
+                    // ═══════════════════════════════════════════════════════════════
+                    console.log('%c╔═══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold;');
+                    console.log('%c║  📦 CHUNK RECEIVED FROM BACKEND - HYPOTHESIS ANALYSIS        ║', 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+                    console.log('%c╚═══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold;');
+
+                    // 🅰️ HYPOTHESIS A: Sliding window detection
+                    console.log('%c🅰️ [HYPOTHESIS A] Sliding Window Detection Status:', 'background: #2196F3; color: white; padding: 4px 8px; border-radius: 4px;');
+                    console.log('   └─ If thinkingContent exists but fullContent is empty, sliding window may have failed to detect </think>');
+                    console.log('   └─ Check backend logs for "🅰️ [HYPOTHESIS A]" messages');
+
+                    // 🅱️ HYPOTHESIS B: State transition / incremental chunks
+                    console.log('%c🅱️ [HYPOTHESIS B] State Transition & Incremental Chunks:', 'background: #FF9800; color: black; padding: 4px 8px; border-radius: 4px;');
+                    if (hasThinkingContent && !hasFullContent) {
+                      console.log('%c   └─ ⚠️ STILL IN THINKING MODE - No answer content yet', 'color: #FF9800;');
+                      console.log('   └─ This is EXPECTED during <think>...</think> processing');
+                      console.log('   └─ Answer should appear after </think> is detected');
+                    } else if (hasFullContent && !contentDerivedFromThinking) {
+                      console.log('%c   └─ ✅ ANSWER CONTENT RECEIVED - </think> was detected', 'color: #4CAF50;');
+                    } else if (hasFullContent && contentDerivedFromThinking) {
+                      console.log('%c   └─ ⚠️ FALLBACK MODE - fullContent derived from thinking', 'color: #FF9800;');
+                      console.log('   └─ This means </think> was NOT found, using thinking as answer');
+                    }
+
+                    // 🅲️ HYPOTHESIS C: Remaining calculation
+                    console.log('%c🅲️ [HYPOTHESIS C] Remaining Calculation Verification:', 'background: #9C27B0; color: white; padding: 4px 8px; border-radius: 4px;');
+                    console.log('   └─ If fullContent is much shorter than expected, check backend logs for "🅲️ [HYPOTHESIS C]"');
+                    console.log('   └─ Backend will log warnings if remaining content calculation seems wrong');
+
+                    console.log('%c───────────────────────────────────────────────────', 'color: #888;');
                     console.log('%c[HYPOTHESIS B - Frontend] 🅱️ Chunk Received from Backend',
                       'background: #ff9800; color: #000; font-size: 16px; padding: 6px; border-radius: 4px;');
 
@@ -3407,185 +3476,210 @@ ${selectedTextContent}
         data-no-selection="true"
         onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
       >
-        <div className={cn("container mx-auto grid grid-cols-3 items-center max-w-screen-xl")}>
-          <div className="flex items-center gap-2 md:gap-3 justify-self-start">
+        <div className={cn("container mx-auto flex items-center justify-between max-w-screen-xl")}>
+          {/* Left Section - Return button always visible, others hidden on mobile */}
+          <div className="flex items-center gap-2 md:gap-3">
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => router.push('/dashboard')} title={t('buttons.return')}>
               <CornerUpLeft className={toolbarIconClass} />
-              <span className={toolbarLabelClass}>{t('buttons.return')}</span>
+              <span className={cn(toolbarLabelClass, "hidden md:block")}>{t('buttons.return')}</span>
             </Button>
 
-            <Popover open={isSettingsPopoverOpen} onOpenChange={(isOpen) => {setIsSettingsPopoverOpen(isOpen); handleInteraction();}}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={t('buttons.settings')}>
-                   <i className={cn("fa fa-font", toolbarIconClass)} aria-hidden="true" style={{fontSize: '24px'}}></i>
-                  <span className={toolbarLabelClass}>{t('buttons.settings')}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-80 bg-card text-card-foreground p-4 space-y-6"
-                data-no-selection="true"
-                onClick={(e) => e.stopPropagation()}
-                onInteractOutside={() => {setIsSettingsPopoverOpen(false); handleInteraction();}}
-                side="bottom"
-                align="start"
-              >
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-foreground">{t('labels.theme')}</h4>
-                  <div className="flex justify-around items-center">
-                    {Object.values(themes).map((theme) => (
-                      <div key={theme.key} className="flex flex-col items-center gap-1.5">
-                        <button
-                          onClick={() => {setActiveThemeKey(theme.key as keyof typeof themes); setIsSettingsPopoverOpen(false);}}
-                          className={cn(
-                            "h-8 w-8 rounded-full border-2 flex items-center justify-center",
-                            theme.swatchClass,
-                            activeThemeKey === theme.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : 'border-transparent'
-                          )}
-                          title={t(theme.nameKey)}
-                          aria-label={t(theme.nameKey)}
-                        >
-                           {activeThemeKey === theme.key && theme.key === 'white' && <Check className="h-4 w-4 text-neutral-600"/>}
-                           {activeThemeKey === theme.key && theme.key !== 'white' && <Check className="h-4 w-4 text-white"/>}
-                        </button>
-                        <span className="text-xs text-muted-foreground">{t(theme.nameKey)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-foreground">{t('labels.text')}</h4>
-                  <div className="flex items-center justify-between gap-3">
-                    <Button variant="outline" size="icon" onClick={() => changeFontSize(-FONT_SIZE_STEP)} className="h-10 w-10 rounded-full p-0">
-                      <Minus className="h-5 w-5" />
-                      <span className="sr-only">Decrease font size</span>
-                    </Button>
-                    <div className="text-center">
-                      <div className="text-2xl font-semibold text-primary">{currentNumericFontSize}</div>
-                      <div className="text-xs text-muted-foreground">{t('labels.currentFontSize')}</div>
+            {/* Desktop only: Settings and Column Layout */}
+            <div className="hidden md:flex items-center gap-2 md:gap-3">
+              <Popover open={isSettingsPopoverOpen} onOpenChange={(isOpen) => {setIsSettingsPopoverOpen(isOpen); handleInteraction();}}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={t('buttons.settings')}>
+                     <i className={cn("fa fa-font", toolbarIconClass)} aria-hidden="true" style={{fontSize: '24px'}}></i>
+                    <span className={toolbarLabelClass}>{t('buttons.settings')}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-80 bg-card text-card-foreground p-4 space-y-6"
+                  data-no-selection="true"
+                  onClick={(e) => e.stopPropagation()}
+                  onInteractOutside={() => {setIsSettingsPopoverOpen(false); handleInteraction();}}
+                  side="bottom"
+                  align="start"
+                >
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-foreground">{t('labels.theme')}</h4>
+                    <div className="flex justify-around items-center">
+                      {Object.values(themes).map((theme) => (
+                        <div key={theme.key} className="flex flex-col items-center gap-1.5">
+                          <button
+                            onClick={() => {setActiveThemeKey(theme.key as keyof typeof themes); setIsSettingsPopoverOpen(false);}}
+                            className={cn(
+                              "h-8 w-8 rounded-full border-2 flex items-center justify-center",
+                              theme.swatchClass,
+                              activeThemeKey === theme.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : 'border-transparent'
+                            )}
+                            title={t(theme.nameKey)}
+                            aria-label={t(theme.nameKey)}
+                          >
+                             {activeThemeKey === theme.key && theme.key === 'white' && <Check className="h-4 w-4 text-neutral-600"/>}
+                             {activeThemeKey === theme.key && theme.key !== 'white' && <Check className="h-4 w-4 text-white"/>}
+                          </button>
+                          <span className="text-xs text-muted-foreground">{t(theme.nameKey)}</span>
+                        </div>
+                      ))}
                     </div>
-                    <Button variant="outline" size="icon" onClick={() => changeFontSize(FONT_SIZE_STEP)} className="h-10 w-10 rounded-full p-0">
-                      <Plus className="h-5 w-5" />
-                      <span className="sr-only">Increase font size</span>
-                    </Button>
                   </div>
-                  <div className="mt-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground text-center">
-                    {t('labels.fontHint')}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.values(fontFamilies).map((font) => (
-                      <Button
-                        key={font.key}
-                        variant={activeFontFamilyKey === font.key ? "default" : "outline"}
-                        onClick={() => {setActiveFontFamilyKey(font.key as keyof typeof fontFamilies); setIsSettingsPopoverOpen(false);}}
-                        className={cn("w-full h-10 text-sm justify-center", activeFontFamilyKey === font.key ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background/70 hover:bg-accent/50")}
-                      >
-                        {t(font.nameKey)}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-foreground">{t('labels.text')}</h4>
+                    <div className="flex items-center justify-between gap-3">
+                      <Button variant="outline" size="icon" onClick={() => changeFontSize(-FONT_SIZE_STEP)} className="h-10 w-10 rounded-full p-0">
+                        <Minus className="h-5 w-5" />
+                        <span className="sr-only">Decrease font size</span>
                       </Button>
-                    ))}
+                      <div className="text-center">
+                        <div className="text-2xl font-semibold text-primary">{currentNumericFontSize}</div>
+                        <div className="text-xs text-muted-foreground">{t('labels.currentFontSize')}</div>
+                      </div>
+                      <Button variant="outline" size="icon" onClick={() => changeFontSize(FONT_SIZE_STEP)} className="h-10 w-10 rounded-full p-0">
+                        <Plus className="h-5 w-5" />
+                        <span className="sr-only">Increase font size</span>
+                      </Button>
+                    </div>
+                    <div className="mt-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground text-center">
+                      {t('labels.fontHint')}
+                    </div>
                   </div>
-                </div>
-                 <PopoverClose className="absolute top-1 right-1 rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                    <X className="h-4 w-4" />
-                 </PopoverClose>
-              </PopoverContent>
-            </Popover>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.values(fontFamilies).map((font) => (
+                        <Button
+                          key={font.key}
+                          variant={activeFontFamilyKey === font.key ? "default" : "outline"}
+                          onClick={() => {setActiveFontFamilyKey(font.key as keyof typeof fontFamilies); setIsSettingsPopoverOpen(false);}}
+                          className={cn("w-full h-10 text-sm justify-center", activeFontFamilyKey === font.key ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background/70 hover:bg-accent/50")}
+                        >
+                          {t(font.nameKey)}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                   <PopoverClose className="absolute top-1 right-1 rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                      <X className="h-4 w-4" />
+                   </PopoverClose>
+                </PopoverContent>
+              </Popover>
 
-            <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
-            <Button
-              variant={columnLayout === 'single' ? 'secondary' : 'ghost'}
-              className={cn(toolbarButtonBaseClass, columnLayout === 'single' ? '' : selectedTheme.toolbarTextClass )}
-              onClick={() => setColumnLayout('single')}
-              title={t('buttons.singleColumn')}
-            >
-              <AlignLeft className={cn(toolbarIconClass, columnLayout === 'single' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}/>
-              <span className={cn(toolbarLabelClass, columnLayout === 'single' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}>{t('buttons.singleColumn')}</span>
-            </Button>
-            <Button
-              variant={columnLayout === 'double' ? 'secondary' : 'ghost'}
-               className={cn(toolbarButtonBaseClass, columnLayout === 'double' ? '' : selectedTheme.toolbarTextClass)}
-              onClick={() => setColumnLayout('double')}
-              title={t('buttons.doubleColumn')}
-            >
-              <AlignCenter className={cn(toolbarIconClass, columnLayout === 'double' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}/>
-              <span className={cn(toolbarLabelClass, columnLayout === 'double' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}>{t('buttons.doubleColumn')}</span>
-            </Button>
+              <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
+              <Button
+                variant={columnLayout === 'single' ? 'secondary' : 'ghost'}
+                className={cn(toolbarButtonBaseClass, columnLayout === 'single' ? '' : selectedTheme.toolbarTextClass )}
+                onClick={() => setColumnLayout('single')}
+                title={t('buttons.singleColumn')}
+              >
+                <AlignLeft className={cn(toolbarIconClass, columnLayout === 'single' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}/>
+                <span className={cn(toolbarLabelClass, columnLayout === 'single' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}>{t('buttons.singleColumn')}</span>
+              </Button>
+              <Button
+                variant={columnLayout === 'double' ? 'secondary' : 'ghost'}
+                 className={cn(toolbarButtonBaseClass, columnLayout === 'double' ? '' : selectedTheme.toolbarTextClass)}
+                onClick={() => setColumnLayout('double')}
+                title={t('buttons.doubleColumn')}
+              >
+                <AlignCenter className={cn(toolbarIconClass, columnLayout === 'double' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}/>
+                <span className={cn(toolbarLabelClass, columnLayout === 'double' ? 'text-secondary-foreground' : selectedTheme.toolbarTextClass)}>{t('buttons.doubleColumn')}</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="text-center overflow-hidden px-2 mx-2 md:mx-4 justify-self-center">
-            <h1 className={cn("text-base md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
-            {currentChapterSubtitle && <p className={cn("text-sm truncate", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
+          {/* Center Section - Chapter Title (simplified on mobile) */}
+          <div className="flex-1 text-center overflow-hidden px-2 mx-2 md:mx-4 min-w-0">
+            <h1 className={cn("text-sm md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
+            {currentChapterSubtitle && <p className={cn("text-sm truncate hidden md:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3 justify-self-end">
-            <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>
-              <Map className={toolbarIconClass}/>
-              <span className={toolbarLabelClass}>{t('buttons.knowledgeGraph')}</span>
-            </Button>
-            <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsTocSheetOpen(true); handleInteraction(); }} title={t('buttons.toc')}>
-              <List className={toolbarIconClass}/>
-              <span className={toolbarLabelClass}>{t('buttons.toc')}</span>
-            </Button>
+          {/* Right Section - AI always visible, others hidden on mobile, menu trigger on mobile */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Desktop only buttons */}
+            <div className="hidden md:flex items-center gap-2 md:gap-3">
+              <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>
+                <Map className={toolbarIconClass}/>
+                <span className={toolbarLabelClass}>{t('buttons.knowledgeGraph')}</span>
+              </Button>
+              <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsTocSheetOpen(true); handleInteraction(); }} title={t('buttons.toc')}>
+                <List className={toolbarIconClass}/>
+                <span className={toolbarLabelClass}>{t('buttons.toc')}</span>
+              </Button>
+            </div>
+
+            {/* AI button - always visible */}
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => {
               const activeSession = getActiveSession();
               const hasHistory = activeSession && activeSession.messages.length > 0;
-              // Task 4.2 Logging: Track aiMode determination
               console.log('[QA Module] AI button clicked - activeSession:', !!activeSession, ', hasHistory:', hasHistory, ', setting aiMode to:', hasHistory ? 'perplexity-qa' : 'new-conversation');
               setAiMode(hasHistory ? 'perplexity-qa' : 'new-conversation');
               setIsAiSheetOpen(true);
               handleInteraction();
             }} title={t('buttons.ai')}>
               <Lightbulb className={toolbarIconClass}/>
-              <span className={toolbarLabelClass}>{t('buttons.ai')}</span>
+              <span className={cn(toolbarLabelClass, "hidden md:block")}>{t('buttons.ai')}</span>
             </Button>
-            <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
-            
-            <Popover open={isSearchPopoverOpen} onOpenChange={(isOpen) => { setIsSearchPopoverOpen(isOpen); handleInteraction(); if (!isOpen) setCurrentSearchTerm(""); }}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={t('buttons.search')}>
-                  <SearchIcon className={toolbarIconClass} />
-                  <span className={toolbarLabelClass}>{t('buttons.search')}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                side="bottom" 
-                align="end" 
-                className="w-72 p-2 bg-card border-border shadow-xl"
-                data-no-selection="true"
-                onClick={(e) => e.stopPropagation()}
-                onInteractOutside={() => {setIsSearchPopoverOpen(false); handleInteraction(); if (!currentSearchTerm) setCurrentSearchTerm("");}}
-              >
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="text"
-                    placeholder={t('placeholders.searchInBook')}
-                    value={currentSearchTerm}
-                    onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                    className="h-9 text-sm bg-background/80 focus:ring-primary"
-                  />
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setCurrentSearchTerm("")} title={t('buttons.clearSearch')}>
-                    <Trash2 className="h-4 w-4" />
+
+            {/* Desktop only: Search, Fullscreen, Level Badge */}
+            <div className="hidden md:flex items-center gap-2 md:gap-3">
+              <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
+
+              <Popover open={isSearchPopoverOpen} onOpenChange={(isOpen) => { setIsSearchPopoverOpen(isOpen); handleInteraction(); if (!isOpen) setCurrentSearchTerm(""); }}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={t('buttons.search')}>
+                    <SearchIcon className={toolbarIconClass} />
+                    <span className={toolbarLabelClass}>{t('buttons.search')}</span>
                   </Button>
-                </div>
-                 <PopoverClose className="absolute top-1 right-1 rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
-                    <X className="h-4 w-4" />
-                 </PopoverClose>
-              </PopoverContent>
-            </Popover>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  className="w-72 p-2 bg-card border-border shadow-xl"
+                  data-no-selection="true"
+                  onClick={(e) => e.stopPropagation()}
+                  onInteractOutside={() => {setIsSearchPopoverOpen(false); handleInteraction(); if (!currentSearchTerm) setCurrentSearchTerm("");}}
+                >
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder={t('placeholders.searchInBook')}
+                      value={currentSearchTerm}
+                      onChange={(e) => setCurrentSearchTerm(e.target.value)}
+                      className="h-9 text-sm bg-background/80 focus:ring-primary"
+                    />
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setCurrentSearchTerm("")} title={t('buttons.clearSearch')}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                   <PopoverClose className="absolute top-1 right-1 rounded-full p-1 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                      <X className="h-4 w-4" />
+                   </PopoverClose>
+                </PopoverContent>
+              </Popover>
 
-            <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={isFullscreenActive ? t('buttons.exitFullscreen') : t('buttons.fullscreen')} onClick={toggleFullscreen}>
-              {isFullscreenActive ? <Minimize className={toolbarIconClass} /> : <Maximize className={toolbarIconClass} />}
-              <span className={toolbarLabelClass}>{isFullscreenActive ? t('buttons.exitFullscreen') : t('buttons.fullscreen')}</span>
+              <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={isFullscreenActive ? t('buttons.exitFullscreen') : t('buttons.fullscreen')} onClick={toggleFullscreen}>
+                {isFullscreenActive ? <Minimize className={toolbarIconClass} /> : <Maximize className={toolbarIconClass} />}
+                <span className={toolbarLabelClass}>{isFullscreenActive ? t('buttons.exitFullscreen') : t('buttons.fullscreen')}</span>
+              </Button>
+
+              {/* Level Badge XP Indicator */}
+              {userProfile && (
+                <>
+                  <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
+                  <LevelBadge variant="compact" showTitle={false} className="cursor-pointer hover:scale-105 transition-transform" />
+                </>
+              )}
+            </div>
+
+            {/* Mobile menu trigger */}
+            <Button
+              variant="ghost"
+              className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass, "md:hidden")}
+              onClick={() => { setIsMobileMenuOpen(true); handleInteraction(); }}
+              title={t('buttons.menu')}
+              aria-label={t('buttons.menu')}
+            >
+              <Menu className={toolbarIconClass} />
             </Button>
-
-            {/* Level Badge XP Indicator */}
-            {userProfile && (
-              <>
-                <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
-                <LevelBadge variant="compact" showTitle={false} className="cursor-pointer hover:scale-105 transition-transform" />
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -3903,6 +3997,101 @@ ${selectedTextContent}
              <SheetClose asChild>
                 <Button variant="outline" onClick={() => handleInteraction()}>{t('buttons.close')}</Button>
              </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Mobile Menu Bottom Sheet */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={(open) => { setIsMobileMenuOpen(open); if (!open) handleInteraction(); }}>
+        <SheetContent
+          side="bottom"
+          className="h-auto max-h-[70vh] bg-card text-card-foreground rounded-t-2xl"
+          data-no-selection="true"
+          onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle className="text-primary text-lg font-semibold">{t('buttons.menu')}</SheetTitle>
+            <SheetDescription className="sr-only">
+              {t('readBook.mobileMenuDescription') || 'Access reading settings and navigation options'}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="grid grid-cols-4 gap-4 py-4">
+            {/* Settings */}
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsSettingsPopoverOpen(true), 100); }}
+            >
+              <Baseline className="h-7 w-7 text-primary" />
+              <span className="text-xs text-center">{t('buttons.settings')}</span>
+            </button>
+
+            {/* TOC */}
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsTocSheetOpen(true), 100); }}
+            >
+              <List className="h-7 w-7 text-primary" />
+              <span className="text-xs text-center">{t('buttons.toc')}</span>
+            </button>
+
+            {/* Knowledge Graph */}
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsKnowledgeGraphSheetOpen(true), 100); }}
+            >
+              <Map className="h-7 w-7 text-primary" />
+              <span className="text-xs text-center">{t('buttons.knowledgeGraph')}</span>
+            </button>
+
+            {/* Search */}
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsSearchPopoverOpen(true), 100); }}
+            >
+              <SearchIcon className="h-7 w-7 text-primary" />
+              <span className="text-xs text-center">{t('buttons.search')}</span>
+            </button>
+
+            {/* Fullscreen */}
+            <button
+              type="button"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              onClick={() => { toggleFullscreen(); setIsMobileMenuOpen(false); }}
+            >
+              {isFullscreenActive ? <Minimize className="h-7 w-7 text-primary" /> : <Maximize className="h-7 w-7 text-primary" />}
+              <span className="text-xs text-center">{isFullscreenActive ? t('buttons.exitFullscreen') : t('buttons.fullscreen')}</span>
+            </button>
+
+            {/* Single Column */}
+            <button
+              type="button"
+              className={cn(
+                "flex flex-col items-center gap-2 p-3 rounded-lg transition-colors",
+                columnLayout === 'single' ? "bg-primary/20" : "hover:bg-accent/50"
+              )}
+              onClick={() => { setColumnLayout('single'); setIsMobileMenuOpen(false); }}
+            >
+              <AlignLeft className={cn("h-7 w-7", columnLayout === 'single' ? "text-primary" : "text-muted-foreground")} />
+              <span className="text-xs text-center">{t('buttons.singleColumn')}</span>
+            </button>
+          </div>
+
+          {/* Level Badge for mobile */}
+          {userProfile && (
+            <div className="border-t border-border pt-4 flex justify-center">
+              <LevelBadge variant="compact" showTitle={true} className="cursor-pointer" />
+            </div>
+          )}
+
+          <SheetFooter className="pt-4">
+            <SheetClose asChild>
+              <Button variant="outline" className="w-full" onClick={() => handleInteraction()}>{t('buttons.close')}</Button>
+            </SheetClose>
           </SheetFooter>
         </SheetContent>
       </Sheet>
