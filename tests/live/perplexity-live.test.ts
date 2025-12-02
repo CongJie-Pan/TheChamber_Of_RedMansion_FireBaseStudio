@@ -1,3 +1,5 @@
+/** @jest-environment node */
+
 /**
  * Live smoke test for Perplexity streaming (requires PERPLEXITYAI_API_KEY).
  * Purpose: verify we receive answer content (not only thinking) from the real API once.
