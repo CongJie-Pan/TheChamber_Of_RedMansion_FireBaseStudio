@@ -1925,6 +1925,13 @@ export default function ReadBookPage() {
             // Create new AbortController for this request (Fix Issue #3)
             abortControllerRef.current = new AbortController();
 
+            // 🚀 DIAGNOSTIC: Log when AI QA is triggered (visible in browser F12 console)
+            console.log('%c[QA Module] 🚀 AI 問答已觸發！', 'background: #4CAF50; color: white; font-size: 18px; padding: 8px;', {
+              question: questionText,
+              timestamp: new Date().toISOString(),
+              model: perplexityModel,
+            });
+
             // Call the streaming API endpoint instead of direct async generator
             const response = await fetch('/api/perplexity-qa-stream', {
               method: 'POST',
@@ -2220,31 +2227,48 @@ export default function ReadBookPage() {
                   try {
                     const chunk: PerplexityStreamingChunk = JSON.parse(data);
 
-                    // DEBUG: Log chunk details to diagnose streaming issue (Task 4.2)
-                    console.log('%c[QA Module] 📦 Chunk #' + chunk.chunkIndex, 'background: #222; color: #bada55; font-size: 14px;', {
-                      // Content lengths
-                      contentLength: chunk.content?.length || 0,
-                      fullContentLength: chunk.fullContent?.length || 0,
-                      thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
-                      // Flags
-                      isComplete: chunk.isComplete,
-                      hasError: !!chunk.error,
-                      // Content previews (first 200 chars)
-                      contentPreview: chunk.content?.substring(0, 200) || '(empty)',
-                      fullContentPreview: chunk.fullContent?.substring(0, 200) || '(empty)',
-                      thinkingPreview: (chunk as any).thinkingContent?.substring(0, 200) || '(empty)',
-                      // Raw data for inspection
-                      rawChunk: chunk,
+                    // ═══════════════════════════════════════════════════════════════
+                    // 🅱️ HYPOTHESIS B (Frontend View): Data Received from Backend
+                    // ═══════════════════════════════════════════════════════════════
+                    const hasFullContent = !!(chunk.fullContent && chunk.fullContent.trim().length > 0);
+                    const hasThinkingContent = !!((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0);
+                    const contentDerivedFromThinking = (chunk as any).contentDerivedFromThinking === true;
+
+                    console.log('%c═══════════════════════════════════════════════════', 'color: #888;');
+                    console.log('%c[HYPOTHESIS B - Frontend] 🅱️ Chunk Received from Backend',
+                      'background: #ff9800; color: #000; font-size: 16px; padding: 6px; border-radius: 4px;');
+
+                    console.table({
+                      'Chunk Index': chunk.chunkIndex,
+                      'fullContent': hasFullContent ? `✅ ${chunk.fullContent?.length} chars` : '❌ EMPTY',
+                      'content': chunk.content?.length ? `${chunk.content?.length} chars` : '❌ EMPTY',
+                      'thinkingContent': hasThinkingContent ? `${(chunk as any).thinkingContent?.length} chars` : '❌ EMPTY',
+                      'contentDerivedFromThinking': contentDerivedFromThinking ? '⚠️ YES' : '✅ NO',
+                      'isComplete': chunk.isComplete ? '✅ YES' : '❌ NO',
                     });
 
-                    // Task 4.2: Alert if fullContent is empty but thinkingContent exists
-                    if (!(chunk.fullContent?.trim()) && (chunk as any).thinkingContent?.trim()) {
-                      console.warn('%c[QA Module] ⚠️ WARNING: fullContent is EMPTY but thinkingContent exists!',
-                        'background: #ff0; color: #000; font-size: 16px;', {
-                        fullContentLength: chunk.fullContent?.length || 0,
-                        thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
-                      });
+                    // CRITICAL: Alert if backend didn't provide real fullContent
+                    if (!hasFullContent && hasThinkingContent) {
+                      console.log('%c[HYPOTHESIS B] 🚨 CRITICAL: Backend sent NO fullContent!',
+                        'background: #f44336; color: #fff; font-size: 18px; padding: 8px;');
+                      console.log('%c[HYPOTHESIS B] This means StreamProcessor did NOT detect </think> tag correctly!',
+                        'background: #f44336; color: #fff; font-size: 14px; padding: 4px;');
+                      console.log('%c[HYPOTHESIS B] The answer content is likely still inside the thinking buffer.',
+                        'background: #f44336; color: #fff; font-size: 14px; padding: 4px;');
                     }
+
+                    if (contentDerivedFromThinking) {
+                      console.log('%c[HYPOTHESIS B] ⚠️ fullContent was derived from thinking (backend fallback)',
+                        'background: #ff9800; color: #000; font-size: 14px; padding: 4px;');
+                    }
+
+                    // Log content previews
+                    console.log('%c[HYPOTHESIS B] 📝 Content Previews from Backend:', 'color: #888; font-size: 12px;', {
+                      fullContentPreview: chunk.fullContent?.substring(0, 300) || '(empty)',
+                      contentPreview: chunk.content?.substring(0, 300) || '(empty)',
+                      thinkingContentPreview: (chunk as any).thinkingContent?.substring(0, 300) || '(empty)',
+                    });
+                    console.log('%c═══════════════════════════════════════════════════', 'color: #888;');
 
                     chunks.push(chunk);
                     setPerplexityStreamingChunks([...chunks]);
@@ -2320,14 +2344,18 @@ export default function ReadBookPage() {
 
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
-                        // HYPOTHESIS A FIX: Properly separate content (answer) from thinkingProcess
-                        // NEVER assign thinkingContent to message.content - they should remain separate
+
+                        // ═══════════════════════════════════════════════════════════════
+                        // 🅰️ HYPOTHESIS A: Content vs ThinkingProcess Separation Logic
+                        // ═══════════════════════════════════════════════════════════════
+                        // RULE: NEVER assign thinkingContent to message.content
+                        // content = actual answer from AI
+                        // thinkingProcess = AI's reasoning/thinking process
+                        // These MUST remain separate!
+
                         const hasFull = !!(chunk.fullContent && chunk.fullContent.trim().length > 0);
                         const hasContent = !!(chunk.content && chunk.content.trim().length > 0);
                         const hasThinking = !!((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0);
-
-                        // FIX: Check if fullContent was derived from thinking (backend fallback)
-                        // If so, DON'T use it as content - it belongs in thinkingProcess
                         const contentDerivedFromThinking = (chunk as any).contentDerivedFromThinking === true;
 
                         // Determine the actual answer content (NOT thinking content)
@@ -2335,38 +2363,50 @@ export default function ReadBookPage() {
                         let contentSource: string;
 
                         if (hasFull && !contentDerivedFromThinking) {
-                          // Best case: fullContent has actual answer
                           updatedText = chunk.fullContent;
-                          contentSource = '✅ fullContent (real answer)';
+                          contentSource = '✅ CASE 1: fullContent (real answer)';
                         } else if (hasContent) {
-                          // Incremental content from stream
                           updatedText = `${m.content || ''}${chunk.content}`;
-                          contentSource = '⚠️ content (incremental)';
+                          contentSource = '⚠️ CASE 2: content (incremental append)';
                         } else {
-                          // FIX: DO NOT fallback to thinkingContent for content!
-                          // Keep existing content or empty - let UI handle display
+                          // CRITICAL: Do NOT fallback to thinkingContent!
                           updatedText = m.content || '';
-                          contentSource = '➖ m.content (unchanged, NOT falling back to thinking)';
+                          contentSource = '➖ CASE 3: unchanged (NO fallback to thinking)';
                         }
 
-                        // 🔍 DIAGNOSTIC LOGGING: Track content assignment decision
-                        console.log('%c[QA Module] 🔍 DIAGNOSTIC - Content Assignment', 'background: #0066cc; color: #fff; font-size: 14px; padding: 4px;', {
-                          chunkIndex: chunk.chunkIndex,
-                          // Boolean flags
-                          hasFull,
-                          hasContent,
-                          hasThinking,
-                          contentDerivedFromThinking,
-                          // Length values
-                          fullContentLength: chunk.fullContent?.length || 0,
-                          contentLength: chunk.content?.length || 0,
-                          thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
-                          // Decision result
-                          contentSource,
-                          updatedTextLength: updatedText?.length || 0,
-                          updatedTextPreview: updatedText?.substring(0, 150) || '(empty)',
-                          // Previous state
-                          previousContentLength: m.content?.length || 0,
+                        // ═══════════════════════════════════════════════════════════════
+                        // 🅰️ HYPOTHESIS A LOGGING - Content Assignment Decision
+                        // ═══════════════════════════════════════════════════════════════
+                        console.log('%c[HYPOTHESIS A] 🅰️ Content Assignment', 'background: #0066cc; color: #fff; font-size: 16px; padding: 6px; border-radius: 4px;');
+                        console.table({
+                          'Chunk Index': chunk.chunkIndex,
+                          'Has fullContent': hasFull ? '✅ YES' : '❌ NO',
+                          'Has content': hasContent ? '✅ YES' : '❌ NO',
+                          'Has thinkingContent': hasThinking ? '✅ YES' : '❌ NO',
+                          'Content Derived From Thinking': contentDerivedFromThinking ? '⚠️ YES (ignored)' : '✅ NO',
+                          'fullContent Length': chunk.fullContent?.length || 0,
+                          'content Length': chunk.content?.length || 0,
+                          'thinkingContent Length': (chunk as any).thinkingContent?.length || 0,
+                          'Decision': contentSource,
+                          'Result updatedText Length': updatedText?.length || 0,
+                          'Previous content Length': m.content?.length || 0,
+                        });
+
+                        // Log content previews
+                        console.log('%c[HYPOTHESIS A] 📝 Content Previews', 'background: #333; color: #fff; font-size: 12px; padding: 4px;', {
+                          fullContentPreview: chunk.fullContent?.substring(0, 200) || '(empty)',
+                          contentPreview: chunk.content?.substring(0, 200) || '(empty)',
+                          thinkingContentPreview: (chunk as any).thinkingContent?.substring(0, 200) || '(empty)',
+                          updatedTextPreview: updatedText?.substring(0, 200) || '(empty)',
+                        });
+
+                        // ═══════════════════════════════════════════════════════════════
+                        // 🅲️ HYPOTHESIS C: Confirm NO duplicate splitThinkingFromContent
+                        // ═══════════════════════════════════════════════════════════════
+                        console.log('%c[HYPOTHESIS C] 🅲️ No duplicate processing - trusting backend separation', 'background: #9c27b0; color: #fff; font-size: 12px; padding: 4px;', {
+                          note: 'Frontend does NOT call splitThinkingFromContent() - using server-provided values directly',
+                          thinkingFromServer: (chunk as any).thinkingContent?.length || 0,
+                          contentFromServer: chunk.fullContent?.length || 0,
                         });
 
                         // Update thinking process separately (this is correct behavior)

@@ -794,21 +794,46 @@ export class PerplexityClient {
 
                   const structuredChunks = processor.processChunk(rawContent);
 
-                  // HYPOTHESIS B DIAGNOSTIC: Enhanced logging for StreamProcessor output
+                  // ═══════════════════════════════════════════════════════════════
+                  // 🅱️ HYPOTHESIS B: StreamProcessor Output Analysis (SERVER-SIDE)
+                  // ═══════════════════════════════════════════════════════════════
+                  // This logging appears in Vercel Functions Logs, NOT browser F12
                   const hasTextChunk = structuredChunks.some(c => c.type === 'text');
                   const hasThinkingChunk = structuredChunks.some(c => c.type === 'thinking');
+                  const textChunks = structuredChunks.filter(c => c.type === 'text');
+                  const thinkingChunks = structuredChunks.filter(c => c.type === 'thinking');
 
-                  console.log('%c[perplexity-client] 🔬 StreamProcessor OUTPUT',
-                    hasTextChunk ? 'background: #00aa00; color: #fff; font-size: 14px;' : 'background: #ff6600; color: #fff; font-size: 14px;', {
-                    chunksCount: structuredChunks.length,
+                  console.log('═══════════════════════════════════════════════════════════════');
+                  console.log('[HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis');
+                  console.log('═══════════════════════════════════════════════════════════════');
+                  console.log('[HYPOTHESIS B] Chunk Summary:', {
+                    totalChunks: structuredChunks.length,
+                    textChunksCount: textChunks.length,
+                    thinkingChunksCount: thinkingChunks.length,
                     chunkTypes: structuredChunks.map(c => c.type),
-                    chunkLengths: structuredChunks.map(c => c.content.length),
-                    hasTextChunk,
-                    hasThinkingChunk,
-                    // CRITICAL: If no text chunk, fullContent won't accumulate!
-                    warning: !hasTextChunk && hasThinkingChunk ? '⚠️ NO TEXT CHUNK - fullContent will NOT accumulate!' : null,
-                    currentFullContentLength: fullContent.length,
                   });
+
+                  if (hasTextChunk) {
+                    console.log('[HYPOTHESIS B] ✅ TEXT CHUNK FOUND - fullContent WILL accumulate');
+                    textChunks.forEach((tc, i) => {
+                      console.log(`[HYPOTHESIS B] Text Chunk #${i}:`, {
+                        length: tc.content.length,
+                        preview: tc.content.substring(0, 150),
+                      });
+                    });
+                  } else if (hasThinkingChunk) {
+                    console.log('[HYPOTHESIS B] ⚠️ WARNING: NO TEXT CHUNK - Only thinking chunks found!');
+                    console.log('[HYPOTHESIS B] ⚠️ fullContent will NOT accumulate from this raw chunk');
+                    console.log('[HYPOTHESIS B] ⚠️ This means </think> tag was NOT detected correctly!');
+                  }
+
+                  console.log('[HYPOTHESIS B] Current State:', {
+                    accumulatedFullContentLength: fullContent.length,
+                    accumulatedThinkingLength: accumulatedThinking.length,
+                    rawContentContainsThinkOpen: rawContent.includes('<think>'),
+                    rawContentContainsThinkClose: rawContent.includes('</think>'),
+                  });
+                  console.log('═══════════════════════════════════════════════════════════════');
 
                   for (const structured of structuredChunks) {
                     if (structured.type === 'thinking') {
