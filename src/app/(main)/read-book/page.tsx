@@ -568,6 +568,8 @@ export default function ReadBookPage() {
   const questionSubmittedAtRef = useRef<number | null>(null);
   const responseStartedAtRef = useRef<number | null>(null);
   const firstChunkSeenRef = useRef<boolean>(false);
+  // Track last processed chunk index to avoid duplicate appends on SSE retries/duplicates
+  const lastChunkIndexRef = useRef<number>(-1);
 
   // Auto-scroll control (Fix Issue #7)
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -1766,6 +1768,7 @@ export default function ReadBookPage() {
     setPerplexityResponse(null);
     setPerplexityStreamingChunks([]);
     streamingAIMessageIdRef.current = null;
+    lastChunkIndexRef.current = -1;
 
     try {
       const chapterContextSnippet = currentChapter.paragraphs
@@ -2303,6 +2306,18 @@ export default function ReadBookPage() {
 
                     if (streamingAIMessageIdRef.current) {
                       const msgId = streamingAIMessageIdRef.current;
+                      // Skip duplicate/out-of-order chunkIndex to prevent repeated appends
+                      if (typeof chunk.chunkIndex === 'number' && chunk.chunkIndex <= lastChunkIndexRef.current) {
+                        console.warn('[QA Module] Skipping duplicate/out-of-order chunkIndex', {
+                          chunkIndex: chunk.chunkIndex,
+                          lastChunkIndex: lastChunkIndexRef.current,
+                        });
+                        continue;
+                      }
+                      if (typeof chunk.chunkIndex === 'number' && chunk.chunkIndex > lastChunkIndexRef.current) {
+                        lastChunkIndexRef.current = chunk.chunkIndex;
+                      }
+
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
                         // Task 4.2 Fix: Prefer fullContent; if missing, append incremental chunk.content to existing text
