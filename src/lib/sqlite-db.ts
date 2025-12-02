@@ -334,6 +334,86 @@ async function initializeSchema(db: Client): Promise<void> {
 }
 
 /**
+ * Migrate schema - add missing columns to existing tables
+ * This handles cases where tables exist but are missing columns added in later versions
+ *
+ * Bug Fix (2025-12-02): Added to resolve "no such column: sharedPostId" error
+ * when production database was created before Task 4.9 added the column.
+ */
+async function migrateSchema(db: Client): Promise<void> {
+  console.log('🔄 [Turso] Running schema migrations...');
+
+  // Helper function to check if a column exists in a table
+  async function columnExists(table: string, column: string): Promise<boolean> {
+    try {
+      const result = await db.execute(`PRAGMA table_info(${table})`);
+      return result.rows.some((row: any) => row.name === column);
+    } catch {
+      return false;
+    }
+  }
+
+  // Helper function to add a column if it doesn't exist
+  async function addColumnIfMissing(
+    table: string,
+    column: string,
+    definition: string,
+    description: string
+  ): Promise<void> {
+    const exists = await columnExists(table, column);
+    if (!exists) {
+      console.log(`  ➕ [Turso] Adding missing column: ${table}.${column} (${description})`);
+      try {
+        await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        console.log(`  ✅ [Turso] Successfully added: ${table}.${column}`);
+      } catch (error: any) {
+        console.error(`  ❌ [Turso] Failed to add ${table}.${column}:`, error.message);
+        throw error;
+      }
+    }
+  }
+
+  // === MIGRATION: Task 4.9 - Note-Post Linking ===
+  // Add sharedPostId to notes table for bi-directional note-post linking
+  await addColumnIfMissing(
+    'notes',
+    'sharedPostId',
+    'TEXT',
+    'Task 4.9: Reference to community post if note is shared'
+  );
+
+  // Add sourceNoteId to posts table for bi-directional note-post linking
+  await addColumnIfMissing(
+    'posts',
+    'sourceNoteId',
+    'TEXT',
+    'Task 4.9: Reference to source note if shared from reading notes'
+  );
+
+  // Add editedAt to posts table for tracking edits
+  await addColumnIfMissing(
+    'posts',
+    'editedAt',
+    'INTEGER',
+    'Task 4.9: Timestamp of last edit'
+  );
+
+  // Create indexes for the newly added columns if they don't exist
+  // These use CREATE INDEX IF NOT EXISTS which is safe to run multiple times
+  console.log('  🗂️ [Turso] Ensuring indexes exist for new columns...');
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_notes_shared_post
+    ON notes(sharedPostId);
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_posts_source_note
+    ON posts(sourceNoteId);
+  `);
+
+  console.log('✅ [Turso] Schema migrations completed');
+}
+
+/**
  * Verify database schema integrity
  * Checks if all required tables exist and reports any issues
  */
@@ -396,6 +476,9 @@ async function initializeSchemaAsync(db: Client): Promise<void> {
 
     console.log('🔄 [Turso] Background: Initializing schema...');
     await initializeSchema(db);
+
+    console.log('🔄 [Turso] Background: Running schema migrations...');
+    await migrateSchema(db);
 
     console.log('🔄 [Turso] Background: Verifying schema...');
     await verifySchema(db);
@@ -470,6 +553,9 @@ export async function initializeDatabase(): Promise<void> {
     await dbInstance.execute('SELECT 1');
 
     await initializeSchema(dbInstance);
+
+    // Run schema migrations for existing databases missing new columns
+    await migrateSchema(dbInstance);
 
     // Verify schema integrity after initialization
     await verifySchema(dbInstance);
