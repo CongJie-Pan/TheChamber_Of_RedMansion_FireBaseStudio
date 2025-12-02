@@ -246,11 +246,12 @@ export class DailyTaskService {
         logGuestAction('Fetching fixed guest tasks', { date: targetDate });
 
         // Fetch the fixed guest tasks from database
+        // Bug Fix (2025-12-02): getTaskById is async, must await it
         const guestTaskIds = getGuestTaskIdsArray();
         const fixedTasks: DailyTask[] = [];
 
         for (const taskId of guestTaskIds) {
-          const task = taskRepository.getTaskById(taskId);
+          const task = await taskRepository.getTaskById(taskId);
           if (task) {
             fixedTasks.push(task);
           } else {
@@ -1298,7 +1299,8 @@ export class DailyTaskService {
       }
 
       // Fetch from SQLite
-      const task = taskRepository.getTaskById(taskId);
+      // Bug Fix (2025-12-02): getTaskById is async, must await it
+      const task = await taskRepository.getTaskById(taskId);
       if (!task) {
         // Attempt to recover minimal task info from taskId pattern
         const recovered = this.recoverTaskFromId(taskId);

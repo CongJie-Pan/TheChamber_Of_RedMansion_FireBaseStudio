@@ -106,11 +106,40 @@ const getTodayString = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
+/**
+ * Create DailyTaskAssignment objects for guest progress
+ * Bug Fix (2025-12-02): tasks field must be DailyTaskAssignment[], not string[]
+ * This ensures proper format matching DailyTaskProgress.tasks type definition
+ */
+const createGuestTaskAssignments = () => {
+  const now = Date.now();
+  const timestamp = {
+    seconds: Math.floor(now / 1000),
+    nanoseconds: (now % 1000) * 1000000,
+  };
+
+  return [
+    {
+      taskId: GUEST_TASK_1_ID,
+      assignedAt: timestamp,
+      status: 'not_started',
+    },
+    {
+      taskId: GUEST_TASK_2_ID,
+      assignedAt: timestamp,
+      status: 'not_started',
+    },
+  ];
+};
+
 const GUEST_PROGRESS = {
-  id: `guest-progress-${getTodayString()}`,
+  // Bug Fix (2025-12-02): Progress ID must match format: {userId}_{date}
+  // This matches the format used in progress-repository.ts getProgress()
+  id: `${GUEST_USER_ID}_${getTodayString()}`,
   userId: GUEST_USER_ID,
   date: getTodayString(),
-  tasks: JSON.stringify([GUEST_TASK_1_ID, GUEST_TASK_2_ID]),
+  // Bug Fix (2025-12-02): Use DailyTaskAssignment[] format instead of string[]
+  tasks: JSON.stringify(createGuestTaskAssignments()),
   completedTaskIds: JSON.stringify([]),
   skippedTaskIds: JSON.stringify([]),
   totalXPEarned: 0,

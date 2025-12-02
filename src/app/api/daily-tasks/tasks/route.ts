@@ -47,7 +47,9 @@ export async function GET(request: NextRequest) {
     console.log(`📋 [API] Fetching ${taskIds.length} tasks: ${taskIds.join(', ')}`);
 
     // Fetch task details using the repository
-    const tasks = taskIds.map(taskId => getTaskById(taskId));
+    // Bug Fix (2025-12-02): getTaskById is async, must use Promise.all to await all results
+    const taskPromises = taskIds.map(taskId => getTaskById(taskId));
+    const tasks = await Promise.all(taskPromises);
 
     // Filter out any null results (tasks not found)
     const validTasks = tasks.filter(task => task !== null);
