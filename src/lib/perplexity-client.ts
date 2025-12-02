@@ -723,13 +723,20 @@ export class PerplexityClient {
                 console.log('║ fullContent preview:', fullContent.substring(0, 200) || '(empty)');
                 console.log('╚═══════════════════════════════════════════════════════════════╝');
 
-                // FALLBACK FIX: When fullContent is empty but we have thinking content,
-                // use the thinking content as the answer. This handles cases where
-                // the API response doesn't properly separate thinking from answer,
-                // or when the StreamProcessor doesn't detect </think> correctly.
+                // FALLBACK FIX: When fullContent is empty OR too short but we have thinking content,
+                // use the thinking content as the answer. This handles cases where:
+                // 1. The API response doesn't properly separate thinking from answer
+                // 2. The StreamProcessor doesn't detect </think> correctly
+                // 3. Only a fragment (like '#') was captured after </think>
+                const MIN_MEANINGFUL_CONTENT_LENGTH = 10;
+                const isContentMeaningful = fullContent.trim().length >= MIN_MEANINGFUL_CONTENT_LENGTH;
                 let contentDerivedFromThinking = false;
-                if (!fullContent.trim() && sanitizedThinking.trim()) {
-                console.warn('[PerplexityClient] Fallback: fullContent is empty, using thinking as answer');
+                if (!isContentMeaningful && sanitizedThinking.trim()) {
+                console.warn('[PerplexityClient] Fallback: fullContent is empty or too short, using thinking as answer', {
+                  fullContentLength: fullContent.trim().length,
+                  fullContentPreview: fullContent.trim().substring(0, 50),
+                  thinkingLength: sanitizedThinking.length,
+                });
 
                 // Task 4.2 Fix: Try to extract just the "answer" portion from thinking content
                 let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
@@ -998,10 +1005,17 @@ export class PerplexityClient {
 
         const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
 
-        // FALLBACK: When fullContent is empty but we have thinking content
+        // FALLBACK: When fullContent is empty OR too short but we have thinking content
+        // This handles cases where only a fragment (like '#') was captured after </think>
+        const MIN_MEANINGFUL_CONTENT_LENGTH = 10;
+        const isContentMeaningful = fullContent.trim().length >= MIN_MEANINGFUL_CONTENT_LENGTH;
         let contentDerivedFromThinking = false;
-        if (!fullContent.trim() && sanitizedThinking.trim()) {
-          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty, using thinking as answer');
+        if (!isContentMeaningful && sanitizedThinking.trim()) {
+          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty or too short, using thinking as answer', {
+            fullContentLength: fullContent.trim().length,
+            fullContentPreview: fullContent.trim().substring(0, 50),
+            thinkingLength: sanitizedThinking.length,
+          });
           let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
           if (extractedAnswer.length < 50) {
             extractedAnswer = sanitizedThinking;

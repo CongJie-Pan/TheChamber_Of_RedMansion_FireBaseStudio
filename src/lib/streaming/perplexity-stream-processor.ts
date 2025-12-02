@@ -135,6 +135,17 @@ export class PerplexityStreamProcessor {
         }
       }
 
+      // BUG FIX (2025-12-02): Always log sliding window detection result
+      console.log('[StreamProcessor] 🔎 Sliding window check:', {
+        foundClosingTag,
+        lookbackBufferLength: lookbackBuffer.length,
+        lookbackBufferPreview: lookbackBuffer.substring(0, 50).replace(/\n/g, '\\n'),
+        lookbackBufferEnd: lookbackBuffer.slice(-20).replace(/\n/g, '\\n'),
+        thinkingBufferLength: this.thinkingBuffer.length,
+        rawChunkLength: rawChunk.length,
+        rawChunkPreview: rawChunk.substring(0, 30).replace(/\n/g, '\\n'),
+      });
+
       if (foundClosingTag) {
         this.tagDepth--;
 
