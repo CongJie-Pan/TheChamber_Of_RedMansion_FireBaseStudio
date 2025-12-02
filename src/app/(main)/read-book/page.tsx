@@ -2320,18 +2320,58 @@ export default function ReadBookPage() {
 
                       setActiveSessionMessages(prev => prev.map(m => {
                         if (m.id !== msgId) return m;
-                        // Task 4.2 Fix: Prefer fullContent; if missing, append incremental chunk.content to existing text
-                        // This prevents empty fullContent from wiping previously accumulated answer
+                        // HYPOTHESIS A FIX: Properly separate content (answer) from thinkingProcess
+                        // NEVER assign thinkingContent to message.content - they should remain separate
                         const hasFull = !!(chunk.fullContent && chunk.fullContent.trim().length > 0);
                         const hasContent = !!(chunk.content && chunk.content.trim().length > 0);
-                        const updatedText = hasFull
-                          ? chunk.fullContent
-                          : hasContent
-                            ? `${m.content || ''}${chunk.content}`
-                            : ((chunk as any).thinkingContent?.trim() || m.content);
-                        // BUG FIX: Use latestThinkingText to ensure thinking content streams incrementally
-                        // This fixes the issue where thinking content only showed after completion
+                        const hasThinking = !!((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0);
+
+                        // FIX: Check if fullContent was derived from thinking (backend fallback)
+                        // If so, DON'T use it as content - it belongs in thinkingProcess
+                        const contentDerivedFromThinking = (chunk as any).contentDerivedFromThinking === true;
+
+                        // Determine the actual answer content (NOT thinking content)
+                        let updatedText: string;
+                        let contentSource: string;
+
+                        if (hasFull && !contentDerivedFromThinking) {
+                          // Best case: fullContent has actual answer
+                          updatedText = chunk.fullContent;
+                          contentSource = '✅ fullContent (real answer)';
+                        } else if (hasContent) {
+                          // Incremental content from stream
+                          updatedText = `${m.content || ''}${chunk.content}`;
+                          contentSource = '⚠️ content (incremental)';
+                        } else {
+                          // FIX: DO NOT fallback to thinkingContent for content!
+                          // Keep existing content or empty - let UI handle display
+                          updatedText = m.content || '';
+                          contentSource = '➖ m.content (unchanged, NOT falling back to thinking)';
+                        }
+
+                        // 🔍 DIAGNOSTIC LOGGING: Track content assignment decision
+                        console.log('%c[QA Module] 🔍 DIAGNOSTIC - Content Assignment', 'background: #0066cc; color: #fff; font-size: 14px; padding: 4px;', {
+                          chunkIndex: chunk.chunkIndex,
+                          // Boolean flags
+                          hasFull,
+                          hasContent,
+                          hasThinking,
+                          contentDerivedFromThinking,
+                          // Length values
+                          fullContentLength: chunk.fullContent?.length || 0,
+                          contentLength: chunk.content?.length || 0,
+                          thinkingContentLength: (chunk as any).thinkingContent?.length || 0,
+                          // Decision result
+                          contentSource,
+                          updatedTextLength: updatedText?.length || 0,
+                          updatedTextPreview: updatedText?.substring(0, 150) || '(empty)',
+                          // Previous state
+                          previousContentLength: m.content?.length || 0,
+                        });
+
+                        // Update thinking process separately (this is correct behavior)
                         const newThinking = extractedThinkingText || latestThinkingText || m.thinkingProcess || '';
+
                         return {
                           ...m,
                           content: updatedText,

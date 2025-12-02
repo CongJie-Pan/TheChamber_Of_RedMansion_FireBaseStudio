@@ -794,11 +794,20 @@ export class PerplexityClient {
 
                   const structuredChunks = processor.processChunk(rawContent);
 
-                  // Task 4.2 Debug: Log StreamProcessor output
-                  console.log('[perplexity-client] StreamProcessor OUTPUT:', {
+                  // HYPOTHESIS B DIAGNOSTIC: Enhanced logging for StreamProcessor output
+                  const hasTextChunk = structuredChunks.some(c => c.type === 'text');
+                  const hasThinkingChunk = structuredChunks.some(c => c.type === 'thinking');
+
+                  console.log('%c[perplexity-client] 🔬 StreamProcessor OUTPUT',
+                    hasTextChunk ? 'background: #00aa00; color: #fff; font-size: 14px;' : 'background: #ff6600; color: #fff; font-size: 14px;', {
                     chunksCount: structuredChunks.length,
                     chunkTypes: structuredChunks.map(c => c.type),
                     chunkLengths: structuredChunks.map(c => c.content.length),
+                    hasTextChunk,
+                    hasThinkingChunk,
+                    // CRITICAL: If no text chunk, fullContent won't accumulate!
+                    warning: !hasTextChunk && hasThinkingChunk ? '⚠️ NO TEXT CHUNK - fullContent will NOT accumulate!' : null,
+                    currentFullContentLength: fullContent.length,
                   });
 
                   for (const structured of structuredChunks) {
