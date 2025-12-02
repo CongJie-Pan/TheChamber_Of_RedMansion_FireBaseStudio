@@ -2,6 +2,9 @@
  * @jest-environment node
  *
  * @fileoverview Verifies that DailyTaskService enforces SQLite usage when the USE_SQLITE flag is enabled.
+ *
+ * Phase 4.6 Update: Removed test for dynamic require() failure since we now use static imports.
+ * Static imports are resolved at build time by the bundler, not at runtime.
  */
 
 describe('DailyTaskService SQLite enforcement', () => {
@@ -13,9 +16,22 @@ describe('DailyTaskService SQLite enforcement', () => {
 
     process.env.USE_SQLITE = '1';
 
-    jest.doMock('@/lib/repositories/user-repository', () => ({}), { virtual: true });
-    jest.doMock('@/lib/repositories/task-repository', () => ({}), { virtual: true });
-    jest.doMock('@/lib/repositories/progress-repository', () => ({}), { virtual: true });
+    jest.doMock('@/lib/repositories/user-repository', () => ({
+      getUserById: jest.fn(),
+      createUser: jest.fn(),
+      updateAttributes: jest.fn(),
+    }), { virtual: true });
+    jest.doMock('@/lib/repositories/task-repository', () => ({
+      getTaskById: jest.fn(),
+      batchCreateTasks: jest.fn(),
+    }), { virtual: true });
+    jest.doMock('@/lib/repositories/progress-repository', () => ({
+      getProgress: jest.fn(),
+      createProgress: jest.fn(),
+      updateProgress: jest.fn(),
+      getUserRecentProgress: jest.fn(),
+      deleteProgress: jest.fn(),
+    }), { virtual: true });
 
     jest.doMock('@/lib/sqlite-db', () => ({
       fromUnixTimestamp: jest.fn((timestamp: number) => ({
@@ -71,18 +87,28 @@ describe('DailyTaskService SQLite enforcement', () => {
     jest.restoreAllMocks();
   });
 
-  test('throws when SQLite repositories cannot be loaded under USE_SQLITE=1', () => {
-    jest.doMock('@/lib/repositories/user-repository', () => {
-      throw new Error('Cannot find module "@/lib/repositories/user-repository"');
-    });
-
-    expect(() => loadDailyTaskService()).toThrow(/Failed to load SQLite modules/);
-  });
+  // Phase 4.6: Removed obsolete test 'throws when SQLite repositories cannot be loaded'
+  // With static imports, module loading errors are caught at build time by the bundler,
+  // not at runtime. The previous dynamic require() pattern has been replaced.
 
   test('imports successfully when USE_SQLITE is disabled', () => {
     process.env.USE_SQLITE = '0';
     const loadedModule = loadDailyTaskService();
 
     expect(typeof loadedModule.DailyTaskService).toBe('function');
+  });
+
+  test('exports DailyTaskService class with expected methods', () => {
+    const loadedModule = loadDailyTaskService();
+
+    expect(typeof loadedModule.DailyTaskService).toBe('function');
+    expect(typeof loadedModule.dailyTaskService).toBe('object');
+  });
+
+  test('exports singleton instance', () => {
+    const loadedModule = loadDailyTaskService();
+
+    expect(loadedModule.dailyTaskService).toBeDefined();
+    expect(loadedModule.dailyTaskService).toBeInstanceOf(loadedModule.DailyTaskService);
   });
 });

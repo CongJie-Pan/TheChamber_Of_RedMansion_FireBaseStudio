@@ -1,27 +1,35 @@
 /**
  * @fileOverview SQLite Module Loading Safety Tests
  *
+ * ⚠️ LEGACY TEST FILE - Phase 4.6 Notice
+ * =====================================
+ * This test file tests the LEGACY dynamic require() module loading pattern
+ * that was used before Phase 4.6. The actual DailyTaskService now uses
+ * static imports instead of dynamic require() for better ESM compatibility
+ * in Next.js 15 serverless environments.
+ *
+ * These tests remain to document the historical behavior and ensure
+ * environment detection logic (server vs browser) still works correctly.
+ * The dynamic module loading tests are now conceptual/illustrative rather
+ * than testing actual production code paths.
+ *
+ * Original Description:
  * Tests the conditional module loading mechanism that allows the application
  * to gracefully handle missing or incompatible SQLite modules without crashing.
  *
  * Key Features Tested:
- * - Successful module loading in server environment
- * - Graceful handling of missing modules
- * - Browser environment detection (no SQLite)
- * - Module load error handling
- * - Fallback mechanism activation
- * - Module availability flags
- *
- * Prevents Regression:
- * - Server crashes when SQLite modules fail to load
- * - Client-side errors when SQLite modules leak to browser
- * - Missing fallback when modules unavailable
- * - Incorrect environment detection
+ * - Server vs browser environment detection (STILL RELEVANT)
+ * - Graceful handling of missing modules (LEGACY - now handled at build time)
+ * - Module load error handling (LEGACY - now handled at build time)
+ * - Fallback mechanism activation (LEGACY)
+ * - Module availability flags (LEGACY)
  *
  * @phase Phase 2.9 - SQLite Integration with Graceful Fallback
+ * @deprecated Phase 4.6 - Replaced dynamic require() with static imports
  */
 
-describe('SQLite Module Loading Safety', () => {
+// Phase 4.6: Mark entire test suite as legacy
+describe('[LEGACY] SQLite Module Loading Safety', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules(); // Clear module cache between tests

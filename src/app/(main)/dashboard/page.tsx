@@ -50,26 +50,36 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
 // Icon imports for visual indicators and navigation
-import { 
+import {
   BookOpen,        // Reading activity indicator
   Activity,        // Learning activity metrics
-  BarChart3,       // Statistics and analytics
-  TrendingUp,      // Progress and improvement trends
-  Target,          // Goals and objectives
   Edit3,           // Note-taking and writing activities
-  ListChecks       // Goal management and checklists
+  RefreshCw        // Task 2.2: Retry button icon
 } from "lucide-react";
 
 // Next.js navigation
 import Link from "next/link";
 
 // React hooks for component state and lifecycle
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // Utility functions and custom hooks
 import { cn } from "@/lib/utils";
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
+import { useSession } from 'next-auth/react';
+
+/**
+ * Task 2.2: Learning stats data interface for dynamic API data
+ */
+interface LearningStatsData {
+  totalReadingTime: string;
+  totalReadingTimeMinutes: number;
+  chaptersCompleted: number;
+  totalChapters: number;
+  notesTaken: number;
+  currentStreak: number;
+}
 
 // Phase 4-T1: Guest account detection
 import { isGuestAccount } from '@/lib/middleware/guest-account';
@@ -145,53 +155,126 @@ export default function DashboardPage() {
   // Phase 4-T1: Get user for guest account detection
   const { user } = useAuth();
 
-  // State for chapter progress (would come from user data in production)
-  const [completedChapters, setCompletedChapters] = useState(20);
-  const totalChapters = 120; // Total chapters in Dream of the Red Chamber
+  // Task 2.2: Get session for API authentication
+  const { data: session, status: sessionStatus } = useSession();
+
+  // Task 2.2: Dynamic learning stats state
+  const [learningStats, setLearningStats] = useState<LearningStatsData | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  // Computed values from API data or defaults
+  const completedChapters = learningStats?.chaptersCompleted ?? 0;
+  const totalChapters = learningStats?.totalChapters ?? 120;
 
   // State for animated progress circle
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
   /**
+   * Task 2.2: Fetch learning stats from API
+   * Reusable callback function for initial load and retry
+   */
+  const fetchLearningStats = useCallback(async () => {
+    // Wait for session to load
+    if (sessionStatus === 'loading') return;
+
+    // Only fetch for authenticated users
+    if (sessionStatus !== 'authenticated' || !session?.user) {
+      setStatsLoading(false);
+      return;
+    }
+
+    try {
+      setStatsLoading(true);
+      setStatsError(null);
+
+      const response = await fetch('/api/user/learning-stats');
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.warn('📊 [Dashboard] User not authenticated for stats');
+          setStatsLoading(false);
+          return;
+        }
+        throw new Error(`Failed to fetch stats: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.stats) {
+        setLearningStats(data.stats);
+        console.log('📊 [Dashboard] Learning stats loaded:', data.stats);
+      }
+    } catch (error: any) {
+      console.error('❌ [Dashboard] Failed to fetch learning stats:', error);
+      setStatsError(error.message || 'Failed to load learning statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [session, sessionStatus]);
+
+  /**
+   * Task 2.2: Fetch stats on mount and when session changes
+   */
+  useEffect(() => {
+    fetchLearningStats();
+  }, [fetchLearningStats]);
+
+  /**
    * Progress Animation Effect
-   * 
+   *
    * Animates the circular progress indicator from 0 to current completion
    * percentage using requestAnimationFrame for smooth 60fps animation.
    * Runs on component mount and when progress values change.
+   * Includes cleanup to prevent memory leaks on unmount.
    */
   useEffect(() => {
     const targetProgressForDasharray = (completedChapters / totalChapters) * 100;
-    
+
     let startTimestamp: number | null = null;
     const animationDuration = 1500; // 1.5 seconds for smooth animation
+    let animationFrameId: number;
+    let isActive = true; // Flag to prevent state updates after unmount
 
     /**
      * Animation step function
      * Calculates current animation frame progress and updates state
      */
     const step = (timestamp: number) => {
+      if (!isActive) return; // Stop if component unmounted
       if (!startTimestamp) startTimestamp = timestamp;
       const elapsed = timestamp - startTimestamp;
       const progress = Math.min((elapsed / animationDuration) * targetProgressForDasharray, targetProgressForDasharray);
       setAnimatedProgress(progress);
       if (elapsed < animationDuration) {
-        requestAnimationFrame(step);
+        animationFrameId = requestAnimationFrame(step);
       }
     };
-    requestAnimationFrame(step);
+    animationFrameId = requestAnimationFrame(step);
 
+    // Cleanup function to cancel animation on unmount
+    return () => {
+      isActive = false;
+      cancelAnimationFrame(animationFrameId);
+    };
   }, [completedChapters, totalChapters]);
 
   /**
-   * Dashboard statistics configuration
-   * Defines the metrics displayed in the stats grid with localized labels
+   * Task 2.2: Dashboard statistics configuration
+   * Uses dynamic data from API - only showing supported metrics
    * Icons provide visual context for each statistic type
    */
   const statsData: StatCardProps[] = [
-    { value: "75%", label: t('dashboard.avgUnderstanding'), icon: TrendingUp },
-    { value: "35 小時", label: t('dashboard.totalLearningTime'), icon: Activity },
-    { value: "5 篇", label: t('dashboard.notesCount'), icon: Edit3 },
-    { value: "8 個", label: t('dashboard.goalsAchieved'), icon: Target },
+    {
+      value: learningStats?.totalReadingTime ?? '0 分鐘',
+      label: t('dashboard.totalLearningTime'),
+      icon: Activity
+    },
+    {
+      value: `${learningStats?.notesTaken ?? 0} 篇`,
+      label: t('dashboard.notesCount'),
+      icon: Edit3
+    },
   ];
 
   /**
@@ -291,11 +374,42 @@ export default function DashboardPage() {
             <p className="mt-3 text-lg font-semibold text-foreground">{t('dashboard.learningOverview')}</p>
           </div>
 
-          {/* Right Section: Statistics Grid */}
-          <div className="w-1/2 grid grid-cols-2 grid-rows-2 gap-4 pl-6">
-            {statsData.map(stat => (
-              <StatCard key={stat.label} value={stat.value} label={stat.label} icon={stat.icon} />
-            ))}
+          {/* Right Section: Statistics Grid - Task 2.2: Dynamic data with loading/error states */}
+          <div className="w-1/2 flex flex-col justify-center gap-4 pl-6">
+            {statsLoading ? (
+              // Loading skeleton for stats (matches StatCard dimensions: w-[120px] h-[80px])
+              <>
+                <Card className="w-[120px] h-[80px] bg-card flex flex-col items-center justify-center p-2 shadow-md">
+                  <div className="h-5 w-5 mb-1 bg-muted rounded animate-pulse" />
+                  <div className="h-6 w-16 bg-muted rounded animate-pulse mb-1" />
+                  <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                </Card>
+                <Card className="w-[120px] h-[80px] bg-card flex flex-col items-center justify-center p-2 shadow-md">
+                  <div className="h-5 w-5 mb-1 bg-muted rounded animate-pulse" />
+                  <div className="h-6 w-16 bg-muted rounded animate-pulse mb-1" />
+                  <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                </Card>
+              </>
+            ) : statsError ? (
+              // Error state with retry button
+              <div className="flex flex-col items-center justify-center text-center p-4">
+                <p className="text-sm text-destructive mb-2">{statsError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchLearningStats()}
+                  className="gap-1"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  {t('buttons.retry') || '重試'}
+                </Button>
+              </div>
+            ) : (
+              // Stats cards with dynamic data
+              statsData.map(stat => (
+                <StatCard key={stat.label} value={stat.value} label={stat.label} icon={stat.icon} />
+              ))
+            )}
           </div>
         </div>
       </Card>

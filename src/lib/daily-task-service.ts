@@ -36,176 +36,6 @@ import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
 import { isGuestAccount, logGuestAction } from './middleware/guest-account';
 import { getGuestTaskIdsArray } from './constants/guest-account';
-
-// SQLite/Turso Database Integration (Server-side only)
-// Lazy initialization pattern: Load modules on first use, not at module load time
-// This prevents build-time errors in serverless environments like Vercel
-let userRepository: any;
-let taskRepository: any;
-let progressRepository: any;
-let fromUnixTimestamp: any;
-
-const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
-const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
-let sqliteModulesLoaded = false;
-let moduleLoadAttempted = false;
-
-/**
- * Helper function to resolve ESM default exports from require()
- * In serverless environments, ESM modules loaded via require() may have
- * their exports wrapped in a .default property
- *
- * Phase 4.6 Fix: Enhanced to handle multiple module formats in Next.js 15 serverless:
- * 1. Direct named exports: { getProgress, updateProgress, ... }
- * 2. Default export wrapper: { default: { getProgress, ... } }
- * 3. Mixed exports: { default: {...}, getProgress, ... }
- */
-function resolveModule(mod: any): any {
-  if (!mod) return mod;
-
-  // If module has a default export and it's an object with functions, use it
-  if (mod.default && typeof mod.default === 'object') {
-    // Check if default has the functions we need (for repositories)
-    if (typeof mod.default.getProgress === 'function' ||
-        typeof mod.default.getUserById === 'function' ||
-        typeof mod.default.getTaskById === 'function') {
-      return mod.default;
-    }
-  }
-
-  // Otherwise return the module as-is (named exports case)
-  return mod;
-}
-
-/**
- * Lazy initialization function for Turso/SQLite modules
- * Called on first use instead of at module load time to prevent build errors
- */
-function ensureModulesLoaded(): void {
-  // Only attempt to load once
-  if (moduleLoadAttempted) return;
-  moduleLoadAttempted = true;
-
-  // Skip if not in server environment or SQLite is disabled
-  if (!SQLITE_SERVER_ENABLED) {
-    if (typeof window === 'undefined' && !SQLITE_FLAG_ENABLED) {
-      console.warn('⚠️ [DailyTaskService] USE_SQLITE flag disabled; service will not operate.');
-    }
-    return;
-  }
-
-  // Debug flag for verbose logging (only enable in development or when debugging)
-  const DEBUG_MODULE_LOADING = process.env.NODE_ENV === 'development' || process.env.DEBUG_MODULE_LOADING === 'true';
-  const MAX_LOG_KEYS = 8; // Limit keys in diagnostic output
-
-  try {
-    // Load modules with ESM default export resolution
-    // This handles both CommonJS and ESM module formats in serverless environments
-    console.log('[DailyTaskService] Loading repository modules...');
-
-    const userRepo = require('./repositories/user-repository');
-    const taskRepo = require('./repositories/task-repository');
-    const progressRepo = require('./repositories/progress-repository');
-    const sqliteDb = require('./sqlite-db');
-
-    // Debug logging BEFORE resolution (development only to reduce log noise)
-    if (DEBUG_MODULE_LOADING) {
-      console.log('[DailyTaskService] Raw module structure:', {
-        userRepo: {
-          type: typeof userRepo,
-          hasDefault: !!userRepo?.default,
-          keys: Object.keys(userRepo || {}).slice(0, MAX_LOG_KEYS),
-          defaultKeys: userRepo?.default ? Object.keys(userRepo.default).slice(0, MAX_LOG_KEYS) : 'N/A'
-        },
-        progressRepo: {
-          type: typeof progressRepo,
-          hasDefault: !!progressRepo?.default,
-          keys: Object.keys(progressRepo || {}).slice(0, MAX_LOG_KEYS),
-          defaultKeys: progressRepo?.default ? Object.keys(progressRepo.default).slice(0, MAX_LOG_KEYS) : 'N/A',
-          getProgressType: typeof progressRepo?.getProgress,
-          defaultGetProgressType: typeof progressRepo?.default?.getProgress
-        },
-        sqliteDb: {
-          type: typeof sqliteDb,
-          hasDefault: !!sqliteDb?.default,
-          keys: Object.keys(sqliteDb || {}).slice(0, MAX_LOG_KEYS)
-        }
-      });
-    }
-
-    userRepository = resolveModule(userRepo);
-    taskRepository = resolveModule(taskRepo);
-    progressRepository = resolveModule(progressRepo);
-
-    // Handle fromUnixTimestamp with fallback
-    const resolvedSqliteDb = resolveModule(sqliteDb);
-    fromUnixTimestamp = resolvedSqliteDb?.fromUnixTimestamp ?? sqliteDb?.fromUnixTimestamp;
-
-    if (typeof fromUnixTimestamp !== 'function') {
-      console.warn('⚠️ [DailyTaskService] fromUnixTimestamp not found, using fallback');
-      fromUnixTimestamp = (timestamp: number) => ({
-        toMillis: () => timestamp,
-        toDate: () => new Date(timestamp),
-        isEqual: (other: any) => other?.toMillis?.() === timestamp,
-        toJSON: () => ({ seconds: Math.floor(timestamp / 1000), nanoseconds: (timestamp % 1000) * 1000000 }),
-        seconds: Math.floor(timestamp / 1000),
-        nanoseconds: (timestamp % 1000) * 1000000,
-      });
-    }
-
-    // Debug logging AFTER resolution (development only)
-    if (DEBUG_MODULE_LOADING) {
-      console.log('[DailyTaskService] Resolved module structure:', {
-        progressRepository: {
-          type: typeof progressRepository,
-          getProgressType: typeof progressRepository?.getProgress,
-          updateProgressType: typeof progressRepository?.updateProgress,
-          createProgressType: typeof progressRepository?.createProgress,
-          keys: Object.keys(progressRepository || {}).slice(0, MAX_LOG_KEYS)
-        }
-      });
-    }
-
-    sqliteModulesLoaded = true;
-    console.log('✅ [DailyTaskService] Turso modules loaded successfully');
-
-    // Phase 4.6 Fix: Validate repository functions with proper fallback retry logic
-    // First, try primary resolution; if fails, try default export fallback
-    const requiredFunctions = ['getProgress', 'updateProgress', 'createProgress'];
-    let allFunctionsValid = requiredFunctions.every(fn => typeof progressRepository?.[fn] === 'function');
-
-    // If primary resolution failed, try default export as fallback
-    if (!allFunctionsValid && progressRepo?.default) {
-      console.log('[DailyTaskService] Primary resolution failed, trying default export fallback...');
-      progressRepository = progressRepo.default;
-      allFunctionsValid = requiredFunctions.every(fn => typeof progressRepository?.[fn] === 'function');
-    }
-
-    // Final validation - log missing functions if still failing
-    if (!allFunctionsValid) {
-      console.error('❌ [DailyTaskService] progressRepository validation failed');
-      console.error('   progressRepository type:', typeof progressRepository);
-      console.error('   Available exports:', Object.keys(progressRepository || {}));
-      for (const fn of requiredFunctions) {
-        if (typeof progressRepository?.[fn] !== 'function') {
-          console.error(`   Missing function: ${fn}`);
-        }
-      }
-      sqliteModulesLoaded = false;
-      return;
-    }
-
-    console.log('✅ [DailyTaskService] All progressRepository functions verified');
-  } catch (error: any) {
-    sqliteModulesLoaded = false;
-    console.error('❌ [DailyTaskService] Failed to load Turso modules:', error.message);
-    if (DEBUG_MODULE_LOADING) {
-      console.error('   Stack trace:', error.stack);
-    }
-    console.error('   Ensure TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are configured.');
-    // Don't throw here - let ensureSQLiteAvailable() handle the error at runtime
-  }
-}
 import {
   DailyTask,
   DailyTaskProgress,
@@ -221,6 +51,17 @@ import {
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
 import { generatePersonalizedFeedback } from './ai-feedback-generator';
+
+// SQLite/Turso Database Integration (Server-side only)
+// Phase 4.6 Fix: Use static imports instead of dynamic require() for ESM compatibility
+// This ensures proper module resolution in Next.js 15 serverless environments
+import * as userRepository from './repositories/user-repository';
+import * as taskRepository from './repositories/task-repository';
+import * as progressRepository from './repositories/progress-repository';
+import { fromUnixTimestamp } from './sqlite-db';
+
+const SQLITE_FLAG_ENABLED = process.env.USE_SQLITE !== '0' && process.env.USE_SQLITE !== 'false';
+const SQLITE_SERVER_ENABLED = typeof window === 'undefined' && SQLITE_FLAG_ENABLED;
 
 // Timestamp compatibility helper for SQLite
 // Provides a minimal Timestamp-like interface for type compatibility
@@ -272,18 +113,13 @@ export const BASE_XP_REWARDS = {
 
 /**
  * Verify SQLite/Turso is available for server-side operations
- * Triggers lazy module loading on first call
+ * Phase 4.6 Fix: Simplified to only check environment conditions
+ * Module loading is now handled via static imports at the top of the file
  * @throws Error if SQLite is not available
  */
 function ensureSQLiteAvailable(): void {
-  // Trigger lazy initialization on first use
-  ensureModulesLoaded();
-
   if (!SQLITE_SERVER_ENABLED) {
     throw new Error('[DailyTaskService] Cannot operate: Turso only available server-side');
-  }
-  if (!sqliteModulesLoaded) {
-    throw new Error('[DailyTaskService] Turso modules failed to load. Check TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.');
   }
 }
 
