@@ -190,13 +190,29 @@ export class PerplexityStreamProcessor {
           const remainingStartInRaw = Math.max(0, tagEndInLookback - actualLookbackSize);
           const remaining = rawChunk.slice(remainingStartInRaw);
 
-          // Task 4.2 Debug: Log remaining content after </think>
-          console.log('[StreamProcessor] REMAINING CONTENT after </think>:', {
-            remainingStartInRaw,
-            remainingLength: remaining.length,
-            remainingPreview: remaining.substring(0, 150).replace(/\n/g, '\\n'),
-            hasRemaining: !!remaining,
+          // BUG FIX (2025-12-02): Enhanced debug logging for truncation diagnosis
+          console.log('[StreamProcessor] ═══════════════════════════════════════════════════');
+          console.log('[StreamProcessor] 🔍 REMAINING CALCULATION DEBUG:');
+          console.log('[StreamProcessor] Input values:', {
+            rawChunkLength: rawChunk.length,
+            rawChunkPreview: rawChunk.substring(0, 200).replace(/\n/g, '\\n'),
+            actualLookbackSize,
+            closingTagPosition,
+            tagEndInLookback,
           });
+          console.log('[StreamProcessor] Calculation:', {
+            formula: `remainingStartInRaw = max(0, ${tagEndInLookback} - ${actualLookbackSize}) = ${remainingStartInRaw}`,
+            remainingLength: remaining.length,
+            remainingPreview: remaining.substring(0, 200).replace(/\n/g, '\\n'),
+          });
+
+          // SAFEGUARD: Warn if remaining seems unexpectedly short
+          if (rawChunk.length > 20 && remaining.length < rawChunk.length / 2) {
+            console.warn('[StreamProcessor] ⚠️ WARNING: Remaining content is much shorter than rawChunk!');
+            console.warn('[StreamProcessor] This might indicate a calculation error.');
+            console.warn('[StreamProcessor] rawChunk full content:', rawChunk);
+          }
+          console.log('[StreamProcessor] ═══════════════════════════════════════════════════');
 
           if (remaining) {
             // Recursively process the remaining part
@@ -205,8 +221,15 @@ export class PerplexityStreamProcessor {
             console.log('[StreamProcessor] RECURSIVE RESULT:', {
               chunksReturned: remainingChunks.length,
               chunkTypes: remainingChunks.map(c => c.type),
+              chunkContents: remainingChunks.map(c => ({
+                type: c.type,
+                length: c.content.length,
+                preview: c.content.substring(0, 100),
+              })),
             });
             chunks.push(...remainingChunks);
+          } else {
+            console.log('[StreamProcessor] ℹ️ No remaining content after </think> - answer will come in next chunk(s)');
           }
 
           return chunks;
@@ -229,6 +252,14 @@ export class PerplexityStreamProcessor {
 
     // Add to buffer
     this.buffer += rawChunk;
+
+    // BUG FIX (2025-12-02): Debug logging for state='outside' chunk processing
+    console.log('[StreamProcessor] 📥 Processing chunk in OUTSIDE state:', {
+      rawChunkLength: rawChunk.length,
+      rawChunkPreview: rawChunk.substring(0, 150).replace(/\n/g, '\\n'),
+      bufferLengthAfterAdd: this.buffer.length,
+      isRecursiveCall: rawChunk.length < 100 && !rawChunk.includes('<think'), // Heuristic
+    });
 
     // Reset incomplete_open state when new chunk arrives - we'll re-evaluate the full buffer
     if (this.state === 'incomplete_open') {
@@ -367,11 +398,15 @@ export class PerplexityStreamProcessor {
         if (potentialTagStart > 0) {
           const textContent = remaining.slice(0, potentialTagStart).trim();
           if (textContent) {
-            // Task 4.2 Debug: Log text chunk emission (potential tag case)
-            console.log('[StreamProcessor] EMITTING TEXT CHUNK (before potential tag):', {
-              textContentLength: textContent.length,
-              textContentPreview: textContent.substring(0, 100).replace(/\n/g, '\\n'),
+            // BUG FIX (2025-12-02): Enhanced logging for text chunk emission
+            console.log('[StreamProcessor] ════════════════════════════════════════════');
+            console.log('[StreamProcessor] 📤 EMITTING TEXT CHUNK (before potential tag):');
+            console.log('[StreamProcessor] Text content:', {
+              length: textContent.length,
+              fullContent: textContent.length < 500 ? textContent : textContent.substring(0, 500) + '...',
             });
+            console.log('[StreamProcessor] Potential tag kept in buffer:', remaining.slice(potentialTagStart));
+            console.log('[StreamProcessor] ════════════════════════════════════════════');
             chunks.push({
               type: 'text',
               content: textContent,
@@ -389,11 +424,14 @@ export class PerplexityStreamProcessor {
         // No potential tag, emit all as text
         const textContent = remaining.trim();
         if (textContent) {
-          // Task 4.2 Debug: Log text chunk emission (no potential tag)
-          console.log('[StreamProcessor] EMITTING TEXT CHUNK (no potential tag):', {
-            textContentLength: textContent.length,
-            textContentPreview: textContent.substring(0, 100).replace(/\n/g, '\\n'),
+          // BUG FIX (2025-12-02): Enhanced logging for text chunk emission
+          console.log('[StreamProcessor] ════════════════════════════════════════════');
+          console.log('[StreamProcessor] 📤 EMITTING TEXT CHUNK (full content, no potential tag):');
+          console.log('[StreamProcessor] Text content:', {
+            length: textContent.length,
+            fullContent: textContent.length < 500 ? textContent : textContent.substring(0, 500) + '...',
           });
+          console.log('[StreamProcessor] ════════════════════════════════════════════');
           chunks.push({
             type: 'text',
             content: textContent,

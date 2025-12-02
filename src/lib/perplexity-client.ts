@@ -547,6 +547,9 @@ export class PerplexityClient {
     let batchIndex = 0;
     let fullContent = '';
     let collectedCitations: string[] = [];
+    // BUG FIX (2025-12-02): Track raw content processing for debugging truncation issue
+    let rawContentChunkCount = 0;
+    let sawThinkClose = false;
     let collectedSearchQueries: string[] = [];
 
     // Initialize StreamProcessor for handling <think> tags across chunks
@@ -704,6 +707,22 @@ export class PerplexityClient {
 
                 const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
 
+                // BUG FIX (2025-12-02): Summary logging for truncation diagnosis
+                console.log('╔═══════════════════════════════════════════════════════════════╗');
+                console.log('║ 📊 [DONE] STREAM END SUMMARY - Truncation Diagnosis           ║');
+                console.log('╠═══════════════════════════════════════════════════════════════╣');
+                console.log('║ Raw chunks processed:', rawContentChunkCount);
+                console.log('║ Saw </think> tag:', sawThinkClose);
+                console.log('║ Final fullContent length:', fullContent.length);
+                console.log('║ Final thinking length:', sanitizedThinking.length);
+                console.log('║ finalChunk content:', finalChunk.content.length, 'chars');
+                if (sawThinkClose && fullContent.length < 50) {
+                  console.log('║ ⚠️ WARNING: </think> was seen but fullContent is very short!');
+                  console.log('║ ⚠️ This indicates potential content truncation bug!');
+                }
+                console.log('║ fullContent preview:', fullContent.substring(0, 200) || '(empty)');
+                console.log('╚═══════════════════════════════════════════════════════════════╝');
+
                 // FALLBACK FIX: When fullContent is empty but we have thinking content,
                 // use the thinking content as the answer. This handles cases where
                 // the API response doesn't properly separate thinking from answer,
@@ -784,13 +803,24 @@ export class PerplexityClient {
                   const isComplete = chunk.choices[0].finish_reason !== null;
 
                   // Process content through StreamProcessor to separate thinking and text
-                  // Task 4.2 Debug: Log raw content BEFORE StreamProcessor
-                  console.log('[perplexity-client] RAW CONTENT before StreamProcessor:', {
-                    rawContentLength: rawContent.length,
-                    rawContentPreview: rawContent.substring(0, 200).replace(/\n/g, '\\n'),
+                  // BUG FIX (2025-12-02): Enhanced logging with chunk counter
+                  rawContentChunkCount++;
+                  if (rawContent.includes('</think>')) {
+                    sawThinkClose = true;
+                  }
+
+                  console.log('┌─────────────────────────────────────────────────────────────┐');
+                  console.log(`│ [perplexity-client] RAW CONTENT CHUNK #${rawContentChunkCount}`);
+                  console.log('├─────────────────────────────────────────────────────────────┤');
+                  console.log('│ Stats:', {
+                    length: rawContent.length,
                     containsThinkOpen: rawContent.includes('<think>'),
                     containsThinkClose: rawContent.includes('</think>'),
+                    currentFullContentLength: fullContent.length,
+                    isComplete,
                   });
+                  console.log('│ Preview:', rawContent.substring(0, 300).replace(/\n/g, '\\n'));
+                  console.log('└─────────────────────────────────────────────────────────────┘');
 
                   const structuredChunks = processor.processChunk(rawContent);
 
@@ -982,6 +1012,22 @@ export class PerplexityClient {
 
         const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
         const processingTime = (Date.now() - startTime) / 1000;
+
+        // BUG FIX (2025-12-02): Summary logging for truncation diagnosis
+        console.log('╔═══════════════════════════════════════════════════════════════╗');
+        console.log('║ 📊 STREAM END SUMMARY - Truncation Diagnosis                  ║');
+        console.log('╠═══════════════════════════════════════════════════════════════╣');
+        console.log('║ Raw chunks processed:', rawContentChunkCount);
+        console.log('║ Saw </think> tag:', sawThinkClose);
+        console.log('║ Final fullContent length:', fullContent.length);
+        console.log('║ Final thinking length:', sanitizedThinking.length);
+        console.log('║ Content derived from thinking:', contentDerivedFromThinking);
+        if (sawThinkClose && fullContent.length < 50) {
+          console.log('║ ⚠️ WARNING: </think> was seen but fullContent is very short!');
+          console.log('║ ⚠️ This indicates potential content truncation bug!');
+        }
+        console.log('║ fullContent preview:', fullContent.substring(0, 200) || '(empty)');
+        console.log('╚═══════════════════════════════════════════════════════════════╝');
 
         // Yield final completion chunk when stream ends without [DONE]
         console.log('🐛 [streamingCompletionRequest] Yielding final chunk (stream ended without [DONE]):', {
