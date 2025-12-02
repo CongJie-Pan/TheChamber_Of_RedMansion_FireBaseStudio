@@ -678,9 +678,48 @@ export class PerplexityClient {
                 // use the thinking content as the answer. This handles cases where
                 // the API response doesn't properly separate thinking from answer,
                 // or when the StreamProcessor doesn't detect </think> correctly.
+                let contentDerivedFromThinking = false;
                 if (!fullContent.trim() && sanitizedThinking.trim()) {
                   console.warn('[PerplexityClient] Fallback: fullContent is empty, using thinking as answer');
-                  fullContent = sanitizedThinking;
+
+                  // Task 4.2 Fix: Try to extract just the "answer" portion from thinking content
+                  // Look for markers that indicate the start of the actual answer
+                  const answerMarkers = [
+                    '現在我來撰寫完整的回答',
+                    '現在讓我來回答',
+                    '我的回答如下',
+                    '以下是我的回答',
+                    '回答：',
+                    '答案：',
+                    'Here is my answer',
+                    'My answer:',
+                  ];
+
+                  let extractedAnswer = sanitizedThinking;
+                  for (const marker of answerMarkers) {
+                    const markerIndex = sanitizedThinking.indexOf(marker);
+                    if (markerIndex !== -1) {
+                      // Find the end of the marker line
+                      const afterMarker = sanitizedThinking.substring(markerIndex + marker.length);
+                      const lineEndIndex = afterMarker.indexOf('\n');
+                      if (lineEndIndex !== -1) {
+                        extractedAnswer = afterMarker.substring(lineEndIndex + 1).trim();
+                      } else {
+                        extractedAnswer = afterMarker.trim();
+                      }
+                      console.log('[PerplexityClient] Extracted answer from thinking using marker:', marker);
+                      break;
+                    }
+                  }
+
+                  // If no marker found or extracted answer is too short, use full thinking content
+                  if (extractedAnswer.length < 50) {
+                    extractedAnswer = sanitizedThinking;
+                    console.log('[PerplexityClient] No answer marker found or extracted too short, using full thinking');
+                  }
+
+                  fullContent = extractedAnswer;
+                  contentDerivedFromThinking = true;
                 }
 
                 const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
@@ -697,13 +736,16 @@ export class PerplexityClient {
                   thinkingPreview: sanitizedThinking.substring(0, 100) || '(empty)',
                   citationCount: citations.length,
                   processingTime,
+                  // Task 4.2: Log fallback status
+                  contentDerivedFromThinking: contentDerivedFromThinking,
+                  fallbackTriggered: contentDerivedFromThinking,
                 });
 
                 yield {
                   content: finalChunk.content.trim() || '',
                   fullContent: fullContent,
                   thinkingContent: sanitizedThinking,
-                  contentDerivedFromThinking: false,
+                  contentDerivedFromThinking: contentDerivedFromThinking,
                   timestamp: new Date().toISOString(),
                   citations,
                   searchQueries: collectedSearchQueries,
