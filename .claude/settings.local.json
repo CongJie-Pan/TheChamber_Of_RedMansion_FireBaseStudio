@@ -124,7 +124,12 @@
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/community-repository.test.ts 2>&1\")",
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/translations.test.ts 2>&1\")",
       "WebFetch(domain:www.radix-ui.com)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/streaming/perplexity-stream-processor-proper-tags.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/perplexity-client.test.ts 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/perplexity-client.test.ts 2>&1 | findstr /C:Tests: /C:passed /C:failed /C:Test Suites:\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/perplexity-client.test.ts --silent 2>&1 | tail -20\")",
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/perplexity-client.test.ts --silent 2>&1\")"
     ]
   },
   "outputStyle": "default"

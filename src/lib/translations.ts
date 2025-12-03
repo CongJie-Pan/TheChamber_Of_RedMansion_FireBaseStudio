@@ -543,6 +543,13 @@ export const translations: Record<Language, Translations> = {
       manageAllGoals: '管理所有目標',
       continueReading: '繼續閱讀',
     },
+    time: {
+      minutes: '分鐘',
+      hours: '小時',
+      days: '天',
+      minutesShort: '分',
+      hoursShort: '時',
+    },
     read: {
       myShelf: '我的書架',
       tabRecent: '最近學習',
@@ -1167,6 +1174,13 @@ export const translations: Record<Language, Translations> = {
       myLearningGoalsDesc: '追踪您的个人学习目标，保持学习动力。',
       manageAllGoals: '管理所有目标',
       continueReading: '继续阅读',
+    },
+    time: {
+      minutes: '分钟',
+      hours: '小时',
+      days: '天',
+      minutesShort: '分',
+      hoursShort: '时',
     },
     read: {
       myShelf: '我的书架',
@@ -1798,6 +1812,13 @@ export const translations: Record<Language, Translations> = {
       myLearningGoalsDesc: 'Track your personal learning goals and stay motivated.',
       manageAllGoals: 'Manage All Goals',
       continueReading: 'Continue Reading',
+    },
+    time: {
+      minutes: 'Minutes',
+      hours: 'Hours',
+      days: 'Days',
+      minutesShort: 'min',
+      hoursShort: 'hr',
     },
     read: {
       myShelf: 'My Shelf',

@@ -69,3 +69,4 @@ data/backups/*.db
 docs/testing/perplexity_api_running_test_log
 
 .env.vercel
+docs/PerplexityQA_Bug/tag_check_result

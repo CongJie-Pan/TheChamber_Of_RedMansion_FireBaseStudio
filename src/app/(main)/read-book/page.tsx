@@ -3033,6 +3033,65 @@ export default function ReadBookPage() {
     };
   }, [user?.id, userProfile, refreshUserProfile, t, toast]);
 
+  // Reading time persistence - save accumulated reading time to database
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let accumulatedMinutes = 0;
+    const SAVE_INTERVAL_MS = 5 * 60 * 1000; // Save every 5 minutes
+    const MINUTE_MS = 60 * 1000;
+
+    // Track reading time every minute
+    const minuteTracker = setInterval(() => {
+      accumulatedMinutes += 1;
+    }, MINUTE_MS);
+
+    // Save accumulated time to database periodically
+    const saveReadingTime = async () => {
+      if (accumulatedMinutes > 0) {
+        try {
+          const response = await fetch('/api/user/reading-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minutes: accumulatedMinutes }),
+          });
+          if (response.ok) {
+            console.log(`📖 Saved ${accumulatedMinutes} minutes of reading time`);
+            accumulatedMinutes = 0; // Reset after successful save
+          }
+        } catch (error) {
+          console.error('Failed to save reading time:', error);
+        }
+      }
+    };
+
+    const saveInterval = setInterval(saveReadingTime, SAVE_INTERVAL_MS);
+
+    // Save on page unload/visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveReadingTime();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup: save remaining time and clear intervals
+    return () => {
+      clearInterval(minuteTracker);
+      clearInterval(saveInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Final save on unmount
+      if (accumulatedMinutes > 0) {
+        fetch('/api/user/reading-time', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ minutes: accumulatedMinutes }),
+          keepalive: true, // Ensure request completes even if page is closing
+        }).catch(() => {}); // Ignore errors on unmount
+      }
+    };
+  }, [user?.id]);
+
   // Sync completedChapters from userProfile to local state
   // This ensures we don't show achievement notifications for already-completed chapters
   useEffect(() => {

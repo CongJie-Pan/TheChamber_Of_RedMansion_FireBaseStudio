@@ -1,0 +1,264 @@
+ FAIL  tests/lib/streaming/perplexity-stream-processor.test.ts (22.012 s)
+  PerplexityStreamProcessor                                                                                                                                              
+    Basic functionality                                                                                                                                                  
+      √ should extract complete <think> tags (103 ms)                                                                                                                    
+      √ should handle text without tags (14 ms)                                                                                                                          
+      √ should handle only thinking content (8 ms)                                                                                                                       
+      √ should handle empty content (4 ms)                                                                                                                               
+    Incomplete tag handling across chunks                                                                                                                                
+      × should buffer incomplete opening tag (15 ms)                                                                                                                     
+      × should handle tag split across multiple chunks (63 ms)                                                                                                           
+      × should handle real-world streaming pattern (71 ms)                                                                                                               
+      Closing tag split across chunks (maxLookbackSize=8 fix)                                                                                                            
+        √ should detect </think> split at position 1: "<" + "/think>" (43 ms)                                                                                            
+        √ should detect </think> split at position 2: "</" + "think>" (51 ms)                                                                                            
+        √ should detect </think> split at position 3: "</t" + "hink>" (48 ms)                                                                                            
+        √ should detect </think> split at position 4: "</th" + "ink>" (50 ms)                                                                                            
+        √ should detect </think> split at position 5: "</thi" + "nk>" (43 ms)                                                                                            
+        √ should detect </think> split at position 6: "</thin" + "k>" (41 ms)                                                                                            
+        √ should detect </think> split at position 7: "</think" + ">" (CRITICAL - requires maxLookbackSize >= 7) (48 ms)                                                 
+        √ should detect </think> at exact chunk boundary (CRITICAL - requires maxLookbackSize = 8) (39 ms)                                                               
+        √ should handle </think> arriving as standalone chunk after long thinking content (49 ms)                                                                        
+    Nested and malicious tag handling                                                                                                                                    
+      √ should handle nested <think> tags (14 ms)                                                                                                                        
+      √ should handle unmatched closing tag (18 ms)
+      √ should handle multiple consecutive thinking blocks (17 ms)                                                                                                       
+      √ should handle malformed tags (20 ms)                                                                                                                             
+    Large chunk processing                                                                                                                                               
+      √ should handle large single chunk (5000+ characters) (10 ms)                                                                                                      
+      √ should handle many small chunks (performance test) (968 ms)                                                                                                      
+    finalize() method                                                                                                                                                    
+      √ should emit remaining buffer content on finalize (9 ms)                                                                                                          
+      √ should handle finalize with incomplete tag (14 ms)                                                                                                               
+      √ should return empty content when finalize with nothing buffered (16 ms)                                                                                          
+    Utility methods                                                                                                                                                      
+      √ should accumulate all thinking content via getAllThinking() (6 ms)                                                                                               
+      √ should reset processor state via reset() (13 ms)                                                                                                                 
+    Edge cases from Task 4.2 bug report                                                                                                                                  
+      √ should handle the original bug scenario (3 ms)                                                                                                                   
+      √ should not require minimum length validation (49 ms)                                                                                                             
+      √ should emit empty answer without fallback error (3 ms)                                                                                                           
+    Timestamp consistency                                                                                                                                                
+      √ should have valid timestamps (11 ms)                                                                                                                             
+    Content Truncation Bug Fix (2025-12-02)                                                                                                                              
+      Full answer preservation after </think>                                                                                                                            
+        √ should preserve full answer when </think> and answer are in same chunk (15 ms)
+        √ should preserve full answer when </think> arrives with answer content (37 ms)                                                                                  
+        √ should NOT truncate answer to just first few characters (16 ms)                                                                                                
+        √ should handle long answer content (500+ chars) without truncation (17 ms)                                                                                      
+      Multi-chunk answer accumulation                                                                                                                                    
+        √ should accumulate answer content across multiple chunks after </think> (32 ms)                                                                                 
+        √ should handle answer split at Chinese character boundaries (60 ms)                                                                                             
+      State transition after </think>                                                                                                                                    
+        × should correctly transition to outside state and process subsequent chunks (4 ms)                                                                              
+        √ should handle </think> arriving as standalone chunk followed by answer chunks (38 ms)                                                                          
+        √ should handle rapid small chunks after state transition (79 ms)                                                                                                
+      Edge cases for remaining calculation                                                                                                                               
+        √ should handle </think> at exact buffer boundary (14 ms)                                                                                                        
+        √ should handle very short thinkingBuffer (< 8 chars) with </think> (9 ms)                                                                                       
+        √ should handle empty remaining after </think> (32 ms)                                                                                                           
+        √ should preserve content after </think> when tag is split 7-1 (32 ms)                                                                                           
+        √ should handle Unicode/Chinese characters in remaining calculation (12 ms)                                                                                      
+      Real-world truncation scenarios                                                                                                                                    
+        √ should handle the exact bug scenario from production (2025-12-02) (37 ms)                                                                                      
+        √ should handle streaming pattern where answer comes in tiny chunks (67 ms)                                                                                      
+    Hypothesis B: Incremental Thinking Chunks (2025-12-03)                                                                                                               
+      Delta emission behavior                                                                                                                                            
+        × should emit delta thinking chunks, not full buffer (6 ms)                                                                                                      
+        √ should not cause O(n²) data transfer (69 ms)                                                                                                                   
+        × should reset delta tracking after </think> is found (24 ms)                                                                                                    
+        × should handle empty chunks gracefully (13 ms)                                                                                                                  
+      Integration with full thinking-to-answer flow                                                                                                                      
+        √ should correctly accumulate thinking content via getAllThinking() (29 ms)                                                                                      
+        √ should transition correctly from thinking to answer with delta chunks (36 ms)                                                                                  
+      Edge cases                                                                                                                                                         
+        √ should handle very long thinking content in chunks (74 ms)                                                                                                     
+        × should handle whitespace-only chunks during thinking (11 ms)                                                                                                   
+        × should handle reset() clearing delta tracking (10 ms)                                                                                                          
+                                                                                                                                                                         
+  ● PerplexityStreamProcessor › Incomplete tag handling across chunks › should buffer incomplete opening tag                                                             
+                                                                                                                                                                         
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      73 |       // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks while inside thinking
+      74 |       const chunks2 = processor.processChunk('ink>推理');
+    > 75 |       expect(chunks2).toHaveLength(1); // Emits incremental thinking chunk
+         |                       ^
+      76 |       expect(chunks2[0].type).toBe('thinking');
+      77 |       expect(chunks2[0].content).toBe('推理');
+      78 |
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:75:23)
+
+  ● PerplexityStreamProcessor › Incomplete tag handling across chunks › should handle tag split across multiple chunks
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      230 |       // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks
+      231 |       // First chunk emits incremental thinking (inside thinking tag)
+    > 232 |       expect(chunks1).toHaveLength(1);
+          |                       ^
+      233 |       expect(chunks1[0].type).toBe('thinking');
+      234 |       expect(chunks1[0].content).toBe('開始');
+      235 |
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:232:23)
+
+  ● PerplexityStreamProcessor › Incomplete tag handling across chunks › should handle real-world streaming pattern
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 3
+    Received array:  [{"content": "我認為這", "timestamp": 1764724921525, "type": "thinking"}, {"content": "個問題", "timestamp": 1764724921531, "type": "thinking"}, {"content": "我認為這個問題", "timestamp": 1764724921541, "type": "thinking"}]
+
+      270 |       const textChunks = allEmittedChunks.filter(c => c.type === 'text');
+      271 |
+    > 272 |       expect(thinkingChunks).toHaveLength(1);
+          |                              ^
+      273 |       expect(thinkingChunks[0].content).toContain('我認為這個問題');
+      274 |
+      275 |       expect(textChunks.length).toBeGreaterThan(0);
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:272:30)
+
+  ● PerplexityStreamProcessor › Content Truncation Bug Fix (2025-12-02) › State transition after </think> › should correctly transition to outside state and process subsequent chunks
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      570 |         // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks
+      571 |         const c1 = processor.processChunk('<think>開始思考');
+    > 572 |         expect(c1).toHaveLength(1); // Emits incremental thinking chunk
+          |                    ^
+      573 |         expect(c1[0].type).toBe('thinking');
+      574 |         expect(c1[0].content).toBe('開始思考');
+      575 |
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:572:20)
+
+  ● PerplexityStreamProcessor › Hypothesis B: Incremental Thinking Chunks (2025-12-03) › Delta emission behavior › should emit delta thinking chunks, not full buffer    
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      768 |         // Chunk 1: Start thinking
+      769 |         const c1 = processor.processChunk('<think>第一部分');
+    > 770 |         expect(c1).toHaveLength(1);
+          |                    ^
+      771 |         expect(c1[0].content).toBe('第一部分');
+      772 |
+      773 |         // Chunk 2: Continue thinking - should only emit the new part (delta)
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:770:20)
+
+  ● PerplexityStreamProcessor › Hypothesis B: Incremental Thinking Chunks (2025-12-03) › Delta emission behavior › should reset delta tracking after </think> is found   
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      809 |         // Start a new thinking block
+      810 |         const newThinking = processor.processChunk('<think>新思考');
+    > 811 |         expect(newThinking).toHaveLength(1);
+          |                             ^
+      812 |         expect(newThinking[0].content).toBe('新思考'); // Fresh start, not appended to previous
+      813 |       });
+      814 |
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:811:29)
+
+  ● PerplexityStreamProcessor › Hypothesis B: Incremental Thinking Chunks (2025-12-03) › Delta emission behavior › should handle empty chunks gracefully
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [{"content": "內容", "timestamp": 1764724923375, "type": "thinking"}]
+
+      818 |         // Empty chunk should not emit anything
+      819 |         const emptyChunks = processor.processChunk('');
+    > 820 |         expect(emptyChunks).toHaveLength(0);
+          |                             ^
+      821 |
+      822 |         // Next chunk should still work correctly
+      823 |         const nextChunks = processor.processChunk('更多內容');
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:820:29)
+
+  ● PerplexityStreamProcessor › Hypothesis B: Incremental Thinking Chunks (2025-12-03) › Edge cases › should handle whitespace-only chunks during thinking
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [{"content": "內容", "timestamp": 1764724923526, "type": "thinking"}]
+
+      887 |         // Whitespace-only chunks should be trimmed and not emitted
+      888 |         const wsChunks = processor.processChunk('   \n\t  ');
+    > 889 |         expect(wsChunks).toHaveLength(0); // Trimmed to empty
+          |                          ^
+      890 |
+      891 |         // Next real content should work
+      892 |         const realChunks = processor.processChunk('更多內容');
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:889:26)
+
+  ● PerplexityStreamProcessor › Hypothesis B: Incremental Thinking Chunks (2025-12-03) › Edge cases › should handle reset() clearing delta tracking
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 0
+    Received array:  []
+
+      900 |         // After reset, start fresh
+      901 |         const newChunks = processor.processChunk('<think>全新內容');
+    > 902 |         expect(newChunks).toHaveLength(1);
+          |                           ^
+      903 |         expect(newChunks[0].content).toBe('全新內容');
+      904 |
+      905 |         // getAllThinking should be empty after reset
+
+      at Object.<anonymous> (tests/lib/streaming/perplexity-stream-processor.test.ts:902:27)
+
+
+📊 Test results saved to: D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\test-output\test-run-2025-12-03_01-20-55-088Z\test-results.json
+📋 Test summary saved to: D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\test-output\test-run-2025-12-03_01-20-55-088Z\test-execution-summary.json
+Test Suites: 1 failed, 1 total
+Tests:       9 failed, 47 passed, 56 total
+Snapshots:   0 total
+Time:        67.95 s
+Ran all test suites matching /tests\\lib\\streaming\\perplexity-stream-processor.test.ts/i.
+🧹 Running global test teardown...
+📊 Test run completed in 69s
+📁 Results saved to: D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\test-output\test-run-2025-12-03_01-20-55-088Z
+📄 Consolidated report: D:\AboutUniversity\114 NSTC_and_SeniorProject\2025-IM-senior-project\TheChamber_Of_RedMansion_FireBaseStudio\test-output\test-run-2025-12-03_01-20-55-088Z\consolidated-report.json
+📋 Generated files:
+   - auth-tests/ (directory)
+   - community-page/ (directory)
+   - community-service/ (directory)
+   - consolidated-report.json
+   - coverage-reports/ (directory)
+   - error-logs/ (directory)
+   - test-execution-summary.json
+   - test-metadata.json
+   - test-results.json
+   - test-summary.json
+✅ Global test teardown complete

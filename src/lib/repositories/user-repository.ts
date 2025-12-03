@@ -609,6 +609,39 @@ export async function deleteUser(userId: string): Promise<void> {
 }
 
 /**
+ * Increment user's total reading time
+ *
+ * @param userId - User ID
+ * @param minutesToAdd - Minutes to add to total reading time
+ * @returns Updated user profile
+ */
+export async function incrementReadingTime(
+  userId: string,
+  minutesToAdd: number
+): Promise<UserProfile> {
+  // Get current user to access existing stats
+  const currentUser = await getUserById(userId);
+  if (!currentUser) {
+    throw new Error(`User not found: ${userId}`);
+  }
+
+  // Calculate new reading time
+  const currentMinutes = currentUser.stats?.totalReadingTimeMinutes ?? 0;
+  const newTotalMinutes = currentMinutes + minutesToAdd;
+
+  // Update stats with new reading time
+  const updatedStats: UserStats = {
+    ...DEFAULT_STATS,
+    ...currentUser.stats,
+    totalReadingTimeMinutes: newTotalMinutes,
+  };
+
+  console.log(`📖 [UserRepository] Incrementing reading time for ${userId}: ${currentMinutes} + ${minutesToAdd} = ${newTotalMinutes} minutes`);
+
+  return updateUser(userId, { stats: updatedStats });
+}
+
+/**
  * Check if user exists
  *
  * @param userId - User ID
