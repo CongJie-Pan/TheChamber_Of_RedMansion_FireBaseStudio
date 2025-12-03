@@ -72,6 +72,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from '@/hooks/useLanguage';
 import { useSession } from 'next-auth/react';
 
+// Shared utilities
+import { formatReadingTime } from '@/lib/format-utils';
+
 // Gamification components
 import { LevelDisplay } from '@/components/gamification';
 
@@ -252,7 +255,7 @@ export default function AchievementsPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div className="bg-card/50 p-4 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{learningStatsData.totalReadingTime}</p>
+                  <p className="text-2xl font-bold text-primary">{formatReadingTime(learningStatsData.totalReadingTimeMinutes, t)}</p>
                   <p className="text-sm text-muted-foreground">{t('achievements.totalReadingTime')}</p>
                 </div>
                 <div className="bg-card/50 p-4 rounded-lg">

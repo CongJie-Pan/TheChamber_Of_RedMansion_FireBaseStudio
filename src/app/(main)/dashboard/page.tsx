@@ -65,6 +65,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 // Utility functions and custom hooks
 import { cn } from "@/lib/utils";
+import { formatReadingTime } from "@/lib/format-utils";
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { useSession } from 'next-auth/react';
@@ -266,12 +267,12 @@ export default function DashboardPage() {
    */
   const statsData: StatCardProps[] = [
     {
-      value: learningStats?.totalReadingTime ?? '0 分鐘',
+      value: formatReadingTime(learningStats?.totalReadingTimeMinutes ?? 0, t),
       label: t('dashboard.totalLearningTime'),
       icon: Activity
     },
     {
-      value: `${learningStats?.notesTaken ?? 0} 篇`,
+      value: `${learningStats?.notesTaken ?? 0} ${t('time.minutesShort') === 'min' ? 'notes' : '篇'}`,
       label: t('dashboard.notesCount'),
       icon: Edit3
     },
