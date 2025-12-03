@@ -726,7 +726,7 @@ describe('Perplexity QA Integration Tests', () => {
     test('should handle explainTextSelection error fallback', async () => {
       // Test error handling in explainTextSelection
       const { explainTextSelection } = await import('@/ai/flows/explain-text-selection');
-      
+
       mockClient.completionRequest.mockRejectedValue(new Error('API Error'));
 
       const result = await explainTextSelection({
@@ -740,6 +740,93 @@ describe('Perplexity QA Integration Tests', () => {
       expect(result.explanation).toContain('錯誤詳情：API Error');
       expect(result.explanation).toContain('測試文本');
       expect(result.explanation).toContain('測試問題');
+    });
+  });
+
+  /**
+   * Integration tests for assumeThinkingFirst behavior (2025-12-03)
+   *
+   * These tests verify that the full integration flow correctly handles
+   * Perplexity sonar-reasoning API responses without <think> opening tag.
+   */
+  describe('assumeThinkingFirst Integration (2025-12-03)', () => {
+    test('should correctly process QA response without <think> opening tag', async () => {
+      const { perplexityRedChamberQAStreaming } = await import('@/ai/flows/perplexity-red-chamber-qa');
+
+      // Mock response simulating API without <think> opening tag
+      // Content format: 思考內容</think>正式回答
+      mockClient.streamingCompletionRequest.mockImplementation(async function* () {
+        yield {
+          type: 'thinking',
+          content: '用户问的是紅樓夢的作者。',
+          thinkingContent: '用户问的是紅樓夢的作者。',
+          fullContent: '',
+          timestamp: new Date().toISOString(),
+          citations: [],
+          searchQueries: [],
+          metadata: { searchQueries: [], webSources: [], groundingSuccessful: false },
+          responseTime: 0.5,
+          isComplete: false,
+          chunkIndex: 0,
+          hasThinkingProcess: true,
+        };
+        yield {
+          type: 'text',
+          content: '《紅樓夢》的作者是曹雪芹。',
+          thinkingContent: '用户问的是紅樓夢的作者。',
+          fullContent: '《紅樓夢》的作者是曹雪芹。',
+          timestamp: new Date().toISOString(),
+          citations: [],
+          searchQueries: [],
+          metadata: { searchQueries: [], webSources: [], groundingSuccessful: false },
+          responseTime: 1.0,
+          isComplete: true,
+          chunkIndex: 1,
+          hasThinkingProcess: true,
+        };
+      });
+
+      const input = {
+        userQuestion: '紅樓夢的作者是誰？',
+        modelKey: 'sonar-reasoning' as const,
+        reasoningEffort: 'medium' as const,
+        enableStreaming: true,
+        showThinkingProcess: true,
+      };
+
+      const chunks = [];
+      for await (const chunk of perplexityRedChamberQAStreaming(input)) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toContain('紅樓夢的作者');
+      expect(lastChunk.fullContent).toContain('曹雪芹');
+    });
+
+    test('should handle non-streaming response without <think> opening tag', async () => {
+      const { perplexityRedChamberQA } = await import('@/ai/flows/perplexity-red-chamber-qa');
+
+      // Mock response simulating API without <think> opening tag
+      mockClient.completionRequest.mockResolvedValue({
+        answer: '《紅樓夢》是中國四大名著之一。',
+        thinkingContent: '用户问的是关于紅樓夢的问题。',
+        citations: [],
+        processingTime: 1.5,
+        contentDerivedFromThinking: false,
+      });
+
+      const result = await perplexityRedChamberQA({
+        userQuestion: '紅樓夢是什麼？',
+        modelKey: 'sonar-reasoning',
+        reasoningEffort: 'medium',
+        enableStreaming: false,
+      });
+
+      expect(result.answer).toContain('中國四大名著');
+      expect(result.thinkingContent).toContain('紅樓夢');
     });
   });
 });

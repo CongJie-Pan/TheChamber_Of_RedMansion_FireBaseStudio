@@ -382,3 +382,200 @@ describe('PerplexityStreamProcessor with proper <think> tags', () => {
     expect(totalText).toContain('曹雪芹');
   });
 });
+
+/**
+ * Tests for assumeThinkingFirst option (2025-12-03)
+ *
+ * These tests verify the fix for Perplexity sonar-reasoning API's actual behavior:
+ * - API does NOT send <think> opening tag
+ * - API DOES send </think> closing tag
+ * - Answer content exists after </think>
+ *
+ * Format comparison:
+ * - Expected: <think>思考內容</think>正式回答
+ * - Actual:   思考內容</think>正式回答
+ */
+describe('PerplexityStreamProcessor with assumeThinkingFirst option (no opening tag)', () => {
+  let processor: PerplexityStreamProcessor;
+
+  beforeEach(() => {
+    processor = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+  });
+
+  test('handles actual API format: content starts without <think> tag', () => {
+    // Simulate actual Perplexity sonar-reasoning API response
+    // API does NOT send <think>, content starts immediately
+    const simulatedChunks = [
+      '用户问的是：紅樓夢的作者是誰？',
+      '\n\n这是关于中国古典文学作品的问题。',
+      '\n\n我应该直接回答。',
+      '</think>',  // Only closing tag is sent
+      '\n\n《紅樓夢》的作者是**曹雪芹**。',
+    ];
+
+    const allChunks: StructuredChunk[] = [];
+
+    console.log('\n=== ASSUME THINKING FIRST TEST ===');
+    for (const chunk of simulatedChunks) {
+      const emitted = processor.processChunk(chunk);
+      allChunks.push(...emitted);
+      console.log(`[TEST] Input: "${chunk.substring(0, 30).replace(/\n/g, '\\n')}..." → Emitted ${emitted.length} chunk(s)`);
+      for (const c of emitted) {
+        console.log(`  [${c.type}] ${c.content.substring(0, 50).replace(/\n/g, '\\n')}...`);
+      }
+    }
+
+    processor.finalize();
+
+    const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+    const textChunks = allChunks.filter(c => c.type === 'text');
+
+    const totalThinking = thinkingChunks.map(c => c.content).join('');
+    const totalText = textChunks.map(c => c.content).join('');
+
+    console.log('\n=== RESULTS ===');
+    console.log(`Thinking chunks: ${thinkingChunks.length}, total: ${totalThinking.length} chars`);
+    console.log(`Text chunks: ${textChunks.length}, total: ${totalText.length} chars`);
+
+    // Assertions
+    expect(thinkingChunks.length).toBeGreaterThan(0);
+    expect(totalThinking).toContain('紅樓夢的作者是誰');
+
+    expect(textChunks.length).toBeGreaterThan(0);
+    expect(totalText).toContain('曹雪芹');
+  });
+
+  test('REPLAY: simulates exact Perplexity sonar-reasoning API pattern', () => {
+    // This test uses content format matching actual API logs
+    // Key difference: NO <think> opening tag
+    const fullContent = `用户问的是：紅樓夢的作者是誰？請直接作答並補充一句說明。
+
+这是关于中国古典文学作品《红楼梦》的作者的问题。
+
+从搜索结果中，我可以找到：
+
+1. 《红楼梦》的作者是曹雪芹（1715年左右 - 1763年初）
+2. 现在流通的120回本中，前80回是曹雪芹的原作
+
+让我看一下这是否是"人物"类型的查询。是的，这涉及到人物信息。
+
+我应该直接回答，不需要太长，但要补充一句说明。
+</think>
+
+《紅樓夢》的作者是**曹雪芹**（1715年左右 - 1763年初）。曹雪芹出身南京名家，後因家族沒落而困窮於北京，在艱苦的生活中花費約二十年的時間完成這部作品。`;
+
+    // Simulate realistic SSE chunk boundaries
+    const simulatedChunks: string[] = [];
+    const chunkSize = 50;
+    for (let i = 0; i < fullContent.length; i += chunkSize) {
+      simulatedChunks.push(fullContent.slice(i, i + chunkSize));
+    }
+
+    console.log(`\n=== SONAR-REASONING REPLAY TEST with ${simulatedChunks.length} chunks ===`);
+
+    const allChunks: StructuredChunk[] = [];
+
+    for (const chunk of simulatedChunks) {
+      const emitted = processor.processChunk(chunk);
+      allChunks.push(...emitted);
+    }
+
+    processor.finalize();
+
+    const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+    const textChunks = allChunks.filter(c => c.type === 'text');
+
+    const totalThinking = thinkingChunks.map(c => c.content).join('');
+    const totalText = textChunks.map(c => c.content).join('');
+
+    console.log('\n=== RESULTS ===');
+    console.log(`Thinking chunks: ${thinkingChunks.length}, total length: ${totalThinking.length}`);
+    console.log(`Text chunks: ${textChunks.length}, total length: ${totalText.length}`);
+    console.log(`\nThinking preview: "${totalThinking.substring(0, 80).replace(/\n/g, '\\n')}..."`);
+    console.log(`Text preview: "${totalText.substring(0, 80).replace(/\n/g, '\\n')}..."`);
+
+    // CRITICAL ASSERTIONS
+    expect(thinkingChunks.length).toBeGreaterThan(0);
+    expect(totalThinking).toContain('紅樓夢的作者是誰');
+    expect(totalThinking).toContain('曹雪芹');
+
+    // THE KEY TEST: Answer must be captured as TEXT
+    expect(textChunks.length).toBeGreaterThan(0);
+    expect(totalText).toContain('《紅樓夢》的作者是**曹雪芹**');
+  });
+
+  test('handles </think> split across chunks without opening tag', () => {
+    // Simulate </think> split across chunk boundaries
+    const simulatedChunks = [
+      '思考過程中',
+      '繼續分析',
+      '</thi',  // Partial closing tag
+      'nk>',    // Complete closing tag
+      '\n\n這是答案',
+    ];
+
+    const allChunks: StructuredChunk[] = [];
+
+    for (const chunk of simulatedChunks) {
+      const emitted = processor.processChunk(chunk);
+      allChunks.push(...emitted);
+    }
+
+    const finalChunk = processor.finalize();
+
+    const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+    const textChunks = allChunks.filter(c => c.type === 'text');
+
+    const totalText = textChunks.map(c => c.content).join('') +
+                      (finalChunk.content || '');
+
+    console.log('\n=== SPLIT TAG WITHOUT OPENING TEST ===');
+    console.log(`Thinking chunks: ${thinkingChunks.length}`);
+    console.log(`Text: "${totalText}"`);
+
+    // Even with split tags and no opening tag, should correctly identify thinking vs text
+    expect(thinkingChunks.length).toBeGreaterThan(0);
+    expect(totalText).toContain('答案');
+  });
+
+  test('CRITICAL: handles empty thinking before </think>', () => {
+    // Edge case: </think> arrives immediately
+    const simulatedChunks = [
+      '</think>',  // Immediate closing tag
+      '\n\n這是答案內容',
+    ];
+
+    const allChunks: StructuredChunk[] = [];
+
+    for (const chunk of simulatedChunks) {
+      const emitted = processor.processChunk(chunk);
+      allChunks.push(...emitted);
+    }
+
+    processor.finalize();
+
+    const textChunks = allChunks.filter(c => c.type === 'text');
+    const totalText = textChunks.map(c => c.content).join('');
+
+    console.log('\n=== EMPTY THINKING TEST ===');
+    console.log(`Text: "${totalText}"`);
+
+    // Answer should still be captured
+    expect(totalText).toContain('答案內容');
+  });
+
+  test('correctly accumulates getAllThinking() without opening tag', () => {
+    // Process multiple thinking chunks
+    processor.processChunk('第一段思考內容。');
+    processor.processChunk('第二段思考內容。');
+    processor.processChunk('第三段思考內容。');
+    processor.processChunk('</think>答案內容');
+
+    const allThinking = processor.getAllThinking();
+
+    expect(allThinking).toContain('第一段思考內容');
+    expect(allThinking).toContain('第二段思考內容');
+    expect(allThinking).toContain('第三段思考內容');
+    expect(allThinking).not.toContain('答案內容');
+  });
+});

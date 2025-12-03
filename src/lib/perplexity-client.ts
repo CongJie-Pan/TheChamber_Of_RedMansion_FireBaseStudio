@@ -407,7 +407,8 @@ export class PerplexityClient {
       const rawAnswer = choice.message.content;
 
       // Use StreamProcessor to separate thinking and answer content
-      const processor = new PerplexityStreamProcessor();
+      // assumeThinkingFirst: true - Perplexity sonar-reasoning API doesn't send <think> opening tag
+      const processor = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
       const chunks = processor.processChunk(rawAnswer);
       processor.finalize();
 
@@ -442,6 +443,7 @@ export class PerplexityClient {
         question: input.userQuestion,
         answer: cleanAnswer,
         rawAnswer,
+        thinkingContent,  // Include extracted thinking content for non-streaming responses
         citations,
         groundingMetadata,
         modelUsed: apiResponse.model,
@@ -553,7 +555,8 @@ export class PerplexityClient {
     let collectedSearchQueries: string[] = [];
 
     // Initialize StreamProcessor for handling <think> tags across chunks
-    const processor = new PerplexityStreamProcessor();
+    // assumeThinkingFirst: true - Perplexity sonar-reasoning API doesn't send <think> opening tag
+    const processor = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
     let accumulatedThinking = '';
 
     try {
@@ -723,16 +726,17 @@ export class PerplexityClient {
                 console.log('║ fullContent preview:', fullContent.substring(0, 200) || '(empty)');
                 console.log('╚═══════════════════════════════════════════════════════════════╝');
 
-                // FALLBACK FIX: When fullContent is empty OR too short but we have thinking content,
+                // FALLBACK FIX: When fullContent is truly empty but we have thinking content,
                 // use the thinking content as the answer. This handles cases where:
                 // 1. The API response doesn't properly separate thinking from answer
                 // 2. The StreamProcessor doesn't detect </think> correctly
-                // 3. Only a fragment (like '#') was captured after </think>
-                const MIN_MEANINGFUL_CONTENT_LENGTH = 10;
-                const isContentMeaningful = fullContent.trim().length >= MIN_MEANINGFUL_CONTENT_LENGTH;
+                // NOTE: Removed MIN_MEANINGFUL_CONTENT_LENGTH check (was 10) because Chinese
+                // characters are information-dense and short answers like '這是答案' (6 chars)
+                // are valid and should not trigger fallback.
+                const isContentMeaningful = fullContent.trim().length > 0;
                 let contentDerivedFromThinking = false;
                 if (!isContentMeaningful && sanitizedThinking.trim()) {
-                console.warn('[PerplexityClient] Fallback: fullContent is empty or too short, using thinking as answer', {
+                console.warn('[PerplexityClient] Fallback: fullContent is empty, using thinking as answer', {
                   fullContentLength: fullContent.trim().length,
                   fullContentPreview: fullContent.trim().substring(0, 50),
                   thinkingLength: sanitizedThinking.length,
@@ -1005,13 +1009,13 @@ export class PerplexityClient {
 
         const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
 
-        // FALLBACK: When fullContent is empty OR too short but we have thinking content
-        // This handles cases where only a fragment (like '#') was captured after </think>
-        const MIN_MEANINGFUL_CONTENT_LENGTH = 10;
-        const isContentMeaningful = fullContent.trim().length >= MIN_MEANINGFUL_CONTENT_LENGTH;
+        // FALLBACK: When fullContent is truly empty but we have thinking content
+        // NOTE: Removed MIN_MEANINGFUL_CONTENT_LENGTH check (was 10) because Chinese
+        // characters are information-dense and short answers are valid.
+        const isContentMeaningful = fullContent.trim().length > 0;
         let contentDerivedFromThinking = false;
         if (!isContentMeaningful && sanitizedThinking.trim()) {
-          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty or too short, using thinking as answer', {
+          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty, using thinking as answer', {
             fullContentLength: fullContent.trim().length,
             fullContentPreview: fullContent.trim().substring(0, 50),
             thinkingLength: sanitizedThinking.length,

@@ -37,6 +37,20 @@ export interface StructuredChunk {
 type ProcessorState = 'outside' | 'inside' | 'incomplete_open';
 
 /**
+ * Options for configuring the StreamProcessor behavior
+ */
+export interface StreamProcessorOptions {
+  /**
+   * When true, assume content starts in "thinking" mode even without <think> tag.
+   * This handles Perplexity sonar-reasoning API behavior where thinking content
+   * is sent without the opening <think> tag, only with closing </think>.
+   *
+   * @default false
+   */
+  assumeThinkingFirst?: boolean;
+}
+
+/**
  * Perplexity Stream Processor
  *
  * Handles buffered parsing of streaming content with <think> tags.
@@ -74,6 +88,25 @@ export class PerplexityStreamProcessor {
 
   /** Track depth of nested <think> tags */
   private tagDepth: number = 0;
+
+  /** Whether to assume thinking mode at start (for APIs that don't send <think>) */
+  private assumeThinkingFirst: boolean = false;
+
+  /**
+   * Create a new StreamProcessor
+   *
+   * @param options - Configuration options
+   * @param options.assumeThinkingFirst - When true, start in 'inside' state for APIs
+   *        that send thinking content without <think> opening tag
+   */
+  constructor(options?: StreamProcessorOptions) {
+    if (options?.assumeThinkingFirst) {
+      this.assumeThinkingFirst = true;
+      this.state = 'inside';
+      this.tagDepth = 1;
+      console.log('[StreamProcessor] 🔧 Initialized with assumeThinkingFirst=true (state=inside, tagDepth=1)');
+    }
+  }
 
   /** Accumulated thinking content across chunks */
   private accumulatedThinking: string[] = [];
@@ -422,11 +455,27 @@ export class PerplexityStreamProcessor {
             const thinkingContent = this.thinkingBuffer.trim();
             if (thinkingContent) {
               this.accumulatedThinking.push(thinkingContent);
-              chunks.push({
-                type: 'thinking',
-                content: thinkingContent,
-                timestamp: Date.now(),
-              });
+
+              // 🅱️ HYPOTHESIS B FIX: Prevent duplicate emission (same as sliding window path)
+              const alreadyEmittedLength = this.lastEmittedThinkingLength;
+              const totalLength = this.thinkingBuffer.length;
+
+              if (alreadyEmittedLength < totalLength) {
+                const remainingContent = this.thinkingBuffer.slice(alreadyEmittedLength).trim();
+                if (remainingContent.length > 0) {
+                  chunks.push({
+                    type: 'thinking',
+                    content: remainingContent,
+                    timestamp: Date.now(),
+                  });
+                }
+              } else if (alreadyEmittedLength === 0 && thinkingContent.length > 0) {
+                chunks.push({
+                  type: 'thinking',
+                  content: thinkingContent,
+                  timestamp: Date.now(),
+                });
+              }
             }
 
             this.state = 'outside';
@@ -557,6 +606,29 @@ export class PerplexityStreamProcessor {
     } else if (this.state === 'inside') {
       // Inside thinking tag - keep everything processed, clear buffer
       this.buffer = '';
+
+      // 🅱️ HYPOTHESIS B FIX: Emit delta chunk when state became 'inside' during this processChunk call
+      // This handles the case where <think>Content arrives in a single chunk
+      const currentBufferLength = this.thinkingBuffer.length;
+      const deltaContent = this.thinkingBuffer.slice(this.lastEmittedThinkingLength);
+
+      if (deltaContent.trim().length > 0) {
+        console.log('[StreamProcessor] 🅱️ [HYPOTHESIS B] Emitting DELTA thinking chunk (post-transition):', {
+          totalThinkingBufferLength: currentBufferLength,
+          lastEmittedLength: this.lastEmittedThinkingLength,
+          deltaLength: deltaContent.length,
+          deltaPreview: deltaContent.substring(0, 100).replace(/\n/g, '\\n'),
+        });
+
+        chunks.push({
+          type: 'thinking',
+          content: deltaContent.trim(),
+          timestamp: Date.now(),
+        });
+
+        // Update the last emitted position
+        this.lastEmittedThinkingLength = currentBufferLength;
+      }
     } else {
       // Clear buffer if we're outside and processed everything
       this.buffer = '';
@@ -685,15 +757,23 @@ export class PerplexityStreamProcessor {
    * Reset processor to initial state
    *
    * Useful for reusing the same processor instance.
+   * Respects the assumeThinkingFirst option from constructor.
    */
   reset(): void {
     this.buffer = '';
     this.thinkingBuffer = '';
-    this.state = 'outside';
-    this.tagDepth = 0;
     this.accumulatedThinking = [];
     this.preThinkTextBuffer = '';
     this.emittedTextInCurrentStream = [];
     this.lastEmittedThinkingLength = 0; // 🅱️ HYPOTHESIS B FIX: Reset delta tracking
+
+    // Restore initial state based on assumeThinkingFirst option
+    if (this.assumeThinkingFirst) {
+      this.state = 'inside';
+      this.tagDepth = 1;
+    } else {
+      this.state = 'outside';
+      this.tagDepth = 0;
+    }
   }
 }

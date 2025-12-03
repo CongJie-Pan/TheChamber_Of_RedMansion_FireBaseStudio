@@ -265,12 +265,15 @@ describe('PerplexityStreamProcessor', () => {
         allEmittedChunks.push(...emitted);
       }
 
-      // Should have thinking chunk and text chunks
+      // Should have thinking chunks (delta emission) and text chunks
       const thinkingChunks = allEmittedChunks.filter(c => c.type === 'thinking');
       const textChunks = allEmittedChunks.filter(c => c.type === 'text');
 
-      expect(thinkingChunks).toHaveLength(1);
-      expect(thinkingChunks[0].content).toContain('我認為這個問題');
+      // 🅱️ With Hypothesis B delta emission, we get multiple incremental thinking chunks
+      // instead of one combined chunk. The combined content should contain the full thinking.
+      expect(thinkingChunks.length).toBeGreaterThanOrEqual(1);
+      const allThinking = thinkingChunks.map(c => c.content).join('');
+      expect(allThinking).toContain('我認為這個問題');
 
       expect(textChunks.length).toBeGreaterThan(0);
       const allText = textChunks.map(c => c.content).join('');
@@ -905,6 +908,336 @@ describe('PerplexityStreamProcessor', () => {
         // getAllThinking should be empty after reset
         processor.reset();
         expect(processor.getAllThinking()).toBe('');
+      });
+    });
+  });
+
+  /**
+   * assumeThinkingFirst Option Tests (2025-12-03)
+   *
+   * These tests verify the assumeThinkingFirst option that handles Perplexity
+   * sonar-reasoning API's unexpected behavior where:
+   * - API does NOT send <think> opening tag
+   * - API DOES send </think> closing tag
+   * - Answer content exists after </think>
+   *
+   * Format comparison:
+   * - Expected: <think>思考內容</think>正式回答
+   * - Actual:   思考內容</think>正式回答
+   */
+  describe('assumeThinkingFirst option (2025-12-03)', () => {
+    describe('Basic initialization', () => {
+      test('should initialize with state=inside and tagDepth=1 when assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Process content without <think> tag - should be treated as thinking
+        const chunks = processorWithOption.processChunk('這是思考內容');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('thinking');
+        expect(chunks[0].content).toBe('這是思考內容');
+      });
+
+      test('should default to state=outside when assumeThinkingFirst=false', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: false });
+
+        // Process content without <think> tag - should be treated as text
+        const chunks = processorWithOption.processChunk('這是普通內容');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('text');
+        expect(chunks[0].content).toBe('這是普通內容');
+      });
+
+      test('should default to state=outside when no option provided', () => {
+        const processorNoOption = new PerplexityStreamProcessor();
+
+        // Process content without <think> tag - should be treated as text
+        const chunks = processorNoOption.processChunk('這是普通內容');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('text');
+        expect(chunks[0].content).toBe('這是普通內容');
+      });
+    });
+
+    describe('Content processing without <think> tag', () => {
+      test('should treat initial content as thinking when assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        const chunks = processorWithOption.processChunk('這是思考過程');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('thinking');
+      });
+
+      test('should handle "思考內容</think>正式回答" format correctly', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Simulate actual API response format (no opening <think> tag)
+        const chunks = processorWithOption.processChunk('這是思考內容</think>這是正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('這是思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('這是正式回答');
+      });
+
+      test('should correctly detect </think> and transition to text mode', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // First chunk: thinking content (no opening tag)
+        const c1 = processorWithOption.processChunk('開始分析問題');
+        expect(c1).toHaveLength(1);
+        expect(c1[0].type).toBe('thinking');
+
+        // Second chunk: more thinking
+        const c2 = processorWithOption.processChunk('繼續深入思考');
+        expect(c2).toHaveLength(1);
+        expect(c2[0].type).toBe('thinking');
+
+        // Third chunk: closing tag and answer
+        const c3 = processorWithOption.processChunk('</think>正式回答內容');
+
+        const thinkingChunks = c3.filter(c => c.type === 'thinking');
+        const textChunks = c3.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1); // Final thinking chunk
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答內容');
+      });
+    });
+
+    describe('Delta chunks emission', () => {
+      test('should emit thinking delta chunks for content before </think>', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Emit multiple thinking chunks
+        const c1 = processorWithOption.processChunk('第一段思考');
+        const c2 = processorWithOption.processChunk('第二段思考');
+        const c3 = processorWithOption.processChunk('第三段思考');
+
+        expect(c1).toHaveLength(1);
+        expect(c1[0].type).toBe('thinking');
+        expect(c1[0].content).toBe('第一段思考');
+
+        expect(c2).toHaveLength(1);
+        expect(c2[0].type).toBe('thinking');
+        expect(c2[0].content).toBe('第二段思考'); // Delta only
+
+        expect(c3).toHaveLength(1);
+        expect(c3[0].type).toBe('thinking');
+        expect(c3[0].content).toBe('第三段思考'); // Delta only
+      });
+
+      test('should emit text delta chunks for content after </think>', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Process until </think>
+        processorWithOption.processChunk('思考內容</think>');
+
+        // Now emit text chunks
+        const t1 = processorWithOption.processChunk('答案第一部分');
+        const t2 = processorWithOption.processChunk('答案第二部分');
+
+        expect(t1).toHaveLength(1);
+        expect(t1[0].type).toBe('text');
+        expect(t1[0].content).toBe('答案第一部分');
+
+        expect(t2).toHaveLength(1);
+        expect(t2[0].type).toBe('text');
+        expect(t2[0].content).toBe('答案第二部分');
+      });
+    });
+
+    describe('reset() behavior', () => {
+      test('should reset to inside state when assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Process some content and transition to outside
+        processorWithOption.processChunk('思考</think>答案');
+
+        // Reset
+        processorWithOption.reset();
+
+        // After reset, should be back to inside state
+        const chunks = processorWithOption.processChunk('新的思考內容');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('thinking'); // Should be thinking, not text
+      });
+
+      test('should reset to outside state when assumeThinkingFirst=false', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: false });
+
+        // Process some content
+        processorWithOption.processChunk('<think>思考</think>答案');
+
+        // Reset
+        processorWithOption.reset();
+
+        // After reset, should be back to outside state
+        const chunks = processorWithOption.processChunk('新的普通內容');
+
+        expect(chunks).toHaveLength(1);
+        expect(chunks[0].type).toBe('text'); // Should be text
+      });
+
+      test('should clear thinking content on reset', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        processorWithOption.processChunk('舊的思考內容');
+        processorWithOption.reset();
+
+        expect(processorWithOption.getAllThinking()).toBe('');
+      });
+    });
+
+    describe('Edge cases', () => {
+      test('should handle empty stream with assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        const chunks = processorWithOption.processChunk('');
+
+        expect(chunks).toHaveLength(0);
+      });
+
+      test('should handle immediate </think> with assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // </think> arrives immediately without any thinking content
+        const chunks = processorWithOption.processChunk('</think>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        // Thinking might be empty (trimmed), but text should be present
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+
+      test('should handle nested <think> when assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // When assumeThinkingFirst=true and we see <think>, tagDepth goes 1 -> 2
+        // First </think> goes 2 -> 1, second </think> goes 1 -> 0
+        const chunks = processorWithOption.processChunk('外層<think>內層</think>繼續外層</think>答案');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        // Should have thinking content (nested tags preserved)
+        expect(thinkingChunks.length).toBeGreaterThanOrEqual(1);
+        // Should have text content
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('答案');
+      });
+
+      test('should handle </think> split across chunks with assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Simulate </think> split at position 4: "</th" + "ink>"
+        processorWithOption.processChunk('思考內容</th');
+        const chunks = processorWithOption.processChunk('ink>正式回答');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考內容');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+    });
+
+    describe('Backward compatibility', () => {
+      test('should maintain existing behavior when option not provided', () => {
+        // Default processor (no option)
+        const defaultProcessor = new PerplexityStreamProcessor();
+
+        // Should work exactly as before
+        const chunks = defaultProcessor.processChunk('<think>思考</think>答案');
+
+        const thinkingChunks = chunks.filter(c => c.type === 'thinking');
+        const textChunks = chunks.filter(c => c.type === 'text');
+
+        expect(thinkingChunks).toHaveLength(1);
+        expect(thinkingChunks[0].content).toBe('思考');
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('答案');
+      });
+
+      test('should handle normal <think>...</think> format with assumeThinkingFirst=true', () => {
+        // Even with assumeThinkingFirst=true, if API sends <think> tag, it should work
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // API sends <think> tag (tagDepth goes 1 -> 2)
+        const chunks = processorWithOption.processChunk('<think>思考內容</think></think>答案');
+
+        // The outer </think> should close the initial assumed thinking
+        // This is an edge case where API behavior changes
+        const textChunks = chunks.filter(c => c.type === 'text');
+        expect(textChunks.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('Real API scenario simulation', () => {
+      test('should handle actual Perplexity sonar-reasoning API response pattern', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Simulate actual API streaming pattern
+        // API does NOT send <think>, content starts immediately as thinking
+        const allChunks: StructuredChunk[] = [];
+
+        // Chunk 1-5: Thinking content (no opening tag)
+        allChunks.push(...processorWithOption.processChunk('首先，讓我分析'));
+        allChunks.push(...processorWithOption.processChunk('這個問題。'));
+        allChunks.push(...processorWithOption.processChunk('根據紅樓夢文本，'));
+        allChunks.push(...processorWithOption.processChunk('我認為應該從'));
+        allChunks.push(...processorWithOption.processChunk('以下幾個角度來看：'));
+
+        // Chunk 6: </think> arrives
+        allChunks.push(...processorWithOption.processChunk('</think>'));
+
+        // Chunk 7-9: Answer content
+        allChunks.push(...processorWithOption.processChunk('# 紅樓夢分析'));
+        allChunks.push(...processorWithOption.processChunk('\n\n## 主要觀點'));
+        allChunks.push(...processorWithOption.processChunk('\n\n林黛玉是一個複雜的人物。'));
+
+        const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+        const textChunks = allChunks.filter(c => c.type === 'text');
+
+        // Verify thinking was captured
+        expect(thinkingChunks.length).toBeGreaterThanOrEqual(5);
+        const allThinking = thinkingChunks.map(c => c.content).join('');
+        expect(allThinking).toContain('首先，讓我分析');
+        expect(allThinking).toContain('根據紅樓夢文本');
+
+        // Verify answer was captured
+        expect(textChunks.length).toBeGreaterThanOrEqual(1);
+        const allText = textChunks.map(c => c.content).join('');
+        expect(allText).toContain('# 紅樓夢分析');
+        expect(allText).toContain('林黛玉是一個複雜的人物');
+      });
+
+      test('should correctly accumulate getAllThinking() with assumeThinkingFirst=true', () => {
+        const processorWithOption = new PerplexityStreamProcessor({ assumeThinkingFirst: true });
+
+        // Process thinking content
+        processorWithOption.processChunk('第一段思考。');
+        processorWithOption.processChunk('第二段思考。');
+        processorWithOption.processChunk('第三段思考。');
+        processorWithOption.processChunk('</think>答案內容');
+
+        const allThinking = processorWithOption.getAllThinking();
+
+        expect(allThinking).toContain('第一段思考');
+        expect(allThinking).toContain('第二段思考');
+        expect(allThinking).toContain('第三段思考');
+        expect(allThinking).not.toContain('答案內容');
       });
     });
   });

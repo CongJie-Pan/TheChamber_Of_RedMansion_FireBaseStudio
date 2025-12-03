@@ -87,6 +87,8 @@ export interface PerplexityQAResponse {
   answer: string;
   /** Raw answer from API (before cleaning) */
   rawAnswer?: string;
+  /** Extracted thinking content from <think>…</think> (for reasoning models) */
+  thinkingContent?: string;
   /** Citation information */
   citations: PerplexityCitation[];
   /** Grounding metadata */

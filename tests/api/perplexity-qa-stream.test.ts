@@ -431,4 +431,136 @@ describe('API Route: POST /api/perplexity-qa-stream', () => {
       );
     });
   });
+
+  /**
+   * Tests for assumeThinkingFirst behavior (2025-12-03)
+   *
+   * These tests verify that the API route correctly handles Perplexity sonar-reasoning
+   * API responses where the content arrives without <think> opening tag.
+   *
+   * Format comparison:
+   * - Expected: <think>思考內容</think>正式回答
+   * - Actual:   思考內容</think>正式回答
+   */
+  describe('assumeThinkingFirst - API without opening tag (2025-12-03)', () => {
+    test('should correctly stream content when API sends no <think> opening tag', async () => {
+      // Mock generator to simulate API response without opening <think> tag
+      getMockedStreaming().mockImplementation(async function* () {
+        // Simulate actual Perplexity sonar-reasoning API response
+        // Content starts without <think> tag, only </think> closing tag
+        yield {
+          type: 'thinking',
+          content: '用户问的是紅樓夢的作者是誰。这是关于中国古典文学的问题。',
+          thinkingContent: '用户问的是紅樓夢的作者是誰。这是关于中国古典文学的问题。',
+          fullContent: '',
+          chunkIndex: 0,
+          isComplete: false,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+        yield {
+          type: 'text',
+          content: '《紅樓夢》的作者是**曹雪芹**。',
+          thinkingContent: '用户问的是紅樓夢的作者是誰。这是关于中国古典文学的问题。',
+          fullContent: '《紅樓夢》的作者是**曹雪芹**。',
+          chunkIndex: 1,
+          isComplete: true,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+      });
+
+      const request = createMockRequest({
+        userQuestion: '紅樓夢的作者是誰？',
+        modelKey: 'sonar-reasoning-pro',
+      });
+
+      const response = await POST(request);
+      const chunks = await waitForSSECompletion(response);
+
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+
+      // Last chunk should have both thinking and answer
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.thinkingContent).toContain('紅樓夢的作者是誰');
+      expect(lastChunk.fullContent).toContain('曹雪芹');
+      expect(lastChunk.isComplete).toBe(true);
+    });
+
+    test('should handle streaming with long thinking content without opening tag', async () => {
+      // Simulate multiple thinking chunks followed by answer
+      getMockedStreaming().mockImplementation(async function* () {
+        yield {
+          type: 'thinking',
+          content: '首先，讓我分析這個問題。',
+          thinkingContent: '首先，讓我分析這個問題。',
+          fullContent: '',
+          chunkIndex: 0,
+          isComplete: false,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+        yield {
+          type: 'thinking',
+          content: '從文學角度來看，這是一個重要的問題。',
+          thinkingContent: '首先，讓我分析這個問題。從文學角度來看，這是一個重要的問題。',
+          fullContent: '',
+          chunkIndex: 1,
+          isComplete: false,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+        yield {
+          type: 'text',
+          content: '# 分析結果\n\n曹雪芹是紅樓夢的作者。',
+          thinkingContent: '首先，讓我分析這個問題。從文學角度來看，這是一個重要的問題。',
+          fullContent: '# 分析結果\n\n曹雪芹是紅樓夢的作者。',
+          chunkIndex: 2,
+          isComplete: true,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+      });
+
+      const request = createMockRequest({
+        userQuestion: '分析紅樓夢的作者',
+        modelKey: 'sonar-reasoning-pro',
+      });
+
+      const response = await POST(request);
+      const chunks = await waitForSSECompletion(response);
+
+      expect(chunks.length).toBe(3);
+
+      // Verify progressive thinking accumulation
+      expect(chunks[0].thinkingContent).toContain('讓我分析');
+      expect(chunks[1].thinkingContent).toContain('文學角度');
+
+      // Verify final chunk has complete content
+      const lastChunk = chunks[chunks.length - 1];
+      expect(lastChunk.fullContent).toContain('分析結果');
+      expect(lastChunk.fullContent).toContain('曹雪芹');
+    });
+
+    test('should handle immediate </think> with empty thinking content', async () => {
+      // Edge case: API sends </think> immediately
+      getMockedStreaming().mockImplementation(async function* () {
+        yield {
+          type: 'text',
+          content: '這是直接回答的內容。',
+          thinkingContent: '',
+          fullContent: '這是直接回答的內容。',
+          chunkIndex: 0,
+          isComplete: true,
+          metadata: { model: 'sonar-reasoning-pro' },
+        };
+      });
+
+      const request = createMockRequest({
+        userQuestion: '簡單問題',
+        modelKey: 'sonar-reasoning-pro',
+      });
+
+      const response = await POST(request);
+      const chunks = await waitForSSECompletion(response);
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].fullContent).toContain('直接回答');
+    });
+  });
 });
