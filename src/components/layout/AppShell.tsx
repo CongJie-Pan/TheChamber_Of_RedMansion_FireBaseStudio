@@ -136,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       windowShape: 'circular' as WindowShape, // 月門 - completeness
     },
     {
-      href: "/read",
+      href: "/read-book",
       labelKey: "sidebar.read",
       icon: BookOpen,
       windowShape: 'hexagonal' as WindowShape, // 六角窗 - six directions
@@ -214,12 +214,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                * Determines if a navigation item should be highlighted as active:
                * - Exact path match (pathname === item.href)
                * - Path starts with item.href (for nested routes)
-               * - Special case: /read-book should highlight /read nav item
                */
               const isActive =
                 pathname === item.href ||
-                (pathname.startsWith(item.href + '/') && item.href !== '/') ||
-                (pathname === '/read-book' && item.href === '/read');
+                (pathname.startsWith(item.href + '/') && item.href !== '/');
 
               return (
                 <SidebarMenuItem key={item.labelKey}>

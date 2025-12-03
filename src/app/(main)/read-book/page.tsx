@@ -147,6 +147,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { XP_REWARDS, type AwardXPResponse } from '@/types/user-level-api';
 import { LevelUpModal, LevelBadge } from '@/components/gamification';
 
+// Dynamic chapter loading from JSON files
+import type { ChapterData, ChapterMeta } from '@/lib/chapter-loader';
+
 // Development logging control - 僅在明確啟用時才輸出分頁除錯日誌
 const DEBUG_PAGINATION = typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PAGINATION === 'true';
 
@@ -502,6 +505,13 @@ export default function ReadBookPage() {
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const isMobile = useIsMobile();
+
+  // Dynamic chapter loading state
+  const [availableChapters, setAvailableChapters] = useState<ChapterMeta[]>([]);
+  const [loadedChaptersMap, setLoadedChaptersMap] = useState<Map<number, ChapterData>>(new Map());
+  const [isLoadingChapter, setIsLoadingChapter] = useState(true);
+  const [currentChapterId, setCurrentChapterId] = useState(1); // Track by ID instead of index
+
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   // Removed vernacular toggle per product decision
@@ -588,8 +598,29 @@ export default function ReadBookPage() {
 
   const chapterContentRef = useRef<HTMLDivElement>(null);
   const toolbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const currentChapter = chapters[currentChapterIndex];
+
+  // Get current chapter from dynamic data or fallback to hardcoded
+  const getDynamicChapter = useCallback((): Chapter | null => {
+    const dynamicChapter = loadedChaptersMap.get(currentChapterId);
+    if (dynamicChapter) {
+      // Convert ChapterData to Chapter format (compatible with existing code)
+      return {
+        id: dynamicChapter.id,
+        titleKey: `chapterContent.ch${dynamicChapter.id}.title`,
+        subtitleKey: `chapterContent.ch${dynamicChapter.id}.subtitle`,
+        summaryKey: `chapterContent.ch${dynamicChapter.id}.summary`,
+        paragraphs: dynamicChapter.paragraphs as Paragraph[],
+        // Store original title for direct display
+        _dynamicTitle: dynamicChapter.title,
+        _dynamicTitleText: dynamicChapter.titleText,
+      } as Chapter & { _dynamicTitle?: string; _dynamicTitleText?: string };
+    }
+    return null;
+  }, [loadedChaptersMap, currentChapterId]);
+
+  // Use dynamically loaded chapter if available, fallback to hardcoded chapters
+  const dynamicChapter = getDynamicChapter();
+  const currentChapter = dynamicChapter || chapters[currentChapterIndex];
 
   const [isSettingsPopoverOpen, setIsSettingsPopoverOpen] = useState(false);
   const [activeThemeKey, setActiveThemeKey] = useState<keyof typeof themes>('white');
@@ -628,6 +659,53 @@ export default function ReadBookPage() {
     currentPageRef.current = currentPage;
     totalPagesRef.current = totalPages;
   }, [currentPage, totalPages]);
+
+  // Dynamic Chapter Loading - Fetch available chapters and load content from JSON files
+  useEffect(() => {
+    async function loadAvailableChapters() {
+      try {
+        const response = await fetch('/api/chapters');
+        if (response.ok) {
+          const chaptersData: ChapterMeta[] = await response.json();
+          setAvailableChapters(chaptersData);
+          // If we have chapters, load the first one
+          if (chaptersData.length > 0) {
+            const firstChapterId = chaptersData[0].id;
+            setCurrentChapterId(firstChapterId);
+            await loadChapterContent(firstChapterId);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load available chapters:', error);
+      }
+      setIsLoadingChapter(false);
+    }
+
+    loadAvailableChapters();
+  }, []);
+
+  // Load chapter content from API
+  const loadChapterContent = async (chapterId: number): Promise<ChapterData | null> => {
+    // Check if already loaded
+    if (loadedChaptersMap.has(chapterId)) {
+      return loadedChaptersMap.get(chapterId) || null;
+    }
+
+    try {
+      setIsLoadingChapter(true);
+      const response = await fetch(`/api/chapters/${chapterId}/content`);
+      if (response.ok) {
+        const chapterData: ChapterData = await response.json();
+        setLoadedChaptersMap(prev => new Map(prev).set(chapterId, chapterData));
+        return chapterData;
+      }
+    } catch (error) {
+      console.error(`Failed to load chapter ${chapterId}:`, error);
+    } finally {
+      setIsLoadingChapter(false);
+    }
+    return null;
+  };
 
   // Task 4.5 Fix: Measure toolbar height dynamically using ResizeObserver
   useEffect(() => {
@@ -2762,9 +2840,17 @@ export default function ReadBookPage() {
     }
   };
 
-  const handleSelectChapterFromToc = (index: number) => {
-    setCurrentChapterIndex(index);
+  const handleSelectChapterFromToc = async (indexOrId: number, isDynamicChapter = false) => {
+    if (isDynamicChapter && availableChapters.length > 0) {
+      // Use chapter ID directly for dynamic chapters
+      setCurrentChapterId(indexOrId);
+      await loadChapterContent(indexOrId);
+    } else {
+      // Fallback to index-based navigation for hardcoded chapters
+      setCurrentChapterIndex(indexOrId);
+    }
     setIsTocSheetOpen(false);
+    setHasScrolledToBottom(false); // Reset scroll tracking for new chapter
     handleInteraction();
   };
 
@@ -3464,6 +3550,18 @@ ${selectedTextContent}
     (message) => message.role === 'ai' && message.isStreaming
   );
 
+  // Show loading state when fetching chapter content
+  if (isLoadingChapter && !currentChapter) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="text-lg text-muted-foreground">{t('readBook.loadingChapter') || '載入章節中...'}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div
@@ -3981,16 +4079,30 @@ ${selectedTextContent}
           </SheetHeader>
           <ScrollArea className="flex-grow">
             <div className="p-2 space-y-1">
-            {chapters.map((chapter, index) => (
-              <Button
-                key={chapter.id}
-                variant={currentChapterIndex === index ? "default" : "ghost"}
-                className="w-full justify-start text-left h-auto py-1.5 px-3 text-sm"
-                onClick={() => handleSelectChapterFromToc(index)}
-              >
-                {getChapterTitle(chapter.titleKey)}
-              </Button>
-            ))}
+            {/* Prefer dynamic chapters from JSON files, fallback to hardcoded */}
+            {availableChapters.length > 0 ? (
+              availableChapters.map((chapter) => (
+                <Button
+                  key={chapter.id}
+                  variant={currentChapterId === chapter.id ? "default" : "ghost"}
+                  className="w-full justify-start text-left h-auto py-1.5 px-3 text-sm"
+                  onClick={() => handleSelectChapterFromToc(chapter.id, true)}
+                >
+                  {chapter.title}
+                </Button>
+              ))
+            ) : (
+              chapters.map((chapter, index) => (
+                <Button
+                  key={chapter.id}
+                  variant={currentChapterIndex === index ? "default" : "ghost"}
+                  className="w-full justify-start text-left h-auto py-1.5 px-3 text-sm"
+                  onClick={() => handleSelectChapterFromToc(index)}
+                >
+                  {getChapterTitle(chapter.titleKey)}
+                </Button>
+              ))
+            )}
             </div>
           </ScrollArea>
           <SheetFooter className="p-4 border-t border-border">
