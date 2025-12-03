@@ -93,6 +93,12 @@ export class PerplexityStreamProcessor {
   private emittedTextInCurrentStream: string[] = [];
 
   /**
+   * 🅱️ HYPOTHESIS B FIX: Track last emitted thinking length to emit only deltas
+   * This prevents O(n²) data transfer by only sending new content, not the full buffer.
+   */
+  private lastEmittedThinkingLength: number = 0;
+
+  /**
    * Process a raw chunk from the stream
    *
    * @param rawChunk - Raw text chunk from Perplexity API
@@ -114,6 +120,9 @@ export class PerplexityStreamProcessor {
     // When we're inside a thinking tag, process only the new chunk directly
     // without re-processing the buffer
     if (this.state === 'inside') {
+      // ═══════════════════════════════════════════════════════════════════════
+      // 🅰️ HYPOTHESIS A FIX: Enhanced sliding window with proper initialization
+      // ═══════════════════════════════════════════════════════════════════════
       // PHASE 4.1 FIX: Use sliding window to detect closing tags across chunk boundaries
       // Create lookback buffer: last 8 chars from thinkingBuffer + current rawChunk
       // NOTE: </think> is 8 characters, so lookback must be at least 8 to detect split tags
@@ -123,21 +132,47 @@ export class PerplexityStreamProcessor {
       const actualLookbackSize = lookbackFromPrevious.length;
       const lookbackBuffer = lookbackFromPrevious + rawChunk;
 
+      // 🅰️ FIX: Enhanced diagnostic logging for sliding window initialization
+      console.log('[StreamProcessor] 🅰️ [HYPOTHESIS A] Sliding Window Initialization:', {
+        thinkingBufferTotal: this.thinkingBuffer.length,
+        thinkingBufferTail: this.thinkingBuffer.slice(-30).replace(/\n/g, '\\n'),
+        maxLookbackSize,
+        actualLookbackSize,
+        lookbackFromPrevious: lookbackFromPrevious.replace(/\n/g, '\\n'),
+        rawChunkLength: rawChunk.length,
+        rawChunkFull: rawChunk.length < 100 ? rawChunk.replace(/\n/g, '\\n') : rawChunk.substring(0, 100).replace(/\n/g, '\\n') + '...',
+      });
+
       let foundClosingTag = false;
       let closingTagPosition = -1;
 
       // Search for </think> in the combined lookback buffer
+      // 🅰️ FIX: Also check for the tag in rawChunk alone (edge case when buffer is empty)
       for (let searchPos = 0; searchPos <= lookbackBuffer.length - 8; searchPos++) {
         if (lookbackBuffer.slice(searchPos, searchPos + 8) === '</think>') {
           closingTagPosition = searchPos;
           foundClosingTag = true;
+          console.log('[StreamProcessor] 🅰️ [HYPOTHESIS A] ✅ Found </think> in lookback buffer at position:', searchPos);
           break;
         }
+      }
+
+      // 🅰️ FIX: If not found in sliding window, also do a direct check on rawChunk
+      if (!foundClosingTag && rawChunk.includes('</think>')) {
+        const directPosition = rawChunk.indexOf('</think>');
+        console.log('[StreamProcessor] 🅰️ [HYPOTHESIS A] ⚠️ </think> found in rawChunk directly but missed by sliding window!', {
+          directPosition,
+          rawChunkAroundTag: rawChunk.substring(Math.max(0, directPosition - 20), directPosition + 28),
+        });
+        // Use the direct position (adjusted for lookback)
+        closingTagPosition = actualLookbackSize + directPosition;
+        foundClosingTag = true;
       }
 
       // BUG FIX (2025-12-02): Always log sliding window detection result
       console.log('[StreamProcessor] 🔎 Sliding window check:', {
         foundClosingTag,
+        closingTagPosition,
         lookbackBufferLength: lookbackBuffer.length,
         lookbackBufferPreview: lookbackBuffer.substring(0, 50).replace(/\n/g, '\\n'),
         lookbackBufferEnd: lookbackBuffer.slice(-20).replace(/\n/g, '\\n'),
@@ -189,17 +224,41 @@ export class PerplexityStreamProcessor {
 
           this.state = 'outside';
           this.thinkingBuffer = '';
+          this.lastEmittedThinkingLength = 0; // 🅱️ HYPOTHESIS B FIX: Reset delta tracking on state transition
 
           // Task 4.2 Debug: Log state transition to outside
           console.log('[StreamProcessor] STATE TRANSITION: inside -> outside (closing tag found in sliding window)', {
             thinkingContentEmitted: thinkingContent.length,
           });
 
+          // ═══════════════════════════════════════════════════════════════════════
+          // 🅲️ HYPOTHESIS C FIX: Improved remaining calculation with validation
+          // ═══════════════════════════════════════════════════════════════════════
           // Calculate where remaining content starts in rawChunk
           // rawChunk starts at position actualLookbackSize in lookbackBuffer
           // Remaining content starts after the tag ends
-          const remainingStartInRaw = Math.max(0, tagEndInLookback - actualLookbackSize);
-          const remaining = rawChunk.slice(remainingStartInRaw);
+          let remainingStartInRaw = Math.max(0, tagEndInLookback - actualLookbackSize);
+          let remaining = rawChunk.slice(remainingStartInRaw);
+
+          // 🅲️ FIX: Validate the calculation using direct string search as fallback
+          const directCloseTagPos = rawChunk.indexOf('</think>');
+          if (directCloseTagPos !== -1) {
+            const directRemainingStart = directCloseTagPos + 8; // '</think>' is 8 chars
+            const directRemaining = rawChunk.slice(directRemainingStart);
+
+            // 🅲️ FIX: If direct search finds more content, use that instead
+            if (directRemaining.length > remaining.length) {
+              console.log('[StreamProcessor] 🅲️ [HYPOTHESIS C] ⚠️ Direct search found MORE remaining content!');
+              console.log('[StreamProcessor] 🅲️ [HYPOTHESIS C] Using direct calculation instead of sliding window.');
+              console.log('[StreamProcessor] 🅲️ [HYPOTHESIS C] Comparison:', {
+                slidingWindowRemaining: remaining.length,
+                directRemaining: directRemaining.length,
+                difference: directRemaining.length - remaining.length,
+              });
+              remainingStartInRaw = directRemainingStart;
+              remaining = directRemaining;
+            }
+          }
 
           // BUG FIX (2025-12-02): Enhanced debug logging for truncation diagnosis
           console.log('[StreamProcessor] ═══════════════════════════════════════════════════');
@@ -222,6 +281,16 @@ export class PerplexityStreamProcessor {
             console.warn('[StreamProcessor] ⚠️ WARNING: Remaining content is much shorter than rawChunk!');
             console.warn('[StreamProcessor] This might indicate a calculation error.');
             console.warn('[StreamProcessor] rawChunk full content:', rawChunk);
+
+            // 🅲️ FIX: Last resort - try to extract content after </think> directly
+            const lastResortMatch = rawChunk.match(/<\/think>(.*)$/s);
+            if (lastResortMatch && lastResortMatch[1]) {
+              const lastResortRemaining = lastResortMatch[1];
+              if (lastResortRemaining.length > remaining.length) {
+                console.log('[StreamProcessor] 🅲️ [HYPOTHESIS C] 🚨 LAST RESORT: Using regex match for remaining content');
+                remaining = lastResortRemaining;
+              }
+            }
           }
           console.log('[StreamProcessor] ═══════════════════════════════════════════════════');
 
@@ -251,12 +320,42 @@ export class PerplexityStreamProcessor {
         }
       }
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // 🅱️ HYPOTHESIS B FIX: Emit incremental thinking chunks while inside <think>
+      // ═══════════════════════════════════════════════════════════════════════
       // No closing tag found in sliding window - add all to thinking buffer
       // The sliding window logic (lines 93-109) already handles detecting closing tags
       // that span chunk boundaries by looking back into thinkingBuffer.
       // We simply add the entire rawChunk to thinkingBuffer and let the next chunk's
       // sliding window handle any split closing tags.
       this.thinkingBuffer += rawChunk;
+
+      // 🅱️ FIX (IMPROVED): Emit DELTA thinking chunks to prevent O(n²) data transfer
+      // Previously, this function returned empty chunks[] when inside thinking,
+      // causing totalChunks: 0 in logs and no visible thinking progress.
+      // Now we emit only the NEW content (delta) since last emission.
+      const currentBufferLength = this.thinkingBuffer.length;
+      const deltaContent = this.thinkingBuffer.slice(this.lastEmittedThinkingLength);
+
+      if (deltaContent.trim().length > 0) {
+        console.log('[StreamProcessor] 🅱️ [HYPOTHESIS B] Emitting DELTA thinking chunk:', {
+          totalThinkingBufferLength: currentBufferLength,
+          lastEmittedLength: this.lastEmittedThinkingLength,
+          deltaLength: deltaContent.length,
+          deltaPreview: deltaContent.substring(0, 100).replace(/\n/g, '\\n'),
+          chunkType: 'thinking',
+          note: 'DELTA only - not full buffer (prevents O(n²) transfer)',
+        });
+
+        chunks.push({
+          type: 'thinking',
+          content: deltaContent.trim(),
+          timestamp: Date.now(),
+        });
+
+        // Update the last emitted position
+        this.lastEmittedThinkingLength = currentBufferLength;
+      }
 
       return chunks;
     }
@@ -332,6 +431,7 @@ export class PerplexityStreamProcessor {
 
             this.state = 'outside';
             this.thinkingBuffer = '';
+            this.lastEmittedThinkingLength = 0; // 🅱️ HYPOTHESIS B FIX: Reset delta tracking
             textStart = i + 8;
           } else {
             // Nested closing tag
@@ -594,5 +694,6 @@ export class PerplexityStreamProcessor {
     this.accumulatedThinking = [];
     this.preThinkTextBuffer = '';
     this.emittedTextInCurrentStream = [];
+    this.lastEmittedThinkingLength = 0; // 🅱️ HYPOTHESIS B FIX: Reset delta tracking
   }
 }

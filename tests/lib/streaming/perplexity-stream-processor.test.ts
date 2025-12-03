@@ -67,20 +67,22 @@ describe('PerplexityStreamProcessor', () => {
     test('should buffer incomplete opening tag', () => {
       // Chunk 1: ends with incomplete opening tag
       const chunks1 = processor.processChunk('<th');
-      expect(chunks1).toHaveLength(0); // Nothing emitted yet
+      expect(chunks1).toHaveLength(0); // Nothing emitted yet (potential tag buffered)
 
       // Chunk 2: completes the tag and adds content
+      // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks while inside thinking
       const chunks2 = processor.processChunk('ink>推理');
-      expect(chunks2).toHaveLength(0); // Still inside thinking
+      expect(chunks2).toHaveLength(1); // Emits incremental thinking chunk
+      expect(chunks2[0].type).toBe('thinking');
+      expect(chunks2[0].content).toBe('推理');
 
       // Chunk 3: closes the tag
       const chunks3 = processor.processChunk('</think>答案');
-      expect(chunks3).toHaveLength(2);
-      expect(chunks3[0]).toMatchObject({
-        type: 'thinking',
-        content: '推理',
-      });
-      expect(chunks3[1]).toMatchObject({
+      // Now contains: final thinking chunk (complete) + text chunk
+      expect(chunks3.length).toBeGreaterThanOrEqual(1);
+      const textChunks = chunks3.filter(c => c.type === 'text');
+      expect(textChunks).toHaveLength(1);
+      expect(textChunks[0]).toMatchObject({
         type: 'text',
         content: '答案',
       });
@@ -225,13 +227,19 @@ describe('PerplexityStreamProcessor', () => {
       const chunks2 = processor.processChunk('推理</think>');
       const chunks3 = processor.processChunk('答案內容');
 
-      // First chunk is buffered (inside thinking tag)
-      expect(chunks1).toHaveLength(0);
+      // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks
+      // First chunk emits incremental thinking (inside thinking tag)
+      expect(chunks1).toHaveLength(1);
+      expect(chunks1[0].type).toBe('thinking');
+      expect(chunks1[0].content).toBe('開始');
 
       // Second chunk completes the thinking tag
-      expect(chunks2).toHaveLength(1);
-      expect(chunks2[0].type).toBe('thinking');
-      expect(chunks2[0].content).toBe('開始推理');
+      // Contains: delta thinking for '推理' + final thinking chunk
+      const thinkingChunks2 = chunks2.filter(c => c.type === 'thinking');
+      expect(thinkingChunks2.length).toBeGreaterThanOrEqual(1);
+      // Combined thinking should include both parts
+      const allThinking = thinkingChunks2.map(c => c.content).join('');
+      expect(allThinking).toContain('推理');
 
       // Third chunk emits text
       expect(chunks3).toHaveLength(1);
@@ -559,12 +567,16 @@ describe('PerplexityStreamProcessor', () => {
     describe('State transition after </think>', () => {
       test('should correctly transition to outside state and process subsequent chunks', () => {
         // Chunk 1: Start thinking
+        // 🅱️ HYPOTHESIS B UPDATE: Now emits DELTA thinking chunks
         const c1 = processor.processChunk('<think>開始思考');
-        expect(c1).toHaveLength(0); // Inside thinking, nothing emitted
+        expect(c1).toHaveLength(1); // Emits incremental thinking chunk
+        expect(c1[0].type).toBe('thinking');
+        expect(c1[0].content).toBe('開始思考');
 
         // Chunk 2: End thinking with </think>
         const c2 = processor.processChunk('結束思考</think>');
-        expect(c2.filter(c => c.type === 'thinking')).toHaveLength(1);
+        // Contains delta thinking + final thinking chunk
+        expect(c2.filter(c => c.type === 'thinking').length).toBeGreaterThanOrEqual(1);
 
         // Chunk 3: First part of answer (should be OUTSIDE state now)
         const c3 = processor.processChunk('這是答案');
@@ -735,6 +747,164 @@ describe('PerplexityStreamProcessor', () => {
         expect(combinedText).toBe('#《紅樓夢》');
         // Key assertion: content should NOT be truncated to just "#" or "# 《"
         expect(combinedText.length).toBeGreaterThanOrEqual(6);
+      });
+    });
+  });
+
+  /**
+   * 🅱️ HYPOTHESIS B FIX TESTS (2025-12-03): Incremental Thinking Chunks
+   *
+   * These tests verify the Hypothesis B fix that emits DELTA thinking chunks
+   * during the thinking phase, instead of waiting until </think> is found.
+   *
+   * Key behavior changes:
+   * 1. Thinking chunks are emitted incrementally (delta only, not full buffer)
+   * 2. This prevents O(n²) data transfer
+   * 3. Frontend receives real-time thinking progress updates
+   */
+  describe('Hypothesis B: Incremental Thinking Chunks (2025-12-03)', () => {
+    describe('Delta emission behavior', () => {
+      test('should emit delta thinking chunks, not full buffer', () => {
+        // Chunk 1: Start thinking
+        const c1 = processor.processChunk('<think>第一部分');
+        expect(c1).toHaveLength(1);
+        expect(c1[0].content).toBe('第一部分');
+
+        // Chunk 2: Continue thinking - should only emit the new part (delta)
+        const c2 = processor.processChunk('第二部分');
+        expect(c2).toHaveLength(1);
+        expect(c2[0].content).toBe('第二部分'); // Delta only, NOT '第一部分第二部分'
+
+        // Chunk 3: Continue thinking - should only emit the new part (delta)
+        const c3 = processor.processChunk('第三部分');
+        expect(c3).toHaveLength(1);
+        expect(c3[0].content).toBe('第三部分'); // Delta only
+      });
+
+      test('should not cause O(n²) data transfer', () => {
+        // Simulate 10 chunks of thinking content
+        const thinkingPieces = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        let totalEmittedLength = 0;
+
+        processor.processChunk('<think>');
+
+        for (const piece of thinkingPieces) {
+          const chunks = processor.processChunk(piece);
+          for (const chunk of chunks) {
+            totalEmittedLength += chunk.content.length;
+          }
+        }
+
+        // With O(n²), we would emit: 1 + 2 + 3 + ... + 10 = 55 chars
+        // With O(n) delta, we should emit: 10 chars total
+        expect(totalEmittedLength).toBe(10); // Each piece is 1 char, 10 total
+      });
+
+      test('should reset delta tracking after </think> is found', () => {
+        // First thinking block
+        processor.processChunk('<think>思考A');
+        processor.processChunk('思考B</think>');
+
+        // After </think>, delta tracking should reset
+        // Start a new thinking block
+        const newThinking = processor.processChunk('<think>新思考');
+        expect(newThinking).toHaveLength(1);
+        expect(newThinking[0].content).toBe('新思考'); // Fresh start, not appended to previous
+      });
+
+      test('should handle empty chunks gracefully', () => {
+        processor.processChunk('<think>內容');
+
+        // Empty chunk should not emit anything
+        const emptyChunks = processor.processChunk('');
+        expect(emptyChunks).toHaveLength(0);
+
+        // Next chunk should still work correctly
+        const nextChunks = processor.processChunk('更多內容');
+        expect(nextChunks).toHaveLength(1);
+        expect(nextChunks[0].content).toBe('更多內容');
+      });
+    });
+
+    describe('Integration with full thinking-to-answer flow', () => {
+      test('should correctly accumulate thinking content via getAllThinking()', () => {
+        // Even with delta emission, getAllThinking() should return complete content
+        processor.processChunk('<think>第一部分');
+        processor.processChunk('第二部分');
+        processor.processChunk('第三部分</think>');
+
+        const allThinking = processor.getAllThinking();
+        expect(allThinking).toContain('第一部分');
+        expect(allThinking).toContain('第二部分');
+        expect(allThinking).toContain('第三部分');
+      });
+
+      test('should transition correctly from thinking to answer with delta chunks', () => {
+        // Simulate real streaming with delta chunks
+        const allChunks: StructuredChunk[] = [];
+
+        allChunks.push(...processor.processChunk('<think>思考'));
+        allChunks.push(...processor.processChunk('過程'));
+        allChunks.push(...processor.processChunk('</think>'));
+        allChunks.push(...processor.processChunk('正式回答'));
+
+        const thinkingChunks = allChunks.filter(c => c.type === 'thinking');
+        const textChunks = allChunks.filter(c => c.type === 'text');
+
+        // Should have multiple thinking chunks (delta emissions)
+        expect(thinkingChunks.length).toBeGreaterThanOrEqual(2);
+
+        // Should have text chunk with answer
+        expect(textChunks).toHaveLength(1);
+        expect(textChunks[0].content).toBe('正式回答');
+      });
+    });
+
+    describe('Edge cases', () => {
+      test('should handle very long thinking content in chunks', () => {
+        const longContent = '這是一段很長的思考內容'.repeat(100);
+        processor.processChunk('<think>');
+
+        // Split into 10 chunks
+        const chunkSize = longContent.length / 10;
+        let totalEmitted = 0;
+
+        for (let i = 0; i < 10; i++) {
+          const chunk = longContent.slice(i * chunkSize, (i + 1) * chunkSize);
+          const emitted = processor.processChunk(chunk);
+          for (const e of emitted) {
+            totalEmitted += e.content.length;
+          }
+        }
+
+        // Total emitted should equal total input length (O(n), not O(n²))
+        expect(totalEmitted).toBe(longContent.length);
+      });
+
+      test('should handle whitespace-only chunks during thinking', () => {
+        processor.processChunk('<think>內容');
+
+        // Whitespace-only chunks should be trimmed and not emitted
+        const wsChunks = processor.processChunk('   \n\t  ');
+        expect(wsChunks).toHaveLength(0); // Trimmed to empty
+
+        // Next real content should work
+        const realChunks = processor.processChunk('更多內容');
+        expect(realChunks).toHaveLength(1);
+      });
+
+      test('should handle reset() clearing delta tracking', () => {
+        processor.processChunk('<think>舊內容');
+        processor.reset();
+
+        // After reset, start fresh
+        const newChunks = processor.processChunk('<think>全新內容');
+        expect(newChunks).toHaveLength(1);
+        expect(newChunks[0].content).toBe('全新內容');
+
+        // getAllThinking should be empty after reset
+        processor.reset();
+        expect(processor.getAllThinking()).toBe('');
       });
     });
   });

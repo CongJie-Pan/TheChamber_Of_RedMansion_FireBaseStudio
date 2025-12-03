@@ -1,11 +1,11 @@
-2025-12-02 14:13:21.814 [info] [Perplexity Stream API] Starting stream: {
+2025-12-02 14:26:07.381 [info] [Perplexity Stream API] Starting stream: {
   question: '你好',
   modelKey: 'sonar-reasoning',
   timeout: '1.3 分鐘',
   timeoutMs: 75000
 }
-2025-12-02 14:13:21.814 [info] [Perplexity Stream API] Starting chunk iteration
-2025-12-02 14:13:21.815 [info] 🐛 [PERPLEXITY_STREAMING] Starting async generator: perplexityRedChamberQAStreaming {
+2025-12-02 14:26:07.381 [info] [Perplexity Stream API] Starting chunk iteration
+2025-12-02 14:26:07.381 [info] 🐛 [PERPLEXITY_STREAMING] Starting async generator: perplexityRedChamberQAStreaming {
   functionName: 'perplexityRedChamberQAStreaming',
   inputType: 'object',
   inputKeys: [
@@ -24,8 +24,8 @@
   ],
   hasAsyncIterator: false
 }
-2025-12-02 14:13:21.818 [info] Starting Perplexity streaming QA: { question: '你好', modelKey: 'sonar-reasoning' }
-2025-12-02 14:13:21.818 [info] 🐛 [PERPLEXITY_STREAMING] Function entry point reached {
+2025-12-02 14:26:07.383 [info] Starting Perplexity streaming QA: { question: '你好', modelKey: 'sonar-reasoning' }
+2025-12-02 14:26:07.383 [info] 🐛 [PERPLEXITY_STREAMING] Function entry point reached {
   inputType: 'object',
   inputKeys: [
     'userQuestion',
@@ -44,15 +44,15 @@
   userQuestionLength: 2,
   enableStreaming: true
 }
-2025-12-02 14:13:21.818 [info] 🐛 [PERPLEXITY_STREAMING] Getting Perplexity client
-2025-12-02 14:13:21.818 [info] 🐛 [PERPLEXITY_STREAMING] Client obtained {
+2025-12-02 14:26:07.383 [info] 🐛 [PERPLEXITY_STREAMING] Getting Perplexity client
+2025-12-02 14:26:07.384 [info] 🐛 [PERPLEXITY_STREAMING] Client obtained {
   clientType: 'object',
   clientConstructor: 'b3',
   hasStreamingMethod: true
 }
-2025-12-02 14:13:21.818 [info] Client type: object
-2025-12-02 14:13:21.818 [info] Client streamingCompletionRequest type: function
-2025-12-02 14:13:21.818 [info] 🐛 [PERPLEXITY_STREAMING] Calling client.streamingCompletionRequest {
+2025-12-02 14:26:07.384 [info] Client type: object
+2025-12-02 14:26:07.384 [info] Client streamingCompletionRequest type: function
+2025-12-02 14:26:07.389 [info] 🐛 [PERPLEXITY_STREAMING] Calling client.streamingCompletionRequest {
   processedInputType: 'object',
   processedInputKeys: [
     'userQuestion',
@@ -69,22 +69,22 @@
     'currentChapter'
   ]
 }
-2025-12-02 14:13:21.819 [info] 🐛 [PERPLEXITY_STREAMING] Stream generator created {
+2025-12-02 14:26:07.389 [info] 🐛 [PERPLEXITY_STREAMING] Stream generator created {
   generatorType: 'object',
   generatorConstructor: '',
   hasAsyncIterator: true
 }
-2025-12-02 14:13:21.819 [info] Stream generator type: object
-2025-12-02 14:13:21.819 [info] Stream generator Symbol.asyncIterator: function
-2025-12-02 14:13:21.819 [info] 🐛 [PERPLEXITY_STREAMING] Starting for-await loop on: client.streamingCompletionRequest {
+2025-12-02 14:26:07.389 [info] Stream generator type: object
+2025-12-02 14:26:07.389 [info] Stream generator Symbol.asyncIterator: function
+2025-12-02 14:26:07.390 [info] 🐛 [PERPLEXITY_STREAMING] Starting for-await loop on: client.streamingCompletionRequest {
   iterableSource: 'client.streamingCompletionRequest',
   iterableType: 'object',
   hasAsyncIterator: true,
   hasIterator: false,
   constructorName: ''
 }
-2025-12-02 14:13:21.819 [info] 🐛 [PERPLEXITY_CLIENT] PerplexityClient.streamingCompletionRequest called { inputType: 'object', userQuestionLength: 2, enableStreaming: true }
-2025-12-02 14:13:21.820 [info] 🐛 [PERPLEXITY_CLIENT] Making HTTP request to Perplexity API (native fetch) {
+2025-12-02 14:26:07.390 [info] 🐛 [PERPLEXITY_CLIENT] PerplexityClient.streamingCompletionRequest called { inputType: 'object', userQuestionLength: 2, enableStreaming: true }
+2025-12-02 14:26:07.390 [info] 🐛 [PERPLEXITY_CLIENT] Making HTTP request to Perplexity API (native fetch) {
   endpoint: 'https://api.perplexity.ai/chat/completions',
   requestDataKeys: [
     'model',
@@ -97,51 +97,52 @@
   model: 'sonar-reasoning',
   stream: true
 }
-2025-12-02 14:13:23.332 [info] 🐛 [PERPLEXITY_CLIENT] Received HTTP response (native fetch) {
+2025-12-02 14:26:08.699 [error] ❌ [Turso] Background schema initialization error: SQL_INPUT_ERROR: SQLite input error: no such column: sharedPostId (at offset 67)
+2025-12-02 14:26:08.850 [info] 🐛 [PERPLEXITY_CLIENT] Received HTTP response (native fetch) {
   statusCode: 200,
   statusText: 'OK',
   hasBody: true,
   contentType: 'text/event-stream; charset=utf-8'
 }
-2025-12-02 14:13:23.332 [info] 🐛 [streamingCompletionRequest] Starting stream reading with native fetch
-2025-12-02 14:13:23.332 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.850 [info] 🐛 [streamingCompletionRequest] Starting stream reading with native fetch
+2025-12-02 14:26:08.851 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 740,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685568, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.332 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.851 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.851 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '1a\\u9748\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\u79c0", "url": "https://vocus.cc/article/5c541cd1fd89780001c62fb2", "date": "2025-01-31", "last_upd'
 }
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.851 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.852 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '\\u9690\\u68a6\\u5e7b\\u8bc6\\u901a\\u7075,\\u8d3e\\u96e8\\u6751\\u98ce\\u5c18\\u6000\\u95fa\\u79c0\\u201d - \\u54c1\\u9605\\u4e66\\u623f- \\u63a2\\u7d22\\u65e0\\u5c3d\\u77e5'
 }
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.852 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.852 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '541f\\u8a69\\u3001\\u559d\\u9152\\u3001\\u8cde\\u82b1\\uff0c\\u65e5\\u5b50 ...", "source": "web"}, {"title": "\\u300a\\u7ea2\\u697c\\u68a6\\u300b\\u7b2c\\u4e00\\u56de\\u'
 }
-2025-12-02 14:13:23.333 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.334 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.852 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.852 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 866,
   preview: 'd\\u63d0\\uff0c\\u547c\\u61c9\\u4e86\\u5c0f\\u8aaa\\u7b2c\\u4e00\\u56de\\u4e2d\\u7b2c\\u4e00\\u6558\\u4e8b\\u5c64\\u9762. \\u6558\\u8ff0\\u4eba ...", "source": "web"}, {"'
 }
-2025-12-02 14:13:23.334 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #1
-2025-12-02 14:13:23.334 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.334 [info] │ [perplexity-client] RAW CONTENT CHUNK #1
-2025-12-02 14:13:23.334 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.334 [info] │ Stats: {
+2025-12-02 14:26:08.853 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #1
+2025-12-02 14:26:08.853 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:08.853 [info] │ [perplexity-client] RAW CONTENT CHUNK #1
+2025-12-02 14:26:08.853 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:08.853 [info] │ Stats: {
   length: 10,
   containsThinkOpen: true,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.334 [info] │ Preview: <think>\n首先
-2025-12-02 14:13:23.334 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.335 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:08.853 [info] │ Preview: <think>\n首先
+2025-12-02 14:26:08.853 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:08.854 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 10,
   rawChunkPreview: '<think>\\n首先',
   currentState: 'outside',
@@ -149,66 +150,66 @@
   bufferLength: 0,
   thinkingBufferLength: 0
 }
-2025-12-02 14:13:23.335 [info] [StreamProcessor] 📥 Processing chunk in OUTSIDE state: {
+2025-12-02 14:26:08.854 [info] [StreamProcessor] 📥 Processing chunk in OUTSIDE state: {
   rawChunkLength: 10,
   rawChunkPreview: '<think>\\n首先',
   bufferLengthAfterAdd: 10,
   isRecursiveCall: false
 }
-2025-12-02 14:13:23.335 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.335 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.335 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.335 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:08.855 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.855 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:08.855 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.855 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.335 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:08.855 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: true,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.335 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.855 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.907 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685568, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.907 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.907 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\u'
 }
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.907 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.908 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"tit'
 }
-2025-12-02 14:13:23.386 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.387 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.908 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.908 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610f'
 }
-2025-12-02 14:13:23.387 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.387 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.908 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.909 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 318,
   preview: 'b8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thin'
 }
-2025-12-02 14:13:23.387 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #2
-2025-12-02 14:13:23.387 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.387 [info] │ [perplexity-client] RAW CONTENT CHUNK #2
-2025-12-02 14:13:23.387 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.387 [info] │ Stats: {
+2025-12-02 14:26:08.909 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #2
+2025-12-02 14:26:08.909 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:08.909 [info] │ [perplexity-client] RAW CONTENT CHUNK #2
+2025-12-02 14:26:08.909 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:08.909 [info] │ Stats: {
   length: 8,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.387 [info] │ Preview: ，我需要理解這個
-2025-12-02 14:13:23.387 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.387 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:08.910 [info] │ Preview: ，我需要理解這個
+2025-12-02 14:26:08.910 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:08.910 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 8,
   rawChunkPreview: '，我需要理解這個',
   currentState: 'inside',
@@ -216,528 +217,705 @@
   bufferLength: 0,
   thinkingBufferLength: 3
 }
-2025-12-02 14:13:23.387 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.387 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.387 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.388 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:08.910 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 11,
+  lookbackBufferPreview: '\\n首先，我需要理解這個',
+  lookbackBufferEnd: '\\n首先，我需要理解這個',
+  thinkingBufferLength: 3,
+  rawChunkLength: 8,
+  rawChunkPreview: '，我需要理解這個'
+}
+2025-12-02 14:26:08.911 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.911 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:08.911 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.911 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.388 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:08.911 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.388 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.448 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.911 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.970 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685568, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.448 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.970 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.970 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.971 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.971 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.971 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.971 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 355,
+2025-12-02 14:26:08.972 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:08.972 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 367,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.449 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #3
-2025-12-02 14:13:23.450 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.450 [info] │ [perplexity-client] RAW CONTENT CHUNK #3
-2025-12-02 14:13:23.450 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.450 [info] │ Stats: {
-  length: 7,
+2025-12-02 14:26:08.972 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #3
+2025-12-02 14:26:08.972 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:08.972 [info] │ [perplexity-client] RAW CONTENT CHUNK #3
+2025-12-02 14:26:08.972 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:08.972 [info] │ Stats: {
+  length: 8,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.450 [info] │ Preview: 問題。用戶發送
-2025-12-02 14:13:23.450 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.450 [info] [StreamProcessor] processChunk called: {
-  rawChunkLength: 7,
-  rawChunkPreview: '問題。用戶發送',
+2025-12-02 14:26:08.972 [info] │ Preview: 問題。用戶問的是
+2025-12-02 14:26:08.972 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:08.972 [info] [StreamProcessor] processChunk called: {
+  rawChunkLength: 8,
+  rawChunkPreview: '問題。用戶問的是',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
   thinkingBufferLength: 11
 }
-2025-12-02 14:13:23.450 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.450 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.450 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.450 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:08.972 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 16,
+  lookbackBufferPreview: '，我需要理解這個問題。用戶問的是',
+  lookbackBufferEnd: '，我需要理解這個問題。用戶問的是',
+  thinkingBufferLength: 11,
+  rawChunkLength: 8,
+  rawChunkPreview: '問題。用戶問的是'
+}
+2025-12-02 14:26:08.972 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.972 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:08.972 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:08.973 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.450 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:08.973 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.450 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.502 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:08.973 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.035 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.502 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.503 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.035 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.035 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.503 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 357,
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 375,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.505 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #4
-2025-12-02 14:13:23.505 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.505 [info] │ [perplexity-client] RAW CONTENT CHUNK #4
-2025-12-02 14:13:23.505 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.505 [info] │ Stats: {
-  length: 5,
+2025-12-02 14:26:09.037 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #4
+2025-12-02 14:26:09.037 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.037 [info] │ [perplexity-client] RAW CONTENT CHUNK #4
+2025-12-02 14:26:09.037 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.037 [info] │ Stats: {
+  length: 6,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.505 [info] │ Preview: 了"你好"
-2025-12-02 14:13:23.505 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.505 [info] [StreamProcessor] processChunk called: {
-  rawChunkLength: 5,
-  rawChunkPreview: '了"你好"',
+2025-12-02 14:26:09.037 [info] │ Preview: "你好"，這
+2025-12-02 14:26:09.037 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.037 [info] [StreamProcessor] processChunk called: {
+  rawChunkLength: 6,
+  rawChunkPreview: '"你好"，這',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 18
+  thinkingBufferLength: 19
 }
-2025-12-02 14:13:23.505 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.505 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.505 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.505 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.037 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 14,
+  lookbackBufferPreview: '問題。用戶問的是"你好"，這',
+  lookbackBufferEnd: '問題。用戶問的是"你好"，這',
+  thinkingBufferLength: 19,
+  rawChunkLength: 6,
+  rawChunkPreview: '"你好"，這'
+}
+2025-12-02 14:26:09.037 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.037 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.037 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.037 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.505 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.037 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.505 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.563 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.037 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.096 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.563 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.563 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.096 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.096 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.563 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.096 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.097 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.097 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.100 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 419,
+2025-12-02 14:26:09.100 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.100 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 431,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.564 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #5
-2025-12-02 14:13:23.564 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.565 [info] │ [perplexity-client] RAW CONTENT CHUNK #5
-2025-12-02 14:13:23.565 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.565 [info] │ Stats: {
+2025-12-02 14:26:09.100 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #5
+2025-12-02 14:26:09.100 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.100 [info] │ [perplexity-client] RAW CONTENT CHUNK #5
+2025-12-02 14:26:09.100 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.100 [info] │ Stats: {
   length: 7,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.565 [info] │ Preview: ，這是一個簡單
-2025-12-02 14:13:23.565 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.565 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.100 [info] │ Preview: 是一個簡單的問
+2025-12-02 14:26:09.100 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.100 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 7,
-  rawChunkPreview: '，這是一個簡單',
+  rawChunkPreview: '是一個簡單的問',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 23
+  thinkingBufferLength: 25
 }
-2025-12-02 14:13:23.565 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.565 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.565 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.565 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.100 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 15,
+  lookbackBufferPreview: '的是"你好"，這是一個簡單的問',
+  lookbackBufferEnd: '的是"你好"，這是一個簡單的問',
+  thinkingBufferLength: 25,
+  rawChunkLength: 7,
+  rawChunkPreview: '是一個簡單的問'
+}
+2025-12-02 14:26:09.100 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.100 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.100 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.100 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.565 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.100 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.565 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.620 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.100 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.159 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.620 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.159 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.160 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.160 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.160 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.160 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.160 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 413,
+2025-12-02 14:26:09.161 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.161 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 425,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.621 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #6
-2025-12-02 14:13:23.621 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.622 [info] │ [perplexity-client] RAW CONTENT CHUNK #6
-2025-12-02 14:13:23.622 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.622 [info] │ Stats: {
+2025-12-02 14:26:09.161 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #6
+2025-12-02 14:26:09.161 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.161 [info] │ [perplexity-client] RAW CONTENT CHUNK #6
+2025-12-02 14:26:09.161 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.161 [info] │ Stats: {
   length: 3,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.622 [info] │ Preview: 的問候
-2025-12-02 14:13:23.622 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.623 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.161 [info] │ Preview: 候，但
+2025-12-02 14:26:09.161 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.162 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 3,
-  rawChunkPreview: '的問候',
+  rawChunkPreview: '候，但',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 30
+  thinkingBufferLength: 32
 }
-2025-12-02 14:13:23.623 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.623 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.623 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.623 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.167 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 11,
+  lookbackBufferPreview: '這是一個簡單的問候，但',
+  lookbackBufferEnd: '這是一個簡單的問候，但',
+  thinkingBufferLength: 32,
+  rawChunkLength: 3,
+  rawChunkPreview: '候，但'
+}
+2025-12-02 14:26:09.167 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.167 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.167 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.167 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.623 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.167 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.623 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.675 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.167 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.226 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.675 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.675 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.226 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.675 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 443,
+2025-12-02 14:26:09.227 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.228 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 455,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.676 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #7
-2025-12-02 14:13:23.676 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.676 [info] │ [perplexity-client] RAW CONTENT CHUNK #7
-2025-12-02 14:13:23.676 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.676 [info] │ Stats: {
+2025-12-02 14:26:09.228 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #7
+2025-12-02 14:26:09.228 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.228 [info] │ [perplexity-client] RAW CONTENT CHUNK #7
+2025-12-02 14:26:09.228 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.228 [info] │ Stats: {
   length: 4,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.676 [info] │ Preview: ，但根據
-2025-12-02 14:13:23.676 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.677 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.228 [info] │ Preview: 根據上下
+2025-12-02 14:26:09.228 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.228 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 4,
-  rawChunkPreview: '，但根據',
+  rawChunkPreview: '根據上下',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 33
+  thinkingBufferLength: 35
 }
-2025-12-02 14:13:23.677 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.677 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.677 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.677 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.229 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 12,
+  lookbackBufferPreview: '個簡單的問候，但根據上下',
+  lookbackBufferEnd: '個簡單的問候，但根據上下',
+  thinkingBufferLength: 35,
+  rawChunkLength: 4,
+  rawChunkPreview: '根據上下'
+}
+2025-12-02 14:26:09.229 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.229 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.229 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.229 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.677 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.229 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.677 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.738 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.229 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.282 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.738 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.738 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.282 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.738 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.738 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: 'c\\u5bd3\\u8a00\\u6027\\u7684\\u53d9\\u4e8b\\u65b9\\u5f0f\\u3002\\u8fd9\\u79cd\\u53d9\\u4e8b\\u7b56\\u7565\\u4e0d\\u4ec5\\u4e3a\\u6574\\u4e2a ...", "source": "web"}, {"ti'
 }
-2025-12-02 14:13:23.739 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.739 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1369,
   preview: '"\\u7684\\u8868\\u8ff0\\uff0c\\u6697\\u793a\\u4e86\\u8fd9\\u90e8\\u4f5c\\u54c1\\u865a\\u5b9e\\u76f8\\u751f\\u7684\\u53d9\\u4e8b\\u7279\\u5f81\\u3002\\u503c\\u5f97\\u6ce8\\u610'
 }
-2025-12-02 14:13:23.739 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.739 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 467,
+2025-12-02 14:26:09.283 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.284 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 479,
   preview: 'bb8\\u77e5\\u8fdc ...", "source": "web"}], "object": "chat.completion.chunk", "choices": [{"index": 0, "message": {"role": "assistant", "content": "<thi'
 }
-2025-12-02 14:13:23.740 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #8
-2025-12-02 14:13:23.740 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.740 [info] │ [perplexity-client] RAW CONTENT CHUNK #8
-2025-12-02 14:13:23.740 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.740 [info] │ Stats: {
+2025-12-02 14:26:09.284 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #8
+2025-12-02 14:26:09.285 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.285 [info] │ [perplexity-client] RAW CONTENT CHUNK #8
+2025-12-02 14:26:09.285 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.285 [info] │ Stats: {
   length: 4,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.740 [info] │ Preview: 上下文，
-2025-12-02 14:13:23.740 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.740 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.285 [info] │ Preview: 文，他們
+2025-12-02 14:26:09.285 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.285 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 4,
-  rawChunkPreview: '上下文，',
+  rawChunkPreview: '文，他們',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 37
+  thinkingBufferLength: 39
 }
-2025-12-02 14:13:23.740 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.740 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.740 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.740 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.285 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 12,
+  lookbackBufferPreview: '問候，但根據上下文，他們',
+  lookbackBufferEnd: '問候，但根據上下文，他們',
+  thinkingBufferLength: 39,
+  rawChunkLength: 4,
+  rawChunkPreview: '文，他們'
+}
+2025-12-02 14:26:09.285 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.285 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.285 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.285 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.740 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.285 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.740 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.789 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.285 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.346 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 1363,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.789 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.789 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.346 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.346 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 4229,
   preview: 'u8aaa\\u7d05\\u6a13\\u5922\\uff1a\\u7b2c\\u4e00\\u56de\\uff0e\\u7504\\u58eb\\u96b1\\u5922\\u5e7b\\u8b58\\u901a\\u9748\\uff0c\\u8cc8\\u96e8\\u6751\\u98a8\\u5875\\u61f7\\u95a8\\'
 }
-2025-12-02 14:13:23.790 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.791 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 369,
-  preview: 'assistant", "content": "<think>\\n\\u9996\\u5148\\uff0c\\u6211\\u9700\\u8981\\u7406\\u89e3\\u9019\\u500b\\u554f\\u984c\\u3002\\u7528\\u6236\\u767c\\u9001\\u4e86\\"\\u4f60\\'
+2025-12-02 14:26:09.346 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.347 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 393,
+  preview: 'assistant", "content": "<think>\\n\\u9996\\u5148\\uff0c\\u6211\\u9700\\u8981\\u7406\\u89e3\\u9019\\u500b\\u554f\\u984c\\u3002\\u7528\\u6236\\u554f\\u7684\\u662f\\"\\u4f60\\'
 }
-2025-12-02 14:13:23.791 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #9
-2025-12-02 14:13:23.791 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.791 [info] │ [perplexity-client] RAW CONTENT CHUNK #9
-2025-12-02 14:13:23.791 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.791 [info] │ Stats: {
-  length: 4,
-  containsThinkOpen: false,
-  containsThinkClose: false,
-  currentFullContentLength: 0,
-  isComplete: true
-}
-2025-12-02 14:13:23.791 [info] │ Preview: 他們希望
-2025-12-02 14:13:23.791 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.791 [info] [StreamProcessor] processChunk called: {
-  rawChunkLength: 4,
-  rawChunkPreview: '他們希望',
-  currentState: 'inside',
-  tagDepth: 1,
-  bufferLength: 0,
-  thinkingBufferLength: 41
-}
-2025-12-02 14:13:23.791 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.791 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.791 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.791 [info] [HYPOTHESIS B] Chunk Summary: {
-  totalChunks: 0,
-  textChunksCount: 0,
-  thinkingChunksCount: 0,
-  chunkTypes: []
-}
-2025-12-02 14:13:23.791 [info] [HYPOTHESIS B] Current State: {
-  accumulatedFullContentLength: 0,
-  accumulatedThinkingLength: 0,
-  rawContentContainsThinkOpen: false,
-  rawContentContainsThinkClose: false
-}
-2025-12-02 14:13:23.791 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.851 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 4223,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
-}
-2025-12-02 14:13:23.851 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.851 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 1774,
-  preview: 'u3002\\u503c\\u5f97\\u6ce8\\u610f\\u7684\\u662f\\uff0c\\u8fd9\\u79cd ...", "source": "web"}, {"title": "[PDF] \\u300a\\u77f3\\u982d\\u8a18\\u300b\\u7684\\u6558\\u8ff0\\'
-}
-2025-12-02 14:13:23.851 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #10
-2025-12-02 14:13:23.852 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.852 [info] │ [perplexity-client] RAW CONTENT CHUNK #10
-2025-12-02 14:13:23.852 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.852 [info] │ Stats: {
+2025-12-02 14:26:09.347 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #9
+2025-12-02 14:26:09.347 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.347 [info] │ [perplexity-client] RAW CONTENT CHUNK #9
+2025-12-02 14:26:09.347 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.347 [info] │ Stats: {
   length: 5,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.852 [info] │ Preview: 我作為一位
-2025-12-02 14:13:23.852 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.852 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.347 [info] │ Preview: 要求我作為
+2025-12-02 14:26:09.347 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.347 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 5,
-  rawChunkPreview: '我作為一位',
+  rawChunkPreview: '要求我作為',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 45
+  thinkingBufferLength: 43
 }
-2025-12-02 14:13:23.852 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.852 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.852 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.852 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.347 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 13,
+  lookbackBufferPreview: '根據上下文，他們要求我作為',
+  lookbackBufferEnd: '根據上下文，他們要求我作為',
+  thinkingBufferLength: 43,
+  rawChunkLength: 5,
+  rawChunkPreview: '要求我作為'
+}
+2025-12-02 14:26:09.347 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.347 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.347 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.348 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.852 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.348 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.852 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.907 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+2025-12-02 14:26:09.348 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.408 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
   length: 4223,
-  preview: 'data: {"id": "b6646a59-2c59-45c8-b34e-68859e45500c", "model": "sonar-reasoning", "created": 1764684803, "usage": {"prompt_tokens": 1114, "completion_t'
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
 }
-2025-12-02 14:13:23.907 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
-2025-12-02 14:13:23.908 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
-  length: 1780,
+2025-12-02 14:26:09.408 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.409 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 1768,
   preview: 'u3002\\u503c\\u5f97\\u6ce8\\u610f\\u7684\\u662f\\uff0c\\u8fd9\\u79cd ...", "source": "web"}, {"title": "[PDF] \\u300a\\u77f3\\u982d\\u8a18\\u300b\\u7684\\u6558\\u8ff0\\'
 }
-2025-12-02 14:13:23.908 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #11
-2025-12-02 14:13:23.908 [info] ┌─────────────────────────────────────────────────────────────┐
-2025-12-02 14:13:23.908 [info] │ [perplexity-client] RAW CONTENT CHUNK #11
-2025-12-02 14:13:23.908 [info] ├─────────────────────────────────────────────────────────────┤
-2025-12-02 14:13:23.909 [info] │ Stats: {
+2025-12-02 14:26:09.409 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #10
+2025-12-02 14:26:09.410 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.410 [info] │ [perplexity-client] RAW CONTENT CHUNK #10
+2025-12-02 14:26:09.410 [info] ├─────────────────────────────────────────────────────────────┤
+2025-12-02 14:26:09.410 [info] │ Stats: {
   length: 3,
   containsThinkOpen: false,
   containsThinkClose: false,
   currentFullContentLength: 0,
   isComplete: true
 }
-2025-12-02 14:13:23.909 [info] │ Preview: 資深的
-2025-12-02 14:13:23.909 [info] └─────────────────────────────────────────────────────────────┘
-2025-12-02 14:13:23.909 [info] [StreamProcessor] processChunk called: {
+2025-12-02 14:26:09.410 [info] │ Preview: 一位資
+2025-12-02 14:26:09.410 [info] └─────────────────────────────────────────────────────────────┘
+2025-12-02 14:26:09.410 [info] [StreamProcessor] processChunk called: {
   rawChunkLength: 3,
-  rawChunkPreview: '資深的',
+  rawChunkPreview: '一位資',
   currentState: 'inside',
   tagDepth: 1,
   bufferLength: 0,
-  thinkingBufferLength: 50
+  thinkingBufferLength: 48
 }
-2025-12-02 14:13:23.909 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.909 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
-2025-12-02 14:13:23.909 [info] ═══════════════════════════════════════════════════════════════
-2025-12-02 14:13:23.909 [info] [HYPOTHESIS B] Chunk Summary: {
+2025-12-02 14:26:09.410 [info] [StreamProcessor] 🔎 Sliding window check: {
+  foundClosingTag: false,
+  lookbackBufferLength: 11,
+  lookbackBufferPreview: '，他們要求我作為一位資',
+  lookbackBufferEnd: '，他們要求我作為一位資',
+  thinkingBufferLength: 48,
+  rawChunkLength: 3,
+  rawChunkPreview: '一位資'
+}
+2025-12-02 14:26:09.410 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.410 [info] [HYPOTHESIS B] 🅱️ StreamProcessor Output Analysis
+2025-12-02 14:26:09.410 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.410 [info] [HYPOTHESIS B] Chunk Summary: {
   totalChunks: 0,
   textChunksCount: 0,
   thinkingChunksCount: 0,
   chunkTypes: []
 }
-2025-12-02 14:13:23.909 [info] [HYPOTHESIS B] Current State: {
+2025-12-02 14:26:09.410 [info] [HYPOTHESIS B] Current State: {
   accumulatedFullContentLength: 0,
   accumulatedThinkingLength: 0,
   rawContentContainsThinkOpen: false,
   rawContentContainsThinkClose: false
 }
-2025-12-02 14:13:23.909 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.410 [info] ═══════════════════════════════════════════════════════════════
+2025-12-02 14:26:09.471 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 4223,
+  preview: 'data: {"id": "69885794-8356-4402-a15c-a13b0f554cdd", "model": "sonar-reasoning", "created": 1764685569, "usage": {"prompt_tokens": 1114, "completion_t'
+}
+2025-12-02 14:26:09.471 [info] 🐛 [streamingCompletionRequest] Received network chunk without complete SSE events
+2025-12-02 14:26:09.472 [info] 🐛 [streamingCompletionRequest] Raw chunk received: {
+  length: 1834,
+  preview: 'u3002\\u503c\\u5f97\\u6ce8\\u610f\\u7684\\u662f\\uff0c\\u8fd9\\u79cd ...", "source": "web"}, {"title": "[PDF] \\u300a\\u77f3\\u982d\\u8a18\\u300b\\u7684\\u6558\\u8ff0\\'
+}
+2025-12-02 14:26:09.472 [info] 🐛 [streamingCompletionRequest] Processing 1 SSE events in batch #11
+2025-12-02 14:26:09.472 [info] ┌─────────────────────────────────────────────────────────────┐
+2025-12-02 14:26:09.472 [info] │ [perplexity-client] RAW CONTENT CHUNK #11
+2025-12-02 14:26:09.472 [info] ├─────────────────────────────────────────────────────────────┤
+
+---
+
+## 前端 console log
+
+[QA Module] 🚀 AI 問答已觸發！ {question: '你好', timestamp: '2025-12-02T14:12:55.759Z', model: 'sonar-reasoning'}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800        
+(台北標準時間), citations: Array(0), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 0
+page-1a6e02859dc51289.js:1 [QA Module] Starting stream processing with timeout protection
+page-1a6e02859dc51289.js:1 [QA Module] Received chunk: {size: 6227, timestamp: '2025-12-02T14:13:10.011Z'}
+page-1a6e02859dc51289.js:1 ═══════════════════════════════════════════════════
+page-1a6e02859dc51289.js:1 [HYPOTHESIS B - Frontend] ��️ Chunk Received from Backend
+page-1a6e02859dc51289.js:1 [HYPOTHESIS B] ⚠️ fullContent was derived from thinking (backend fallback)
+page-1a6e02859dc51289.js:1 [HYPOTHESIS B] 📝 Content Previews from Backend: {fullContentPreview: '2. 文本依據：\n- 
+作者自述部分："因曾歷過一番夢幻之後，故將真事隱去..."\n- 女媧補天遺石的…角色或情節的關聯：\n- 通靈寶玉與賈寶玉的關係\n- 甄士隱與賈雨村作為敘事框架的作用\n- "好了歌',    
+ contentPreview: '(empty)', thinkingContentPreview: '首先，我需要理解這個問題。用戶發送了"你好"，這是一個簡單的問候，但根據上下文，他們希望我作為一位資…"你好"本身不     
+是一個關於《紅樓夢》的具體問題，我需要將其解讀為邀請我開始對《紅樓夢》第一回進行全面'}
+page-1a6e02859dc51289.js:1 ═══════════════════════════════════════════════════
+page-1a6e02859dc51289.js:1 [HYPOTHESIS A] 🅰️ Content Assignment
+page-1a6e02859dc51289.js:1 [HYPOTHESIS A] 📝 Content Previews {fullContentPreview: '2. 文本依據：\n- 作者自述部分："因曾歷過一番夢幻之後，故將真事隱去..."\n- 
+女媧補天遺石的…、道教思想的體現\n- 開篇的預言性和象徵意義\n\n4. 歷史文化背景：\n- 清代小說創作背景\n- 曹', contentPreview: '(empty)', thinkingContentPreview:
+'首先，我需要理解這個問題。用戶發送了"你好"，這是一個簡單的問候，但根據上下文，他們希望我作為一位資…，而是一個測試或起始點。根據指示，我需要提供：\n1.
+直接回答問題的核心內容\n2. 相關的文本依據', updatedTextPreview: '(empty)'}
+page-1a6e02859dc51289.js:1 [HYPOTHESIS C] 🅲️ No duplicate processing - trusting backend separation {note: 'Frontend does NOT call splitThinkingFromContent() - using     
+server-provided values directly', thinkingFromServer: 1025, contentFromServer: 611}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800        
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 0
+page-1a6e02859dc51289.js:1 [QA Module] Received chunk: {size: 4597, timestamp: '2025-12-02T14:13:10.049Z'}
+page-1a6e02859dc51289.js:1 ═══════════════════════════════════════════════════
+page-1a6e02859dc51289.js:1 [HYPOTHESIS B - Frontend] 🅱️ Chunk Received from Backend
+page-1a6e02859dc51289.js:1 [HYPOTHESIS B] 📝 Content Previews from Backend: {fullContentPreview: '# 《', contentPreview: '# 《', thinkingContentPreview: 
+'首先，我需要理解這個問題。用戶發送了"你好"，這是一個簡單的問候，但根據上下文，他們希望我作為一位資…"你好"本身不是一個關於《紅樓夢》的具體問題，我需要將其解讀為邀請     
+我開始對《紅樓夢》第一回進行全面'}
+page-1a6e02859dc51289.js:1 ═══════════════════════════════════════════════════
+page-1a6e02859dc51289.js:1 [QA Module] Stream complete - sawCompletion: true
+page-1a6e02859dc51289.js:1 [QA Module] Final content - cleaned.length: 3 , thinkingLength: 1025
+page-1a6e02859dc51289.js:1 [QA Module DEBUG] FINAL chunk - isComplete=true: {fullContentLength: 3, contentLength: 3, cleanedLength: 3, thinkingLength: 1025, 
+cleanedPreview: '# 《', …}
+page-1a6e02859dc51289.js:1 [QA Module] Stream complete
+page-1a6e02859dc51289.js:1 [HYPOTHESIS A] 🅰️ Content Assignment
+page-1a6e02859dc51289.js:1 [HYPOTHESIS A] 📝 Content Previews {fullContentPreview: '# 《', contentPreview: '# 《', thinkingContentPreview: 
+'首先，我需要理解這個問題。用戶發送了"你好"，這是一個簡單的問候，但根據上下文，他們希望我作為一位資…，而是一個測試或起始點。根據指示，我需要提供：\n1.
+直接回答問題的核心內容\n2. 相關的文本依據', updatedTextPreview: '# 《'}
+page-1a6e02859dc51289.js:1 [HYPOTHESIS C] 🅲️ No duplicate processing - trusting backend separation {note: 'Frontend does NOT call splitThinkingFromContent() - using     
+server-provided values directly', thinkingFromServer: 1025, contentFromServer: 3}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '# 《', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800    
+ (台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 3
+[Violation] Forced reflow while executing JavaScript took 81ms
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '# 《', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800    
+ (台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 3
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '# 《', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800    
+ (台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 3
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '# 《', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800    
+ (台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 3
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764683621579', role: 'ai', content: '#', timestamp: Tue Dec 02 2025 21:53:41 GMT+0800       
+(台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 1
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764684774245', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 22:12:54 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'ai-thinking-1764684775759', role: 'ai', content: '# 《', timestamp: Tue Dec 02 2025 22:12:55 GMT+0800    
+ (台北標準時間), citations: Array(5), …}
+page-1a6e02859dc51289.js:1 [QA Module] Rendering AI message with content length: 3
+page-1a6e02859dc51289.js:1 [QA Module] Rendering message: {id: 'user-1764683620680', role: 'user', content: '你好', timestamp: Tue Dec 02 2025 21:53:40 GMT+0800         
+(台北標準時間)}
+page-1a6e02859dc51289.js:1 [QA Module] Using default rendering for user message
