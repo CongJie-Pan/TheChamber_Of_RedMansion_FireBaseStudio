@@ -1,0 +1,312 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram name="第1頁" id="LXNA2F95DpZ8ITWuzqX9">
+    <mxGraphModel dx="1050" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="zXV4DDC_1lBrq6QZ3-qr-14" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="661" />
+              <mxPoint x="420" y="978" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-17" value="偵測用戶&lt;br style=&quot;font-size: 13px;&quot;&gt;閱讀之回數" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="zXV4DDC_1lBrq6QZ3-qr-16" vertex="1" connectable="0">
+          <mxGeometry x="0.4993" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#e3c800;strokeWidth=2;" parent="1" source="zXV4DDC_1lBrq6QZ3-qr-14" target="ICW_gr5DZZpoMJKLdlaO-16" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="190" y="978" />
+              <mxPoint x="190" y="661" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-19" value="顯示該章回&lt;br style=&quot;font-size: 13px;&quot;&gt;相關名家解讀推薦&lt;br&gt;內容" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="zXV4DDC_1lBrq6QZ3-qr-18" vertex="1" connectable="0">
+          <mxGeometry x="-0.5631" relative="1" as="geometry">
+            <mxPoint y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-1" target="ICW_gr5DZZpoMJKLdlaO-3" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="505" y="270" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-1" value="開始" style="ellipse;whiteSpace=wrap;html=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="480" y="220" width="50" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-3" target="ICW_gr5DZZpoMJKLdlaO-6" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-9" value="登入" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-7" vertex="1" connectable="0">
+          <mxGeometry x="0.0202" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-3" target="ICW_gr5DZZpoMJKLdlaO-5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-10" value="註冊流程" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-8" vertex="1" connectable="0">
+          <mxGeometry x="-0.0124" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-3" value="介紹頁" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry x="451.25" y="310" width="107.5" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-5" target="ICW_gr5DZZpoMJKLdlaO-12" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="530" y="510" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-5" value="註冊畫面" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="550" y="420" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-6" target="ICW_gr5DZZpoMJKLdlaO-12" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-6" value="登入畫面" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;" parent="1" vertex="1">
+          <mxGeometry x="351.25" y="420" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-11" value="(填寫初始評估問卷：閱讀興趣、&lt;br&gt;學習水平、學習風格與偏好)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="1" vertex="1" connectable="0">
+          <mxGeometry x="700" y="380" as="geometry">
+            <mxPoint x="-26" y="-12" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-12" target="ICW_gr5DZZpoMJKLdlaO-16" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-35" value="用戶進行閱讀" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-24" vertex="1" connectable="0">
+          <mxGeometry x="0.0228" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-12" target="ICW_gr5DZZpoMJKLdlaO-28" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-12" target="ICW_gr5DZZpoMJKLdlaO-42" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-12" value="首頁" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="451.25" y="510" width="107.5" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-15" value="AI問答模組" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#b0e3e6;strokeColor=#0e8088;" parent="1" vertex="1">
+          <mxGeometry x="243.75" y="738" width="106.25" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-49" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="ICW_gr5DZZpoMJKLdlaO-42" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="661" />
+              <mxPoint x="640" y="741" />
+              <mxPoint x="865" y="741" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-50" value="閱讀筆記&lt;br style=&quot;font-size: 13px;&quot;&gt;上傳分享" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-49" vertex="1" connectable="0">
+          <mxGeometry x="0.6584" y="-4" relative="1" as="geometry">
+            <mxPoint x="3" y="-4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="zXV4DDC_1lBrq6QZ3-qr-1" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="661" />
+              <mxPoint x="420" y="879" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-3" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;點擊朗讀按鈕&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="zXV4DDC_1lBrq6QZ3-qr-2" vertex="1" connectable="0">
+          <mxGeometry x="0.3924" relative="1" as="geometry">
+            <mxPoint y="-19" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-16" value="閱讀頁面&lt;br&gt;(原文/名家解讀)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;" parent="1" vertex="1">
+          <mxGeometry x="243.75" y="641" width="107.5" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-21" value="紅學&lt;br style=&quot;font-size: 13px;&quot;&gt;知識庫" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="230" y="380" width="88.75" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-25" value="用戶資料庫" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="510" y="800" width="88.75" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#82B366;exitX=0.75;exitY=0;exitDx=0;exitDy=0;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-28" target="ICW_gr5DZZpoMJKLdlaO-12" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="751" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-28" value="成就系統頁面" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="660" y="641" width="121.25" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="ICW_gr5DZZpoMJKLdlaO-21" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-34" value="獲取該章節原文內容之&lt;br style=&quot;font-size: 13px;&quot;&gt;知識圖譜、&lt;br style=&quot;font-size: 13px;&quot;&gt;章節概述提要，還有專家解讀內容&lt;br&gt;並將其顯示於閱讀介面" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-33" vertex="1" connectable="0">
+          <mxGeometry x="0.1775" y="4" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-38" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" parent="1" target="ICW_gr5DZZpoMJKLdlaO-25" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="681" as="sourcePoint" />
+            <Array as="points">
+              <mxPoint x="740" y="681" />
+              <mxPoint x="740" y="794" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-39" value="獲取用戶資料&lt;br&gt;包括&lt;br&gt;每日學習時間&lt;br&gt;、挑戰賽完成度等" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;" parent="ICW_gr5DZZpoMJKLdlaO-38" vertex="1" connectable="0">
+          <mxGeometry x="0.358" relative="1" as="geometry">
+            <mxPoint x="-27" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="ICW_gr5DZZpoMJKLdlaO-25" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-41" value="紀錄用戶學習資料&lt;br style=&quot;font-size: 13px;&quot;&gt;(如時間等)與問答內容" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-40" vertex="1" connectable="0">
+          <mxGeometry x="0.6398" y="3" relative="1" as="geometry">
+            <mxPoint x="-7" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontSize=13;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-42" target="ICW_gr5DZZpoMJKLdlaO-12" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="935" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-7" value="顯示貼文之回覆&lt;br&gt;與按讚狀況" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="zXV4DDC_1lBrq6QZ3-qr-6" vertex="1" connectable="0">
+          <mxGeometry x="-0.4591" y="-3" relative="1" as="geometry">
+            <mxPoint x="-54" y="3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-15" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;顯示挑戰賽、&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;每日學習時間&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="zXV4DDC_1lBrq6QZ3-qr-6" vertex="1" connectable="0">
+          <mxGeometry x="0.554" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-42" value="紅學社&lt;br&gt;(討論互動社區頁面)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="830" y="641" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-47" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#e1d5e7;strokeColor=#9673A6;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-42" target="ICW_gr5DZZpoMJKLdlaO-25" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="900" y="960" />
+              <mxPoint x="554" y="960" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-48" value="紀錄用戶&lt;br style=&quot;font-size: 13px;&quot;&gt;發文內容" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-47" vertex="1" connectable="0">
+          <mxGeometry x="-0.8157" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d80073;" parent="1" source="zXV4DDC_1lBrq6QZ3-qr-1" target="ICW_gr5DZZpoMJKLdlaO-16" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="190" y="879" />
+              <mxPoint x="190" y="661" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-5" value="開始跟讀文字&lt;br style=&quot;font-size: 13px;&quot;&gt;播放語音(可背景播放)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;fontStyle=0" parent="zXV4DDC_1lBrq6QZ3-qr-4" vertex="1" connectable="0">
+          <mxGeometry x="-0.4722" y="1" relative="1" as="geometry">
+            <mxPoint x="11" y="-25" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-53" value="總人物關係圖譜&lt;br&gt;頁面" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#bac8d3;strokeColor=#23445d;" parent="1" vertex="1">
+          <mxGeometry x="1040" y="641" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-55" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-12" target="ICW_gr5DZZpoMJKLdlaO-53" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="530" as="sourcePoint" />
+            <mxPoint x="1165" y="590" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-56" value="用戶查看&lt;br&gt;紅樓夢&lt;br&gt;總人物關係圖譜" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="ICW_gr5DZZpoMJKLdlaO-55" vertex="1" connectable="0">
+          <mxGeometry x="0.6089" y="1" relative="1" as="geometry">
+            <mxPoint x="10" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-9" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;用戶選擇學習挑戰賽&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;與設定每日學習時間、&lt;br&gt;查看&lt;/span&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;達成和未達成成就&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ICW_gr5DZZpoMJKLdlaO-55" vertex="1" connectable="0">
+          <mxGeometry x="-0.4785" relative="1" as="geometry">
+            <mxPoint x="-10" y="5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-11" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;用戶發文、留言&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;參與討論&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ICW_gr5DZZpoMJKLdlaO-55" vertex="1" connectable="0">
+          <mxGeometry x="0.037" y="1" relative="1" as="geometry">
+            <mxPoint y="6" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="3XuhsKzT_ycyaoiRR4jl-1" value="&lt;b&gt;紅樓慧讀：紅樓夢整本書閱讀學習系統 架構流程圖綜觀&amp;nbsp;&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" parent="1" vertex="1">
+          <mxGeometry x="445" y="130" width="510" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-1" value="AI 語音朗讀文本模組" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#d80073;strokeColor=#A50040;fontColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="243.75" y="851" width="106.25" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=#587183;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-53" target="ICW_gr5DZZpoMJKLdlaO-21" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="1030" />
+              <mxPoint x="100" y="1030" />
+              <mxPoint x="100" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-13" value="獲取&lt;br style=&quot;font-size: 13px;&quot;&gt;總人物關係圖譜&lt;br style=&quot;font-size: 13px;&quot;&gt;資料" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=13;" parent="zXV4DDC_1lBrq6QZ3-qr-12" vertex="1" connectable="0">
+          <mxGeometry x="0.3771" y="1" relative="1" as="geometry">
+            <mxPoint x="1011" y="-200" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-14" value="名家解讀&lt;br&gt;文章模組" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#e3c800;strokeColor=#B09500;fontColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="245" y="950" width="106.25" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#b0e3e6;strokeColor=#0e8088;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-15" target="ICW_gr5DZZpoMJKLdlaO-21" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="243.7" y="774.25" as="sourcePoint" />
+            <mxPoint x="233.7" y="411" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="100" y="766" />
+              <mxPoint x="100" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-31" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;獲取&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;知識與&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;相關資訊內容&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ICW_gr5DZZpoMJKLdlaO-30" vertex="1" connectable="0">
+          <mxGeometry x="0.0471" y="1" relative="1" as="geometry">
+            <mxPoint x="1" y="-109" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fillColor=#b0e3e6;strokeColor=#0e8088;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-15" target="ICW_gr5DZZpoMJKLdlaO-16" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="190" y="766" />
+              <mxPoint x="190" y="661" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-20" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;提供詞義解釋、註解&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;等回覆內容&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ICW_gr5DZZpoMJKLdlaO-17" vertex="1" connectable="0">
+          <mxGeometry x="0.0533" y="-1" relative="1" as="geometry">
+            <mxPoint x="9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ICW_gr5DZZpoMJKLdlaO-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" parent="1" source="ICW_gr5DZZpoMJKLdlaO-16" target="ICW_gr5DZZpoMJKLdlaO-15" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="661" />
+              <mxPoint x="420" y="766" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="zXV4DDC_1lBrq6QZ3-qr-21" value="&lt;span style=&quot;font-size: 13px;&quot;&gt;選取內文&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;請求AI輸出問題&lt;/span&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;span style=&quot;font-size: 13px;&quot;&gt;的解釋&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="ICW_gr5DZZpoMJKLdlaO-19" vertex="1" connectable="0">
+          <mxGeometry x="-0.0516" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

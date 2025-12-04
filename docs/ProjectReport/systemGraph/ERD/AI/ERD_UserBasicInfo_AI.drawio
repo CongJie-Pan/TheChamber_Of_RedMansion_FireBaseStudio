@@ -1,0 +1,1002 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="27.1.1">
+  <diagram name="Page-1" id="ME6m2dCSrYPDz66j1PYH">
+    <mxGraphModel dx="1042" dy="527" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="PulcmLiahADaTA-sq5_N-429" value="Users" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;align=center;resizeLast=1;" vertex="1" parent="1">
+          <mxGeometry x="419" y="540" width="461" height="556" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-430" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="25" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-431" value="UUID" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-430">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-432" value="user_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-430">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-433" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-430">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-434" value="用戶全域唯一識別碼" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-430">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-435" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="69" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-436" value="VARCHAR255" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-435">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-437" value="email" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-435">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-438" value="UK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-435">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-439" value="用戶電子郵件" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-435">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-440" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="113" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-441" value="VARCHAR255" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-440">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-442" value="password_hash" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-440">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-443" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-440">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-444" value="加密後的密碼" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-440">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-445" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="157" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-446" value="VARCHAR50" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-445">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-447" value="username" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-445">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-448" value="UK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-445">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-449" value="用戶顯示名稱" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-445">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-450" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="201" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-451" value="VARCHAR100" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-450">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-452" value="display_name" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-450">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-453" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-450">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-454" value="用戶真實姓名或暱稱" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-450">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-455" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="245" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-456" value="VARCHAR500" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-455">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-457" value="avatar_url" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-455">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-458" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-455">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-459" value="用戶頭像圖片URL" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-455">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-460" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="289" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-461" value="ENUM" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-460">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-462" value="user_type" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-460">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-463" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-460">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-464" value="用戶類型" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-460">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-465" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="333" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-466" value="BOOLEAN" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-465">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-467" value="is_active" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-465">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-468" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-465">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-469" value="帳戶啟用狀態" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-465">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-470" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="377" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-471" value="BOOLEAN" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-470">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-472" value="email_verified" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-470">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-473" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-470">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-474" value="電子郵件驗證狀態" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-470">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-475" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="421" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-476" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-475">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-477" value="created_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-475">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-478" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-475">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-479" value="帳戶創建時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-475">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-480" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="465" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-481" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-480">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-482" value="updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-480">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-483" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-480">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-484" value="最後更新時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-480">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-485" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-429">
+          <mxGeometry y="509" width="461" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-486" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-485">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-487" value="last_login_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-485">
+          <mxGeometry x="60" width="325" height="44" as="geometry">
+            <mxRectangle width="325" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-488" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-485">
+          <mxGeometry x="385" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-489" value="最後登入時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-485">
+          <mxGeometry x="407" width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-490" value="User_Preferences" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;align=center;resizeLast=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="1198" width="522" height="513" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-491" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="25" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-492" value="BIGINT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-491">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-493" value="preference_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-491">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-494" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-491">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-495" value="偏好設定唯一識別碼" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-491">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-496" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="69" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-497" value="UUID" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-496">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-498" value="user_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-496">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-499" value="FK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-496">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-500" value="關聯Users表的外鍵" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-496">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-501" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="113" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-502" value="TINYINT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-501">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-503" value="font_size" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-501">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-504" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-501">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-505" value="文字大小等級1-5級" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-501">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-506" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="157" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-507" value="ENUM" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-506">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-508" value="theme_mode" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-506">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-509" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-506">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-510" value="主題模式light_dark_auto" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-506">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-511" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="201" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-512" value="DECIMAL" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-511">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-513" value="reading_speed" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-511">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-514" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-511">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-515" value="AI朗讀語速倍率" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-511">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-516" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="245" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-517" value="SMALLINT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-516">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-518" value="daily_goal_minutes" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-516">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-519" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-516">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-520" value="每日學習目標時間分鐘" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-516">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-521" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="289" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-522" value="JSON" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-521">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-523" value="notification_settings" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-521">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-524" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-521">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-525" value="通知設定的JSON物件" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-521">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-526" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="333" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-527" value="JSON" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-526">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-528" value="accessibility_options" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-526">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-529" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-526">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-530" value="無障礙選項設定" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-526">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-531" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="377" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-532" value="JSON" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-531">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-533" value="ui_preferences" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-531">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-534" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-531">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-535" value="界面偏好設定" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-531">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-536" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="421" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-537" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-536">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-538" value="created_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-536">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-539" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-536">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-540" value="創建時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-536">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-541" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry y="465" width="522" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-542" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-541">
+          <mxGeometry width="54" height="44" as="geometry">
+            <mxRectangle width="54" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-543" value="updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-541">
+          <mxGeometry x="54" width="332" height="44" as="geometry">
+            <mxRectangle width="332" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-544" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-541">
+          <mxGeometry x="386" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-545" value="最後更新時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-541">
+          <mxGeometry x="408" width="114" height="44" as="geometry">
+            <mxRectangle width="114" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-546" value="User_Auth_Providers" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;align=center;resizeLast=1;" vertex="1" parent="1">
+          <mxGeometry x="682" y="1198" width="673" height="513" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-547" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="25" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-548" value="BIGINT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-547">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-549" value="auth_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-547">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-550" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-547">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-551" value="認證記錄唯一識別碼" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-547">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-552" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="69" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-553" value="UUID" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-552">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-554" value="user_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-552">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-555" value="FK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-552">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-556" value="關聯Users表的外鍵" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-552">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-557" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="113" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-558" value="ENUM" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-557">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-559" value="provider" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-557">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-560" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-557">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-561" value="認證提供者google_facebook_line_apple" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-557">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-562" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="157" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-563" value="VARCHAR255" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-562">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-564" value="provider_user_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-562">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-565" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-562">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-566" value="第三方平台的用戶ID" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-562">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-567" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="201" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-568" value="VARCHAR255" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-567">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-569" value="provider_email" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-567">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-570" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-567">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-571" value="第三方平台的用戶郵箱" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-567">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-572" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="245" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-573" value="TEXT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-572">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-574" value="access_token_encrypted" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-572">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-575" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-572">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-576" value="存取權杖加密儲存" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-572">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-577" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="289" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-578" value="TEXT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-577">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-579" value="refresh_token_encrypted" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-577">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-580" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-577">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-581" value="刷新權杖加密儲存" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-577">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-582" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="333" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-583" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-582">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-584" value="expires_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-582">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-585" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-582">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-586" value="權杖過期時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-582">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-587" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="377" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-588" value="BOOLEAN" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-587">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-589" value="is_primary" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-587">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-590" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-587">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-591" value="是否為主要登入方式" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-587">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-592" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="421" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-593" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-592">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-594" value="created_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-592">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-595" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-592">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-596" value="創建時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-592">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-597" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry y="465" width="673" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-598" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-597">
+          <mxGeometry width="60" height="44" as="geometry">
+            <mxRectangle width="60" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-599" value="updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-597">
+          <mxGeometry x="60" width="405" height="44" as="geometry">
+            <mxRectangle width="405" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-600" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-597">
+          <mxGeometry x="465" width="22" height="44" as="geometry">
+            <mxRectangle width="22" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-601" value="最後更新時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-597">
+          <mxGeometry x="487" width="186" height="44" as="geometry">
+            <mxRectangle width="186" height="44" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-602" value="System_Config" style="shape=table;startSize=25;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=1;fontStyle=1;align=center;resizeLast=1;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="626" width="467" height="385" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-603" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="25" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-604" value="BIGINT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-603">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-605" value="config_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-603">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-606" value="PK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-603">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-607" value="配置唯一識別碼" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-603">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-608" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="70" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-609" value="VARCHAR100" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-608">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-610" value="config_key" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-608">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-611" value="UK" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-608">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-612" value="配置鍵名" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-608">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-613" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="115" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-614" value="JSON" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-613">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-615" value="config_value" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-613">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-616" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-613">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-617" value="配置值JSON格式" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-613">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-618" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="160" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-619" value="TEXT" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-618">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-620" value="description" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-618">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-621" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-618">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-622" value="配置描述" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-618">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-623" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="205" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-624" value="BOOLEAN" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-623">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-625" value="is_public" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-623">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-626" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-623">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-627" value="是否為公開配置" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-623">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-628" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="250" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-629" value="ENUM" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-628">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-630" value="environment" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-628">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-631" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-628">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-632" value="適用環境dev_test_prod" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-628">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-633" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="295" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-634" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-633">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-635" value="created_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-633">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-636" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-633">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-637" value="創建時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-633">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-638" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" vertex="1" parent="PulcmLiahADaTA-sq5_N-602">
+          <mxGeometry y="340" width="467" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-639" value="TIMESTAMP" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-638">
+          <mxGeometry width="60" height="45" as="geometry">
+            <mxRectangle width="60" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-640" value="updated_at" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-638">
+          <mxGeometry x="60" width="283" height="45" as="geometry">
+            <mxRectangle width="283" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-641" value="" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-638">
+          <mxGeometry x="343" width="22" height="45" as="geometry">
+            <mxRectangle width="22" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-642" value="最後更新時間" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=2;overflow=hidden;fontSize=11;" vertex="1" parent="PulcmLiahADaTA-sq5_N-638">
+          <mxGeometry x="365" width="102" height="45" as="geometry">
+            <mxRectangle width="102" height="45" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-643" value="has" style="curved=1;startArrow=ERmandOne;startSize=10;;endArrow=ERzeroToMany;endSize=10;;exitX=0;exitY=0.87;entryX=0.5;entryY=0;rounded=0;" edge="1" parent="1" source="PulcmLiahADaTA-sq5_N-429" target="PulcmLiahADaTA-sq5_N-490">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="281" y="1147" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="PulcmLiahADaTA-sq5_N-644" value="has" style="curved=1;startArrow=ERmandOne;startSize=10;;endArrow=ERzeroToMany;endSize=10;;exitX=1;exitY=0.87;entryX=0.5;entryY=0;rounded=0;" edge="1" parent="1" source="PulcmLiahADaTA-sq5_N-429" target="PulcmLiahADaTA-sq5_N-546">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1018" y="1147" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

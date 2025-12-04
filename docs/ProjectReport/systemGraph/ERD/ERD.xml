@@ -1,0 +1,227 @@
+@startuml
+!define ENTITY class
+!define RELATION -->
+
+' Configure layout and styling for better spacing and visibility
+skinparam classBackgroundColor White
+skinparam classBorderColor Black
+skinparam classFontSize 10
+skinparam classAttributeFontSize 9
+skinparam linetype ortho
+skinparam minClassWidth 220
+skinparam nodesep 60
+skinparam ranksep 80
+skinparam wrapWidth 300
+skinparam maxMessageSize 100
+
+' User Related Entities
+ENTITY Users {
+  + user_id : BIGINT PK
+  --
+  email : VARCHAR(255) UNIQUE NOT NULL
+  password_hash : VARCHAR(255) NOT NULL
+  username : VARCHAR(50) UNIQUE NOT NULL
+  display_name : VARCHAR(100) NOT NULL
+  avatar_url : VARCHAR(500) NULL
+  user_type : ENUM NOT NULL
+  is_active : BOOLEAN DEFAULT TRUE
+  email_verified : BOOLEAN DEFAULT FALSE
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  last_login_at : TIMESTAMP NULL
+}
+
+ENTITY User_Preferences {
+  + preference_id : BIGINT PK
+  --
+  user_id : BIGINT FK NOT NULL
+  font_size : TINYINT DEFAULT 3
+  theme_mode : ENUM DEFAULT 'light'
+  reading_speed : DECIMAL(3,1) DEFAULT 1.0
+  daily_goal_minutes : SMALLINT DEFAULT 30
+  notification_settings : JSON NOT NULL
+  accessibility_options : JSON NOT NULL
+  ui_preferences : JSON NOT NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+ENTITY User_Auth_Providers {
+  + auth_id : BIGINT PK
+  --
+  user_id : BIGINT FK NOT NULL
+  provider : ENUM NOT NULL
+  provider_user_id : VARCHAR(255) NOT NULL
+  provider_email : VARCHAR(255) NULL
+  access_token : TEXT NULL
+  refresh_token : TEXT NULL
+  expires_at : TIMESTAMP NULL
+  is_primary : BOOLEAN DEFAULT FALSE
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+ENTITY User_Reading_Progress {
+  + progress_id : BIGINT PK
+  --
+  user_id : BIGINT FK NOT NULL
+  chapter_id : BIGINT FK NOT NULL
+  reading_status : ENUM DEFAULT 'not_started'
+  progress_percentage : DECIMAL(5,2) DEFAULT 0.00
+  time_spent : INT DEFAULT 0
+  reading_sessions : SMALLINT DEFAULT 0
+  last_position : INT DEFAULT 0
+  comprehension_score : DECIMAL(4,2) NULL
+  difficulty_rating : TINYINT NULL
+  started_at : TIMESTAMP NULL
+  completed_at : TIMESTAMP NULL
+  last_accessed : TIMESTAMP
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+' Content Related Entities
+ENTITY Chapters {
+  + chapter_id : BIGINT PK
+  --
+  chapter_number : TINYINT UNIQUE NOT NULL
+  title : VARCHAR(200) NOT NULL
+  subtitle : VARCHAR(300) NULL
+  original_text : LONGTEXT NOT NULL
+  modern_text : LONGTEXT NOT NULL
+  summary : TEXT NOT NULL
+  word_count : INT NOT NULL
+  difficulty_level : TINYINT DEFAULT 3
+  key_characters : JSON NOT NULL
+  key_locations : JSON NOT NULL
+  key_events : JSON NOT NULL
+  poetry_content : JSON NULL
+  reading_time_estimate : SMALLINT NOT NULL
+  audio_url : VARCHAR(500) NULL
+  is_published : BOOLEAN DEFAULT TRUE
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+ENTITY Characters {
+  + character_id : BIGINT PK
+  --
+  name : VARCHAR(50) NOT NULL
+  aliases : JSON NOT NULL
+  gender : ENUM NOT NULL
+  social_status : VARCHAR(100) NOT NULL
+  family_branch : VARCHAR(50) NULL
+  character_description : TEXT NOT NULL
+  importance_level : ENUM NOT NULL
+  first_appearance_chapter : TINYINT NULL
+  last_appearance_chapter : TINYINT NULL
+  avatar_url : VARCHAR(500) NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+ENTITY Character_Relationships {
+  + relationship_id : BIGINT PK
+  --
+  character_a_id : BIGINT FK NOT NULL
+  character_b_id : BIGINT FK NOT NULL
+  relationship_type : ENUM NOT NULL
+  relationship_description : VARCHAR(200) NOT NULL
+  relationship_strength : TINYINT DEFAULT 3
+  start_chapter : TINYINT NULL
+  end_chapter : TINYINT NULL
+  is_bidirectional : BOOLEAN DEFAULT TRUE
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+' QA System Entities
+ENTITY QA_Sessions {
+  + session_id : BIGINT PK
+  --
+  user_id : BIGINT FK NOT NULL
+  session_title : VARCHAR(200) NULL
+  context_chapter_id : BIGINT FK NULL
+  context_text : TEXT NULL
+  total_messages : SMALLINT DEFAULT 0
+  session_status : ENUM DEFAULT 'active'
+  session_rating : TINYINT NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  last_activity : TIMESTAMP
+}
+
+ENTITY QA_Messages {
+  + message_id : BIGINT PK
+  --
+  session_id : BIGINT FK NOT NULL
+  message_type : ENUM NOT NULL
+  message_content : LONGTEXT NOT NULL
+  message_metadata : JSON NULL
+  response_time : SMALLINT NULL
+  tokens_used : SMALLINT NULL
+  confidence_score : DECIMAL(4,3) NULL
+  sources_cited : JSON NULL
+  user_feedback : ENUM NULL
+  message_order : SMALLINT NOT NULL
+  created_at : TIMESTAMP
+}
+
+' Forum System Entities
+ENTITY Forum_Posts {
+  + post_id : BIGINT PK
+  --
+  user_id : BIGINT FK NOT NULL
+  category_id : BIGINT FK NOT NULL
+  title : VARCHAR(300) NOT NULL
+  content : LONGTEXT NOT NULL
+  post_type : ENUM NOT NULL
+  view_count : INT DEFAULT 0
+  like_count : INT DEFAULT 0
+  reply_count : INT DEFAULT 0
+  is_pinned : BOOLEAN DEFAULT FALSE
+  is_featured : BOOLEAN DEFAULT FALSE
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+ENTITY Forum_Replies {
+  + reply_id : BIGINT PK
+  --
+  post_id : BIGINT FK NOT NULL
+  user_id : BIGINT FK NOT NULL
+  parent_reply_id : BIGINT FK NULL
+  reply_content : TEXT NOT NULL
+  like_count : SMALLINT DEFAULT 0
+  is_author_reply : BOOLEAN DEFAULT FALSE
+  is_best_answer : BOOLEAN DEFAULT FALSE
+  reply_order : SMALLINT NOT NULL
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+' Improved Layout Arrangement with correct label positioning
+' Primary User Relationships
+Users ||--o{ User_Preferences : has
+Users ||--o{ User_Auth_Providers : has
+Users ||--o{ User_Reading_Progress : tracks
+Users ||--o{ QA_Sessions : creates
+Users ||--o{ Forum_Posts : publishes  
+Users ||--o{ Forum_Replies : writes
+
+' Chapter-related Relationships
+Chapters ||--o{ User_Reading_Progress : "tracked in"
+Chapters ||--o{ QA_Sessions : "referenced in"
+
+' Character Relationships
+Characters ||--o{ Character_Relationships : "participates as A"
+Characters ||--o{ Character_Relationships : "participates as B"
+
+' QA System Relationships  
+QA_Sessions ||--o{ QA_Messages : contains
+
+' Forum System Relationships  
+Forum_Posts ||--o{ Forum_Replies : receives
+Forum_Replies ||--o{ Forum_Replies : "replies to"
+
+@enduml
