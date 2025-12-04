@@ -736,22 +736,44 @@ export class PerplexityClient {
                 const isContentMeaningful = fullContent.trim().length > 0;
                 let contentDerivedFromThinking = false;
                 if (!isContentMeaningful && sanitizedThinking.trim()) {
-                console.warn('[PerplexityClient] Fallback: fullContent is empty, using thinking as answer', {
-                  fullContentLength: fullContent.trim().length,
-                  fullContentPreview: fullContent.trim().substring(0, 50),
-                  thinkingLength: sanitizedThinking.length,
-                });
+                // ═══════════════════════════════════════════════════════════════════════
+                // 🔧 FIX (2025-12-04): Enhanced fallback logging
+                // ═══════════════════════════════════════════════════════════════════════
+                console.log('╔═══════════════════════════════════════════════════════════════╗');
+                console.log('║ 🔧 [FALLBACK] fullContent is empty, using thinking as answer  ║');
+                console.log('╠═══════════════════════════════════════════════════════════════╣');
+                console.log('║ [STEP 1] Checking sanitizedThinking quality:');
+                console.log('║   └─ Length:', sanitizedThinking.length);
+                console.log('║   └─ Has <think> tag:', sanitizedThinking.includes('<think>'));
+                console.log('║   └─ Has </think> tag:', sanitizedThinking.includes('</think>'));
+                console.log('║   └─ Preview:', sanitizedThinking.substring(0, 150).replace(/\n/g, '\\n'));
 
                 // Task 4.2 Fix: Try to extract just the "answer" portion from thinking content
                 let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
+
+                console.log('║ [STEP 2] After deriveAnswerFromThinking():');
+                console.log('║   └─ extractedAnswer Length:', extractedAnswer.length);
+                console.log('║   └─ Has <think> tag:', extractedAnswer.includes('<think>'));
+                console.log('║   └─ Has </think> tag:', extractedAnswer.includes('</think>'));
+                console.log('║   └─ Preview:', extractedAnswer.substring(0, 150).replace(/\n/g, '\\n'));
+
                 // If no marker found or extracted answer is too short, use full thinking content
                 if (extractedAnswer.length < 50) {
                   extractedAnswer = sanitizedThinking;
-                  console.log('[PerplexityClient] No answer marker found or extracted too short, using full thinking');
+                  console.log('║ [STEP 3] Extracted answer too short, using full thinking content');
+                } else {
+                  console.log('║ [STEP 3] Using extracted answer (found answer marker)');
                 }
 
                 fullContent = extractedAnswer;
                 contentDerivedFromThinking = true;
+
+                console.log('║ [FINAL] fullContent assigned:');
+                console.log('║   └─ Length:', fullContent.length);
+                console.log('║   └─ Has <think> tag:', fullContent.includes('<think>'));
+                console.log('║   └─ Has </think> tag:', fullContent.includes('</think>'));
+                console.log('║   └─ Preview:', fullContent.substring(0, 200).replace(/\n/g, '\\n'));
+                console.log('╚═══════════════════════════════════════════════════════════════╝');
               }
 
                 const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);

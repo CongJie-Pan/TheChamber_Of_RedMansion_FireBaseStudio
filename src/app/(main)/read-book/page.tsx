@@ -1680,12 +1680,13 @@ export default function ReadBookPage() {
     setAiMode('book-sources');
   };
 
-  // Handle AI action buttons
+  // Handle AI action buttons - use currentChapterId for chapter number and resolved title
   const handleBookHighlights = async () => {
     // Unify to Perplexity streaming flow for consistent UI
-    const analysisPrompt = `請分析《紅樓夢》第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」的主要亮點和重要內容，包括：
+    const chapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
+    const analysisPrompt = `請分析《紅樓夢》第${currentChapterId}回「${chapterTitle}」的主要亮點和重要內容，包括：
 1. 文學價值的體現
-2. 人物刻畫的精彩之處  
+2. 人物刻畫的精彩之處
 3. 情節發展的關鍵轉折
 4. 文化內涵與藝術手法
 5. 敘事與象徵的藝術亮點`;
@@ -1696,10 +1697,11 @@ export default function ReadBookPage() {
   };
 
   const handleBackgroundReading = async () => {
-    const analysisPrompt = `請提供《紅樓夢》第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」的背景解讀，包括：
+    const chapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
+    const analysisPrompt = `請提供《紅樓夢》第${currentChapterId}回「${chapterTitle}」的背景解讀，包括：
 1. 歷史背景與時代意義
 2. 文學史地位
-3. 作者創作意圖  
+3. 作者創作意圖
 4. 文化內涵與社會反映
 5. 與其他章回的關聯性`;
     setAiMode('perplexity-qa');
@@ -1709,7 +1711,8 @@ export default function ReadBookPage() {
   };
 
   const handleKeyConcepts = async () => {
-    const analysisPrompt = `請分析《紅樓夢》第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」中的關鍵概念和重要主題，包括：
+    const chapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
+    const analysisPrompt = `請分析《紅樓夢》第${currentChapterId}回「${chapterTitle}」中的關鍵概念和重要主題，包括：
 1. 核心主題思想
 2. 重要文學概念
 3. 人物性格特點
@@ -1859,11 +1862,12 @@ export default function ReadBookPage() {
 
       if (usePerplexityAI) {
         // Use Perplexity API
+        // Use actual chapter title (resolved from _dynamicTitle or translation) for AI context
         const perplexityInput = await createPerplexityQAInputForFlow(
           userQuestionInput,
           selectedTextInfo,
           chapterContextSnippet,
-          currentChapter.titleKey,
+          getChapterTitle(currentChapter.titleKey, currentChapter),
           {
             modelKey: perplexityModel,
             reasoningEffort: reasoningEffort,
@@ -2023,7 +2027,7 @@ export default function ReadBookPage() {
                 userQuestion: questionText,
                 selectedTextInfo: selectedTextInfo,
                 chapterContext: chapterContextSnippet,
-                currentChapter: currentChapter.titleKey,
+                currentChapter: getChapterTitle(currentChapter.titleKey, currentChapter),
                 modelKey: perplexityModel,
                 reasoningEffort: reasoningEffort,
                 questionContext: 'general',
@@ -2509,9 +2513,27 @@ export default function ReadBookPage() {
                         let updatedText: string;
                         let contentSource: string;
 
-                        if (hasFull && !contentDerivedFromThinking) {
+                        // ═══════════════════════════════════════════════════════════════
+                        // 🔧 FIX (2025-12-04): Allow fullContent when derived from thinking
+                        // ═══════════════════════════════════════════════════════════════
+                        // Previously: if (hasFull && !contentDerivedFromThinking) - this IGNORED fullContent when derived
+                        // Now: We accept fullContent even when derived from thinking, because:
+                        // 1. Backend's sanitizeThinkingContent() now strips <think> tags
+                        // 2. deriveAnswerFromThinking() extracts clean answer from thinking content
+                        // 3. The derived content IS the best answer we have when </think> was never detected
+                        if (hasFull) {
                           updatedText = chunk.fullContent;
-                          contentSource = '✅ CASE 1: fullContent (real answer)';
+                          if (contentDerivedFromThinking) {
+                            contentSource = '⚠️ CASE 1b: fullContent (derived from thinking - fallback)';
+                            console.log('%c[FIX 2025-12-04] 🔧 Using derived fullContent as answer:', 'background: #ff9800; color: #000; padding: 4px;', {
+                              reason: 'Backend could not detect </think>, used thinking content as answer',
+                              fullContentLength: chunk.fullContent?.length,
+                              fullContentPreview: chunk.fullContent?.substring(0, 200),
+                              hasThinkTags: chunk.fullContent?.includes('<think') || chunk.fullContent?.includes('</think'),
+                            });
+                          } else {
+                            contentSource = '✅ CASE 1a: fullContent (real answer)';
+                          }
                         } else if (hasContent) {
                           updatedText = `${m.content || ''}${chunk.content}`;
                           contentSource = '⚠️ CASE 2: content (incremental append)';
@@ -2519,6 +2541,13 @@ export default function ReadBookPage() {
                           // CRITICAL: Do NOT fallback to thinkingContent!
                           updatedText = m.content || '';
                           contentSource = '➖ CASE 3: unchanged (NO fallback to thinking)';
+                          console.log('%c[FIX 2025-12-04] ⚠️ No content available:', 'background: #f44336; color: #fff; padding: 4px;', {
+                            hasFull,
+                            hasContent,
+                            hasThinking,
+                            contentDerivedFromThinking,
+                            previousContentLength: m.content?.length || 0,
+                          });
                         }
 
                         // ═══════════════════════════════════════════════════════════════
@@ -2776,11 +2805,12 @@ export default function ReadBookPage() {
         // Fix #7 - Removed non-streaming fallback (streaming always enabled)
       } else {
         // Use Perplexity approach for all AI analysis
+        // Use actual chapter title (resolved from _dynamicTitle or translation) for AI context
         const perplexityInput = await createPerplexityQAInputForFlow(
           userQuestionInput,
           selectedTextInfo,
           chapterContextSnippet,
-          currentChapter.titleKey,
+          getChapterTitle(currentChapter.titleKey, currentChapter),
           {
             modelKey: perplexityModel,
             reasoningEffort: reasoningEffort,
@@ -2886,16 +2916,22 @@ export default function ReadBookPage() {
   const toolbarIconClass = "h-6 w-6";
   const toolbarLabelClass = "mt-1 text-xs leading-none";
   
-  const getChapterTitle = (titleKey: string) => {
+  // Enhanced getChapterTitle: Use dynamic chapter title if available, otherwise use translation
+  const getChapterTitle = (titleKey: string, chapter?: typeof currentChapter) => {
+    // Check for dynamic chapter with actual title from JSON data
+    if (chapter && '_dynamicTitle' in chapter && (chapter as { _dynamicTitle?: string })._dynamicTitle) {
+      return (chapter as { _dynamicTitle?: string })._dynamicTitle;
+    }
+    // Handle generic chapter titles with # separator (e.g., chapterContent.ch_generic.title#3)
     if (titleKey.includes('#')) {
       const [baseKey, num] = titleKey.split('#');
       return t(baseKey).replace('{chapterNum}', num);
     }
     return t(titleKey);
   };
-  
-  const currentChapterTitle = getChapterTitle(currentChapter.titleKey);
-  const currentChapterSubtitle = currentChapter.subtitleKey ? getChapterTitle(currentChapter.subtitleKey) : undefined;
+
+  const currentChapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
+  const currentChapterSubtitle = currentChapter.subtitleKey ? getChapterTitle(currentChapter.subtitleKey, currentChapter) : undefined;
 
   const { user, userProfile, refreshUserProfile } = useAuth();
   const [userNotes, setUserNotes] = useState<Note[]>([]);
@@ -3235,7 +3271,7 @@ export default function ReadBookPage() {
               contentLength: currentNote.length
             });
             try {
-              const chapterTitle = getChapterTitle(currentChapter.titleKey);
+              const chapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
               const postContent = `我的閱讀筆記
 
 ${currentNote}
@@ -3243,13 +3279,13 @@ ${currentNote}
 ---
 ${selectedTextContent}
 
-來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
+來源：《紅樓夢》第${currentChapterId}回《${chapterTitle}》`;
 
               const postData: CreatePostData = {
                 authorId: user.id,
                 authorName: user.name || '匿名讀者',
                 content: postContent,
-                tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
+                tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle],
                 category: 'discussion',
                 sourceNoteId: currentNoteObj.id  // Task 4.9/4.10: Link note to post
               };
@@ -3287,7 +3323,7 @@ ${selectedTextContent}
             chapterId: currentChapter.id
           });
           try {
-            const chapterTitle = getChapterTitle(currentChapter.titleKey);
+            const chapterTitle = getChapterTitle(currentChapter.titleKey, currentChapter);
             // Format community post with simplified format to avoid content filter
             const postContent = `我的閱讀筆記
 
@@ -3296,13 +3332,13 @@ ${currentNote}
 ---
 ${selectedTextContent}
 
-來源：《紅樓夢》第${currentChapter.id}回《${chapterTitle}》`;
+來源：《紅樓夢》第${currentChapterId}回《${chapterTitle}》`;
 
             const postData: CreatePostData = {
               authorId: user.id,
               authorName: user.name || '匿名讀者',
               content: postContent,
-              tags: [`第${currentChapter.id}回`, '筆記分享', chapterTitle],
+              tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle],
               category: 'discussion',
               sourceNoteId: noteId  // Task 4.9/4.10: Link note to post
             };
@@ -3721,10 +3757,11 @@ ${selectedTextContent}
                 </PopoverContent>
               </Popover>
 
-              <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
+              {/* Hidden: Single/Double column layout buttons (functionality preserved, UI hidden per user request) */}
+              <div className={cn("h-10 border-l mx-2 md:mx-3 hidden", selectedTheme.toolbarBorderClass)}></div>
               <Button
                 variant={columnLayout === 'single' ? 'secondary' : 'ghost'}
-                className={cn(toolbarButtonBaseClass, columnLayout === 'single' ? '' : selectedTheme.toolbarTextClass )}
+                className={cn(toolbarButtonBaseClass, "hidden", columnLayout === 'single' ? '' : selectedTheme.toolbarTextClass )}
                 onClick={() => setColumnLayout('single')}
                 title={t('buttons.singleColumn')}
               >
@@ -3733,7 +3770,7 @@ ${selectedTextContent}
               </Button>
               <Button
                 variant={columnLayout === 'double' ? 'secondary' : 'ghost'}
-                 className={cn(toolbarButtonBaseClass, columnLayout === 'double' ? '' : selectedTheme.toolbarTextClass)}
+                 className={cn(toolbarButtonBaseClass, "hidden", columnLayout === 'double' ? '' : selectedTheme.toolbarTextClass)}
                 onClick={() => setColumnLayout('double')}
                 title={t('buttons.doubleColumn')}
               >
@@ -4158,7 +4195,7 @@ ${selectedTextContent}
                   className="w-full justify-start text-left h-auto py-1.5 px-3 text-sm"
                   onClick={() => handleSelectChapterFromToc(index)}
                 >
-                  {getChapterTitle(chapter.titleKey)}
+                  {getChapterTitle(chapter.titleKey, chapter)}
                 </Button>
               ))
             )}
@@ -4420,8 +4457,8 @@ ${selectedTextContent}
                 <SheetDescription className="text-gray-400">
                   {aiMode === 'new-conversation' && '請選擇您想了解的內容或直接提問'}
                   {aiMode === 'book-sources' && '相關書籍文獻資料與背景資訊'}
-                  {aiMode === 'ai-analysis' && `第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」`}
-                  {aiMode === 'perplexity-qa' && `第${currentChapterIndex + 1}回「${getChapterTitle(currentChapter.titleKey)}」· 即時網路搜尋問答`}
+                  {aiMode === 'ai-analysis' && `第${currentChapterId}回「${currentChapterTitle}」`}
+                  {aiMode === 'perplexity-qa' && `第${currentChapterId}回「${currentChapterTitle}」· 即時網路搜尋問答`}
                 </SheetDescription>
             </SheetHeader>
 
@@ -4733,9 +4770,10 @@ ${selectedTextContent}
         </SheetContent>
       </Sheet>
 
+      {/* Hidden: Read Aloud button (functionality preserved, UI hidden per user request) */}
       <Button
         variant="default"
-        className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-40 bg-primary text-primary-foreground hover:bg-primary/90 p-0 flex items-center justify-center"
+        className="hidden fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-40 bg-primary text-primary-foreground hover:bg-primary/90 p-0 flex items-center justify-center"
         onClick={handleReadAloudClick}
         title={t('buttons.readAloud')}
         data-no-selection="true"

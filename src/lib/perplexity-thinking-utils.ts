@@ -71,15 +71,49 @@ export function isLikelyThinkingPreface(text: string | null | undefined): boolea
 /**
  * Normalises thinking content for consistent presentation.
  *
+ * - Strips any <think> and </think> XML tags
  * - Converts CRLF to LF
  * - Trims trailing whitespace per line
  * - Collapses runs of blank lines to a maximum of two
+ *
+ * CRITICAL FIX (2025-12-04): Added <think> tag stripping.
+ * When using assumeThinkingFirst=true, the processor starts in 'inside' state.
+ * If the API also sends <think> tags explicitly, they get captured as part of
+ * the thinking content. This function now strips them to prevent tags from
+ * appearing in the final output.
  */
 export function sanitizeThinkingContent(raw: string | null | undefined): string {
   if (!raw) return '';
 
   try {
+    // 🔧 DEBUG: Log input for sanitization
+    console.log('[ThinkingUtils] 🔧 sanitizeThinkingContent() called:', {
+      inputLength: raw.length,
+      inputPreview: raw.substring(0, 100).replace(/\n/g, '\\n'),
+      hasThinkOpenTag: raw.includes('<think>'),
+      hasThinkCloseTag: raw.includes('</think>'),
+    });
+
     let text = raw.replace(/\r\n/g, '\n');
+
+    // CRITICAL FIX: Strip <think> and </think> tags
+    // These may appear when:
+    // 1. assumeThinkingFirst=true but API also sends explicit <think> tag
+    // 2. Nested <think> tags in the content
+    // 3. Fallback content used as answer (should be clean)
+    const hadThinkOpen = text.includes('<think>');
+    const hadThinkClose = text.includes('</think>');
+    text = text.replace(/<think>/gi, '');
+    text = text.replace(/<\/think>/gi, '');
+
+    if (hadThinkOpen || hadThinkClose) {
+      console.log('[ThinkingUtils] 🔧 Stripped <think> tags:', {
+        hadThinkOpen,
+        hadThinkClose,
+        lengthAfterStrip: text.length,
+      });
+    }
+
     text = text
       .split('\n')
       .map((line) => line.replace(/\s+$/g, '').replace(/^\s+/g, ''))
@@ -94,6 +128,13 @@ export function sanitizeThinkingContent(raw: string | null | undefined): string 
       .filter((line) => !/^-{3,}\s*$/.test(line))
       .join('\n')
       .trim();
+
+    // 🔧 DEBUG: Log output
+    console.log('[ThinkingUtils] 🔧 sanitizeThinkingContent() result:', {
+      outputLength: text.length,
+      outputPreview: text.substring(0, 150).replace(/\n/g, '\\n'),
+      stillHasThinkTags: text.includes('<think') || text.includes('</think'),
+    });
 
     return text;
   } catch (error) {

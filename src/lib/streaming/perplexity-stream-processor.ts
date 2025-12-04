@@ -684,7 +684,16 @@ export class PerplexityStreamProcessor {
    *
    * Emits any remaining buffered content as appropriate chunks.
    *
-   * @returns Final chunk with any remaining content
+   * CRITICAL FIX (2025-12-04): Enhanced to handle missing </think> tag detection.
+   * When the stream ends while still in 'inside' state, this method now:
+   * 1. Searches for </think> in the accumulated thinkingBuffer (fallback detection)
+   * 2. If found, extracts the answer content after </think>
+   * 3. Properly separates thinking and answer content
+   *
+   * This fixes the bug where </think> was missed during chunk processing
+   * (e.g., split across chunks or in a format the sliding window didn't catch).
+   *
+   * @returns Final chunk with answer content (or thinking content if no </think> found)
    */
   finalize(): StructuredChunk {
     // Task 4.2 Debug: Log finalize state
@@ -698,24 +707,76 @@ export class PerplexityStreamProcessor {
     });
 
     let finalContent = '';
+    let extractedAnswerContent = '';
 
-    // If we're still inside a thinking tag, include it as thinking
+    // If we're still inside a thinking tag, check if </think> exists in buffer
     if (this.state === 'inside') {
-      // PHASE 4.1 FIX: Clean partial closing tags from thinking buffer before outputting
-      let thinkingContent = this.thinkingBuffer.trim();
+      // ═══════════════════════════════════════════════════════════════════════
+      // 🔧 CRITICAL FIX: Fallback </think> detection in finalize()
+      // ═══════════════════════════════════════════════════════════════════════
+      // The stream ended while still in 'inside' state, meaning </think> was
+      // never detected during chunk processing. This can happen when:
+      // 1. </think> was split across chunks in an unexpected way
+      // 2. The sliding window detection missed it
+      // 3. API returned malformed response
+      //
+      // Solution: Search the entire thinkingBuffer for </think> as a last resort
+      const thinkCloseIndex = this.thinkingBuffer.indexOf('</think>');
 
-      // Remove any incomplete closing tag at the end (e.g., "</thi", "</t", etc.)
-      const partialClosingTags = ['</think', '</thin', '</thi', '</th', '</t', '</'];
-      for (const partial of partialClosingTags) {
-        if (thinkingContent.endsWith(partial)) {
-          thinkingContent = thinkingContent.slice(0, -partial.length).trim();
-          break;
+      console.log('[StreamProcessor] 🔧 FINALIZE FALLBACK: Checking for </think> in thinkingBuffer:', {
+        thinkCloseIndex,
+        thinkingBufferLength: this.thinkingBuffer.length,
+        found: thinkCloseIndex !== -1,
+      });
+
+      if (thinkCloseIndex !== -1) {
+        // Found </think>! Extract thinking and answer portions
+        const thinkingPortion = this.thinkingBuffer.substring(0, thinkCloseIndex).trim();
+        const answerPortion = this.thinkingBuffer.substring(thinkCloseIndex + 8).trim(); // 8 = '</think>'.length
+
+        console.log('[StreamProcessor] 🔧 FINALIZE FALLBACK: Successfully extracted content:', {
+          thinkingPortionLength: thinkingPortion.length,
+          thinkingPortionPreview: thinkingPortion.substring(0, 100).replace(/\n/g, '\\n'),
+          answerPortionLength: answerPortion.length,
+          answerPortionPreview: answerPortion.substring(0, 200).replace(/\n/g, '\\n'),
+        });
+
+        // Store thinking content
+        if (thinkingPortion) {
+          this.accumulatedThinking.push(thinkingPortion);
         }
-      }
 
-      if (thinkingContent) {
-        this.accumulatedThinking.push(thinkingContent);
-        finalContent = thinkingContent;
+        // The answer portion becomes the final content (this is the KEY fix!)
+        extractedAnswerContent = answerPortion;
+        finalContent = answerPortion;
+
+        // Transition state to outside (we found the closing tag)
+        this.state = 'outside';
+        this.tagDepth = 0;
+      } else {
+        // No </think> found - treat entire buffer as thinking content
+        // This is the original behavior for cases where API truly never sends </think>
+        let thinkingContent = this.thinkingBuffer.trim();
+
+        // Remove any incomplete closing tag at the end (e.g., "</thi", "</t", etc.)
+        const partialClosingTags = ['</think', '</thin', '</thi', '</th', '</t', '</'];
+        for (const partial of partialClosingTags) {
+          if (thinkingContent.endsWith(partial)) {
+            thinkingContent = thinkingContent.slice(0, -partial.length).trim();
+            console.log('[StreamProcessor] 🔧 Removed partial closing tag:', partial);
+            break;
+          }
+        }
+
+        if (thinkingContent) {
+          this.accumulatedThinking.push(thinkingContent);
+          // NOTE: We intentionally do NOT set finalContent here
+          // The caller (perplexity-client.ts) will use deriveAnswerFromThinking() as fallback
+        }
+
+        console.log('[StreamProcessor] 🔧 FINALIZE FALLBACK: No </think> found, treating as pure thinking:', {
+          thinkingContentLength: thinkingContent.length,
+        });
       }
     } else if (this.state === 'incomplete_open' || this.buffer.trim()) {
       // Any remaining buffer content is treated as text
@@ -732,7 +793,8 @@ export class PerplexityStreamProcessor {
     console.log('[StreamProcessor] finalize() returning:', {
       type: 'complete',
       finalContentLength: finalContent.length,
-      finalContentPreview: finalContent.substring(0, 100).replace(/\n/g, '\\n'),
+      finalContentPreview: finalContent.substring(0, 200).replace(/\n/g, '\\n'),
+      extractedAnswerFromFallback: extractedAnswerContent.length > 0,
     });
 
     return {
