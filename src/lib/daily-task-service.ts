@@ -599,9 +599,9 @@ export class DailyTaskService {
         // Regular user: award XP using centralized level service
         try {
           // Ensure user profile exists before awarding XP
-          let user = userRepository.getUserById(userId);
+          let user = await userRepository.getUserById(userId);
           if (!user) {
-            user = userRepository.createUser(userId, userId, undefined);
+            user = await userRepository.createUser(userId, userId, undefined);
           }
 
           const beforeLevel = user.currentLevel;
@@ -636,7 +636,7 @@ export class DailyTaskService {
           );
         } catch (e: any) {
           console.warn('SQLite Award XP failed, continuing:', e?.message || e);
-          const fallbackProfile = userRepository.getUserById(userId);
+          const fallbackProfile = await userRepository.getUserById(userId);
           xpResult = {
             success: true,
             newTotalXP: fallbackProfile?.totalXP || 0,

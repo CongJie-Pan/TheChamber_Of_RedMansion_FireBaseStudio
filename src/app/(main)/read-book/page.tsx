@@ -51,7 +51,7 @@ import { Input } from "@/components/ui/input";
 import {
   Search as SearchIcon,         // Text search functionality
   Maximize,                     // Fullscreen toggle
-  Map,                          // Knowledge graph access
+  Map as MapIcon,               // Knowledge graph access (aliased to avoid shadowing built-in Map)
   X,                            // Close/cancel actions
   Edit3,                        // Note-taking features
   Eye,                          // Show vernacular text
@@ -3754,7 +3754,7 @@ ${selectedTextContent}
             {/* Desktop only buttons */}
             <div className="hidden md:flex items-center gap-2 md:gap-3">
               <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>
-                <Map className={toolbarIconClass}/>
+                <MapIcon className={toolbarIconClass}/>
                 <span className={toolbarLabelClass}>{t('buttons.knowledgeGraph')}</span>
               </Button>
               <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsTocSheetOpen(true); handleInteraction(); }} title={t('buttons.toc')}>
@@ -4214,7 +4214,7 @@ ${selectedTextContent}
               className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
               onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsKnowledgeGraphSheetOpen(true), 100); }}
             >
-              <Map className="h-7 w-7 text-primary" />
+              <MapIcon className="h-7 w-7 text-primary" />
               <span className="text-xs text-center">{t('buttons.knowledgeGraph')}</span>
             </button>
 
