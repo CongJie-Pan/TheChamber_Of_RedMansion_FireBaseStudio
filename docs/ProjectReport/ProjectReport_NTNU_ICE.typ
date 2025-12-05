@@ -490,106 +490,14 @@
 
 #figure(
   rotate(90deg, origin: center, reflow: true)[
-    #image("systemGraph/ERD/ERD_Summary.jpg", width: 91%)
+    #image("systemGraph\ERD\ERD_ActualSystem.jpg", width: 91%)
   ],
   caption: [該系統主要資料表之ERD圖]
 )
 
-// Mermaid ERD Code（實際資料庫設計 - 8個核心表）
-// ```mermaid
-// erDiagram
-//     users ||--o{ daily_progress : "擁有"
-//     users ||--o{ task_submissions : "提交"
-//     users ||--o{ highlights : "標註"
-//     users ||--o{ notes : "撰寫"
-//     users ||--o{ posts : "發文"
-//     users ||--o{ comments : "評論"
-//
-//     daily_tasks ||--o{ task_submissions : "被評分"
-//     posts ||--o{ comments : "包含"
-//     comments ||--o{ comments : "回覆"
-//     notes |o--o| posts : "分享為"
-//
-//     users {
-//         TEXT id PK "UUID主鍵"
-//         TEXT username "用戶名稱"
-//         TEXT email UK "電子郵件"
-//         INTEGER currentLevel "當前等級"
-//         INTEGER currentXP "當前經驗值"
-//         INTEGER totalXP "累計經驗值"
-//         TEXT attributes "JSON技能屬性"
-//         TEXT stats "JSON學習統計"
-//         INTEGER createdAt "建立時間戳"
-//     }
-//
-//     daily_tasks {
-//         TEXT id PK "UUID主鍵"
-//         TEXT taskType "任務類型"
-//         TEXT difficulty "難度等級"
-//         TEXT title "任務標題"
-//         INTEGER baseXP "基礎經驗值"
-//         TEXT content "JSON任務內容"
-//     }
-//
-//     daily_progress {
-//         TEXT id PK "userId_date格式"
-//         TEXT userId FK "用戶外鍵"
-//         TEXT date "日期YYYY-MM-DD"
-//         TEXT completedTaskIds "JSON已完成任務"
-//         INTEGER totalXPEarned "當日獲得XP"
-//         INTEGER streak "連續天數"
-//     }
-//
-//     task_submissions {
-//         TEXT id PK "UUID主鍵"
-//         TEXT userId FK "用戶外鍵"
-//         TEXT taskId FK "任務外鍵"
-//         TEXT userAnswer "用戶答案"
-//         INTEGER score "AI評分0-100"
-//         TEXT feedback "AI回饋"
-//     }
-//
-//     highlights {
-//         TEXT id PK "UUID主鍵"
-//         TEXT userId FK "用戶外鍵"
-//         INTEGER chapterId "章節編號"
-//         TEXT selectedText "選取文字"
-//     }
-//
-//     notes {
-//         TEXT id PK "UUID主鍵"
-//         TEXT userId FK "用戶外鍵"
-//         INTEGER chapterId "章節編號"
-//         TEXT note "筆記內容"
-//         TEXT tags "JSON標籤陣列"
-//         INTEGER isPublic "是否公開"
-//         TEXT sharedPostId FK "分享貼文ID"
-//     }
-//
-//     posts {
-//         TEXT id PK "UUID主鍵"
-//         TEXT authorId FK "作者外鍵"
-//         TEXT title "貼文標題"
-//         TEXT content "貼文內容"
-//         INTEGER likes "按讚數"
-//         INTEGER commentCount "評論數"
-//         TEXT sourceNoteId FK "來源筆記ID"
-//     }
-//
-//     comments {
-//         TEXT id PK "UUID主鍵"
-//         TEXT postId FK "貼文外鍵"
-//         TEXT authorId FK "作者外鍵"
-//         TEXT content "評論內容"
-//         TEXT parentCommentId FK "父評論ID"
-//         INTEGER depth "巢狀深度"
-//     }
-// ```
-// 備註：系統另有 xp_transactions、xp_transaction_locks、level_ups 三個輔助表用於經驗值追蹤與等級提升紀錄
-
 ==== 實體 (Entities)
 
-實際資料庫設計採用 SQLite 作為儲存方案，共包含十一個資料表，可分為四大類別：
+實際資料庫設計採用 SQLite 作為儲存方案，共包含八個核心資料表，可分為四大類別：
 
 1. *用戶核心*：*users* 表是整個系統的核心，儲存用戶帳戶、等級進度、經驗值與學習統計等資訊，代表使用平台的學習者。
 
@@ -599,21 +507,21 @@
 
 4. *社群互動*：*posts*（社群貼文）與 *comments*（評論）兩表構成完整的社群討論系統，評論表支援無限層級的巢狀回覆。此外，筆記與貼文之間建立雙向連結，實現閱讀心得到社群分享的無縫轉換。
 
-系統另有 *xp_transactions*、*xp_transaction_locks*、*level_ups* 三個輔助表用於經驗值交易審計與等級提升事件追蹤，確保遊戲化機制的資料完整性。章節內容（《紅樓夢》原文）則以 JSON 檔案形式儲存於 `/src/data/chapterGraph/` 目錄，採用靜態資料分離策略。
+章節內容（《紅樓夢》原文與知識圖譜資料）則以 JSON 檔案形式儲存於 `/src/data/chapterGraph/` 目錄，採用靜態資料分離策略，與動態用戶資料區隔管理。
 
 ==== 屬性 (Attributes)
 
-所有主要資料表皆使用 TEXT 類型的 UUID 作為主鍵，確保全域唯一性與分散式系統的擴展性。在 SQLite 架構下，系統廣泛採用 JSON 格式儲存複雜資料結構，包括：users 表的 `attributes`（技能屬性：poetrySkill, culturalKnowledge, analyticalThinking）與 `stats`（學習統計）欄位、notes 與 posts 表的 `tags`（標籤陣列）欄位、以及 posts 表的 `likedBy`（按讚用戶列表）欄位等。此設計減少了關聯查詢的複雜性，同時保持資料的靈活性。
+所有主要資料表皆使用 TEXT 類型的 UUID 作為主鍵，確保全域唯一性與分散式系統的擴展性。在 SQLite 架構下，系統廣泛採用 JSON 格式儲存複雜資料結構，包括：users 表的 `attributes`（JSON 技能屬性）與 `stats`（JSON 學習統計）欄位、daily_progress 表的 `completedTaskIds`（JSON 已完成任務）欄位、daily_tasks 表的 `content`（JSON 任務內容）欄位、以及 notes 表的 `tags`（JSON 標籤陣列）欄位等。此設計減少了關聯查詢的複雜性，同時保持資料的靈活性。
 
-時間戳記統一採用 Unix 毫秒格式（INTEGER 類型），確保跨時區的一致性。users 表包含完整的遊戲化屬性（currentLevel, currentXP, totalXP），daily_progress 表則使用複合主鍵格式（userId_date）追蹤每日學習狀態與連續學習天數（streak）。task_submissions 表儲存 AI 評分（score: 0-100）與回饋文字（feedback），實現智能評估的結果持久化。
+時間戳記統一採用 Unix 毫秒格式（INTEGER 類型的 createdAt 欄位），確保跨時區的一致性。users 表包含完整的遊戲化屬性（currentLevel 當前等級、currentXP 當前經驗值、totalXP 累計經驗值），daily_progress 表則使用複合主鍵格式（userId_date）追蹤每日學習狀態與連續學習天數（streak）。task_submissions 表儲存 AI 評分（score: 0-100）與回饋文字（feedback），實現智能評估的結果持久化。posts 表額外包含 likes（按讚數）與 commentCount（評論數）欄位，提升社群互動數據的查詢效率。
 
 ==== 關係 (Relationships)
 
-資料庫關係設計以 users 表為核心，放射狀連接各功能模組。users 表與 daily_progress、task_submissions、highlights、notes、posts、comments 六表建立一對多關係，體現用戶是所有系統活動的主體。
+資料庫關係設計以 users 表為核心，放射狀連接各功能模組。users 表與 daily_progress（擁有）、task_submissions（提交）、highlights（標註）、notes（撰寫）、posts（發文）、comments（評論）六表建立一對多關係，體現用戶是所有系統活動的主體。
 
-在學習系統中，daily_tasks 與 task_submissions 建立一對多關係，記錄同一任務被不同用戶提交評分的完整軌跡。社群系統中，posts 與 comments 建立一對多關係，而 comments 表透過 parentCommentId 欄位實現自我關聯，支援無限層級的巢狀回覆結構，depth 欄位記錄當前評論的巢狀深度。
+在學習系統中，daily_tasks 與 task_submissions 建立「被評分」的一對多關係，記錄同一任務被不同用戶提交評分的完整軌跡。社群系統中，posts 與 comments 建立「包含」的一對多關係，而 comments 表透過 parentCommentId 欄位實現自我關聯，支援無限層級的巢狀回覆結構，depth 欄位記錄當前評論的巢狀深度。
 
-值得特別說明的是筆記與貼文之間的雙向連結設計：notes 表的 sharedPostId 外鍵指向由該筆記分享而成的貼文，而 posts 表的 sourceNoteId 外鍵則指向貼文的來源筆記。此設計實現了閱讀筆記一鍵分享至社群的功能，同時保留完整的溯源關係。
+值得特別說明的是筆記與貼文之間的「分享為」雙向連結設計：notes 表的 sharedPostId 外鍵指向由該筆記分享而成的貼文，而 posts 表的 sourceNoteId 外鍵則指向貼文的來源筆記。此設計實現了閱讀筆記一鍵分享至社群的功能，同時保留完整的溯源關係。
 
 ==== 基數 (Cardinality)
 
