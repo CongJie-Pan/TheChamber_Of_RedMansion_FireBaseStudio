@@ -157,6 +157,14 @@ const DEBUG_PAGINATION = typeof window !== 'undefined' && process.env.NODE_ENV =
 // Using fixed height avoids pagination recalculation when toolbar content changes
 const TOOLBAR_HEIGHT = 96; // Fixed height in pixels (p-2 padding + content height)
 
+// Feature flags for enabling/disabling features
+// This allows clean feature toggling without dead code patterns like `{false && ...}`
+const FEATURE_FLAGS = {
+  // Read Aloud button - Temporarily disabled
+  // Reason: Waiting for TTS API integration
+  // Contact: Development team for re-enablement
+  READ_ALOUD_ENABLED: false,
+} as const;
 
 interface Annotation {
   text: string;
@@ -3669,7 +3677,13 @@ ${selectedTextContent}
         data-no-selection="true"
         onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
       >
-        <div className={cn("mx-auto flex items-center justify-between max-w-screen-xl px-4 md:px-6")}>
+        {/*
+          Note: Using `w-full mx-auto max-w-screen-xl` instead of Tailwind's `container` class.
+          Reason: The `container` class adds responsive padding that conflicts with this component's
+          custom layout requirements. Using explicit padding (px-4 sm:px-6 lg:px-8) provides better
+          control over horizontal spacing and ensures proper alignment across all screen sizes.
+        */}
+        <div className={cn("w-full mx-auto flex items-center justify-between max-w-screen-xl px-4 sm:px-6 lg:px-8")}>
           {/* Left Section - Return button always visible, others hidden on mobile */}
           <div className="flex items-center gap-2 md:gap-3">
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => router.push('/dashboard')} title={t('buttons.return')}>
@@ -4770,8 +4784,8 @@ ${selectedTextContent}
         </SheetContent>
       </Sheet>
 
-      {/* Hidden: Read Aloud button - Temporarily disabled */}
-      {false && (
+      {/* Read Aloud button - controlled by FEATURE_FLAGS.READ_ALOUD_ENABLED */}
+      {FEATURE_FLAGS.READ_ALOUD_ENABLED && (
         <Button
           variant="default"
           className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-40 bg-primary text-primary-foreground hover:bg-primary/90 p-0 flex items-center justify-center"

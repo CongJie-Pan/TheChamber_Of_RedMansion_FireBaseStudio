@@ -560,7 +560,11 @@ export class DailyTaskService {
 
       // 9. Award XP through SQLite repository
       // Phase 4-T1: Guest account protection - record score but don't award XP
-      const xpSourceId = task.sourceId || `daily-task-${taskId}-${todayDate}`;
+      // Fix: Append date to task sourceId to allow same content on different days
+      // This prevents permanent blocking while maintaining same-day deduplication
+      const xpSourceId = task.sourceId
+        ? `${task.sourceId}-${todayDate}`
+        : `daily-task-${taskId}-${todayDate}`;
 
       let xpResult: {
         success: boolean;

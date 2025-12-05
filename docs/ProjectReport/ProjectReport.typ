@@ -533,7 +533,7 @@ notes 與 posts 之間採用可選的一對一關係（0..1:0..1）：一篇筆�
 ==== 介紹頁
 
 #figure(
-  image("UiPicture/introductionPage/introductionPage.png", width: 90%),
+  image("UiPicture/introductionPage/introductionPage.png", width: 75%),
   caption: [介紹頁面]
 )
 
@@ -556,25 +556,8 @@ notes 與 posts 之間採用可選的一對一關係（0..1:0..1）：一篇筆�
   )
 )
 
-#grid(
-  columns: 2,
-  gutter: 1em,
-  figure(
-    image("UiPicture/RegisterLoginPage/RegisterPage_2.jpg", width: 100%),
-    caption: [註冊頁面(簡單選填古典文學能力基礎)]
-  ),
-  figure(
-    image("UiPicture/RegisterLoginPage/RegisterPage_3.jpg", width: 100%),
-    caption: [註冊頁面(填寫對紅樓夢感興趣之處)]
-  )
-)
 
-#figure(
-  image("UiPicture/RegisterLoginPage/RegisterPage_4.jpg", width: 55%),
-  caption: [註冊頁面(填寫使用本平台的用途)]
-)
-
-註冊流程採用了沉浸式的分步設計，將帳戶創建與個人化資訊收集分解為簡潔的獨立頁面。每一頁都聚焦於單一或少量相關的資訊輸入，從基礎的帳號密碼，到學習背景、閱讀興趣及目標，引導用戶逐步完成。視覺上，註冊卡片延續了應用程式典雅的中國風配色與清晰的排版，確保了品牌一致性與閱讀舒適度。透過明確的步驟指示與便捷的前後導航按鈕，我們致力於提供一個流暢、直觀且無壓力的註冊體驗。
+登入註冊流程採用了經典簡單的設計。視覺上，註冊卡片延續了應用程式典雅的中國風配色與清晰的排版，確保了品牌一致性與閱讀舒適度，我們致力於提供一個流暢、直觀且無壓力的註冊體驗。
 
 ==== 首頁
 
@@ -583,28 +566,9 @@ notes 與 posts 之間採用可選的一對一關係（0..1:0..1）：一篇筆�
   caption: [首頁(上半部)]
 )
 
-#figure(
-  image("UiPicture/mainPage/mainPage_2.jpg", width: 100%),
-  caption: [首頁(下半部)]
-)
-
 用戶首頁以清晰的卡片式佈局，為學習者提供一個即時的學習狀態總覽，一目了然當前的閱讀進度與整體成就。最上方顯著的學習進度概覽區，以動態的環形進度條展示《紅樓夢》章回完成度，並輔以多個小型數據卡片，如平均理解度、總學習時長等關鍵指標。緊隨其後的是「最近閱讀活動」區塊，採用橫向滾動的書本卡片陳列，方便快速返回上次的閱讀章節或相關的專家解讀。此外，頁面還會展示設定的個人學習目標列表，並以視覺化方式標記已達成和待完成的項目，持續激勵您的學習動力。整體設計延續了應用的典雅中國風，運用溫暖的色調與精緻的圖標，營造出一個既美觀又實用的個人化學習中心。
 
 ==== 閱讀頁面
-#figure(
-  image("UiPicture/ReadingPage/ReadingPage_ChoosingBook_originalText.png", width: 100%),
-  caption: [書架(紅樓夢原文)]
-)
-
-#figure(
-  image("UiPicture/ReadingPage/ReadingPage_ChoosingBook_expertText.png", width: 100%),
-  caption: [書架(專家解讀內容)]
-)
-
-「我的書架」頁面採用了清晰直觀的卡片式設計，能輕鬆管理與選擇《紅樓夢》的閱讀資源。頁面頂部通過醒目的「我的書架」標題和選項卡（Tabs）來組織內容，將書籍清晰地劃分為「紅樓夢原文」、「專家解讀」以及「最近學習」三大類別。在每個類別下，用戶可以利用「全部」、「進度」和「分類」等篩選按鈕快速定位書籍，而每本書籍則以獨立的「書籍卡片」形式展示，卡片上包含書本圖標佔位符、書名、作者、簡介以及一個直達閱讀界面的「閱讀」按鈕，整體佈局採用響應式網格，確保在各種設備上均有良好的瀏覽體驗。
-
-在「紅樓夢原文」部分，我們彙集了《紅樓夢》的不同版本，如庚辰本、程甲本等，方便您進行對比閱讀或選擇偏好的版本進行深入研讀，並以「電子書」標籤加以區分。而在「專家解讀」部分，則收錄了如蔣勳、白先勇等學者的權威解讀著作，幫助用戶從多個視角理解這部經典的深層內涵與藝術成就。
-
 
 #figure(
   image("UiPicture/ReadingPage/readingPage_White.png", width: 100%),
@@ -631,24 +595,15 @@ notes 與 posts 之間採用可選的一對一關係（0..1:0..1）：一篇筆�
 為了深化理解與互動，閱讀頁面整合了多種智能輔助工具。當用戶選取任意文本段落時，會浮現一個快捷操作欄，提供「寫筆記」、「複製」、「問 AI」等功能；「寫筆記」會拉出側邊面板，讓用戶記錄與選文相關的思考，而「問 AI」則能針對選定內容，向特化的《紅樓夢》AI模型提問並獲得解答。此外，頁面還設有獨立的面板來展示當前章回的「知識圖譜」，將人物、事件、概念間的關係視覺化，並提供完整的「目錄」以便在各章回間快速跳轉。這些精心設計的互動功能，旨在將傳統的文本閱讀轉化為一次富有探索性的學習旅程。
 
 ==== 成就系統功能
+
 #figure(
-  image("UiPicture/achievementPage/achievementPage_1.jpg", width: 90%),
-  caption: [成就頁面：顯示獲得的成就]
+  image("UiPicture\achievementPage\achievementPage_1.png", width: 100%),
+  caption: [成就頁面：成就與目標概覽]
 )
 
 #figure(
-  image("UiPicture/achievementPage/achievementPage_2.jpg", width: 90%),
-  caption: [成就頁面：學習進度總覽]
-)
-
-#figure(
-  image("UiPicture/achievementPage/achievementPage_3.jpg", width: 90%),
-  caption: [成就頁面：目標顯示與自行設定目標]
-)
-
-#figure(
-  image("UiPicture/achievementPage/achievementPage_4.jpg", width: 90%),
-  caption: [成就頁面：學習挑戰賽]
+  image("UiPicture\achievementPage\achievementPage_2.png", width: 100%),
+  caption: [成就頁面：成就與學習狀況概覽]
 )
 
 「成就與目標」頁面是「紅樓慧讀」中激勵用戶持續學習的核心空間，整體採用清晰的卡片式佈局，將用戶的學習成果與未來規劃直觀呈現。頁面首先以「我獲得的成就」區塊迎接用戶，將每一個達成的里程碑——無論是完成特定章回閱讀，還是連續登入學習——都化為一枚枚帶有專屬圖標、詳細描述及獲得日期的精緻徽章卡片，並輔以分類標籤，讓學習成就一目了然且富有儀式感。
@@ -660,19 +615,14 @@ notes 與 posts 之間採用可選的一對一關係（0..1:0..1）：一篇筆�
 ==== 知識圖譜頁面
 以下為參考Github「KGQA：基於知識圖譜的《紅樓夢》人物關係可視化及問答系統」一專案#super[①]，的介面設計，會參考使用其專案納入專題中實作，作為知識圖譜頁面的主要部分。於圖二十七，用戶可以在搜尋欄輸入紅樓夢角色名字，或是點擊輸入欄下方的名字，即會顯示如左側該位角色的關係圖譜。而後，於圖二十八，顯示總人物關係圖譜的頁面。於上方顏色標籤，可透過點擊決定是否查看該顏色系列人物關係。
 #figure(
-  image("UiPicture/knowledgeGraphPage/knowledgeGraph_mainPage.jpg", width: 100%),
+  image("UiPicture\knowledgeGraphPage\knowledgeGraph01.jpg", width: 100%),
   caption: [知識圖譜頁面：人物檢索]
 )
 
 #figure(
-  image("UiPicture/knowledgeGraphPage/knowledgeGraph_allCharactorPage.jpg", width: 100%),
+  image("UiPicture\knowledgeGraphPage\knowledgeGraph02.jpg", width: 100%),
   caption: [知識圖譜頁面：總人物圖譜]
 )
-
-#line(length: 100%)
-
----
-① https://github.com/chizhu/KGQA_HLM
 
 ==== 紅學社：社群功能頁面
 #figure(
@@ -752,29 +702,6 @@ Perplexity Sonar API負責問答與分析任務，特別是需要網路搜尋能
 Repository層測試採用記憶體SQLite資料庫（:memory:）進行隔離測試，每個測試案例都在獨立的資料庫實例中執行，避免測試間的資料干擾。AI服務測試透過Jest Mock機制模擬外部API回應，確保測試可重複執行且不產生實際API費用。
 
 版本控制採用Git，開發流程遵循功能分支工作流。每次程式碼變更都需要通過自動化測試驗證，確保主分支的穩定性。系統支援Vercel平台部署，實現持續整合和持續部署（CI/CD）的自動化流程。
-
-
-
-== 時程規劃：甘特圖
-
-#figure(
-  image("miscellaneous/ProjectTimeGanttChart.png", width: 100%),
-  caption: [專案時程規劃(圖中紅色為製圖今日線6月3日)]
-)
-
-在規劃階段 (Planning)，我們將進行主題與動機的研究，時間範圍為2025年2月1日至2025年5月15日。在此期間，我們將確定專案的方向和研究動機，並進行需求調研。
-
-接下來是分析與設計階段 (Analysis & Design)，這一階段的時間為2025年5月20日至2025年6月15日，主要內容包括系統架構的設計和需求分析。
-
-在工作流程階段 (Workflow)，我們將於2025年5月20日至2025年6月15日進行工作流程的規劃，制定開發流程和協作方式。
-
-隨後進入前端開發階段 (UI/Frontend)，這一階段的時間為2025年5月1日至2025年6月15日，將專注於用戶介面的設計和前端功能的實作。
-
-接著是後端開發階段 (Backend)，時間範圍為2025年6月16日至2025年9月30日，主要內容為核心業務邏輯和資料庫的設計實作。
-
-在測試階段 (Testing)，我們將於2025年10月1日至2025年10月15日進行測試與品質保證，內容包括功能測試、整合測試和效能測試。
-
-最後是發布階段 (Release)，這一階段的時間為2025年10月16日至2025年12月31日，將進行系統的上線和後續的維護支援。
 
 = 系統使用對象
 
