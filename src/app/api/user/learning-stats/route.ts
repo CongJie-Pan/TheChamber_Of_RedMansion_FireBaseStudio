@@ -103,6 +103,13 @@ export async function GET(request: NextRequest) {
     // Note: profile.stats could be malformed or have missing fields
     const userStats = profile.stats || {};
 
+    // Use actual completedChapters array length for accurate count
+    // The completedChapters array tracks which chapters have been completed
+    // This is more accurate than stats.chaptersCompleted which may not be updated
+    const actualChaptersCompleted = Array.isArray(profile.completedChapters)
+      ? profile.completedChapters.length
+      : 0;
+
     // Check Accept-Language header for language preference
     const acceptLanguage = request.headers.get('accept-language') || '';
     const isEnglish = acceptLanguage.toLowerCase().startsWith('en');
@@ -112,7 +119,7 @@ export async function GET(request: NextRequest) {
     const stats: LearningStats = {
       totalReadingTime: formatReadingTime(readingMinutes, isEnglish),
       totalReadingTimeMinutes: readingMinutes,
-      chaptersCompleted: userStats.chaptersCompleted ?? 0,
+      chaptersCompleted: actualChaptersCompleted,
       totalChapters: 120, // Fixed total chapters for 紅樓夢
       notesTaken: noteCount, // Use actual count from notes table
       currentStreak: userStats.currentStreak ?? 0,

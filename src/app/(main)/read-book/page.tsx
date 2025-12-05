@@ -3669,7 +3669,7 @@ ${selectedTextContent}
         data-no-selection="true"
         onClick={(e) => { e.stopPropagation(); handleInteraction(); }}
       >
-        <div className={cn("container mx-auto flex items-center justify-between max-w-screen-xl")}>
+        <div className={cn("mx-auto flex items-center justify-between max-w-screen-xl px-4 md:px-6")}>
           {/* Left Section - Return button always visible, others hidden on mobile */}
           <div className="flex items-center gap-2 md:gap-3">
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => router.push('/dashboard')} title={t('buttons.return')}>
@@ -4770,16 +4770,18 @@ ${selectedTextContent}
         </SheetContent>
       </Sheet>
 
-      {/* Hidden: Read Aloud button (functionality preserved, UI hidden per user request) */}
-      <Button
-        variant="default"
-        className="hidden fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-40 bg-primary text-primary-foreground hover:bg-primary/90 p-0 flex items-center justify-center"
-        onClick={handleReadAloudClick}
-        title={t('buttons.readAloud')}
-        data-no-selection="true"
-      >
-        <i className="fa fa-play-circle-o text-[54px]" aria-hidden="true"></i>
-      </Button>
+      {/* Hidden: Read Aloud button - Temporarily disabled */}
+      {false && (
+        <Button
+          variant="default"
+          className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg z-40 bg-primary text-primary-foreground hover:bg-primary/90 p-0 flex items-center justify-center"
+          onClick={handleReadAloudClick}
+          title={t('buttons.readAloud')}
+          data-no-selection="true"
+        >
+          <i className="fa fa-play-circle-o text-[54px]" aria-hidden="true"></i>
+        </Button>
+      )}
 
       {/* Level Up Modal */}
       <LevelUpModal

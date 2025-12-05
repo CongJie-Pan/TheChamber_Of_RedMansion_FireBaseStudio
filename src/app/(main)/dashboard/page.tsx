@@ -1,41 +1,38 @@
 /**
  * @fileOverview User Dashboard - Learning Progress and Overview
- * 
+ *
  * The dashboard serves as the main hub for users to track their learning progress,
- * view reading statistics, access recent activities, and manage learning goals.
+ * view reading statistics, and manage learning goals.
  * This component provides a comprehensive overview of the user's engagement
  * with the Dream of the Red Chamber learning platform.
- * 
+ *
  * Key features:
  * - Animated circular progress indicator showing chapter completion
  * - Learning statistics cards with icons and visual indicators
- * - Recent reading activity carousel with progress tracking
- * - Learning goals checklist with completion status
+ * - Daily tasks summary with XP tracking
  * - Responsive grid layout optimized for different screen sizes
  * - Multi-language support with dynamic content translation
  * - Interactive hover effects and smooth animations
- * - Quick navigation to key platform features
- * 
+ *
  * Design principles:
  * - Clean, informative interface minimizing cognitive load
  * - Progressive disclosure of information through organized sections
  * - Visual hierarchy using cards, typography, and iconography
  * - Consistent theming matching the classical Chinese aesthetic
  * - Accessibility through proper contrast and keyboard navigation
- * 
+ *
  * Technical implementation:
  * - React functional component with hooks for state management
  * - Animated SVG progress circle with smooth transitions
  * - CSS animations and transforms for enhanced user experience
  * - Responsive design using CSS Grid and Flexbox
  * - Integration with custom hooks for language and utilities
- * 
+ *
  * Educational approach:
  * - Gamification elements to maintain engagement
  * - Progress visualization to encourage completion
- * - Goal-setting framework for structured learning
- * - Recent activity tracking for habit formation
- * 
+ * - Daily tasks for structured learning
+ *
  * The dashboard is designed to motivate continued learning while providing
  * clear insights into user progress and achievements within the platform.
  */
@@ -43,28 +40,21 @@
 "use client"; // Required for client-side state management and animations
 
 // UI component imports for dashboard interface
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
 // Icon imports for visual indicators and navigation
 import {
-  BookOpen,        // Reading activity indicator
   Activity,        // Learning activity metrics
   Edit3,           // Note-taking and writing activities
   RefreshCw        // Task 2.2: Retry button icon
 } from "lucide-react";
 
-// Next.js navigation
-import Link from "next/link";
-
 // React hooks for component state and lifecycle
 import { useState, useEffect, useCallback } from 'react';
 
 // Utility functions and custom hooks
-import { cn } from "@/lib/utils";
 import { formatReadingTime } from "@/lib/format-utils";
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
@@ -121,18 +111,6 @@ const StatCard: React.FC<StatCardProps> = ({ value, label, icon: Icon }) => (
   </Card>
 );
 
-/**
- * Interface for recent reading activity items
- * Defines structure for books/content user has recently engaged with
- */
-interface RecentActivityItem {
-  id: string;          // Unique identifier for the reading item
-  title: string;       // Display title of the book or content
-  author: string;      // Author name for attribution
-  progress: number;    // Reading progress percentage (0-100)
-  current: boolean;    // Whether this is the currently active reading
-  readLink: string;    // URL to navigate to for continuing reading
-}
 
 /**
  * Dashboard Page Component - Main Learning Overview Interface
@@ -278,18 +256,6 @@ export default function DashboardPage() {
     },
   ];
 
-  /**
-   * Recent reading activity data
-   * Sample data showing books user has recently engaged with
-   * In production, this would be fetched from user reading history
-   */
-  const recentActivityData: RecentActivityItem[] = [
-    { id: "hlm-gengchen", title: "紅樓夢 (庚辰本校注)", author: "曹雪芹", progress: 75, current: true, readLink: "/read-book" },
-    { id: "jiangxun-youth", title: "蔣勳說紅樓夢青春版", author: "蔣勳", progress: 50, current: false, readLink: "#" },
-    { id: "hlm-chengjia", title: "紅樓夢 (程甲本影印)", author: "[清] 曹雪芹 高鶚", progress: 90, current: false, readLink: "#" },
-    { id: "baixianyong-detailed", title: "白先勇細說紅樓夢", author: "白先勇", progress: 20, current: false, readLink: "#" },
-    { id: "oulijuan-sixviews", title: "歐麗娟 六觀紅樓(綜論卷)", author: "歐麗娟", progress: 60, current: false, readLink: "#" },
-  ];
 
   // SVG circle mathematics for progress animation
   const radius = 15.9155; // Optimized radius for 36x36 viewBox
@@ -422,69 +388,6 @@ export default function DashboardPage() {
         <DailyTasksSummary />
       </div>
 
-      {/*
-        Recent Reading Activity Section
-        Horizontal scrollable carousel of recently accessed books
-        Shows progress indicators and navigation links
-      */}
-      <Card className="shadow-xl hover:shadow-primary/20 transition-shadow">
-        <CardHeader>
-          <CardTitle className="text-2xl font-artistic text-primary">{t('dashboard.recentReading')}</CardTitle>
-          <CardDescription>{t('dashboard.recentReadingDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="w-full">
-            {/* w-max + whitespace-nowrap keep cards in a single intrinsic row so ScrollArea handles overflow */}
-            <div className="flex w-max space-x-4 pb-4 whitespace-nowrap">
-              {recentActivityData.map((item) => (
-                <Card key={item.id} className="w-[300px] flex-shrink-0 hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      {/* Book cover placeholder */}
-                      <div className="w-12 h-16 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900 dark:to-red-800 rounded flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="h-6 w-6 text-red-600 dark:text-red-300" />
-                      </div>
-                      
-                      {/* Book information */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm text-foreground truncate">{item.title}</h3>
-                        <p className="text-xs text-muted-foreground mb-2">{item.author}</p>
-                        
-                        {/* Progress indicator */}
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">進度</span>
-                            <span className="text-foreground font-medium">{item.progress}%</span>
-                          </div>
-                          <Progress value={item.progress} className="h-1.5" />
-                        </div>
-                        
-                        {/* Current reading indicator */}
-                        {item.current && (
-                          <div className="flex items-center space-x-1 mt-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-green-600 dark:text-green-400 font-medium">當前閱讀</span>
-                          </div>
-                        )}
-                        
-                        {/* Continue reading button */}
-                        <div className="mt-3">
-                          <Link href={item.readLink}>
-                            <Button variant="outline" size="sm" className="w-full text-xs">
-                              {item.current ? t('dashboard.continueReading') : t('buttons.read')}
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardContent>
-      </Card>
 
     </div>
   );
