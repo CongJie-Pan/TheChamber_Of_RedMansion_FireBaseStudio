@@ -94,6 +94,7 @@ const ReactMarkdown = dynamic(
 // Custom components and utilities
 import { cn } from "@/lib/utils";
 import { SimulatedKnowledgeGraph } from '@/components/SimulatedKnowledgeGraph';
+import ChunkErrorBoundary from '@/components/ChunkErrorBoundary';
 
 // Phase 4-T3: Lazy load KnowledgeGraphViewer (D3.js is heavy ~200KB)
 const KnowledgeGraphViewer = dynamic(
@@ -4145,23 +4146,60 @@ ${selectedTextContent}
             <SheetDescription>第{currentChapter.id}回知識圖譜的全屏互動檢視</SheetDescription>
           </SheetHeader>
           
-          {/* Fullscreen Knowledge Graph Container */}
+          {/* Fullscreen Knowledge Graph Container - mutually exclusive rendering */}
           <div className="flex-grow overflow-hidden relative">
-            <KnowledgeGraphViewer 
-              className="w-full h-full"
-              width={typeof window !== 'undefined' ? window.innerWidth : 1920}
-              height={typeof window !== 'undefined' ? window.innerHeight : 1080}
-              fullscreen={true}
-              chapterNumber={currentChapter.id}
-              onNodeClick={(node) => {
-                console.log('Node clicked:', node);
-                // Could add future functionality like showing node details
-              }}
-            />
-            {currentChapter.id !== 1 && (
+            {currentChapter.id === 1 ? (
+              <ChunkErrorBoundary
+                enableAutoRetry={true}
+                maxRetries={2}
+                fallback={
+                  <div className="flex items-center justify-center h-full bg-black/90">
+                    <div className="text-center space-y-4 p-8 max-w-md">
+                      <div className="text-6xl mb-4">&#x26A0;&#xFE0F;</div>
+                      <h3 className="text-xl font-bold text-red-300">知識圖譜載入失敗</h3>
+                      <p className="text-gray-300 text-sm">
+                        部分應用程式資源載入失敗，這通常是暫時性問題。
+                      </p>
+                      <div className="flex flex-col gap-2 mt-4">
+                        <Button
+                          onClick={() => {
+                            // Retry by closing and reopening the sheet to re-trigger component mount
+                            setIsKnowledgeGraphSheetOpen(false);
+                            setTimeout(() => setIsKnowledgeGraphSheetOpen(true), 100);
+                          }}
+                          variant="default"
+                          className="w-full bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          重試載入
+                        </Button>
+                        <Button
+                          onClick={() => setIsKnowledgeGraphSheetOpen(false)}
+                          variant="outline"
+                          className="w-full bg-transparent border-gray-600 text-gray-200 hover:bg-gray-800"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          關閉圖譜
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              >
+                <KnowledgeGraphViewer
+                  className="w-full h-full"
+                  width={typeof window !== 'undefined' ? window.innerWidth : 1920}
+                  height={typeof window !== 'undefined' ? window.innerHeight : 1080}
+                  fullscreen={true}
+                  chapterNumber={currentChapter.id}
+                  onNodeClick={(node) => {
+                    // Future: Show node details panel
+                  }}
+                />
+              </ChunkErrorBoundary>
+            ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-900/20 via-amber-900/20 to-yellow-900/20">
                 <div className="text-center p-8">
-                  <div className="text-6xl mb-4 text-red-400">🏮</div>
+                  <div className="text-6xl mb-4 text-red-400">&#x1F3EE;</div>
                   <h3 className="text-xl font-bold text-red-300 mb-2">知識圖譜建構中</h3>
                   <p className="text-gray-300">第{currentChapter.id}回的知識圖譜正在專家審核中</p>
                   <p className="text-sm text-gray-400 mt-2">目前僅提供第一回的完整知識圖譜</p>

@@ -388,6 +388,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
   // Phase 3-T2: D3.js zoom behavior with persistent transform state
   const zoomBehavior = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const currentTransformRef = useRef<ZoomTransform | null>(null); // Preserve zoom across re-renders
+  const dragEndTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track drag-end timeout for cleanup
 
   // Initialize D3.js visualization
   useEffect(() => {
@@ -417,6 +418,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
 
     // Create force simulation with enhanced spacing parameters to prevent node overlap
     // Reason: Users reported nodes overlapping - need stronger repulsion and larger distances
+    // Phase 3-T2 Fix: Tuned parameters for faster stabilization and less vibration
     const simulation = forceSimulation<KnowledgeGraphNode>(graphData.nodes)
       .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(graphData.links)
         .id(d => d.id)
@@ -429,9 +431,9 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .force("collision", forceCollide()
         .radius(d => (d as KnowledgeGraphNode).radius + 30) // Doubled from +15: larger personal space
         .strength(1.0)) // Maximum strength (was 0.85): strict collision prevention
-      .alphaDecay(0.02) // Faster decay to stop sooner (default: 0.0228)
-      .velocityDecay(0.4) // Increased friction to reduce jitter (default: 0.4)
-      .alphaMin(0.001); // Stop simulation when alpha drops below this threshold
+      .alphaDecay(0.05) // Increased from 0.02: faster decay for quicker stabilization
+      .velocityDecay(0.6) // Increased from 0.4: more friction to reduce oscillation
+      .alphaMin(0.002); // Raised from 0.001: slightly higher threshold for faster stop
 
     simulationRef.current = simulation;
 
@@ -523,7 +525,8 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .style("cursor", "pointer")
       .call(drag<SVGGElement, KnowledgeGraphNode>()
         .on("start", (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
+          // Phase 3-T2 Fix: Use lower alphaTarget for smoother drag
+          if (!event.active) simulation.alphaTarget(0.2).restart();
           d.fx = d.x;
           d.fy = d.y;
         })
@@ -535,6 +538,18 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           if (!event.active) simulation.alphaTarget(0);
           d.fx = null;
           d.fy = null;
+          // Phase 3-T2 Fix: Force stop simulation after brief settling time
+          // This prevents continued vibration after drag release
+          // Clear any existing timeout to prevent accumulation
+          if (dragEndTimeoutRef.current) {
+            clearTimeout(dragEndTimeoutRef.current);
+          }
+          dragEndTimeoutRef.current = setTimeout(() => {
+            if (simulation.alpha() < 0.05) {
+              simulation.stop();
+              setIsPlaying(false);
+            }
+          }, 500);
         }));
 
     // Add circular backgrounds for nodes with visual hierarchy
@@ -705,18 +720,33 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     zoomBehavior.current = zoomHandler;
     svg.call(zoomHandler);
 
-    // Phase 3-T2: Restore saved zoom transform if exists (prevents zoom reset)
-    if (currentTransformRef.current && !isInitialMount.current) {
+    // Phase 3-T2 Fix: Always restore saved zoom transform if exists (prevents zoom reset on resize)
+    // Reason: Previously checked isInitialMount which caused race conditions on rapid resize
+    if (currentTransformRef.current) {
       console.log('[KnowledgeGraph] Restoring zoom transform:', currentTransformRef.current);
       svg.call(zoomHandler.transform, currentTransformRef.current);
+    } else if (!isInitialMount.current) {
+      // No saved transform but not initial mount - apply default centered view
+      const defaultTransform = zoomIdentity
+        .translate(dimensions.width / 2, dimensions.height / 2)
+        .scale(0.5)
+        .translate(-dimensions.width / 2, -dimensions.height / 2);
+      svg.call(zoomHandler.transform, defaultTransform);
+      currentTransformRef.current = defaultTransform;
+      setZoomLevel(0.5);
     }
 
-    // Note: Initial zoom is set in separate useEffect to prevent reset on dimensions change
+    // Note: Initial zoom is set in separate useEffect only on true first mount
 
     // Cleanup function
     return () => {
       simulation.stop();
       clearTimeout(simulationTimeout); // Phase 3-T2: Clear timeout to prevent memory leak
+      // Phase 3-T2 Fix: Also clear drag-end timeout to prevent memory leak
+      if (dragEndTimeoutRef.current) {
+        clearTimeout(dragEndTimeoutRef.current);
+        dragEndTimeoutRef.current = null;
+      }
     };
   }, [graphData, dimensions.width, dimensions.height, onNodeClick]);
 
