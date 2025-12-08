@@ -85,3 +85,10 @@ the below both add the new claude session window:
   - [] "docs\PerplexityAI_BugFix_WorkList.md" 
 - continue to fix the "docs\2025_11_19_toDoList.md" of "Task 4.5"
   - [] "docs\BiColumn_BugFix_WorkList.md"
+
+---
+
+### 2025/12/5
+
+- lint and type error fix.
+- 
