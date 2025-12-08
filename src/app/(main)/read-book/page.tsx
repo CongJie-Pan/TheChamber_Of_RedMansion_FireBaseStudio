@@ -3293,7 +3293,7 @@ ${selectedTextContent}
                 authorId: user.id,
                 authorName: user.name || '匿名讀者',
                 content: postContent,
-                tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle],
+                tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle ?? ''],
                 category: 'discussion',
                 sourceNoteId: currentNoteObj.id  // Task 4.9/4.10: Link note to post
               };
@@ -3346,7 +3346,7 @@ ${selectedTextContent}
               authorId: user.id,
               authorName: user.name || '匿名讀者',
               content: postContent,
-              tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle],
+              tags: [`第${currentChapterId}回`, '筆記分享', chapterTitle ?? ''],
               category: 'discussion',
               sourceNoteId: noteId  // Task 4.9/4.10: Link note to post
             };
