@@ -38,10 +38,12 @@ export interface UserStats {
  * Extended from original for user-level-service compatibility (SQLITE-016)
  * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
  * Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
+ * TASK-001: Added displayName for user-customizable display name
  */
 export interface UserProfile {
   userId: string;
   username: string;
+  displayName?: string; // TASK-001: User-customizable display name (editable in account settings)
   email?: string;
   passwordHash?: string; // bcrypt hashed password (Phase 4 - SQLITE-019, only included in auth queries)
   isGuest?: boolean; // true for guest/anonymous accounts (Phase 4 - SQLITE-021)
@@ -63,10 +65,12 @@ export interface UserProfile {
  * User data interface for database operations
  * Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
  * Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
+ * TASK-001: Added displayName for user-customizable display name
  */
 interface UserRow {
   id: string;
   username: string;
+  displayName: string | null; // TASK-001: User-customizable display name
   email: string | null;
   passwordHash: string | null; // bcrypt hashed password (Phase 4 - SQLITE-019)
   isGuest: number; // 0 or 1 (Phase 4 - SQLITE-021)
@@ -176,6 +180,7 @@ function rowToUserProfile(row: UserRow): UserProfile {
   return {
     userId: row.id,
     username: row.username,
+    displayName: row.displayName || undefined, // TASK-001: Include display name if present
     email: row.email || undefined,
     passwordHash: row.passwordHash || undefined, // Include password hash if present (Phase 4 - SQLITE-019)
     isGuest: row.isGuest === 1, // Convert 0/1 to boolean (Phase 4 - SQLITE-021)
@@ -234,14 +239,15 @@ export async function createUser(
   await db.execute({
     sql: `
       INSERT INTO users (
-        id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
+        id, username, displayName, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
         attributes, completedTasks, unlockedContent, completedChapters,
         hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
       userId,
       username,
+      null, // TASK-001: displayName defaults to null (user can set it later)
       email || null,
       passwordHash || null, // Insert password hash or null (Phase 4 - SQLITE-019)
       0, // isGuest = 0 (false) for regular users (Phase 4 - SQLITE-021)
@@ -315,14 +321,15 @@ export async function createGuestUser(): Promise<UserProfile> {
     await db.execute({
       sql: `
         INSERT INTO users (
-          id, username, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
+          id, username, displayName, email, passwordHash, isGuest, currentLevel, currentXP, totalXP,
           attributes, completedTasks, unlockedContent, completedChapters,
           hasReceivedWelcomeBonus, stats, createdAt, updatedAt, lastActivityAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         GUEST_USER_ID,
         GUEST_USERNAME,
+        null, // TASK-001: Guest users also have no initial displayName
         GUEST_EMAIL,
         passwordHash,
         1, // isGuest = 1 (true) for guest accounts
@@ -424,6 +431,12 @@ export async function updateUser(
   if (updates.username !== undefined) {
     updateFields.push('username = ?');
     updateValues.push(updates.username);
+  }
+
+  // TASK-001: Support displayName updates
+  if (updates.displayName !== undefined) {
+    updateFields.push('displayName = ?');
+    updateValues.push(updates.displayName || null);
   }
 
   if (updates.email !== undefined) {

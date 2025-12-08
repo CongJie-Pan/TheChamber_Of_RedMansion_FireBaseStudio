@@ -229,6 +229,7 @@ export class UserLevelService {
       return {
         userId: sqliteProfile.userId,
         username: sqliteProfile.username,
+        displayName: sqliteProfile.displayName, // TASK-001: Include displayName
         email: sqliteProfile.email ?? '',
         currentLevel: sqliteProfile.currentLevel,
         currentXP: sqliteProfile.currentXP,

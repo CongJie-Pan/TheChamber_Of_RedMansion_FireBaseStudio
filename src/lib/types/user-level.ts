@@ -221,9 +221,16 @@ export interface UserProfile {
   userId: string;
 
   /**
-   * User display name
+   * Username - used for login (read-only after creation)
+   * Phase 4 - TASK-001: Separated from displayName
    */
   username: string;
+
+  /**
+   * Display Name - user-customizable public name shown in community
+   * Phase 4 - TASK-001: New field for editable display name
+   */
+  displayName?: string;
 
   /**
    * User email address (from NextAuth or generated for guest users)

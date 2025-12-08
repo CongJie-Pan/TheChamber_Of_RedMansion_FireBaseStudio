@@ -2954,7 +2954,7 @@ export default function ReadBookPage() {
     } else {
       setUserNotes([]);
     }
-  }, [user?.id, currentChapter]);
+  }, [user?.id, currentChapter?.id]); // FIX: Use primitive value to prevent infinite loop
 
   // One-time welcome bonus for new users entering reading page
   useEffect(() => {
@@ -3613,7 +3613,7 @@ ${selectedTextContent}
       const notes = await fetchNotes(user.id, currentChapter.id);
       setUserNotes(notes);
     }
-  }, [user, currentChapter]);
+  }, [user?.id, currentChapter?.id]); // FIX: Use primitive values to prevent infinite loop
 
   useEffect(() => {
     fetchNotesForChapter();
@@ -3684,9 +3684,9 @@ ${selectedTextContent}
           custom layout requirements. Using explicit padding (px-4 sm:px-6 lg:px-8) provides better
           control over horizontal spacing and ensures proper alignment across all screen sizes.
         */}
-        <div className={cn("w-full mx-auto flex items-center justify-between max-w-screen-xl px-4 sm:px-6 lg:px-8")}>
+        <div className={cn("w-full mx-auto relative flex items-center justify-between gap-4 max-w-screen-xl px-4 sm:px-6 lg:px-8")}>
           {/* Left Section - Return button always visible, others hidden on mobile */}
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 z-10">
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => router.push('/dashboard')} title={t('buttons.return')}>
               <CornerUpLeft className={toolbarIconClass} />
               <span className={cn(toolbarLabelClass, "hidden md:block")}>{t('buttons.return')}</span>
@@ -3795,14 +3795,16 @@ ${selectedTextContent}
             </div>
           </div>
 
-          {/* Center Section - Chapter Title (simplified on mobile) */}
-          <div className="flex-1 text-center overflow-hidden px-2 mx-2 md:mx-4 min-w-0">
-            <h1 className={cn("text-sm md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
-            {currentChapterSubtitle && <p className={cn("text-sm truncate hidden md:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
+          {/* Center Section - Chapter Title (TASK-007: Absolute positioning for true screen centering) */}
+          <div className="absolute left-1/2 -translate-x-1/2 max-w-[40%] sm:max-w-[50%] md:max-w-[60%] pointer-events-none">
+            <div className="text-center overflow-hidden">
+              <h1 className={cn("text-sm md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
+              {currentChapterSubtitle && <p className={cn("text-sm truncate hidden md:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
+            </div>
           </div>
 
           {/* Right Section - AI always visible, others hidden on mobile, menu trigger on mobile */}
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 z-10">
             {/* Desktop only buttons */}
             <div className="hidden md:flex items-center gap-2 md:gap-3">
               <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>

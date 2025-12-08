@@ -246,15 +246,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const refreshUserProfile = useCallback(async () => {
     if (!user?.id) {
+      console.log('⚠️ [AuthContext] No user ID, skipping profile refresh');
       setUserProfile(null);
       return;
     }
+
+    console.log('🔄 [AuthContext] Refreshing user profile for user:', user.id);
 
     try {
       const response = await fetch(`/api/user/profile?userId=${user.id}`);
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ [AuthContext] Profile data received:', data.profile);
+        console.log('   - displayName:', data.profile?.displayName);
+        console.log('   - username:', data.profile?.username);
         setUserProfile(data.profile);
       } else {
         const errorData = await response.json();
