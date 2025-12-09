@@ -93,7 +93,16 @@ This module exports a series of specialized React components, each serving a dis
 
 ### 4.6. `KnowledgeGraphViewer.tsx`
 
-*   **Purpose:** This component renders a dynamic, interactive force-directed graph to visualize the complex relationships between characters, locations, and events in the novel. It uses the D3.js library to handle the physics simulation and rendering. The component allows for zooming, panning, and node interaction to explore the data.
+*   **Purpose:** This component renders a dynamic, interactive knowledge graph to visualize the complex relationships between characters, locations, and events in the novel. It uses the D3.js library to handle the physics simulation and rendering. The component allows for zooming, panning, and node interaction to explore the data.
+*   **Layout Algorithm:** **Radial Group Layout (径向分组布局)**
+    *   Nodes are organized into concentric rings based on their `group` property (1-5)
+    *   **Ring 1 (Core):** 神話人物/神器 (女媧、頑石、石頭記) - innermost
+    *   **Ring 2:** 神仙 (僧、道)
+    *   **Ring 3:** 世俗人物 (甄士隱、賈雨村等)
+    *   **Ring 4:** 地點 (青埂峰、姑蘇城等)
+    *   **Ring 5 (Outer):** 事件/概念 (補天、好了歌等)
+    *   Uses `forceRadial` as primary force with 80% strength for ring structure
+    *   Angular distribution via `forceX` and `forceY` spreads nodes evenly within each ring
 *   **Control UI Buttons:**
     *   **Play/Pause**: Toggle the force simulation animation on/off
     *   **Zoom In/Out**: Adjust the graph zoom level
@@ -101,10 +110,12 @@ This module exports a series of specialized React components, each serving a dis
     *   **Reset View**: Return to initial zoom and pan position
 *   **Functions:**
     *   `KnowledgeGraphViewer(props: KnowledgeGraphViewerProps): React.FC`: The main component that sets up the D3 simulation and renders the SVG-based graph.
+    *   `getGroupRadius(group: number): number`: Internal function that calculates the radius for each group ring based on viewport dimensions.
 *   **Key Classes / Constants / Variables:**
     *   `KnowledgeGraphNode`: An interface for the data structure of a single node (e.g., a character) in the graph.
     *   `KnowledgeGraphLink`: An interface for the data structure of a link (a relationship) between two nodes.
     *   `d3.forceSimulation`: The core D3.js function used to create and manage the graph's physics.
+    *   `d3.forceRadial`: Primary force for organizing nodes into concentric rings by group.
 
 ### 4.7. `MuseumContentCard.tsx`
 
@@ -240,8 +251,15 @@ graph LR
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** 2025-11-30
+**Document Version:** 1.2
+**Last Updated:** 2025-12-09
+**Changes in v1.2:**
+- **KnowledgeGraphViewer:** Implemented Radial Group Layout (径向分组布局) for organized node distribution
+  - Nodes now arranged in 5 concentric rings by group property
+  - Added `forceRadial` as primary layout force with 80% strength
+  - Angular distribution using `forceX`/`forceY` for even spacing within rings
+  - Documented `getGroupRadius()` function for ring radius calculation
+
 **Changes in v1.1:**
 - Updated ClientOnly.tsx to document `useSyncExternalStore` usage (React 18 best practice)
 - Added ChunkErrorBoundary props: `maxRetries`, `enableAutoRetry`, `onError`

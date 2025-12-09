@@ -42,6 +42,9 @@ import {
   forceManyBody,
   forceCenter,
   forceCollide,
+  forceRadial,
+  forceX,
+  forceY,
   drag,
   zoom,
   zoomIdentity
@@ -416,24 +419,113 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .attr("stop-color", "#EAB308") // Yellow end for gradient effect
       .attr("stop-opacity", 0.7); // Increased from 0.3 for better visibility
 
-    // Create force simulation with enhanced spacing parameters to prevent node overlap
-    // Reason: Users reported nodes overlapping - need stronger repulsion and larger distances
-    // Phase 3-T2 Fix: Tuned parameters for faster stabilization and less vibration
-    const simulation = forceSimulation<KnowledgeGraphNode>(graphData.nodes)
-      .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(graphData.links)
+    // ============================================================
+    // RADIAL GROUP LAYOUT (径向分组布局)
+    // ============================================================
+    // Calculate center point for the radial layout
+    const centerX = dimensions.width / 2;
+    const centerY = dimensions.height / 2;
+
+    // Ring radius multipliers - spacing designed for visual balance
+    // Ratio progression provides clear visual separation between groups
+    const RING_RADIUS_MULTIPLIERS: Readonly<Record<number, number>> = {
+      1: 1.0,   // 核心: 神話人物/神器 (女媧、頑石、石頭記)
+      2: 2.2,   // 第二圈: 神仙 (僧、道)
+      3: 3.5,   // 第三圈: 世俗人物 (甄士隱、賈雨村等)
+      4: 4.5,   // 第四圈: 地點 (青埂峰、姑蘇城等)
+      5: 5.5,   // 最外圈: 事件/概念 (補天、好了歌等)
+    };
+
+    const baseRadius = Math.min(dimensions.width, dimensions.height) * 0.12;
+    const getGroupRadius = (group: number): number => {
+      return baseRadius * (RING_RADIUS_MULTIPLIERS[group] ?? group);
+    };
+
+    // ============================================================
+    // FIX: Clone nodes to avoid mutating props (React immutability)
+    // ============================================================
+    const workingNodes: KnowledgeGraphNode[] = graphData.nodes.map(node => ({ ...node }));
+    const workingLinks: KnowledgeGraphLink[] = graphData.links.map(link => ({ ...link }));
+
+    // ============================================================
+    // FIX: Pre-compute positions ONCE for O(1) lookup in force callbacks
+    // ============================================================
+    // Count nodes per group
+    const groupNodeCounts: Record<number, number> = {};
+    workingNodes.forEach(node => {
+      groupNodeCounts[node.group] = (groupNodeCounts[node.group] || 0) + 1;
+    });
+
+    // Pre-compute angular positions into a Map for O(1) access
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    const groupNodeIndices: Record<number, number> = {};
+
+    workingNodes.forEach(node => {
+      const group = node.group;
+      const index = groupNodeIndices[group] || 0;
+      groupNodeIndices[group] = index + 1;
+
+      // FIX: Division by zero protection
+      const count = groupNodeCounts[group] || 1;
+      const angle = count > 0
+        ? (2 * Math.PI * index) / count - Math.PI / 2  // Start from top
+        : 0;
+      const radius = getGroupRadius(group);
+
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+
+      // Store in Map for O(1) lookup
+      nodePositions.set(node.id, { x, y });
+
+      // Set initial positions on cloned nodes for smoother animation
+      node.x = x;
+      node.y = y;
+    });
+
+    // Create force simulation with RADIAL GROUP LAYOUT
+    // Reason: Users requested organized, non-chaotic node distribution
+    // FIX: Use cloned workingNodes/workingLinks instead of original graphData
+    const simulation = forceSimulation<KnowledgeGraphNode>(workingNodes)
+      // Link force: connects related nodes with appropriate tension
+      .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(workingLinks)
         .id(d => d.id)
-        .distance(d => d.distance * 2.0) // Doubled from 1.3x: 120-240px spacing for clarity
-        .strength(d => d.strength * 0.2)) // Reduced from 0.3 to allow more spreading
+        .distance(d => d.distance * 1.2) // Moderate distance for radial layout
+        .strength(d => d.strength * 0.15)) // Weaker to not disrupt radial structure
+
+      // Radial force: PRIMARY force for organizing nodes into concentric rings
+      .force("radial", forceRadial<KnowledgeGraphNode>(
+        d => getGroupRadius(d.group), // Each node targets its group's radius
+        centerX,
+        centerY
+      ).strength(0.8)) // Strong radial force to maintain ring structure
+
+      // Gentle centering force as backup
+      .force("center", forceCenter(centerX, centerY).strength(0.05))
+
+      // Collision force: prevents node overlap within rings
+      .force("collision", forceCollide<KnowledgeGraphNode>()
+        .radius(d => d.radius + 15) // Personal space around each node
+        .strength(0.9)) // Strong collision avoidance
+
+      // Charge force: mild repulsion to spread nodes within same ring
       .force("charge", forceManyBody()
-        .strength(-2500) // Increased from -1200: much stronger repulsion to prevent overlap
-        .distanceMax(600)) // Increased from 500: wider repulsion range
-      .force("center", forceCenter(dimensions.width / 2, dimensions.height / 2))
-      .force("collision", forceCollide()
-        .radius(d => (d as KnowledgeGraphNode).radius + 30) // Doubled from +15: larger personal space
-        .strength(1.0)) // Maximum strength (was 0.85): strict collision prevention
-      .alphaDecay(0.05) // Increased from 0.02: faster decay for quicker stabilization
-      .velocityDecay(0.6) // Increased from 0.4: more friction to reduce oscillation
-      .alphaMin(0.002); // Raised from 0.001: slightly higher threshold for faster stop
+        .strength(-300) // Reduced from -2500: radial handles most of the work
+        .distanceMax(200)) // Shorter range for local effects only
+
+      // FIX: Angular distribution using O(1) Map lookup instead of O(n) filter/findIndex
+      .force("x", forceX<KnowledgeGraphNode>(d => {
+        return nodePositions.get(d.id)?.x ?? centerX;
+      }).strength(0.1)) // Gentle angular positioning
+
+      .force("y", forceY<KnowledgeGraphNode>(d => {
+        return nodePositions.get(d.id)?.y ?? centerY;
+      }).strength(0.1)) // Gentle angular positioning
+
+      // Simulation parameters for quick convergence
+      .alphaDecay(0.03) // Moderate decay for stable convergence
+      .velocityDecay(0.5) // Medium friction
+      .alphaMin(0.001); // Stop when stable
 
     simulationRef.current = simulation;
 
@@ -452,7 +544,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     const link = g.append("g")
       .attr("class", "links")
       .selectAll("line")
-      .data(graphData.links)
+      .data(workingLinks)
       .enter().append("line")
       .attr("stroke", "url(#link-gradient)")
       .attr("stroke-width", d => Math.sqrt(d.strength) * 5 + 2) // Increased from * 3, now 3.7-5.7px instead of 2.1-3px
@@ -474,7 +566,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .attr("class", "link-labels");
 
     const linkLabel = linkLabelGroup.selectAll("g")
-      .data(graphData.links)
+      .data(workingLinks)
       .enter().append("g")
       .attr("class", "link-label-group");
 
@@ -519,7 +611,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     const node = g.append("g")
       .attr("class", "nodes")
       .selectAll("g")
-      .data(graphData.nodes)
+      .data(workingNodes)
       .enter().append("g")
       .attr("class", "node")
       .style("cursor", "pointer")
@@ -636,7 +728,7 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
           .duration(transitionDuration)
           .style("opacity", n => {
             if (n.id === d.id) return 1.0;
-            return graphData.links.some(l =>
+            return workingLinks.some(l =>
               ((l.source as KnowledgeGraphNode).id === d.id && (l.target as KnowledgeGraphNode).id === n.id) ||
               ((l.target as KnowledgeGraphNode).id === d.id && (l.source as KnowledgeGraphNode).id === n.id)
             ) ? 0.75 : 0.25;
