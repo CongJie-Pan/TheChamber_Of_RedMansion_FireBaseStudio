@@ -91,9 +91,18 @@ function processContentWithCitations(
         return (
           <sup
             key={`citation-${index}`}
-            className="inline-flex items-center ml-0.5 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 rounded px-1 transition-colors"
+            role="button"
+            tabIndex={0}
+            className="inline-flex items-center ml-0.5 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 rounded px-1 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
             onClick={() => onCitationClick?.(citationNum)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onCitationClick?.(citationNum);
+              }
+            }}
             title={citation.title}
+            aria-label={`引用 ${citationNum}: ${citation.title}`}
           >
             <span className="text-blue-600 dark:text-blue-400 text-xs font-medium">
               [{citationNum}]
@@ -132,43 +141,31 @@ function CitationReference({ citation, index, onCitationClick }: CitationReferen
   const citationNumber = parseInt(citation.number, 10) || (index + 1);
 
   return (
-    <div
-      className="flex gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer group"
-      onClick={() => onCitationClick?.(citationNumber)}
+    <a
+      href={citation.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent/30 transition-colors cursor-pointer group text-foreground"
+      onClick={(e) => {
+        if (onCitationClick) {
+          e.preventDefault();
+          onCitationClick(citationNumber);
+        }
+      }}
     >
-      <div className="flex-shrink-0">
-        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-sm font-semibold">
-          {citationNumber}
-        </span>
-      </div>
+      {/* Citation number badge - smaller and simpler */}
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs font-medium flex-shrink-0">
+        {citationNumber}
+      </span>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm text-foreground line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {citation.title}
-          </h4>
-          <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+      {/* Title - black/dark text, single line */}
+      <span className="flex-1 text-sm text-foreground truncate">
+        {citation.title}
+      </span>
 
-        {citation.snippet && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-            {citation.snippet}
-          </p>
-        )}
-
-        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-          {citation.domain && (
-            <span className="truncate">{citation.domain}</span>
-          )}
-          {citation.publishDate && citation.domain && (
-            <span>·</span>
-          )}
-          {citation.publishDate && (
-            <span>{citation.publishDate}</span>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* External link icon - subtle */}
+      <ExternalLink className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </a>
   );
 }
 
@@ -187,10 +184,10 @@ export function StructuredQAResponse({
   const processedContent = useMemo(() => {
     if (sections && sections.length > 0) {
       return sections.map((section, sectionIndex) => (
-        <div key={sectionIndex} className="structured-section mb-6">
-          <div className="section-header mb-3 pb-2 border-b border-border">
-            <h3 className="text-base font-semibold text-foreground flex items-baseline gap-2">
-              <span className="text-blue-600 dark:text-blue-400">{section.number}</span>
+        <div key={sectionIndex} className="structured-section mb-3">
+          <div className="section-header mb-2 pb-1.5 border-b border-border/50">
+            <h3 className="text-sm font-semibold text-foreground flex items-baseline gap-1.5">
+              <span className="text-neutral-500">{section.number}</span>
               <span>{section.title}</span>
             </h3>
           </div>
@@ -217,24 +214,22 @@ export function StructuredQAResponse({
   }, [sections, rawContent, citations, onCitationClick]);
 
   return (
-    <div className={cn('structured-qa-response space-y-6', className)}>
+    <div className={cn('structured-qa-response space-y-3', className)}>
       {/* Main Content */}
       <div className="response-content">
         {processedContent}
       </div>
 
-      {/* References Section */}
+      {/* References Section - Simplified and compact */}
       {citations.length > 0 && isThinkingComplete && (
-        <div className="references-section mt-8 pt-6 border-t border-border">
-          <h3 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-            <span>📚</span>
-            <span>參考來源</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              ({citations.length} 個引用)
-            </span>
-          </h3>
+        <div className="references-section mt-4 pt-3 border-t border-border/50">
+          <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
+            <span className="text-foreground/70">參考來源</span>
+            <span className="text-foreground/50">·</span>
+            <span className="text-foreground/50">{citations.length}</span>
+          </div>
 
-          <div className="space-y-3">
+          <div className="space-y-0.5">
             {citations.map((citation, index) => (
               <CitationReference
                 key={citation.url || index}

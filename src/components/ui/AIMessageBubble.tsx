@@ -17,7 +17,7 @@
  * This fixes Issue #4 from the problem report.
  */
 
-import React, { useEffect, useState, useId } from 'react';
+import React, { useState, useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PerplexityCitation } from '@/types/perplexity-qa';
@@ -123,8 +123,6 @@ export function AIMessageBubble({
   // Handler for manual toggle - notifies parent to persist preference (Task 4.2 Fix - Bug #3)
   const handleToggleThinking = () => {
     const newState = !isThinkingExpanded;
-    // Task 4.2 Logging: Track thinking panel toggle
-    console.log('[AIBubble] Thinking toggle - newState:', newState, ', preference:', thinkingExpandedPreference);
     setHasLocalOverride(true);
     setLocalExpandedState(newState);
     // Notify parent so it can persist the preference across all messages
@@ -132,7 +130,7 @@ export function AIMessageBubble({
   };
 
   return (
-    <div className={cn('ai-message-bubble space-y-3', className)}>
+    <div className={cn('ai-message-bubble space-y-2', className)}>
       {/* Thinking Process Section - Collapsible */}
       {showThinkingSection && (
         <div className="thinking-section">
@@ -189,12 +187,10 @@ export function AIMessageBubble({
 
       {/* Answer Section - Main Content */}
       <div className="answer-section">
-        {/* Loading skeleton when content is empty but streaming (Fix Issue #2) */}
+        {/* Simple loading text when content is empty but streaming */}
         {displayAnswer.length === 0 && isStreaming ? (
-          <div className="space-y-2 animate-pulse">
-            <div className="h-4 bg-muted rounded w-3/4"></div>
-            <div className="h-4 bg-muted rounded w-full"></div>
-            <div className="h-4 bg-muted rounded w-5/6"></div>
+          <div className="text-sm text-muted-foreground/70 py-1">
+            正在生成回答...
           </div>
         ) : (
           <StructuredQAResponse
@@ -206,16 +202,9 @@ export function AIMessageBubble({
         )}
       </div>
 
-      {/* Streaming Indicator */}
-      {isStreaming && (
-        <div className="streaming-indicator flex items-center gap-2 text-xs text-muted-foreground px-2">
-          <div className="flex space-x-1">
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
-          <span>AI 正在回答中...</span>
-        </div>
+      {/* Streaming Indicator - Simple cursor style */}
+      {isStreaming && displayAnswer.length > 0 && (
+        <span className="inline-block w-0.5 h-4 bg-foreground/50 animate-pulse ml-0.5 align-middle" />
       )}
     </div>
   );
