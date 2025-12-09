@@ -201,8 +201,7 @@ function MessageBubble({ message, renderContent }: MessageBubbleProps) {
               : isSystem
               ? 'bg-gray-100 dark:bg-gray-800 text-center text-sm text-muted-foreground'
               : 'bg-white dark:bg-gray-800 border border-border rounded-tl-sm',
-            message.hasError && 'border-red-500 dark:border-red-600',
-            message.isStreaming && 'animate-pulse'
+            message.hasError && 'border-red-500 dark:border-red-600'
           )}
         >
           {/* Custom or default content rendering */}

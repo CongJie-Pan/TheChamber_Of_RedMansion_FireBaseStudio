@@ -158,8 +158,8 @@ function CitationReference({ citation, index, onCitationClick }: CitationReferen
         {citationNumber}
       </span>
 
-      {/* Title - black/dark text, single line */}
-      <span className="flex-1 text-sm text-foreground truncate">
+      {/* Title - dark text on light bg, light text on dark bg */}
+      <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-200 truncate">
         {citation.title}
       </span>
 
