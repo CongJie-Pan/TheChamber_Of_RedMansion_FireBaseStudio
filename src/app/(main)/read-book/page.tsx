@@ -606,7 +606,9 @@ export default function ReadBookPage() {
   const [noteSelectedText, setNoteSelectedText] = useState<string>(''); // Preserve selected text for note sheet
 
   const chapterContentRef = useRef<HTMLDivElement>(null);
-  const toolbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ref to track if any sheet/popover is open (reduces dependency complexity)
+  const isAnyPanelOpenRef = useRef(false);
 
   // Get current chapter from dynamic data or fallback to hardcoded
   const getDynamicChapter = useCallback((): Chapter | null => {
@@ -915,34 +917,46 @@ export default function ReadBookPage() {
     });
   };
 
-  const hideToolbarAfterDelay = useCallback(() => {
-    if (toolbarTimeoutRef.current) {
-      clearTimeout(toolbarTimeoutRef.current);
-    }
-    toolbarTimeoutRef.current = setTimeout(() => {
-      if (!isAiSheetOpen && !isNoteSheetOpen && !isKnowledgeGraphSheetOpen && !isTocSheetOpen && !isSettingsPopoverOpen && !isSearchPopoverOpen && !selectedTextInfo) {
-        setIsToolbarVisible(false);
-      }
-    }, 5000);
+  // Keep ref in sync with panel open states (reduces callback dependency complexity)
+  useEffect(() => {
+    isAnyPanelOpenRef.current = isAiSheetOpen || isNoteSheetOpen || isKnowledgeGraphSheetOpen ||
+      isTocSheetOpen || isSettingsPopoverOpen || isSearchPopoverOpen || !!selectedTextInfo;
   }, [isAiSheetOpen, isNoteSheetOpen, isKnowledgeGraphSheetOpen, isTocSheetOpen, isSettingsPopoverOpen, isSearchPopoverOpen, selectedTextInfo]);
 
+  // Toggle toolbar visibility when clicking on reading area
+  const toggleToolbarVisibility = useCallback(() => {
+    // Don't toggle if any panel is open
+    if (isAnyPanelOpenRef.current) return;
+    setIsToolbarVisible(prev => !prev);
+  }, []); // No dependencies needed - uses ref
 
+  // Show toolbar (used when interacting with toolbar buttons)
   const handleInteraction = useCallback(() => {
     setIsToolbarVisible(true);
-    hideToolbarAfterDelay();
-  }, [hideToolbarAfterDelay]);
+  }, []);
 
+  // Keyboard accessibility: Escape key toggles toolbar visibility
   useEffect(() => {
-    if (isToolbarVisible) {
-      hideToolbarAfterDelay();
-    }
-    return () => {
-      if (toolbarTimeoutRef.current) {
-        clearTimeout(toolbarTimeoutRef.current);
-      }
-    };
-  }, [isToolbarVisible, hideToolbarAfterDelay, currentChapterIndex, isAiSheetOpen, isNoteSheetOpen, isKnowledgeGraphSheetOpen, isTocSheetOpen, isSettingsPopoverOpen, isSearchPopoverOpen, selectedTextInfo]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle Escape key
+      if (e.key !== 'Escape') return;
 
+      // Don't intercept when typing in inputs or editable areas
+      const target = e.target as HTMLElement | null;
+      const tag = (target?.tagName || '').toUpperCase();
+      const isEditable = !!target && (target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
+      if (isEditable) return;
+
+      // Don't toggle if any panel is open - Escape should close the panel instead
+      if (isAnyPanelOpenRef.current) return;
+
+      e.preventDefault();
+      setIsToolbarVisible(prev => !prev);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []); // No dependencies needed - uses ref
 
   useEffect(() => {
     setSelectedTextInfo(null);
@@ -1251,7 +1265,6 @@ export default function ReadBookPage() {
       scrollAreaElement?.removeEventListener('scroll', handleScroll, { capture: true });
       scrollAreaElement?.removeEventListener('scroll', checkChapterScrollCompletion, { capture: true });
       document.removeEventListener('mousemove', handleInteraction, { capture: true });
-      if (toolbarTimeoutRef.current) clearTimeout(toolbarTimeoutRef.current);
     };
   }, [handleInteraction, handleMouseUp, handleScroll, checkChapterScrollCompletion]);
 
@@ -2515,8 +2528,9 @@ export default function ReadBookPage() {
 
                         const hasFull = !!(chunk.fullContent && chunk.fullContent.trim().length > 0);
                         const hasContent = !!(chunk.content && chunk.content.trim().length > 0);
-                        const hasThinking = !!((chunk as any).thinkingContent && (chunk as any).thinkingContent.trim().length > 0);
-                        const contentDerivedFromThinking = (chunk as any).contentDerivedFromThinking === true;
+                        // PRX-010 FIX: Remove `as any` casts - type already includes thinkingContent
+                        const hasThinking = !!(chunk.thinkingContent && chunk.thinkingContent.trim().length > 0);
+                        const contentDerivedFromThinking = chunk.contentDerivedFromThinking === true;
 
                         // Determine the actual answer content (NOT thinking content)
                         let updatedText: string;
@@ -2657,11 +2671,13 @@ export default function ReadBookPage() {
 
                       // Create final response from last chunk
                       // Server already cleaned content via StreamProcessor
-                      const finalServerThinking = (chunk as any).thinkingContent || '';
-                      // FALLBACK: If fullContent is empty, use thinkingContent as the answer
+                      // PRX-010 FIX: Use properly typed thinkingContent (no more `as any`)
+                      const finalServerThinking = chunk.thinkingContent || '';
+                      // PRX-010 FIX: Remove fallback to thinkingContent - backend handles this properly
+                      // Only use fullContent or content, NEVER thinkingContent for the answer
                       const cleaned = chunk.fullContent?.trim()
                         ? chunk.fullContent
-                        : (finalServerThinking.trim() || chunk.content || '');
+                        : (chunk.content || '');
                       console.log('[QA Module] Final content - cleaned.length:', cleaned.length, ', thinkingLength:', finalServerThinking.length);
 
                       // DEBUG: Log final content to diagnose "《" bug (Task 4.2)
@@ -3684,16 +3700,16 @@ ${selectedTextContent}
           custom layout requirements. Using explicit padding (px-4 sm:px-6 lg:px-8) provides better
           control over horizontal spacing and ensures proper alignment across all screen sizes.
         */}
-        <div className={cn("w-full mx-auto relative flex items-center justify-between gap-4 max-w-screen-xl px-4 sm:px-6 lg:px-8")}>
+        <div className={cn("w-full mx-auto relative flex flex-nowrap items-center justify-between gap-2 sm:gap-3 lg:gap-4 max-w-screen-xl px-2 sm:px-4 lg:px-8")}>
           {/* Left Section - Return button always visible, others hidden on mobile */}
-          <div className="flex items-center gap-2 md:gap-3 z-10">
+          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 md:gap-3 z-10 shrink-0">
             <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => router.push('/dashboard')} title={t('buttons.return')}>
               <CornerUpLeft className={toolbarIconClass} />
-              <span className={cn(toolbarLabelClass, "hidden md:block")}>{t('buttons.return')}</span>
+              <span className={cn(toolbarLabelClass, "hidden lg:block")}>{t('buttons.return')}</span>
             </Button>
 
-            {/* Desktop only: Settings and Column Layout */}
-            <div className="hidden md:flex items-center gap-2 md:gap-3">
+            {/* Desktop only: Settings and Column Layout - hidden on tablet and smaller */}
+            <div className="hidden lg:flex items-center gap-2 lg:gap-3">
               <Popover open={isSettingsPopoverOpen} onOpenChange={(isOpen) => {setIsSettingsPopoverOpen(isOpen); handleInteraction();}}>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} title={t('buttons.settings')}>
@@ -3796,17 +3812,17 @@ ${selectedTextContent}
           </div>
 
           {/* Center Section - Chapter Title (TASK-007: Absolute positioning for true screen centering) */}
-          <div className="absolute left-1/2 -translate-x-1/2 max-w-[40%] sm:max-w-[50%] md:max-w-[60%] pointer-events-none">
+          <div className="absolute left-1/2 -translate-x-1/2 max-w-[30%] sm:max-w-[35%] md:max-w-[45%] lg:max-w-[50%] pointer-events-none">
             <div className="text-center overflow-hidden">
               <h1 className={cn("text-sm md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
-              {currentChapterSubtitle && <p className={cn("text-sm truncate hidden md:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
+              {currentChapterSubtitle && <p className={cn("text-sm truncate hidden lg:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
             </div>
           </div>
 
           {/* Right Section - AI always visible, others hidden on mobile, menu trigger on mobile */}
-          <div className="flex items-center gap-2 md:gap-3 z-10">
-            {/* Desktop only buttons */}
-            <div className="hidden md:flex items-center gap-2 md:gap-3">
+          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 md:gap-3 z-10 ml-auto shrink-0">
+            {/* Desktop only buttons - hidden on tablet and smaller */}
+            <div className="hidden lg:flex items-center gap-2 lg:gap-3">
               <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>
                 <MapIcon className={toolbarIconClass}/>
                 <span className={toolbarLabelClass}>{t('buttons.knowledgeGraph')}</span>
@@ -3827,12 +3843,12 @@ ${selectedTextContent}
               handleInteraction();
             }} title={t('buttons.ai')}>
               <Lightbulb className={toolbarIconClass}/>
-              <span className={cn(toolbarLabelClass, "hidden md:block")}>{t('buttons.ai')}</span>
+              <span className={cn(toolbarLabelClass, "hidden lg:block")}>{t('buttons.ai')}</span>
             </Button>
 
-            {/* Desktop only: Search, Fullscreen, Level Badge */}
-            <div className="hidden md:flex items-center gap-2 md:gap-3">
-              <div className={cn("h-10 border-l mx-2 md:mx-3", selectedTheme.toolbarBorderClass)}></div>
+            {/* Desktop only: Search, Fullscreen, Level Badge - hidden on tablet and smaller */}
+            <div className="hidden lg:flex items-center gap-2 lg:gap-3">
+              <div className={cn("h-10 border-l mx-1 lg:mx-2", selectedTheme.toolbarBorderClass)}></div>
 
               <Popover open={isSearchPopoverOpen} onOpenChange={(isOpen) => { setIsSearchPopoverOpen(isOpen); handleInteraction(); if (!isOpen) setCurrentSearchTerm(""); }}>
                 <PopoverTrigger asChild>
@@ -3881,10 +3897,10 @@ ${selectedTextContent}
               )}
             </div>
 
-            {/* Mobile menu trigger */}
+            {/* Mobile/Tablet menu trigger - visible on screens smaller than lg */}
             <Button
               variant="ghost"
-              className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass, "md:hidden")}
+              className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass, "lg:hidden")}
               onClick={() => { setIsMobileMenuOpen(true); handleInteraction(); }}
               title={t('buttons.menu')}
               aria-label={t('buttons.menu')}
@@ -3919,7 +3935,14 @@ ${selectedTextContent}
             outline: 'none',
           } as React.CSSProperties}
           onWheel={handlePaginationWheel}
-          aria-label="雙欄閱讀模式 - 使用左右方向鍵翻頁"
+          onClick={(e) => {
+            // Toggle toolbar only when clicking on background, not on text selection
+            const selection = window.getSelection();
+            if (!selection || selection.toString().length === 0) {
+              toggleToolbarVisibility();
+            }
+          }}
+          aria-label={t('accessibility.biColumnReadingMode') || '雙欄閱讀模式 - 使用左右方向鍵翻頁，點擊切換工具欄'}
         >
           <div
             ref={chapterContentRef}
@@ -3969,6 +3992,13 @@ ${selectedTextContent}
               fontSize: `${currentNumericFontSize}px`,
               fontFamily: (selectedFontFamily as any).family || undefined,
             }}
+            onClick={(e) => {
+              // Toggle toolbar only when clicking on background, not on text selection
+              const selection = window.getSelection();
+              if (!selection || selection.toString().length === 0) {
+                toggleToolbarVisibility();
+              }
+            }}
           >
             {processContent(currentChapter)}
           </div>
@@ -3997,7 +4027,7 @@ ${selectedTextContent}
               height: `calc(100vh - ${dynamicToolbarHeight}px)`,
               background: 'transparent',
             }}
-            aria-label="上一頁"
+            aria-label={t('accessibility.previousPage') || '上一頁'}
             role="button"
             tabIndex={-1}
             data-no-selection="true"
@@ -4026,7 +4056,7 @@ ${selectedTextContent}
               height: `calc(100vh - ${dynamicToolbarHeight}px)`,
               background: 'transparent',
             }}
-            aria-label="下一頁"
+            aria-label={t('accessibility.nextPage') || '下一頁'}
             role="button"
             tabIndex={-1}
             data-no-selection="true"
@@ -4495,7 +4525,7 @@ ${selectedTextContent}
         <SheetContent
           side="bottom"
           className="h-screen w-screen bg-black text-white p-0 flex flex-col fixed inset-0 z-50"
-          aria-label="AI 問答對話視窗"
+          aria-label={t('accessibility.aiChatDialog') || 'AI 問答對話視窗'}
           data-no-selection="true"
           onClick={(e) => {e.stopPropagation(); handleInteraction();}}
           onCloseAutoFocus={(e) => e.preventDefault()}

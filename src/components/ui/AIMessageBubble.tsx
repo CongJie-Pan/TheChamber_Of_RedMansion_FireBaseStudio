@@ -96,12 +96,10 @@ export function AIMessageBubble({
 }: AIMessageBubbleProps) {
   const hasThinkingContent = Boolean(thinkingProcess && thinkingProcess.trim().length > 0);
 
-  // FALLBACK FIX: When answer is empty but thinkingProcess has content,
-  // use thinkingProcess as the display content. This handles cases where
-  // the API/StreamProcessor doesn't properly separate thinking from answer.
-  const displayAnswer = answer?.trim()
-    ? answer
-    : (thinkingProcess?.trim() || '');
+  // PRX-010 FIX: Remove fallback logic that incorrectly showed thinkingProcess in answer area.
+  // With the new Adapter system, thinking and content are properly separated.
+  // Empty answer should remain empty until fullContent is received.
+  const displayAnswer = answer || '';
   // BUG FIX: Show thinking section header during streaming even without content
   // This ensures users see "深度思考中..." while waiting for thinking content to stream
   // Show when: (has content) OR (still streaming/thinking in progress)
@@ -177,7 +175,7 @@ export function AIMessageBubble({
             {hasThinkingContent && (
             <div
               className={cn(
-                'text-[12px] italic text-muted-foreground/90',
+                'text-sm italic text-muted-foreground/90',
                 'leading-6 whitespace-pre-wrap',
                 'border-l-[2px] border-border pl-4 ml-2'
               )}

@@ -189,7 +189,7 @@ export function StructuredQAResponse({
       return sections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="structured-section mb-6">
           <div className="section-header mb-3 pb-2 border-b border-border">
-            <h3 className="text-lg font-semibold text-foreground flex items-baseline gap-2">
+            <h3 className="text-base font-semibold text-foreground flex items-baseline gap-2">
               <span className="text-blue-600 dark:text-blue-400">{section.number}</span>
               <span>{section.title}</span>
             </h3>

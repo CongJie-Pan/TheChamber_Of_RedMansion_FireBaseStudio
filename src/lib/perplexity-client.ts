@@ -538,6 +538,46 @@ export class PerplexityClient {
       return trimmed;
     };
 
+    /**
+     * PRX-010 FIX: Shared helper for fallback logic when fullContent is empty
+     * Consolidates duplicate fallback logic from [DONE] handler and stream-end handler
+     * 當 fullContent 為空時的共用 fallback 邏輯
+     */
+    const applyThinkingFallback = (
+      currentFullContent: string,
+      sanitizedThinking: string,
+      context: 'DONE_SIGNAL' | 'STREAM_END'
+    ): { fullContent: string; contentDerivedFromThinking: boolean } => {
+      const isContentMeaningful = currentFullContent.trim().length > 0;
+
+      if (isContentMeaningful) {
+        return { fullContent: currentFullContent, contentDerivedFromThinking: false };
+      }
+
+      if (!sanitizedThinking.trim()) {
+        return { fullContent: currentFullContent, contentDerivedFromThinking: false };
+      }
+
+      // Log fallback activation
+      console.warn(`[PerplexityClient] Fallback on ${context}: fullContent is empty, using thinking as answer`, {
+        fullContentLength: currentFullContent.trim().length,
+        thinkingLength: sanitizedThinking.length,
+      });
+
+      // Try to extract answer portion from thinking content
+      let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
+
+      // If extracted answer is too short, use full thinking content
+      if (extractedAnswer.length < 50) {
+        extractedAnswer = sanitizedThinking;
+        console.log(`[${context}] Extracted answer too short (${extractedAnswer.length} chars), using full thinking content`);
+      } else {
+        console.log(`[${context}] Using extracted answer (${extractedAnswer.length} chars)`);
+      }
+
+      return { fullContent: extractedAnswer, contentDerivedFromThinking: true };
+    };
+
     await debugLog('PERPLEXITY_CLIENT', `${functionName} called`, {
       inputType: typeof input,
       userQuestionLength: input.userQuestion?.length,
@@ -726,55 +766,10 @@ export class PerplexityClient {
                 console.log('║ fullContent preview:', fullContent.substring(0, 200) || '(empty)');
                 console.log('╚═══════════════════════════════════════════════════════════════╝');
 
-                // FALLBACK FIX: When fullContent is truly empty but we have thinking content,
-                // use the thinking content as the answer. This handles cases where:
-                // 1. The API response doesn't properly separate thinking from answer
-                // 2. The StreamProcessor doesn't detect </think> correctly
-                // NOTE: Removed MIN_MEANINGFUL_CONTENT_LENGTH check (was 10) because Chinese
-                // characters are information-dense and short answers like '這是答案' (6 chars)
-                // are valid and should not trigger fallback.
-                const isContentMeaningful = fullContent.trim().length > 0;
-                let contentDerivedFromThinking = false;
-                if (!isContentMeaningful && sanitizedThinking.trim()) {
-                // ═══════════════════════════════════════════════════════════════════════
-                // 🔧 FIX (2025-12-04): Enhanced fallback logging
-                // ═══════════════════════════════════════════════════════════════════════
-                console.log('╔═══════════════════════════════════════════════════════════════╗');
-                console.log('║ 🔧 [FALLBACK] fullContent is empty, using thinking as answer  ║');
-                console.log('╠═══════════════════════════════════════════════════════════════╣');
-                console.log('║ [STEP 1] Checking sanitizedThinking quality:');
-                console.log('║   └─ Length:', sanitizedThinking.length);
-                console.log('║   └─ Has <think> tag:', sanitizedThinking.includes('<think>'));
-                console.log('║   └─ Has </think> tag:', sanitizedThinking.includes('</think>'));
-                console.log('║   └─ Preview:', sanitizedThinking.substring(0, 150).replace(/\n/g, '\\n'));
-
-                // Task 4.2 Fix: Try to extract just the "answer" portion from thinking content
-                let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
-
-                console.log('║ [STEP 2] After deriveAnswerFromThinking():');
-                console.log('║   └─ extractedAnswer Length:', extractedAnswer.length);
-                console.log('║   └─ Has <think> tag:', extractedAnswer.includes('<think>'));
-                console.log('║   └─ Has </think> tag:', extractedAnswer.includes('</think>'));
-                console.log('║   └─ Preview:', extractedAnswer.substring(0, 150).replace(/\n/g, '\\n'));
-
-                // If no marker found or extracted answer is too short, use full thinking content
-                if (extractedAnswer.length < 50) {
-                  extractedAnswer = sanitizedThinking;
-                  console.log('║ [STEP 3] Extracted answer too short, using full thinking content');
-                } else {
-                  console.log('║ [STEP 3] Using extracted answer (found answer marker)');
-                }
-
-                fullContent = extractedAnswer;
-                contentDerivedFromThinking = true;
-
-                console.log('║ [FINAL] fullContent assigned:');
-                console.log('║   └─ Length:', fullContent.length);
-                console.log('║   └─ Has <think> tag:', fullContent.includes('<think>'));
-                console.log('║   └─ Has </think> tag:', fullContent.includes('</think>'));
-                console.log('║   └─ Preview:', fullContent.substring(0, 200).replace(/\n/g, '\\n'));
-                console.log('╚═══════════════════════════════════════════════════════════════╝');
-              }
+                // PRX-010 FIX: Use shared helper for fallback logic
+                const fallbackResult = applyThinkingFallback(fullContent, sanitizedThinking, 'DONE_SIGNAL');
+                fullContent = fallbackResult.fullContent;
+                const contentDerivedFromThinking = fallbackResult.contentDerivedFromThinking;
 
                 const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
                 const processingTime = (Date.now() - startTime) / 1000;
@@ -1031,24 +1026,10 @@ export class PerplexityClient {
 
         const sanitizedThinking = sanitizeThinkingContent(accumulatedThinking);
 
-        // FALLBACK: When fullContent is truly empty but we have thinking content
-        // NOTE: Removed MIN_MEANINGFUL_CONTENT_LENGTH check (was 10) because Chinese
-        // characters are information-dense and short answers are valid.
-        const isContentMeaningful = fullContent.trim().length > 0;
-        let contentDerivedFromThinking = false;
-        if (!isContentMeaningful && sanitizedThinking.trim()) {
-          console.warn('[PerplexityClient] Fallback on stream end: fullContent is empty, using thinking as answer', {
-            fullContentLength: fullContent.trim().length,
-            fullContentPreview: fullContent.trim().substring(0, 50),
-            thinkingLength: sanitizedThinking.length,
-          });
-          let extractedAnswer = deriveAnswerFromThinking(sanitizedThinking);
-          if (extractedAnswer.length < 50) {
-            extractedAnswer = sanitizedThinking;
-          }
-          fullContent = extractedAnswer;
-          contentDerivedFromThinking = true;
-        }
+        // PRX-010 FIX: Use shared helper for fallback logic
+        const fallbackResult = applyThinkingFallback(fullContent, sanitizedThinking, 'STREAM_END');
+        fullContent = fallbackResult.fullContent;
+        const contentDerivedFromThinking = fallbackResult.contentDerivedFromThinking;
 
         const citations = this.extractCitations(fullContent, collectedCitations, collectedSearchQueries);
         const processingTime = (Date.now() - startTime) / 1000;
