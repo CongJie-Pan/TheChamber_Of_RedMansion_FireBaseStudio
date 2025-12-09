@@ -199,12 +199,12 @@ const convertFirebasePost = (firebasePost: CommunityPost, currentUserId?: string
   sourceNoteId: (firebasePost as any).sourceNoteId
 });
 
-function NewPostForm({ onPostSubmit, t, isLoading }: { 
-  onPostSubmit: (content: string) => Promise<void>; 
+function NewPostForm({ onPostSubmit, t, isLoading }: {
+  onPostSubmit: (content: string) => Promise<void>;
   t: (key: string) => string;
   isLoading: boolean;
 }) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [postContent, setPostContent] = useState('');
   const [characterCount, setCharacterCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -237,13 +237,13 @@ function NewPostForm({ onPostSubmit, t, isLoading }: {
     <Card className="mb-6 shadow-lg bg-card/70">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <i 
-            className="fa fa-user-circle text-primary mt-1" 
+          <i
+            className="fa fa-user-circle text-primary mt-1"
             aria-hidden="true"
             style={{ fontSize: '32px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           ></i>
           <div className="flex-grow">
-            <p className="font-semibold text-white mb-1">{user?.name || t('community.anonymousUser')}</p>
+            <p className="font-semibold text-white mb-1">{userProfile?.displayName || user?.name || t('community.anonymousUser')}</p>
             <Textarea
               placeholder={t('placeholders.postContent')}
               value={postContent}
@@ -920,7 +920,7 @@ async function deleteCommentAPI(postId: string, commentId: string): Promise<void
 
 export default function CommunityPage() {
   const { t } = useLanguage();
-  const { user, refreshUserProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
 
   // State management for posts and UI
@@ -967,7 +967,7 @@ export default function CommunityPage() {
     try {
       const postData: CreatePostData = {
         authorId: user.id,
-        authorName: user.name || '匿名用戶',
+        authorName: userProfile?.displayName || user.name || '匿名用戶',
         content: content,
         tags: [t('community.postTagNew')], // Default tag for new posts
         category: 'discussion'
@@ -1022,7 +1022,7 @@ export default function CommunityPage() {
       const newPost: LocalPost = {
         id: result.id,
         authorId: user.id,
-        authorName: user.name || '匿名用戶',
+        authorName: userProfile?.displayName || user.name || '匿名用戶',
         timestamp: '剛剛',
         content: content,
         likes: 0,
@@ -1115,7 +1115,7 @@ export default function CommunityPage() {
       const commentData: CreateCommentData = {
         postId: postId,
         authorId: user.id,
-        authorName: user.name || '匿名用戶',
+        authorName: userProfile?.displayName || user.name || '匿名用戶',
         content: content
       };
 

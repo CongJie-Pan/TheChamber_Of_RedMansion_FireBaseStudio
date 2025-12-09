@@ -48,10 +48,12 @@ async function initializeSchema(db: Client): Promise<void> {
   // Users table (Phase 3 - SQLITE-016: Extended for user-level-service compatibility)
   // Phase 4 - SQLITE-019: Added passwordHash for NextAuth.js authentication
   // Phase 4 - SQLITE-021: Added isGuest for guest/anonymous login support
+  // TASK-001: Added displayName for user-customizable display name
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL,
+      displayName TEXT, -- TASK-001: User-customizable display name (can be edited in account settings)
       email TEXT UNIQUE, -- UNIQUE constraint for email uniqueness (Phase 4 - SQLITE-019)
       passwordHash TEXT, -- bcrypt hashed password for NextAuth.js (Phase 4 - SQLITE-019)
       isGuest INTEGER DEFAULT 0, -- 0=false (regular user), 1=true (guest account) (Phase 4 - SQLITE-021)
@@ -372,6 +374,15 @@ async function migrateSchema(db: Client): Promise<void> {
       }
     }
   }
+
+  // === MIGRATION: TASK-001 - Display Name ===
+  // Add displayName to users table for user-customizable display name
+  await addColumnIfMissing(
+    'users',
+    'displayName',
+    'TEXT',
+    'TASK-001: User-customizable display name'
+  );
 
   // === MIGRATION: Task 4.9 - Note-Post Linking ===
   // Add sharedPostId to notes table for bi-directional note-post linking
