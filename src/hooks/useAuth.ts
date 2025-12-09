@@ -121,7 +121,9 @@ export function useAuth() {
       };
     }
 
-    const displayName = currentUser.name ||
+    // TASK-001: Prioritize displayName from userProfile (SQLite) over session name
+    const displayName = context.userProfile?.displayName ||
+                       currentUser.name ||
                        currentUser.email?.split('@')[0] ||
                        t('user.anonymous');
 
