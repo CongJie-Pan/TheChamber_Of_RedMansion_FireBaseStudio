@@ -1,6 +1,8 @@
-# AI Flow Modules - QA and Visualization (Updated 2025-11-21)
+# AI Flow Modules - QA and Visualization (Updated 2025-12-08)
 
 **Migration Status:** QA and visualization flows migrated from GenKit/Gemini to Perplexity Sonar on 2025-10-30.
+
+**Architecture Update (2025-12-08):** Implemented Adapter Pattern for Perplexity streaming. New `PerplexityStreamAdapter` (`src/lib/adapters/`) provides cleaner streaming logic ported from Side Project A. Feature Flag control (`PERPLEXITY_USE_NEW_ADAPTER`) enables gradual rollout between legacy `PerplexityClient` and new adapter.
 
 **Current Architecture:** All QA and relationship mapping flows use Perplexity Sonar API with web search capabilities for real-time scholarly research integration.
 
@@ -19,6 +21,8 @@ The `perplexity-red-chamber-qa` module implements the core AI-powered question a
   * `@/lib/perplexity-client` - HTTP client for Perplexity API (`PerplexityClient`, `getDefaultPerplexityClient`)
   * `@/ai/perplexity-config` - Configuration constants and utilities (`PERPLEXITY_CONFIG`, `supportsReasoning`, type exports for `PerplexityModelKey`, `ReasoningEffort`, `QuestionContext`)
   * `@/lib/terminal-logger` - Comprehensive logging utilities (`terminalLogger`, `debugLog`, `errorLog`, `traceLog`)
+  * `@/lib/perplexity-feature-flags` - Feature flag control for adapter switching (`shouldUseNewAdapter`, `PERPLEXITY_FLAGS`) **(Added 2025-12-08)**
+  * `@/lib/adapters` - New Perplexity Stream Adapter module (`PerplexityStreamAdapter`) **(Added 2025-12-08)**
 * **External Dependencies:**
   * `zod` - Schema validation library for runtime type checking and validation
 
@@ -369,8 +373,69 @@ Run tests: `npm test -- tests/ai/flows/`
 
 ---
 
-**Document Version:** 2.2
-**Last Updated:** 2025-11-30 (Documentation update - added streaming/batch/helper function details)
+**Document Version:** 2.3
+**Last Updated:** 2025-12-08 (Adapter Pattern implementation - added PerplexityStreamAdapter and Feature Flag support)
 **Migration Date:** 2025-10-30
 **Previous Version:** GenKit/Gemini-based (see git history before 2025-10-30)
+
+---
+
+## Adapter Pattern Architecture (2025-12-08)
+
+### Overview
+
+A new Adapter Pattern implementation was introduced to address complexity issues with the legacy `PerplexityClient` (1300+ lines). The new `PerplexityStreamAdapter` provides cleaner streaming logic ported from a validated Side Project.
+
+### New Files
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `src/lib/adapters/index.ts` | Module exports | ~35 |
+| `src/lib/adapters/types.ts` | Adapter-specific type definitions | ~130 |
+| `src/lib/adapters/simple-think-parser.ts` | `<think>` tag parser (state machine) | ~220 |
+| `src/lib/adapters/simple-chat-stream.ts` | Native fetch SSE streaming | ~360 |
+| `src/lib/adapters/perplexity-stream-adapter.ts` | AsyncGenerator adapter | ~450 |
+| `src/lib/perplexity-feature-flags.ts` | Feature flag control | ~190 |
+
+### Feature Flags
+
+```bash
+# Enable new adapter (100% traffic)
+PERPLEXITY_USE_NEW_ADAPTER=true
+
+# Enable debug logging
+PERPLEXITY_DEBUG_ADAPTER=true
+
+# Percentage-based rollout (0-100)
+PERPLEXITY_NEW_ADAPTER_PERCENTAGE=10
+```
+
+### Usage
+
+The `perplexityRedChamberQAStreaming()` function automatically checks `shouldUseNewAdapter()` to determine which implementation to use:
+
+```typescript
+// In perplexity-red-chamber-qa.ts
+const useNewAdapter = shouldUseNewAdapter();
+
+if (useNewAdapter) {
+  // Uses PerplexityStreamAdapter (new, cleaner logic)
+  const adapter = new PerplexityStreamAdapter();
+  for await (const chunk of adapter.streamingQA(input)) {
+    yield chunk;
+  }
+} else {
+  // Uses PerplexityClient (legacy)
+  const client = getDefaultPerplexityClient();
+  for await (const chunk of client.streamingCompletionRequest(input)) {
+    yield chunk;
+  }
+}
+```
+
+### Related Documentation
+
+- Analysis Document: `docs/AI_QA_Module_Problem/TASK-006_Adapter_Pattern_Analysis.md`
+- Work List: `docs/AI_QA_Module_Problem/perplexity_reconstruct_workList.md`
+- Smoke Test Guide: `docs/AI_QA_Module_Problem/smoke_test_guide.md`
 

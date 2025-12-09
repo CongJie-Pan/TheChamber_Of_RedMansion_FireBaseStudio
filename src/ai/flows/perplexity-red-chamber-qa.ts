@@ -33,6 +33,8 @@ import {
   type QuestionContext,
 } from '@/ai/perplexity-config';
 import { terminalLogger, debugLog, errorLog, traceLog } from '@/lib/terminal-logger';
+import { shouldUseNewAdapter, PERPLEXITY_FLAGS } from '@/lib/perplexity-feature-flags';
+import { PerplexityStreamAdapter } from '@/lib/adapters';
 
 /**
  * Zod schema for validating Perplexity QA input
@@ -184,24 +186,33 @@ export async function perplexityRedChamberQA(input: PerplexityQAInput): Promise<
 /**
  * Streaming version of Perplexity QA for real-time responses
  * 即時回應的 Perplexity QA 流式版本
+ *
+ * @note 支援 Feature Flag 控制新舊 Adapter 切換
+ * - PERPLEXITY_USE_NEW_ADAPTER=true: 使用新的 PerplexityStreamAdapter
+ * - PERPLEXITY_USE_NEW_ADAPTER=false (預設): 使用舊的 PerplexityClient
  */
 export async function* perplexityRedChamberQAStreaming(
   input: PerplexityQAInput
 ): AsyncGenerator<PerplexityStreamingChunk> {
   const functionName = 'perplexityRedChamberQAStreaming';
-  
+
+  // 檢查是否使用新 Adapter
+  const useNewAdapter = shouldUseNewAdapter();
+
   await terminalLogger.logAsyncGeneratorStart('PERPLEXITY_STREAMING', functionName, input);
-  
+
   console.log('Starting Perplexity streaming QA:', {
     question: input.userQuestion.substring(0, 100),
     modelKey: input.modelKey,
+    useNewAdapter,
   });
-  
+
   await debugLog('PERPLEXITY_STREAMING', 'Function entry point reached', {
     inputType: typeof input,
     inputKeys: Object.keys(input),
     userQuestionLength: input.userQuestion?.length,
     enableStreaming: input.enableStreaming,
+    useNewAdapter,
   });
 
   // Validate input
@@ -233,6 +244,47 @@ export async function* perplexityRedChamberQAStreaming(
   });
 
   try {
+    // ========== Feature Flag: 新舊 Adapter 切換 ==========
+    if (useNewAdapter) {
+      // 使用新的 PerplexityStreamAdapter (Side Project A 邏輯)
+      if (PERPLEXITY_FLAGS.debugAdapter) {
+        console.log('[perplexity-red-chamber-qa] Using NEW PerplexityStreamAdapter');
+      }
+
+      const adapter = new PerplexityStreamAdapter();
+
+      for await (const chunk of adapter.streamingQA(processedInput)) {
+        // Task 4.2 Debug: Log chunk being yielded from new adapter
+        console.log('[perplexity-red-chamber-qa] [NEW ADAPTER] Yielding chunk:', {
+          chunkIndex: chunk.chunkIndex,
+          contentLength: chunk.content?.length || 0,
+          fullContentLength: chunk.fullContent?.length || 0,
+          thinkingContentLength: chunk.thinkingContent?.length || 0,
+          isComplete: chunk.isComplete,
+          hasError: !!chunk.error,
+        });
+
+        yield chunk;
+
+        if (chunk.isComplete) {
+          console.log('Perplexity streaming QA completed (NEW ADAPTER):', {
+            chunkIndex: chunk.chunkIndex,
+            finalLength: chunk.fullContent.length,
+            citationCount: chunk.citations.length,
+            responseTime: chunk.responseTime,
+          });
+          break;
+        }
+      }
+
+      return;
+    }
+
+    // ========== 舊邏輯: 使用 PerplexityClient ==========
+    if (PERPLEXITY_FLAGS.debugAdapter) {
+      console.log('[perplexity-red-chamber-qa] Using LEGACY PerplexityClient');
+    }
+
     // Get Perplexity client
     await debugLog('PERPLEXITY_STREAMING', 'Getting Perplexity client');
     const client = getDefaultPerplexityClient();
