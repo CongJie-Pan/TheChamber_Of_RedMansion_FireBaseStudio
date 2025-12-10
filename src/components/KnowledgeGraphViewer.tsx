@@ -34,7 +34,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-// Performance optimization: Selective D3.js imports to reduce bundle size by ~50-70%
+// Performance optimization: Selective D3.js imports to reduce bundle size
+// Simplified to classic force-directed layout (removed forceRadial, forceX, forceY)
 import {
   select,
   forceSimulation,
@@ -42,9 +43,6 @@ import {
   forceManyBody,
   forceCenter,
   forceCollide,
-  forceRadial,
-  forceX,
-  forceY,
   drag,
   zoom,
   zoomIdentity
@@ -420,124 +418,44 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .attr("stop-opacity", 0.7); // Increased from 0.3 for better visibility
 
     // ============================================================
-    // RADIAL GROUP LAYOUT (径向分组布局)
+    // CLASSIC D3.JS FORCE-DIRECTED LAYOUT (經典力導向布局)
     // ============================================================
-    // Calculate center point for the radial layout
+    // Simplified layout for better readability - nodes naturally spread
+    // based on their connections rather than forced into rings
     const centerX = dimensions.width / 2;
     const centerY = dimensions.height / 2;
 
-    // Ring radius multipliers - spacing designed for visual balance
-    // Extended to cover all 7 groups with progressive spacing
-    // Reason: Original only covered groups 1-5, causing groups 6-7 to use
-    // their group number as multiplier which created uneven distribution
-    const RING_RADIUS_MULTIPLIERS: Readonly<Record<number, number>> = {
-      1: 0.6,   // 核心: 神話人物 (女媧氏、警幻仙子)
-      2: 1.4,   // 第二圈: 主要人物 (甄士隱、賈雨村、道人)
-      3: 2.2,   // 第三圈: 地點 (青埂峰、姑蘇、太虛幻境)
-      4: 3.0,   // 第四圈: 重要物品/文獻 (石頭記、通靈寶玉)
-      5: 3.7,   // 第五圈: 哲學概念 (紅塵、情)
-      6: 4.3,   // 第六圈: 情節事件
-      7: 4.9,   // 最外圈: 其他人物/實體
-    };
-
-    // Reason: Increased from 0.12 to 0.15 for better spacing when many nodes
-    // are present. This provides more room between concentric rings.
-    const baseRadius = Math.min(dimensions.width, dimensions.height) * 0.15;
-    const getGroupRadius = (group: number): number => {
-      return baseRadius * (RING_RADIUS_MULTIPLIERS[group] ?? group);
-    };
-
-    // ============================================================
-    // FIX: Clone nodes to avoid mutating props (React immutability)
-    // ============================================================
+    // Clone nodes to avoid mutating props (React immutability)
     const workingNodes: KnowledgeGraphNode[] = graphData.nodes.map(node => ({ ...node }));
     const workingLinks: KnowledgeGraphLink[] = graphData.links.map(link => ({ ...link }));
 
-    // ============================================================
-    // FIX: Pre-compute positions ONCE for O(1) lookup in force callbacks
-    // ============================================================
-    // Count nodes per group
-    const groupNodeCounts: Record<number, number> = {};
-    workingNodes.forEach(node => {
-      groupNodeCounts[node.group] = (groupNodeCounts[node.group] || 0) + 1;
-    });
-
-    // Pre-compute angular positions into a Map for O(1) access
-    const nodePositions = new Map<string, { x: number; y: number }>();
-    const groupNodeIndices: Record<number, number> = {};
-
-    workingNodes.forEach(node => {
-      const group = node.group;
-      const index = groupNodeIndices[group] || 0;
-      groupNodeIndices[group] = index + 1;
-
-      // FIX: Division by zero protection
-      const count = groupNodeCounts[group] || 1;
-      const angle = count > 0
-        ? (2 * Math.PI * index) / count - Math.PI / 2  // Start from top
-        : 0;
-      const radius = getGroupRadius(group);
-
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
-
-      // Store in Map for O(1) lookup
-      nodePositions.set(node.id, { x, y });
-
-      // Set initial positions on cloned nodes for smoother animation
-      node.x = x;
-      node.y = y;
-    });
-
-    // Create force simulation with RADIAL GROUP LAYOUT
-    // Reason: Users requested organized, non-chaotic node distribution
-    // FIX: Use cloned workingNodes/workingLinks instead of original graphData
+    // Create classic D3.js force simulation
+    // Uses only 4 essential forces for clean, organic layout
     const simulation = forceSimulation<KnowledgeGraphNode>(workingNodes)
-      // Link force: connects related nodes with appropriate tension
-      // Reason: Reduced strength further (0.08) to prevent links from pulling
-      // nodes out of their designated radial positions
+      // Link force: connects related nodes with natural tension
       .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(workingLinks)
         .id(d => d.id)
-        .distance(d => d.distance * 1.5) // Increased from 1.2 for more spacing
-        .strength(d => d.strength * 0.08)) // Reduced from 0.15 to minimize link interference
+        .distance(d => (d.distance || 100) * 1.2) // Natural link distances
+        .strength(d => d.strength * 0.5)) // Moderate link strength
 
-      // Radial force: PRIMARY force for organizing nodes into concentric rings
-      // Reason: Increased strength to 0.95 to strongly enforce radial positioning
-      .force("radial", forceRadial<KnowledgeGraphNode>(
-        d => getGroupRadius(d.group), // Each node targets its group's radius
-        centerX,
-        centerY
-      ).strength(0.95)) // Increased from 0.8 for stronger ring enforcement
+      // Center force: keeps the entire graph centered in view
+      .force("center", forceCenter(centerX, centerY))
 
-      // Gentle centering force as backup
-      .force("center", forceCenter(centerX, centerY).strength(0.02)) // Reduced from 0.05
-
-      // Collision force: prevents node overlap within rings
-      // Reason: Increased radius buffer and strength for better separation
+      // Collision force: prevents node overlap
       .force("collision", forceCollide<KnowledgeGraphNode>()
-        .radius(d => d.radius + 25) // Increased from +15 for more personal space
-        .strength(0.95)) // Increased from 0.9 for stronger collision avoidance
+        .radius(d => d.radius + 12) // Comfortable spacing around nodes
+        .strength(0.8))
 
-      // Charge force: repulsion to spread nodes within same ring
-      // Reason: Increased strength and range to help spread clustered nodes
+      // Charge force: classic node repulsion for organic spread
       .force("charge", forceManyBody()
-        .strength(-500) // Increased from -300 for stronger repulsion
-        .distanceMax(350)) // Increased from 200 for wider effect range
+        .strength(-400) // Moderate repulsion
+        .distanceMin(50) // Prevent extreme forces when very close
+        .distanceMax(400)) // Reasonable influence range
 
-      // FIX: Angular distribution using O(1) Map lookup instead of O(n) filter/findIndex
-      // Reason: Increased strength to 0.15 for better angular separation
-      .force("x", forceX<KnowledgeGraphNode>(d => {
-        return nodePositions.get(d.id)?.x ?? centerX;
-      }).strength(0.15)) // Increased from 0.1 for stronger angular positioning
-
-      .force("y", forceY<KnowledgeGraphNode>(d => {
-        return nodePositions.get(d.id)?.y ?? centerY;
-      }).strength(0.15)) // Increased from 0.1 for stronger angular positioning
-
-      // Simulation parameters for quick convergence
-      .alphaDecay(0.025) // Slightly slower decay for better convergence
-      .velocityDecay(0.4) // Reduced from 0.5 for smoother movement
-      .alphaMin(0.001); // Stop when stable
+      // Simulation parameters for stable convergence
+      .alphaDecay(0.02) // Smooth convergence
+      .velocityDecay(0.4) // Natural friction
+      .alphaMin(0.001); // Stop simulation when stable (prevents jitter)
 
     simulationRef.current = simulation;
 
@@ -684,17 +602,17 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "2,2"); // Decorative dashed pattern
 
-    // Add text labels with truncation and softer styling
-    // Reason: Apply truncation to prevent text overflow, lighter weight for elegance
+    // Add text labels with truncation and improved readability
+    // Reason: Apply truncation to prevent text overflow, ensure readable font size
     node.append("text")
       .text(d => truncateText(d.name, d.radius)) // Apply truncation based on node radius
       .attr("text-anchor", "middle")
       .attr("dy", ".35em")
       .style("font-family", "'Noto Serif SC', serif")
-      .style("font-size", d => `${Math.max(12, d.radius / 2.2)}px`)
-      .style("font-weight", "500") // Lighter weight (was 600)
+      .style("font-size", d => `${Math.max(14, d.radius / 2)}px`) // Increased min from 12 to 14, adjusted ratio
+      .style("font-weight", "600") // Bolder for better visibility at small zoom
       .style("fill", "#ffffff")
-      .style("text-shadow", "1px 1px 3px rgba(0,0,0,0.4)") // Softer shadow
+      .style("text-shadow", "1px 1px 4px rgba(0,0,0,0.5)") // Stronger shadow for contrast
       .style("pointer-events", "none")
       .append("title") // Add tooltip to show full text on hover
       .text(d => d.name);
