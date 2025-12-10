@@ -92,9 +92,9 @@ export const PERPLEXITY_CONFIG = {
   
   // Default model settings
   DEFAULT_MODEL: 'sonar-reasoning-pro' as PerplexityModelKey,
-  DEFAULT_REASONING_EFFORT: 'high' as ReasoningEffort,
+  DEFAULT_REASONING_EFFORT: 'medium' as ReasoningEffort,
   DEFAULT_TEMPERATURE: 0.2,
-  DEFAULT_MAX_TOKENS: 2000,
+  DEFAULT_MAX_TOKENS: 4500,
   
   // Request settings
   REQUEST_TIMEOUT_MS: 60000, // 60 seconds (standard models timeout)
