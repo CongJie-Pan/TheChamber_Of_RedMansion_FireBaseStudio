@@ -217,7 +217,7 @@ export const DailyTasksSummary: React.FC = () => {
         )}
 
         {/* Action Button */}
-        <Link href="/daily-tasks">
+        <Link href="/daily-tasks" className="block mt-2">
           <Button
             className="w-full"
             variant={allCompleted ? "outline" : "default"}
