@@ -435,22 +435,22 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
       // Link force: connects related nodes with natural tension
       .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(workingLinks)
         .id(d => d.id)
-        .distance(d => (d.distance || 100) * 1.2) // Natural link distances
-        .strength(d => d.strength * 0.5)) // Moderate link strength
+        .distance(d => (d.distance || 100) * 1.8) // Increased from 1.2 for wider spacing
+        .strength(d => d.strength * 0.4)) // Slightly weaker links for more spread
 
       // Center force: keeps the entire graph centered in view
       .force("center", forceCenter(centerX, centerY))
 
-      // Collision force: prevents node overlap
+      // Collision force: prevents node overlap with generous spacing
       .force("collision", forceCollide<KnowledgeGraphNode>()
-        .radius(d => d.radius + 12) // Comfortable spacing around nodes
-        .strength(0.8))
+        .radius(d => d.radius + 30) // Increased from +12 for more breathing room
+        .strength(0.9))
 
-      // Charge force: classic node repulsion for organic spread
+      // Charge force: stronger repulsion for wider node distribution
       .force("charge", forceManyBody()
-        .strength(-400) // Moderate repulsion
-        .distanceMin(50) // Prevent extreme forces when very close
-        .distanceMax(400)) // Reasonable influence range
+        .strength(-800) // Increased from -400 for stronger repulsion
+        .distanceMin(80) // Increased from 50 to prevent clustering
+        .distanceMax(600)) // Increased from 400 for wider influence
 
       // Simulation parameters for stable convergence
       .alphaDecay(0.02) // Smooth convergence
