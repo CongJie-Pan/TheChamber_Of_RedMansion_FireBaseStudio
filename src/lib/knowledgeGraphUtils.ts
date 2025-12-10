@@ -114,22 +114,27 @@ export interface KnowledgeGraphData {
  * - Transparent rules (easy to debug and extend)
  * - Sufficient for Dream of the Red Chamber context
  *
- * Color scheme reasoning:
- * - Red (#DC2626): Mythological - highest importance, divine beings
- * - Green (#059669): Main characters - central to plot
- * - Pink (#EC4899): Secondary characters - supporting roles
- * - Purple (#8B5CF6): Mystical locations - supernatural realms
- * - Amber (#F59E0B): Earthly locations - mundane world
- * - Golden (#EAB308): Artifacts - important objects/texts
- * - Cyan (#0891B2): Philosophical concepts - abstract ideas
- * - Brown (#7C2D12): Events - plot points
- * - Gray (#6B7280): Other - default fallback
+ * Color scheme reasoning (muted palette for traditional aesthetics):
+ * - Sepia (#8B6F47): Mythological beings - ancient divine presence
+ * - Blue-gray (#5B7C8D): Main characters - ink wash aesthetic
+ * - Taupe (#9B8B7E): Secondary characters - supporting harmony
+ * - Indigo-gray (#6B7FA3): Mystical locations - mountain mist
+ * - Olive-gray (#8B8B73): Earthly locations - grounded places
+ * - Bronze (#A68A5C): Artifacts - precious objects
+ * - Smoke blue (#7A8E92): Philosophical concepts - abstract ideas
+ * - Charcoal (#6B5F56): Events - narrative elements
+ * - Gray (#808080): Other - default fallback
  *
  * Radius encoding:
  * - 35px: Primary importance (most prominent in visualization)
  * - 28-30px: Important entities (clearly visible)
  * - 22-25px: Secondary entities (supporting elements)
  * - 18-20px: Tertiary entities (background elements)
+ *
+ * Rule Priority (IMPORTANT):
+ * Rules are ordered by specificity to avoid misclassification.
+ * More specific patterns (e.g., '封氏' for secondary character) are checked
+ * before broader patterns (e.g., '氏' for mythological).
  */
 const categorizeEntity = (entityName: string): {
   type: KnowledgeGraphNode['type'];
@@ -139,105 +144,175 @@ const categorizeEntity = (entityName: string): {
   group: number;
   radius: number;
 } => {
-  // Character patterns - 人物角色
-  if (entityName.includes('氏') || entityName.includes('仙') || entityName.includes('媧')) {
+  // ============================================================
+  // PRIORITY 1: Specific character names (check BEFORE broad patterns)
+  // Reason: Names like "封氏" should be secondary character, not mythological
+  // ============================================================
+
+  // Main characters - 主要人物 (specific names)
+  if (entityName.includes('甄士隱') || entityName.includes('士隱') ||
+      entityName.includes('賈雨村') || entityName.includes('雨村')) {
+    return {
+      type: 'character',
+      category: '主要人物',
+      importance: 'primary',
+      color: '#5B7C8D', // Muted blue-gray (青灰)
+      group: 2,
+      radius: 30
+    };
+  }
+
+  // Secondary characters - 次要人物 (specific names, check BEFORE '氏' pattern)
+  if (entityName.includes('英蓮') || entityName.includes('封氏') ||
+      entityName.includes('封肅') || entityName.includes('霍啟') ||
+      entityName === '甄士隱 與 封氏') {
+    return {
+      type: 'character',
+      category: '次要人物',
+      importance: 'secondary',
+      color: '#9B8B7E', // Warm taupe (淺褐)
+      group: 2,
+      radius: 25
+    };
+  }
+
+  // Taoist/Buddhist figures - 道人/仙人 (specific patterns)
+  if (entityName.includes('道人') || entityName.includes('道士') ||
+      entityName.includes('和尚') || entityName.includes('僧')) {
+    return {
+      type: 'character',
+      category: '主要人物',
+      importance: 'primary',
+      color: '#5B7C8D', // Muted blue-gray (青灰)
+      group: 2,
+      radius: 28
+    };
+  }
+
+  // ============================================================
+  // PRIORITY 2: Mythological beings (broader '仙', '媧' patterns)
+  // ============================================================
+  if (entityName.includes('女媧') || entityName.includes('媧') ||
+      entityName.includes('警幻') || entityName.includes('神瑛') ||
+      (entityName.includes('仙') && !entityName.includes('仙子宮'))) {
     return {
       type: 'character',
       category: '神話人物',
       importance: 'primary',
-      color: '#8B6F47', // Muted sepia (深褐) - ancient earth tones for mythological beings
+      color: '#8B6F47', // Muted sepia (深褐)
       group: 1,
       radius: 35
     };
   }
 
-  if (entityName.includes('士隱') || entityName.includes('雨村') || entityName.includes('道人')) {
+  // ============================================================
+  // PRIORITY 3: Locations - check specific names before broad patterns
+  // Reason: "吳玉峰" is a person name, not a location
+  // ============================================================
+
+  // Person names that look like locations (exclusions)
+  if (entityName === '吳玉峰' || entityName === '孔梅溪') {
     return {
       type: 'character',
-      category: '主要人物',
-      importance: 'primary',
-      color: '#5B7C8D', // Muted blue-gray (青灰) - ink wash painting aesthetic
-      group: 2,
-      radius: 30
+      category: '其他人物',
+      importance: 'tertiary',
+      color: '#808080', // Neutral gray
+      group: 7,
+      radius: 20
     };
   }
 
-  if (entityName.includes('英蓮') || entityName.includes('封氏')) {
-    return {
-      type: 'character',
-      category: '次要人物',
-      importance: 'secondary',
-      color: '#9B8B7E', // Warm taupe (淺褐) - muted rose-brown for harmony
-      group: 2,
-      radius: 25
-    };
-  }
-  
-  // Location patterns - 地點
-  if (entityName.includes('峰') || entityName.includes('山') || entityName.includes('崖') || entityName.includes('境')) {
+  // Mystical locations - 神話地點
+  if (entityName.includes('太虛幻境') || entityName.includes('幻境') ||
+      entityName.includes('青埂峰') || entityName.includes('無稽崖') ||
+      entityName.includes('赤瑕宮') || entityName.includes('北邙山') ||
+      (entityName.includes('境') && !entityName.includes('夢境'))) {
     return {
       type: 'location',
       category: '神話地點',
       importance: 'primary',
-      color: '#6B7FA3', // Muted indigo-gray (靛青) - mountain mist, mystical atmosphere
+      color: '#6B7FA3', // Muted indigo-gray (靛青)
       group: 3,
       radius: 28
     };
   }
 
-  if (entityName.includes('城') || entityName.includes('蘇') || entityName.includes('廟') || entityName.includes('巷')) {
+  // Earthly locations - 世俗地點
+  if (entityName.includes('姑蘇') || entityName.includes('蘇州') ||
+      entityName.includes('葫蘆廟') || entityName.includes('仁清巷') ||
+      entityName.includes('閶門') || entityName.includes('廟') ||
+      entityName.includes('巷') || entityName.includes('城')) {
     return {
       type: 'location',
       category: '世俗地點',
       importance: 'secondary',
-      color: '#8B8B73', // Muted olive-gray (橄榄灰) - earth and stone, grounded places
+      color: '#8B8B73', // Muted olive-gray (橄榄灰)
       group: 3,
       radius: 24
     };
   }
-  
-  // Event patterns - 事件/情節 (check before artifact patterns)
-  if (entityName.includes('功名') || entityName.includes('富貴') || entityName.includes('夢境') || entityName.includes('詩詞') || entityName === '功名夢') {
-    return {
-      type: 'event',
-      category: '情節事件',
-      importance: 'secondary',
-      color: '#6B5F56', // Deep charcoal taupe (深灰褐) - aged wood, narrative events
-      group: 6,
-      radius: 20
-    };
-  }
 
-  // Artifact patterns - 物品/文獻
-  if (entityName.includes('石') || entityName.includes('玉') || entityName.includes('記') || entityName.includes('夢') || entityName.includes('歌')) {
+  // ============================================================
+  // PRIORITY 4: Important artifacts and texts
+  // ============================================================
+  if (entityName.includes('石頭記') || entityName.includes('紅樓夢') ||
+      entityName.includes('通靈寶玉') || entityName.includes('金陵十二釵') ||
+      entityName.includes('好了歌') || entityName.includes('對聯') ||
+      entityName === '三生石' || entityName === '甘露' ||
+      entityName.includes('玉') || entityName.includes('石頭')) {
     return {
       type: 'artifact',
       category: '重要物品/文獻',
       importance: 'primary',
-      color: '#A68A5C', // Antique bronze (古銅) - aged metal, precious artifacts
+      color: '#A68A5C', // Antique bronze (古銅)
       group: 4,
       radius: 30
     };
   }
 
-  // Concept patterns - 概念/事件
-  if (entityName.includes('情') || entityName.includes('還淚') || entityName.includes('紅塵') || entityName.includes('溫柔') || entityName.includes('火坑')) {
+  // ============================================================
+  // PRIORITY 5: Philosophical concepts
+  // ============================================================
+  if (entityName.includes('紅塵') || entityName.includes('風流孽緣') ||
+      entityName.includes('神話因緣') || entityName.includes('還淚') ||
+      entityName.includes('溫柔') || entityName.includes('火坑') ||
+      entityName === '人形' || entityName === '絳珠草' ||
+      entityName === '鄉宦' || entityName === '胡州人') {
     return {
       type: 'concept',
       category: '哲學概念',
       importance: 'secondary',
-      color: '#7A8E92', // Smoke blue (煙灰藍) - misty water, abstract concepts
+      color: '#7A8E92', // Smoke blue (煙灰藍)
       group: 5,
       radius: 22
     };
   }
 
-  // Default classification for author and other entities
+  // ============================================================
+  // PRIORITY 6: Events and plot elements
+  // ============================================================
+  if (entityName.includes('功名') || entityName.includes('富貴') ||
+      entityName.includes('夢境') || entityName.includes('火災') ||
+      entityName.includes('失蹤') || entityName.includes('放置門檻') ||
+      entityName.includes('銀兩') || entityName.includes('衣物')) {
+    return {
+      type: 'event',
+      category: '情節事件',
+      importance: 'secondary',
+      color: '#6B5F56', // Deep charcoal taupe (深灰褐)
+      group: 6,
+      radius: 20
+    };
+  }
+
+  // ============================================================
+  // DEFAULT: Other entities
+  // ============================================================
   return {
     type: 'character',
     category: '其他人物',
     importance: 'tertiary',
-    color: '#808080', // Neutral gray (中灰) - balanced, unobtrusive default
+    color: '#808080', // Neutral gray (中灰)
     group: 7,
     radius: 18
   };

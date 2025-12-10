@@ -427,16 +427,22 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     const centerY = dimensions.height / 2;
 
     // Ring radius multipliers - spacing designed for visual balance
-    // Ratio progression provides clear visual separation between groups
+    // Extended to cover all 7 groups with progressive spacing
+    // Reason: Original only covered groups 1-5, causing groups 6-7 to use
+    // their group number as multiplier which created uneven distribution
     const RING_RADIUS_MULTIPLIERS: Readonly<Record<number, number>> = {
-      1: 1.0,   // 核心: 神話人物/神器 (女媧、頑石、石頭記)
-      2: 2.2,   // 第二圈: 神仙 (僧、道)
-      3: 3.5,   // 第三圈: 世俗人物 (甄士隱、賈雨村等)
-      4: 4.5,   // 第四圈: 地點 (青埂峰、姑蘇城等)
-      5: 5.5,   // 最外圈: 事件/概念 (補天、好了歌等)
+      1: 0.6,   // 核心: 神話人物 (女媧氏、警幻仙子)
+      2: 1.4,   // 第二圈: 主要人物 (甄士隱、賈雨村、道人)
+      3: 2.2,   // 第三圈: 地點 (青埂峰、姑蘇、太虛幻境)
+      4: 3.0,   // 第四圈: 重要物品/文獻 (石頭記、通靈寶玉)
+      5: 3.7,   // 第五圈: 哲學概念 (紅塵、情)
+      6: 4.3,   // 第六圈: 情節事件
+      7: 4.9,   // 最外圈: 其他人物/實體
     };
 
-    const baseRadius = Math.min(dimensions.width, dimensions.height) * 0.12;
+    // Reason: Increased from 0.12 to 0.15 for better spacing when many nodes
+    // are present. This provides more room between concentric rings.
+    const baseRadius = Math.min(dimensions.width, dimensions.height) * 0.15;
     const getGroupRadius = (group: number): number => {
       return baseRadius * (RING_RADIUS_MULTIPLIERS[group] ?? group);
     };
@@ -488,43 +494,49 @@ export const KnowledgeGraphViewer: React.FC<KnowledgeGraphViewerProps> = ({
     // FIX: Use cloned workingNodes/workingLinks instead of original graphData
     const simulation = forceSimulation<KnowledgeGraphNode>(workingNodes)
       // Link force: connects related nodes with appropriate tension
+      // Reason: Reduced strength further (0.08) to prevent links from pulling
+      // nodes out of their designated radial positions
       .force("link", forceLink<KnowledgeGraphNode, KnowledgeGraphLink>(workingLinks)
         .id(d => d.id)
-        .distance(d => d.distance * 1.2) // Moderate distance for radial layout
-        .strength(d => d.strength * 0.15)) // Weaker to not disrupt radial structure
+        .distance(d => d.distance * 1.5) // Increased from 1.2 for more spacing
+        .strength(d => d.strength * 0.08)) // Reduced from 0.15 to minimize link interference
 
       // Radial force: PRIMARY force for organizing nodes into concentric rings
+      // Reason: Increased strength to 0.95 to strongly enforce radial positioning
       .force("radial", forceRadial<KnowledgeGraphNode>(
         d => getGroupRadius(d.group), // Each node targets its group's radius
         centerX,
         centerY
-      ).strength(0.8)) // Strong radial force to maintain ring structure
+      ).strength(0.95)) // Increased from 0.8 for stronger ring enforcement
 
       // Gentle centering force as backup
-      .force("center", forceCenter(centerX, centerY).strength(0.05))
+      .force("center", forceCenter(centerX, centerY).strength(0.02)) // Reduced from 0.05
 
       // Collision force: prevents node overlap within rings
+      // Reason: Increased radius buffer and strength for better separation
       .force("collision", forceCollide<KnowledgeGraphNode>()
-        .radius(d => d.radius + 15) // Personal space around each node
-        .strength(0.9)) // Strong collision avoidance
+        .radius(d => d.radius + 25) // Increased from +15 for more personal space
+        .strength(0.95)) // Increased from 0.9 for stronger collision avoidance
 
-      // Charge force: mild repulsion to spread nodes within same ring
+      // Charge force: repulsion to spread nodes within same ring
+      // Reason: Increased strength and range to help spread clustered nodes
       .force("charge", forceManyBody()
-        .strength(-300) // Reduced from -2500: radial handles most of the work
-        .distanceMax(200)) // Shorter range for local effects only
+        .strength(-500) // Increased from -300 for stronger repulsion
+        .distanceMax(350)) // Increased from 200 for wider effect range
 
       // FIX: Angular distribution using O(1) Map lookup instead of O(n) filter/findIndex
+      // Reason: Increased strength to 0.15 for better angular separation
       .force("x", forceX<KnowledgeGraphNode>(d => {
         return nodePositions.get(d.id)?.x ?? centerX;
-      }).strength(0.1)) // Gentle angular positioning
+      }).strength(0.15)) // Increased from 0.1 for stronger angular positioning
 
       .force("y", forceY<KnowledgeGraphNode>(d => {
         return nodePositions.get(d.id)?.y ?? centerY;
-      }).strength(0.1)) // Gentle angular positioning
+      }).strength(0.15)) // Increased from 0.1 for stronger angular positioning
 
       // Simulation parameters for quick convergence
-      .alphaDecay(0.03) // Moderate decay for stable convergence
-      .velocityDecay(0.5) // Medium friction
+      .alphaDecay(0.025) // Slightly slower decay for better convergence
+      .velocityDecay(0.4) // Reduced from 0.5 for smoother movement
       .alphaMin(0.001); // Stop when stable
 
     simulationRef.current = simulation;
