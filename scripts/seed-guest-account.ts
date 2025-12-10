@@ -27,7 +27,7 @@ export { GUEST_USER_ID } from '../src/lib/constants/guest-account';
 
 // Fixed task IDs for guest account
 const GUEST_TASK_1_ID = GUEST_TASK_IDS.READING_COMPREHENSION;
-const GUEST_TASK_2_ID = GUEST_TASK_IDS.CHARACTER_ANALYSIS;
+const GUEST_TASK_2_ID = GUEST_TASK_IDS.CULTURAL_EXPLORATION;
 
 // Guest user data
 const GUEST_USER = {
@@ -48,52 +48,64 @@ const GUEST_USER = {
 };
 
 // Fixed daily tasks for guest account
+// 題目來源: data/task-questions/question-bank.json
+// 選用題目: reading_001 (晨讀時光) + culture_008 (文化探秘)
 const GUEST_TASKS = [
   {
     id: GUEST_TASK_1_ID,
-    taskType: 'morning_reading', // Fixed: Use correct DailyTaskType enum value
-    difficulty: 'medium',
-    title: '閱讀理解：林黛玉進賈府',
-    description: '請仔細閱讀第三回「林黛玉進賈府」的選段，並回答相關問題',
-    baseXP: 50,
+    taskType: 'morning_reading', // reading_001
+    difficulty: 'easy',
+    title: '晨讀時光：寶玉摔玉',
+    description: '閱讀第三回賈寶玉「摔玉」的經典情節，分析他的性格特徵與價值觀',
+    baseXP: 30,
     content: JSON.stringify({
-      question: '林黛玉初進賈府時，對賈府環境有何感受？請從文中找出相關描寫。',
-      passage: '黛玉方進入房中，只見兩邊翠幕高懸，金鉤低掛，珠簾半捲，畫棟雕簷，說不盡那富麗堂皇。',
-      options: [
-        '感到富麗堂皇，但心中謹慎',
-        '感到非常熟悉和親切',
-        '感到不習慣如此奢華',
-        '沒有特別的感受'
-      ],
-      correctAnswer: '感到富麗堂皇，但心中謹慎',
-      explanation: '林黛玉雖出身書香門第，但賈府的富麗堂皇仍令她震撼。文中描寫她「步步留心，時時在意」，顯示她的謹慎態度。',
+      id: 'reading_001',
+      chapter: 3,
+      startLine: 185,
+      endLine: 198,
+      text: '寶玉聽了，登時發作起癡狂病來，摘下那玉，就狠命摔去，罵道：「什麼勞什子，我砸了他！什麼罕物，連人之高低不擇，還說『通靈』不『通靈』呢！我也不要這勞什子了！」嚇的眾人一擁爭去拾玉。賈母急的摟了寶玉道：「孽障！你生氣，要打罵人容易，何苦摔那命根子！」寶玉滿面淚痕哭道：「家裡姐姐妹妹都沒有，單我有，我說沒趣，如今來了這們一個神仙似的妹妹也沒有，可知這不是個好東西。」',
+      question: '在這段情節中，賈寶玉「摔玉」的行為反映了他怎樣的性格特徵與價值觀？',
+      hint: '思考提示：寶玉為什麼說「連人之高低不擇」？他認為「神仙似的妹妹」沒有玉，自己有玉這件事代表了什麼？這反映了他對「世俗寶物」與「人」之間關係的看法。',
+      expectedKeywords: ['叛逆', '平等', '反世俗', '重視情感', '厭惡特權', '癡狂'],
     }),
     sourceChapter: 3,
-    sourceVerseStart: null,
-    sourceVerseEnd: null,
+    sourceVerseStart: 185,
+    sourceVerseEnd: 198,
     createdAt: new Date().toISOString(),
   },
   {
     id: GUEST_TASK_2_ID,
-    taskType: 'character_insight', // Fixed: Use correct DailyTaskType enum value
-    difficulty: 'easy',
-    title: '人物分析：賈寶玉性格特點',
-    description: '請分析賈寶玉的性格特點，並舉例說明',
-    baseXP: 30,
+    taskType: 'cultural_exploration', // culture_008
+    difficulty: 'hard',
+    title: '文化探秘：牡丹亭與心靈覺醒',
+    description: '探索《牡丹亭》戲曲如何觸動林黛玉的內心世界，理解戲曲在《紅樓夢》中的文化意涵',
+    baseXP: 50,
     content: JSON.stringify({
-      question: '賈寶玉最突出的性格特點是什麼？',
-      characterName: '賈寶玉',
-      hint: '思考他對待女性的態度以及他的人生觀',
-      options: [
-        '尊重女性，反對封建禮教',
-        '嚴守禮教，循規蹈矩',
-        '冷漠無情，只關心功名',
-        '軟弱無能，沒有主見'
-      ],
-      correctAnswer: '尊重女性，反對封建禮教',
-      explanation: '賈寶玉最顯著的性格特點是尊重女性，認為「女兒是水做的骨肉」。他反對科舉功名，厭惡「祿蠹」（追求功名利祿的人），體現了對封建禮教的反抗精神。',
+      id: 'culture_008',
+      category: '戲曲',
+      title: '牡丹亭與心靈覺醒',
+      description: '第二十三回，林黛玉路過梨香院，聽到小戲子們在排演《牡丹亭》。這部由明代湯顯祖創作的崑曲經典，講述了杜麗娘為情而死、死而復生的故事。當時正統禮教視此類作品為「淫詞艷曲」。黛玉聽到「原來奼紫嫣紅開遍，似這般都付與斷井頹垣」這兩句時，心靈受到極大震撼。戲文中對青春流逝、美景虛設的感嘆，與黛玉「多愁善感」、「惜春悲秋」的內心產生了強烈共鳴，引發了她對個人命運和愛情的深層思考。這是《紅樓夢》中以戲曲推動人物心理發展的經典筆法。',
+      relatedChapters: [23],
+      questions: [
+        {
+          id: 'q1',
+          question: '林黛玉聽到的「良辰美景奈何天，賞心樂事誰家院」出自《牡丹亭》的哪一折？',
+          type: 'multiple_choice',
+          options: ['驚夢', '尋夢', '離魂', '冥判'],
+          correctAnswer: '驚夢',
+          explanation: '這出自《牡丹亭·驚夢》，是杜麗娘在遊園時發出的著名感嘆。'
+        },
+        {
+          id: 'q2',
+          question: '為什麼這段戲文能讓林黛玉「如醉如癡，站立不住」？',
+          type: 'multiple_choice',
+          options: ['因為她沒聽過崑曲', '因為戲文太長她站累了', '因為戲文觸動了她青春易逝、知音難覓的孤獨感', '因為她不喜歡這個曲調'],
+          correctAnswer: '因為戲文觸動了她青春易逝、知音難覓的孤獨感',
+          explanation: '黛玉聯想到自己寄人籬下、青春虛度，這段描寫花開無人賞的詞句正好擊中了她內心最柔軟的悲劇感。'
+        }
+      ]
     }),
-    sourceChapter: null,
+    sourceChapter: 23,
     sourceVerseStart: null,
     sourceVerseEnd: null,
     createdAt: new Date().toISOString(),

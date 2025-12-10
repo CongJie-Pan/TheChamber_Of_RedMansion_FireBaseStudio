@@ -35,10 +35,13 @@ export const GUEST_LEVEL = 1;
 /**
  * Fixed task IDs for guest account
  * These tasks are created by the seed script and never change
+ * 題目來源: data/task-questions/question-bank.json
+ * - reading_001: 寶玉摔玉 (morning_reading, easy)
+ * - culture_008: 牡丹亭與心靈覺醒 (cultural_exploration, hard)
  */
 export const GUEST_TASK_IDS = {
-  READING_COMPREHENSION: 'guest-task-reading-comprehension',
-  CHARACTER_ANALYSIS: 'guest-task-character-analysis',
+  READING_COMPREHENSION: 'guest-task-reading-001',
+  CULTURAL_EXPLORATION: 'guest-task-culture-008',
 } as const;
 
 /**
