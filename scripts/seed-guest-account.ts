@@ -163,8 +163,44 @@ const GUEST_PROGRESS = {
 };
 
 /**
+ * Preserved learning stats from existing guest account
+ * These fields are NOT reset when re-seeding
+ */
+interface PreservedLearningData {
+  stats: string | null;
+  completedChapters: string | null;
+}
+
+/**
+ * Fetch existing guest learning data before deletion
+ * Phase 4-T1 Enhancement: Preserve learning stats across resets
+ */
+async function fetchExistingLearningData(db: Client): Promise<PreservedLearningData> {
+  try {
+    const result = await db.execute({
+      sql: `SELECT stats, completedChapters FROM users WHERE id = ?`,
+      args: [GUEST_USER_ID]
+    });
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0] as any;
+      console.log(`   📊 Found existing learning data to preserve`);
+      return {
+        stats: row.stats || null,
+        completedChapters: row.completedChapters || null,
+      };
+    }
+  } catch (error: any) {
+    console.warn(`   ⚠️  Could not fetch existing learning data: ${error.message}`);
+  }
+
+  return { stats: null, completedChapters: null };
+}
+
+/**
  * Delete existing guest account data
  * Phase 4-T1: Ensures complete reset including all task submissions and progress records
+ * Note: Learning stats (stats, completedChapters) are preserved separately
  */
 async function deleteGuestData(db: Client): Promise<void> {
   console.log(`\n🗑️  Deleting existing guest account data...`);
@@ -196,15 +232,16 @@ async function deleteGuestData(db: Client): Promise<void> {
 
 /**
  * Insert guest user account
+ * Phase 4-T1 Enhancement: Preserves learning stats (stats, completedChapters) across resets
  */
-async function insertGuestUser(db: Client): Promise<void> {
+async function insertGuestUser(db: Client, preservedData: PreservedLearningData): Promise<void> {
   console.log(`\n👤 Creating guest user account...`);
 
   await db.execute({
     sql: `INSERT INTO users (
       id, username, email, currentLevel, currentXP, totalXP,
-      attributes, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      attributes, stats, completedChapters, createdAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       GUEST_USER.id,
       GUEST_USER.username,
@@ -213,6 +250,8 @@ async function insertGuestUser(db: Client): Promise<void> {
       GUEST_USER.currentXP,
       GUEST_USER.totalXP,
       GUEST_USER.attributes,
+      preservedData.stats,          // Preserved learning stats
+      preservedData.completedChapters, // Preserved chapter progress
       Date.now(),
       Date.now()
     ]
@@ -220,6 +259,9 @@ async function insertGuestUser(db: Client): Promise<void> {
 
   console.log(`   ✓ Created user: ${GUEST_USER.username} (ID: ${GUEST_USER.id})`);
   console.log(`   ✓ Set XP: ${GUEST_USER.currentXP}, Level: ${GUEST_USER.currentLevel}`);
+  if (preservedData.stats || preservedData.completedChapters) {
+    console.log(`   ✓ Preserved learning stats and chapter progress`);
+  }
 }
 
 /**
@@ -286,6 +328,7 @@ async function insertGuestProgress(db: Client): Promise<void> {
 
 /**
  * Main seeding function
+ * Phase 4-T1 Enhancement: Learning stats (閱讀時間、章節進度) are preserved across resets
  */
 export async function seedGuestAccount(reset: boolean = true): Promise<void> {
   console.log(`\n${'='.repeat(60)}`);
@@ -298,11 +341,16 @@ export async function seedGuestAccount(reset: boolean = true): Promise<void> {
     // Use transaction for atomicity
     await db.execute('BEGIN');
 
+    // Phase 4-T1 Enhancement: Fetch existing learning data BEFORE deletion
+    // This preserves: totalReadingTimeMinutes, completedChapters, currentStreak
+    let preservedData: PreservedLearningData = { stats: null, completedChapters: null };
     if (reset) {
+      console.log(`\n📖 Checking for existing learning data to preserve...`);
+      preservedData = await fetchExistingLearningData(db);
       await deleteGuestData(db);
     }
 
-    await insertGuestUser(db);
+    await insertGuestUser(db, preservedData);
     await insertGuestTasks(db);
     await insertGuestProgress(db);
 
