@@ -3812,7 +3812,8 @@ ${selectedTextContent}
           </div>
 
           {/* Center Section - Chapter Title (TASK-007: Absolute positioning for true screen centering) */}
-          <div className="absolute left-1/2 -translate-x-1/2 max-w-[30%] sm:max-w-[35%] md:max-w-[45%] lg:max-w-[50%] pointer-events-none">
+          {/* Reduced max-width on lg screens to give more space for right toolbar buttons */}
+          <div className="absolute left-1/2 -translate-x-1/2 max-w-[30%] sm:max-w-[35%] md:max-w-[40%] lg:max-w-[35%] pointer-events-none">
             <div className="text-center overflow-hidden">
               <h1 className={cn("text-sm md:text-lg font-semibold truncate", selectedTheme.toolbarAccentTextClass)} title={currentChapterTitle}>{currentChapterTitle}</h1>
               {currentChapterSubtitle && <p className={cn("text-sm truncate hidden lg:block", selectedTheme.toolbarTextClass)} title={currentChapterSubtitle}>{currentChapterSubtitle}</p>}
@@ -3820,7 +3821,8 @@ ${selectedTextContent}
           </div>
 
           {/* Right Section - AI always visible, others hidden on mobile, menu trigger on mobile */}
-          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 md:gap-3 z-10 ml-auto shrink-0">
+          {/* Added pl-4 lg:pl-8 for better spacing from center title */}
+          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 md:gap-3 z-10 ml-auto shrink-0 pl-4 lg:pl-8">
             {/* Desktop only buttons - hidden on tablet and smaller */}
             <div className="hidden lg:flex items-center gap-2 lg:gap-3">
               <Button variant="ghost" className={cn(toolbarButtonBaseClass, selectedTheme.toolbarTextClass)} onClick={() => { setIsKnowledgeGraphSheetOpen(true); handleInteraction(); }} title={t('buttons.knowledgeGraph')}>
