@@ -14,10 +14,10 @@
  * Follows the UX design pattern specified in improvement report
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { User, Bot, MessageSquare } from 'lucide-react';
+import { User, Bot, MessageSquare, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { PerplexityCitation } from '@/types/perplexity-qa';
 
@@ -167,6 +167,17 @@ interface MessageBubbleProps {
 function MessageBubble({ message, renderContent }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   return (
     <div
@@ -230,16 +241,30 @@ function MessageBubble({ message, renderContent }: MessageBubbleProps) {
           )}
         </div>
 
-        {/* Timestamp */}
+        {/* Timestamp and Copy Button */}
         <div
           className={cn(
-            'mt-1 px-1 text-xs text-muted-foreground',
-            isUser && 'text-right'
+            'mt-1 px-1 flex items-center gap-2 text-xs text-muted-foreground',
+            isUser && 'justify-end'
           )}
-          title={formatFullMessageTime(message.timestamp)}
         >
-          {formatMessageTime(message.timestamp)}
-          {message.isStreaming && ' · 傳送中...'}
+          <span title={formatFullMessageTime(message.timestamp)}>
+            {formatMessageTime(message.timestamp)}
+            {message.isStreaming && ' · 傳送中...'}
+          </span>
+          {!isSystem && !message.isStreaming && (
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
+              title={copied ? '已複製' : '複製'}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300" />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -153,13 +153,13 @@ function CitationReference({ citation, index, onCitationClick }: CitationReferen
         }
       }}
     >
-      {/* Citation number badge - smaller and simpler */}
-      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs font-medium flex-shrink-0">
+      {/* Citation number badge */}
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-sm font-medium flex-shrink-0">
         {citationNumber}
       </span>
 
       {/* Title - dark text on light bg, light text on dark bg */}
-      <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-200 truncate">
+      <span className="flex-1 text-base text-neutral-700 dark:text-neutral-200 truncate">
         {citation.title}
       </span>
 
@@ -186,20 +186,20 @@ export function StructuredQAResponse({
       return sections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="structured-section mb-3">
           <div className="section-header mb-2 pb-1.5 border-b border-border/50">
-            <h3 className="text-sm font-semibold text-foreground flex items-baseline gap-1.5">
+            <h3 className="text-base font-semibold text-foreground flex items-baseline gap-1.5">
               <span className="text-neutral-500">{section.number}</span>
               <span>{section.title}</span>
             </h3>
           </div>
 
-          <div className="section-content prose prose-sm dark:prose-invert max-w-none">
+          <div className="section-content prose prose-base dark:prose-invert max-w-none">
             {processContentWithCitations(section.content, citations, onCitationClick)}
           </div>
         </div>
       ));
     } else if (rawContent) {
       return (
-        <div className="prose prose-sm dark:prose-invert max-w-none">
+        <div className="prose prose-base dark:prose-invert max-w-none">
           {processContentWithCitations(rawContent, citations, onCitationClick)}
         </div>
       );
@@ -207,7 +207,7 @@ export function StructuredQAResponse({
 
     // Fallback for when no content is provided - Task 4.2 Fix: Improved visibility
     return (
-      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/70 italic p-4 border border-border/30 rounded-lg bg-background/20">
+      <div className="prose prose-base dark:prose-invert max-w-none text-foreground/70 italic p-4 border border-border/30 rounded-lg bg-background/20">
         AI 回答載入中...
       </div>
     );
@@ -223,7 +223,7 @@ export function StructuredQAResponse({
       {/* References Section - Simplified and compact */}
       {citations.length > 0 && isThinkingComplete && (
         <div className="references-section mt-4 pt-3 border-t border-border/50">
-          <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
+          <div className="text-sm font-medium mb-2 flex items-center gap-1.5">
             <span className="text-neutral-700 dark:text-neutral-300">參考來源</span>
             <span className="text-neutral-500 dark:text-neutral-400">·</span>
             <span className="text-neutral-500 dark:text-neutral-400">{citations.length}</span>
