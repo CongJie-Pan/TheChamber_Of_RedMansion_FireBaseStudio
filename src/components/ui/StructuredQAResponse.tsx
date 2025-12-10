@@ -224,9 +224,9 @@ export function StructuredQAResponse({
       {citations.length > 0 && isThinkingComplete && (
         <div className="references-section mt-4 pt-3 border-t border-border/50">
           <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
-            <span className="text-foreground/70">參考來源</span>
-            <span className="text-foreground/50">·</span>
-            <span className="text-foreground/50">{citations.length}</span>
+            <span className="text-neutral-700 dark:text-neutral-300">參考來源</span>
+            <span className="text-neutral-500 dark:text-neutral-400">·</span>
+            <span className="text-neutral-500 dark:text-neutral-400">{citations.length}</span>
           </div>
 
           <div className="space-y-0.5">
