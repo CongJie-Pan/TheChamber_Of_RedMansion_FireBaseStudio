@@ -48,11 +48,12 @@ export type ReadingComprehensionInput = z.infer<typeof ReadingComprehensionInput
  * 晨讀理解評估結果的輸出結構
  */
 const ReadingComprehensionOutputSchema = z.object({
-  score: z.number().min(0).max(100).describe('Overall comprehension score from 0-100. Based on accuracy, completeness, depth, and keyword coverage.'),
-  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Highlights strengths and areas for improvement. Use encouraging and educational tone.'),
+  score: z.number().min(0).max(100).describe('Overall comprehension score from 0-100. Based on relevance, accuracy, completeness, depth, and keyword coverage. Irrelevant answers should score 0-20.'),
+  isRelevant: z.boolean().describe('Whether the answer is relevant to the question and passage. False if the answer is completely unrelated content (e.g., news articles, advertisements, other novels).'),
+  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Highlights strengths and areas for improvement. For irrelevant answers, clearly indicate the issue and encourage genuine effort.'),
   keyPointsCovered: z.array(z.string()).describe('List of key points or keywords that the user successfully addressed in their answer.'),
   keyPointsMissed: z.array(z.string()).describe('List of important points or keywords that the user did not mention. Used to guide improvement.'),
-  detailedAnalysis: z.string().describe('Detailed analysis of the answer quality in Markdown format. Include specific examples, suggestions, and praise. Use Traditional Chinese (繁體中文).'),
+  detailedAnalysis: z.string().describe('Detailed analysis of the answer quality in Markdown format. For irrelevant answers, explain why it was deemed irrelevant. Use Traditional Chinese (繁體中文).'),
 });
 
 /**
@@ -68,7 +69,7 @@ export type ReadingComprehensionOutput = z.infer<typeof ReadingComprehensionOutp
 function buildAssessmentPrompt(input: ReadingComprehensionInput): string {
   const keywordsList = input.expectedKeywords.map(k => `- ${k}`).join('\n');
 
-  return `你是一位專業的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
+  return `你是一位專業且嚴格的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
 
 **閱讀段落：**
 ${input.passage}
@@ -84,7 +85,28 @@ ${keywordsList}
 
 **任務難度：** ${input.difficulty}
 
-請根據以下標準評估學生的回答：
+---
+
+## 🚨 最重要：相關性檢查（必須最先執行）
+
+在進行任何評分前，你必須先判斷學生的回答是否與題目相關：
+
+**直接給 0-20 分的情況（無論答案多長）：**
+- 回答內容與《紅樓夢》完全無關（如：新聞報導、科技文章、其他小說內容、廣告文案）
+- 回答內容與本題的閱讀段落和問題毫無關聯
+- 明顯是複製貼上的無關文字
+- 胡言亂語或無意義的文字組合
+
+**判斷方法：**
+1. 回答是否提及閱讀段落中的人物、情節、或概念？
+2. 回答是否嘗試回應問題？
+3. 回答是否與《紅樓夢》的世界觀相關？
+
+如果以上三點都是「否」，請直接給予 0-20 分，不需要進行後續評分。
+
+---
+
+## 正常評分標準（僅當回答與題目相關時使用）
 
 1. **準確性 (30%)**: 回答是否正確理解了文本內容，沒有明顯錯誤
 2. **完整性 (25%)**: 是否涵蓋了預期的關鍵詞和重點
@@ -96,16 +118,19 @@ ${keywordsList}
 - **中等難度 (medium)**: 需要回答準確、涵蓋多數關鍵詞、有一定分析深度，才能給予 70+ 分
 - **困難難度 (hard)**: 需要深入分析、全面涵蓋關鍵詞、展現文學洞察，才能給予 70+ 分
 
+---
+
 請以 JSON 格式回應，包含以下欄位：
 {
   "score": 0-100的整數分數,
-  "feedback": "鼓勵性的簡短反饋 (50-100字)，指出優點和改進方向",
+  "isRelevant": true或false（回答是否與題目相關）,
+  "feedback": "鼓勵性的簡短反饋 (50-100字)，指出優點和改進方向。如果回答無關，請明確指出並鼓勵學生認真作答",
   "keyPointsCovered": ["學生成功提到的關鍵詞1", "關鍵詞2"],
   "keyPointsMissed": ["學生未提到但應該包含的關鍵詞1", "關鍵詞2"],
-  "detailedAnalysis": "200-300字的詳細評析，使用 Markdown 格式，包含：回答的亮點（用 **粗體** 標註）、具體的改進建議（用列表格式）、延伸閱讀建議（如適用）"
+  "detailedAnalysis": "200-300字的詳細評析，使用 Markdown 格式。如果回答無關，請說明為何判定為無關內容"
 }
 
-請以繁體中文回應，語氣友善且富有教育性。確保回覆格式為有效的 JSON。`;
+請以繁體中文回應，語氣友善但評分要嚴格公正。確保回覆格式為有效的 JSON。`;
 }
 
 /**
@@ -117,15 +142,29 @@ function parseAssessmentResponse(responseText: string, input: ReadingComprehensi
     // Try to parse JSON response
     const parsed = JSON.parse(responseText);
 
+    // Validate and sanitize isRelevant (default to true if not provided)
+    const isRelevant = typeof parsed.isRelevant === 'boolean'
+      ? parsed.isRelevant
+      : true;
+
     // Validate and sanitize score
-    const score = typeof parsed.score === 'number'
+    // If answer is irrelevant, cap score at 20
+    let score = typeof parsed.score === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.score)))
       : 50;
+
+    // Enforce low score for irrelevant answers
+    if (!isRelevant && score > 20) {
+      console.log(`⚠️ [AI Assessment] Capping score from ${score} to 20 due to irrelevant content`);
+      score = 20;
+    }
 
     // Validate and sanitize other fields
     const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
       ? parsed.feedback
-      : '感謝您的回答，請繼續努力！';
+      : isRelevant
+        ? '感謝您的回答，請繼續努力！'
+        : '您的回答似乎與題目無關，請仔細閱讀題目後重新作答。';
 
     const keyPointsCovered = Array.isArray(parsed.keyPointsCovered)
       ? parsed.keyPointsCovered.filter((k: any): k is string => typeof k === 'string')
@@ -137,10 +176,13 @@ function parseAssessmentResponse(responseText: string, input: ReadingComprehensi
 
     const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
       ? parsed.detailedAnalysis
-      : '# 評估分析\n\n您的回答已收到，請繼續學習。';
+      : isRelevant
+        ? '# 評估分析\n\n您的回答已收到，請繼續學習。'
+        : '# 評估分析\n\n您的回答內容與題目無關。請仔細閱讀閱讀段落和問題，然後提供與《紅樓夢》相關的答案。';
 
     return {
       score,
+      isRelevant,
       feedback,
       keyPointsCovered,
       keyPointsMissed,
@@ -170,9 +212,9 @@ export async function assessReadingComprehension(
     // Build assessment prompt
     const prompt = buildAssessmentPrompt(input);
 
-    // Call OpenAI API with GPT-5-mini
+    // Call OpenAI API with gpt-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'GPT-5-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -207,6 +249,7 @@ export async function assessReadingComprehension(
     // Return fallback assessment
     return {
       score: 50,
+      isRelevant: true, // Assume relevant when AI is unavailable
       feedback: '很抱歉，AI 評分系統暫時無法使用。您的回答已記錄，我們會盡快人工審核。',
       keyPointsCovered: [],
       keyPointsMissed: input.expectedKeywords,

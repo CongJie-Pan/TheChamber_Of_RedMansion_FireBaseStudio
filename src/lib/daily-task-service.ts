@@ -153,10 +153,11 @@ const ATTRIBUTE_REWARDS: Record<DailyTaskType, Partial<AttributePoints>> = {
 const SUBMISSION_COOLDOWN_MS = 5000;
 
 /**
- * AI evaluation timeout in milliseconds (3 seconds)
+ * AI evaluation timeout in milliseconds (15 seconds)
  * Phase 4.8: Performance optimization - prevent hanging AI calls
+ * Note: GPT-5-mini with reasoning tokens typically needs 5-15 seconds
  */
-const AI_EVALUATION_TIMEOUT_MS = 3000;
+const AI_EVALUATION_TIMEOUT_MS = 15000;
 
 /**
  * Task cache TTL in milliseconds (5 minutes)
@@ -522,32 +523,33 @@ export class DailyTaskService {
       // 6.5 Generate personalized feedback using GPT-5-Mini (Phase 2.8)
       const feedback = await this.generateFeedback(task, userResponse, score);
 
-      // 7. Calculate rewards based on three-tier scoring system (Phase 2.10)
+      // 7. Calculate rewards based on AI score with range-based tiers (Phase 2.11)
+      // AI returns 0-100, we use ranges instead of exact values
       const baseXP = BASE_XP_REWARDS[task.type];
       let taskXP: number;
       let xpMultiplier: number;
       let xpMessage: string;
 
-      if (score === 20) {
-        // Meaningless answer: No XP reward
+      if (score <= 30) {
+        // Irrelevant or meaningless answer: No XP reward
         taskXP = 0;
         xpMultiplier = 0;
         xpMessage = '未達標準，無經驗值獎勵';
-      } else if (score === 80) {
+      } else if (score <= 60) {
+        // Partial answer: Half XP reward
+        taskXP = Math.floor(baseXP * 0.5);
+        xpMultiplier = 0.5;
+        xpMessage = `部分正確，獲得一半經驗值 ${taskXP} XP`;
+      } else if (score < 85) {
         // Valid answer: Base XP reward
         taskXP = baseXP;
         xpMultiplier = 1.0;
         xpMessage = `標準回答，獲得基礎經驗值 ${baseXP} XP`;
-      } else if (score === 100) {
-        // Excellent answer: 1.5x XP reward
+      } else {
+        // Excellent answer (85+): 1.5x XP reward
         taskXP = Math.floor(baseXP * 1.5);
         xpMultiplier = 1.5;
         xpMessage = `優秀回答！獲得1.5倍經驗值 ${taskXP} XP`;
-      } else {
-        // Fallback (shouldn't happen with new scoring)
-        taskXP = baseXP;
-        xpMultiplier = 1.0;
-        xpMessage = `獲得經驗值 ${baseXP} XP`;
       }
 
       console.log(`\n💰 [XP Reward] ${xpMessage}`);
@@ -903,18 +905,50 @@ export class DailyTaskService {
       // For valid-looking responses, use AI evaluation
       console.log('\n🤖 調用 GPT-5-mini 進行智能評分...');
 
-      // Extract content from task for AI evaluation
-      const taskContent = task.content as any;
-      const passage = taskContent?.passage || taskContent?.text || taskContent?.content || task.description || '';
-      const question = taskContent?.question || taskContent?.prompt || task.title || '';
-      const expectedKeywords = taskContent?.keywords || taskContent?.expectedKeywords || [];
+      // Extract content from task based on task type
+      // DailyTask.content structure varies by type:
+      // - textPassage: { text, question, expectedKeywords } for MORNING_READING
+      // - character: { characterName, analysisPrompts, context } for CHARACTER_INSIGHT
+      // - culturalElement: { title, description, questions } for CULTURAL_EXPLORATION
+      // - commentary: { originalText, commentaryText, hint } for COMMENTARY_DECODE
+      const content = task.content;
+      let passage = '';
+      let question = '';
+      let expectedKeywords: string[] = [];
+
+      if (content.textPassage) {
+        // Morning reading task
+        passage = content.textPassage.text || '';
+        question = content.textPassage.question || '';
+        expectedKeywords = content.textPassage.expectedKeywords || [];
+      } else if (content.character) {
+        // Character insight task
+        passage = content.character.context || '';
+        question = content.character.analysisPrompts?.join('\n') || task.title;
+        expectedKeywords = [content.character.characterName];
+      } else if (content.culturalElement) {
+        // Cultural exploration task
+        passage = content.culturalElement.description || '';
+        question = content.culturalElement.questions?.[0]?.question || task.title;
+        expectedKeywords = [content.culturalElement.title, content.culturalElement.category];
+      } else if (content.commentary) {
+        // Commentary decode task
+        passage = content.commentary.originalText || '';
+        question = content.commentary.commentaryText || '';
+        expectedKeywords = content.commentary.hint ? [content.commentary.hint] : [];
+      } else {
+        // Fallback: use task description and title
+        passage = task.description || '';
+        question = task.title || '';
+        expectedKeywords = task.gradingCriteria?.requiredKeywords || [];
+      }
 
       // Build input for AI assessment
       const aiInput: ReadingComprehensionInput = {
         passage: passage.substring(0, 2000), // Limit passage length for API
         question: question.substring(0, 500),
         userAnswer: trimmedResponse.substring(0, 3000), // Limit answer length
-        expectedKeywords: Array.isArray(expectedKeywords) ? expectedKeywords : [],
+        expectedKeywords: expectedKeywords.filter(k => k), // Filter out empty values
         difficulty: task.difficulty as 'easy' | 'medium' | 'hard',
       };
 
