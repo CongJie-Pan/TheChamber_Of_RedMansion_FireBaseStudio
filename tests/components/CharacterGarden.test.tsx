@@ -18,6 +18,7 @@ import CharacterGarden, {
 // Mock Next.js Image component
 jest.mock('next/image', () => {
   return function MockImage({ src, alt, width, height, ...props }: any) {
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={alt} width={width} height={height} {...props} data-testid="next-image" />;
   };
 });

@@ -693,6 +693,7 @@ export default function ReadBookPage() {
     }
 
     loadAvailableChapters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load chapter content from API
@@ -2965,7 +2966,7 @@ export default function ReadBookPage() {
   const welcomeBonusAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (user?.id && currentChapter) {
+    if (user?.id && currentChapter?.id) {
       fetchNotes(user.id, currentChapter.id).then(setUserNotes);
     } else {
       setUserNotes([]);
@@ -3625,7 +3626,7 @@ ${selectedTextContent}
     : null;
 
   const fetchNotesForChapter = useCallback(async () => {
-    if (user?.id && currentChapter) {
+    if (user?.id && currentChapter?.id) {
       const notes = await fetchNotes(user.id, currentChapter.id);
       setUserNotes(notes);
     }
