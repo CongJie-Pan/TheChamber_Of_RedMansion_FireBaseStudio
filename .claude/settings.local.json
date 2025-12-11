@@ -133,7 +133,17 @@
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/adapters/simple-think-parser.test.ts 2>&1\")",
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/adapters/simple-think-parser.test.ts 2>&1 | findstr /C:Tests: /C:passed /C:failed /C:Test Suites:\")",
       "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/adapters/simple-think-parser.test.ts --silent 2>&1 | tail -10\")",
-      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/adapters/perplexity-stream-adapter.test.ts --silent 2>&1\")"
+      "Bash(cmd.exe /c \"cd /d D:\\AboutUniversity\\114 NSTC_and_SeniorProject\\2025-IM-senior-project\\TheChamber_Of_RedMansion_FireBaseStudio && npm test -- tests/lib/adapters/perplexity-stream-adapter.test.ts --silent 2>&1\")",
+      "Bash(src/app/\\(main\\)/account-settings/page.tsx )",
+      "Bash(src/app/\\(main\\)/achievements/page.tsx )",
+      "Bash(src/app/\\(main\\)/community/page.tsx )",
+      "Bash(src/app/\\(main\\)/daily-tasks/page.tsx )",
+      "Bash(src/app/\\(main\\)/dashboard/page.tsx )",
+      "Bash(src/app/\\(main\\)/goals/page.tsx )",
+      "Bash(src/app/\\(main\\)/modern-relevance/page.tsx )",
+      "Bash(src/app/\\(main\\)/notes/page.tsx )",
+      "Bash(src/app/\\(main\\)/write/page.tsx )",
+      "Bash(src/app/page.tsx)"
     ]
   },
   "outputStyle": "default"
