@@ -237,6 +237,11 @@ export async function updateProgress(
     throw new Error(`Failed to retrieve updated progress: ${progressId}`);
   }
 
+  // Bug Fix (2025-12-11): Verify write was successful with detailed logging
+  console.log(`   🔍 [ProgressRepository] Verified update:`);
+  console.log(`      completedTaskIds: ${JSON.stringify(updated.completedTaskIds)}`);
+  console.log(`      totalXPEarned: ${updated.totalXPEarned}`);
+
   return updated;
 }
 

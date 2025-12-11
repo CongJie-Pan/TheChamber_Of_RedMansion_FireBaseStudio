@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
     const effectiveUserId = verifiedUid || (userId as string)
 
     // Phase 4-T1: Guest account always returns fixed tasks (no generation)
+    // Bug Fix (2025-12-11): Include progress data to preserve completion status across logins
     if (isGuestAccount(effectiveUserId)) {
-      logGuestAction('Task generation requested - returning fixed tasks');
+      logGuestAction('Task generation requested - returning fixed tasks with progress');
       const guestTaskIds = getGuestTaskIds();
       const tasks = await getTasksByIds(guestTaskIds);
 
@@ -64,8 +65,22 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      logGuestAction(`Returning ${tasks.length} fixed tasks`, { taskIds: guestTaskIds });
-      return NextResponse.json({ success: true, tasks, isGuest: true }, { status: 200 });
+      // Bug Fix: Fetch today's progress to include completedTaskIds
+      // This ensures guest users see their completed tasks after re-login
+      const progress = await dailyTaskService.getUserDailyProgress(effectiveUserId);
+
+      logGuestAction(`Returning ${tasks.length} fixed tasks`, {
+        taskIds: guestTaskIds,
+        hasProgress: !!progress,
+        completedTaskIds: progress?.completedTaskIds || [],
+      });
+
+      return NextResponse.json({
+        success: true,
+        tasks,
+        progress,  // Include progress with completedTaskIds
+        isGuest: true
+      }, { status: 200 });
     }
 
     // LLM-only: no Firestore interactions, always return ephemeral tasks

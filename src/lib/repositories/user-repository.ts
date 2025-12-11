@@ -284,7 +284,11 @@ export async function createGuestUser(): Promise<UserProfile> {
   // Return existing fixed guest account if present
   const existingGuest = await getUserById(GUEST_USER_ID);
   if (existingGuest) {
+    // Bug Fix (2025-12-11): Enhanced logging for debugging guest account persistence
     console.log(`✅ [UserRepository] Reusing existing guest user: ${GUEST_USER_ID}`);
+    console.log(`   📊 Guest XP: ${existingGuest.currentXP}, Level: ${existingGuest.currentLevel}`);
+    console.log(`   📋 CompletedTasks: ${existingGuest.completedTasks?.length || 0} tasks`);
+    console.log(`   📅 LastActivity: ${existingGuest.lastActivityAt?.toISOString() || 'N/A'}`);
     return existingGuest;
   }
 

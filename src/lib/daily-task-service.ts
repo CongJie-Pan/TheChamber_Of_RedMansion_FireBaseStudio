@@ -51,6 +51,8 @@ import {
 } from './types/daily-task';
 import { AttributePoints } from './types/user-level';
 import { generatePersonalizedFeedback } from './ai-feedback-generator';
+// AI Flow imports for task evaluation
+import { assessReadingComprehension, type ReadingComprehensionInput } from '@/ai/flows/daily-reading-comprehension';
 
 // SQLite/Turso Database Integration (Server-side only)
 // Phase 4.6 Fix: Use static imports instead of dynamic require() for ESM compatibility
@@ -391,12 +393,17 @@ export class DailyTaskService {
     try {
       const targetDate = date || getTodayDateString();
       // Task 4.2 Logging: Track progressRepository.getProgress calls
-      console.log('[DailyTask] Calling progressRepository.getProgress for userId=' + userId + ', date=' + targetDate);
+      // Bug Fix (2025-12-11): Enhanced logging for debugging guest progress persistence
+      console.log(`[DailyTask] Fetching progress for userId=${userId}, date=${targetDate}`);
       const progress = await progressRepository.getProgress(userId, targetDate);
-      console.log('[DailyTask] progressRepository.getProgress returned:', progress ? 'record found' : 'null');
 
       if (progress) {
-        console.log(`✅ [SQLite] Fetched progress for user ${userId} on ${targetDate}`);
+        console.log(`✅ [DailyTask] Progress found for ${userId} on ${targetDate}`);
+        console.log(`   📋 Tasks: ${progress.tasks?.length || 0}, Completed: ${progress.completedTaskIds?.length || 0}`);
+        console.log(`   🎯 completedTaskIds: ${JSON.stringify(progress.completedTaskIds || [])}`);
+        console.log(`   ⭐ XP earned today: ${progress.totalXPEarned || 0}`);
+      } else {
+        console.log(`⚠️ [DailyTask] No progress found for ${userId} on ${targetDate}`);
       }
 
       return progress;
@@ -832,17 +839,18 @@ export class DailyTaskService {
    * @returns Promise with score (0-100)
    */
   /**
-   * Evaluate task quality using three-tier scoring system
-   * Phase 2.10: Three-tier evaluation (20/80/100 points)
+   * Evaluate task quality using AI-powered assessment with GPT-5-mini
+   * Phase 2.11: Integrated AI relevance checking and semantic evaluation
    *
    * Scoring criteria:
-   * - 20 points: Meaningless content or irrelevant answers (no XP)
-   * - 80 points: Valid answer to the question (base XP)
-   * - 100 points: Detailed and comprehensive answer, 200+ chars (1.5x XP)
+   * - 0-20 points: Irrelevant content (unrelated to Red Mansion or question)
+   * - 20 points: Meaningless content (empty, repeated chars, numbers only)
+   * - 60-80 points: Valid answer to the question (base XP)
+   * - 80-100 points: Detailed and comprehensive answer (1.5x XP)
    *
    * @param task - Complete task object with content
    * @param userResponse - User's answer/submission
-   * @returns Promise with quality score (20/80/100)
+   * @returns Promise with quality score (0-100)
    */
   async evaluateTaskQuality(task: DailyTask, userResponse: string): Promise<number> {
     const startTime = Date.now();
@@ -854,117 +862,131 @@ export class DailyTaskService {
 
       // 📊 記錄評分開始
       console.log('\n' + '📊'.repeat(40));
-      console.log('📈 [Task Evaluation] 任務評分（三級制）');
+      console.log('📈 [Task Evaluation] AI 智能評分系統');
       console.log('📊'.repeat(40));
       console.log(`📌 任務類型: ${task.type}`);
       console.log(`📝 任務標題: ${task.title}`);
       console.log(`📊 任務難度: ${task.difficulty}`);
       console.log(`📏 答案長度: ${responseLength} 字元`);
 
-      console.log('\n📋 評分標準:');
-      console.log('   20分 - 無意義內容或未回答問題（無經驗值）');
-      console.log('   80分 - 有回答問題（基礎經驗值）');
-      console.log('   100分 - 詳細全面，200字以上（1.5倍經驗值）');
-
-      let score: number;
-      let scoreReason: string;
-
-      // 1. Check for meaningless content (20 points)
+      // Quick checks for obviously invalid answers (no need to call AI)
+      // 1. Empty response
       if (responseLength === 0) {
-        score = 20;
-        scoreReason = '空白答案';
-        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log(`\n⚠️  評分結果: 20/100 (空白答案)`);
         console.log('📊'.repeat(40) + '\n');
-        return score;
+        return 20;
       }
 
-      // Check for repeated characters pattern (e.g., "0000000")
+      // 2. Repeated characters pattern (e.g., "0000000")
       const repeatedPattern = /(.)\1{10,}/;
       if (repeatedPattern.test(trimmedResponse)) {
-        score = 20;
-        scoreReason = '檢測到大量重複字元';
-        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log(`\n⚠️  評分結果: 20/100 (檢測到大量重複字元)`);
         console.log('📊'.repeat(40) + '\n');
-        return score;
+        return 20;
       }
 
-      // Check for numbers-only pattern
+      // 3. Numbers-only pattern
       const numbersOnlyPattern = /^[0-9]+$/;
       if (numbersOnlyPattern.test(trimmedResponse)) {
-        score = 20;
-        scoreReason = '僅包含數字，無有效內容';
-        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+        console.log(`\n⚠️  評分結果: 20/100 (僅包含數字)`);
         console.log('📊'.repeat(40) + '\n');
-        return score;
+        return 20;
       }
 
-      // Check for single word or very short meaningless response
-      const singleWordPattern = /^[\u4e00-\u9fa5a-zA-Z]{1,5}$/;
-      if (singleWordPattern.test(trimmedResponse)) {
-        score = 20;
-        scoreReason = '答案過短（少於5個字），未回答問題';
-        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
+      // 4. Very short response (< 10 chars)
+      if (responseLength < 10) {
+        console.log(`\n⚠️  評分結果: 20/100 (答案過短)`);
         console.log('📊'.repeat(40) + '\n');
-        return score;
+        return 20;
       }
 
-      // 2. Check for valid answer (80 points)
-      // Minimum 30 characters, less than 200 characters
-      if (responseLength >= 30 && responseLength < 200) {
-        score = 80;
-        scoreReason = '有回答問題，長度適中';
-        console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
-        console.log('📊'.repeat(40) + '\n');
-        return score;
-      }
+      // For valid-looking responses, use AI evaluation
+      console.log('\n🤖 調用 GPT-5-mini 進行智能評分...');
 
-      // 3. Check for excellent answer (100 points)
-      // 200+ characters and well-organized
-      if (responseLength >= 200) {
-        // Check for proper organization (punctuation or paragraphs)
-        const hasPunctuation = /[。！？，、；：]/.test(trimmedResponse);
-        const hasParagraphs = trimmedResponse.includes('\n') || responseLength >= 300;
+      // Extract content from task for AI evaluation
+      const taskContent = task.content as any;
+      const passage = taskContent?.passage || taskContent?.text || taskContent?.content || task.description || '';
+      const question = taskContent?.question || taskContent?.prompt || task.title || '';
+      const expectedKeywords = taskContent?.keywords || taskContent?.expectedKeywords || [];
 
-        if (hasPunctuation || hasParagraphs) {
-          score = 100;
-          scoreReason = '詳細全面，字數超過200字，組織良好';
-          console.log(`\n🌟 評分結果: ${score}/100 (${scoreReason})`);
-          console.log('📊'.repeat(40) + '\n');
-          return score;
-        } else {
-          // Long but poorly organized
-          score = 80;
-          scoreReason = '字數充足但組織一般';
-          console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
-          console.log('📊'.repeat(40) + '\n');
-          return score;
+      // Build input for AI assessment
+      const aiInput: ReadingComprehensionInput = {
+        passage: passage.substring(0, 2000), // Limit passage length for API
+        question: question.substring(0, 500),
+        userAnswer: trimmedResponse.substring(0, 3000), // Limit answer length
+        expectedKeywords: Array.isArray(expectedKeywords) ? expectedKeywords : [],
+        difficulty: task.difficulty as 'easy' | 'medium' | 'hard',
+      };
+
+      // Call AI assessment with timeout
+      const aiResult = await Promise.race([
+        assessReadingComprehension(aiInput),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), AI_EVALUATION_TIMEOUT_MS))
+      ]);
+
+      const elapsedTime = Date.now() - startTime;
+
+      if (aiResult) {
+        // AI evaluation succeeded
+        console.log(`\n🤖 AI 評分完成 (${elapsedTime}ms)`);
+        console.log(`   📊 相關性: ${aiResult.isRelevant ? '✅ 相關' : '❌ 無關'}`);
+        console.log(`   ⭐ 分數: ${aiResult.score}/100`);
+
+        if (!aiResult.isRelevant) {
+          console.log(`\n⚠️  AI 判定答案與題目無關！`);
+          console.log(`   💡 回饋: ${aiResult.feedback.substring(0, 100)}...`);
         }
-      }
 
-      // Less than 30 characters but not meaningless
-      if (responseLength < 30) {
-        score = 20;
-        scoreReason = '答案太短，未充分回答問題';
-        console.log(`\n⚠️  評分結果: ${score}/100 (${scoreReason})`);
         console.log('📊'.repeat(40) + '\n');
-        return score;
+        return aiResult.score;
+      } else {
+        // AI timeout - fall back to length-based scoring
+        console.log(`\n⚠️  AI 評分逾時 (${AI_EVALUATION_TIMEOUT_MS}ms)，使用備用評分機制`);
+        return this.fallbackLengthBasedScore(trimmedResponse, responseLength);
       }
-
-      // Default case (should rarely happen)
-      score = 80;
-      scoreReason = '有效回答（預設）';
-      console.log(`\n✅ 評分結果: ${score}/100 (${scoreReason})`);
-      console.log('📊'.repeat(40) + '\n');
-      return score;
 
     } catch (error) {
-      console.error('\n❌ [Evaluation] 評分時發生錯誤:');
+      console.error('\n❌ [Evaluation] AI 評分時發生錯誤:');
       console.error(error);
-      console.log('⚠️  使用預設分數: 80/100');
-      console.log('📊'.repeat(40) + '\n');
-      // Return default valid score on error
-      return 80;
+
+      // Fallback to length-based scoring on error
+      const trimmedResponse = userResponse.trim();
+      return this.fallbackLengthBasedScore(trimmedResponse, trimmedResponse.length);
     }
+  }
+
+  /**
+   * Fallback length-based scoring when AI is unavailable
+   * Used when AI evaluation times out or fails
+   *
+   * @param response - Trimmed user response
+   * @param length - Response length
+   * @returns Fallback score based on length
+   */
+  private fallbackLengthBasedScore(response: string, length: number): number {
+    let score: number;
+    let reason: string;
+
+    if (length < 30) {
+      score = 20;
+      reason = '答案太短';
+    } else if (length >= 200) {
+      const hasPunctuation = /[。！？，、；：]/.test(response);
+      if (hasPunctuation) {
+        score = 80; // Give 80 instead of 100 without AI verification
+        reason = '長度充足（備用評分）';
+      } else {
+        score = 70;
+        reason = '長度充足但缺少標點';
+      }
+    } else {
+      score = 70;
+      reason = '有效回答（備用評分）';
+    }
+
+    console.log(`\n⚠️  備用評分結果: ${score}/100 (${reason})`);
+    console.log('📊'.repeat(40) + '\n');
+    return score;
   }
 
   /**
