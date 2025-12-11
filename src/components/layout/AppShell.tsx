@@ -305,7 +305,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <SidebarInset>
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-6 backdrop-blur-md">
+        <header className="sticky top-0 z-10 flex h-14 sm:h-16 items-center justify-between border-b bg-background/80 px-4 sm:px-6 backdrop-blur-md">
           {/* Mobile sidebar trigger - only visible on small screens */}
           <SidebarTrigger className="md:hidden" /> 
           
@@ -338,7 +338,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         
         {/* Main Content Container */}
-        <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden p-6"> 
+        {/* Only vertical padding here - pages control their own horizontal padding */}
+        <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden py-4 sm:py-6">
           {children}
         </main>
       </SidebarInset>
