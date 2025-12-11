@@ -17,6 +17,11 @@ The `perplexity-client` module implements a comprehensive HTTP client for the Pe
 
 **2025-12-01 Update (Stream Processing Architecture):** The streaming functionality now integrates with `PerplexityStreamProcessor` for robust handling of `<think>` tags. See `perplexity-stream-processor_module_info.md` for details on buffered tag parsing, sliding window algorithm for split tags, and critical bug fixes for unmatched closing tag handling.
 
+**2025-12-11 Update (Strict Topic Restriction):** Added strict topic filtering in the `buildPrompt` method to ensure the AI only answers questions related to《紅樓夢》(Dream of the Red Chamber). The system now includes a comprehensive topic restriction block that:
+1. **Defines allowed topics**: Character analysis, plot development, themes, author (曹雪芹) background, poetry and allusions in the novel, 紅學 (Red Chamber studies), and relevant Qing Dynasty cultural context.
+2. **Enforces topic boundaries**: The AI is instructed to politely refuse questions unrelated to《紅樓夢》with a standard response: "抱歉，此問題不在本系統的回答範圍內。本平台專注於《紅樓夢》的文學研究與學習，請提出與《紅樓夢》相關的問題，我將竭誠為您解答。"
+3. **Applies to both adapters**: The restriction is implemented in both `PerplexityClient.buildPrompt()` and `PerplexityStreamAdapter.buildRedChamberPrompt()` to ensure consistency regardless of which adapter is used.
+
 ## 2. Module Dependencies
 
 * **Internal Dependencies:**

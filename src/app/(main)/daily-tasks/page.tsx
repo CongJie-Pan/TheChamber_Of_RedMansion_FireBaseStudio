@@ -346,8 +346,14 @@ export default function DailyTasksPage() {
 
             setTasks(generatedTasks);
 
-            // Fetch the newly created progress only if not in ephemeral mode
-            if (!data?.ephemeral) {
+            // Bug Fix (2025-12-11): Use progress from generate response if available (for guest accounts)
+            // This prevents the need for a separate API call and ensures progress is loaded correctly
+            if (data?.progress) {
+              console.log('📋 Using progress from generate response (guest account optimization)');
+              setProgress(data.progress);
+              updateStats(data.progress);
+            } else if (!data?.ephemeral) {
+              // Fallback: Fetch progress separately for non-guest users
               const newProgress = await getUserDailyProgress(user.id);
               if (newProgress) {
                 setProgress(newProgress);
@@ -572,15 +578,15 @@ export default function DailyTasksPage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 py-6">
+    <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-0 py-4 sm:py-6">
       {/* Page Header with Streak Counter */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-artistic text-primary flex items-center gap-3">
-            <Target className="h-8 w-8" />
+          <h1 className="text-2xl sm:text-3xl font-artistic text-primary flex items-center gap-2 sm:gap-3">
+            <Target className="h-6 w-6 sm:h-8 sm:w-8" />
             每日修身/挑戰賽
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             持之以恆，日積月累。完成每日任務與挑戰賽，提升紅樓學識！
           </p>
         </div>
@@ -593,63 +599,63 @@ export default function DailyTasksPage() {
       </div>
 
       {/* Progress Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">今日任務</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">今日任務</p>
+                <p className="text-lg sm:text-2xl font-bold text-foreground">
                   {stats.completedTasks}/{stats.totalTasks}
                 </p>
               </div>
-              <CheckCircle2 className="h-10 w-10 text-primary" />
+              <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
             </div>
             <Progress
               value={stats.completionRate}
-              className="mt-3"
+              className="mt-2 sm:mt-3"
             />
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">獲得 XP</p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-xs sm:text-sm text-muted-foreground">獲得 XP</p>
+                <p className="text-lg sm:text-2xl font-bold text-primary">
                   +{stats.xpEarned}
                 </p>
               </div>
-              <Sparkles className="h-10 w-10 text-yellow-500" />
+              <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">連續天數</p>
-                <p className="text-2xl font-bold text-orange-500">
+                <p className="text-xs sm:text-sm text-muted-foreground">連續天數</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-500">
                   {stats.currentStreak}
                 </p>
               </div>
-              <Flame className="h-10 w-10 text-orange-500" />
+              <Flame className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">完成率</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xs sm:text-sm text-muted-foreground">完成率</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   {stats.completionRate.toFixed(0)}%
                 </p>
               </div>
-              <TrendingUp className="h-10 w-10 text-green-600" />
+              <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-green-600" />
             </div>
           </CardContent>
         </Card>
@@ -657,13 +663,13 @@ export default function DailyTasksPage() {
 
       {/* Daily Tasks List */}
       <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex justify-between items-center">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
-              <CardTitle className="text-2xl font-artistic text-primary">
+              <CardTitle className="text-xl sm:text-2xl font-artistic text-primary">
                 今日任務清單
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 完成任務獲得 XP 和屬性點數，提升你的紅樓造詣
               </CardDescription>
             </div>
@@ -671,45 +677,45 @@ export default function DailyTasksPage() {
               variant="outline"
               size="sm"
               onClick={() => setShowCalendar(!showCalendar)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
               <Calendar className="h-4 w-4" />
-              {showCalendar ? '隱藏日曆' : '查看日曆'}
+              <span className="sm:inline">{showCalendar ? '隱藏日曆' : '查看日曆'}</span>
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {/* Task Calendar (collapsible) */}
           {showCalendar && (
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <TaskCalendar userId={user?.id || ''} />
             </div>
           )}
 
           {/* Task Cards */}
           {tasks.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               {isGeneratingTasks ? (
                 <>
-                  <Loader2 className="h-16 w-16 text-primary animate-spin mx-auto mb-4" />
-                  <p className="text-lg text-foreground font-medium">
+                  <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 text-primary animate-spin mx-auto mb-4" />
+                  <p className="text-base sm:text-lg text-foreground font-medium">
                     正在生成今日任務...
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                     AI 正在根據您的學習進度生成個性化任務
                   </p>
                 </>
               ) : (
                 <>
-                  <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg text-muted-foreground">
+                  <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-base sm:text-lg text-muted-foreground">
                     今天還沒有任務，請稍後再試！
                   </p>
                 </>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {tasks.map((task) => {
                 const assignment = progress?.tasks.find(t => t.taskId === task.id);
                 return (
@@ -751,34 +757,34 @@ export default function DailyTasksPage() {
 
       {/* 學習挑戰賽系統 */}
       <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Zap className="h-8 w-8 text-orange-400" />
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400 shrink-0" />
             <div>
-              <CardTitle className="text-2xl font-artistic text-primary">學習挑戰賽</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl sm:text-2xl font-artistic text-primary">學習挑戰賽</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 參與挑戰賽，獲得額外 XP 獎勵和榮譽徽章
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           <Tabs defaultValue="daily" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="daily">每日挑戰</TabsTrigger>
-              <TabsTrigger value="weekly">每週挑戰</TabsTrigger>
-              <TabsTrigger value="special">特殊活動</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-3 sm:mb-4 h-auto">
+              <TabsTrigger value="daily" className="text-xs sm:text-sm py-2">每日挑戰</TabsTrigger>
+              <TabsTrigger value="weekly" className="text-xs sm:text-sm py-2">每週挑戰</TabsTrigger>
+              <TabsTrigger value="special" className="text-xs sm:text-sm py-2">特殊活動</TabsTrigger>
             </TabsList>
 
             {/* 每日挑戰 */}
             <TabsContent value="daily">
               {challengesData.daily.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {challengesData.daily.map(challenge => (
-                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                    <Card key={challenge.id} className={`bg-card/60 p-3 sm:p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white text-sm sm:text-base">{challenge.name}</h4>
                           <p className="text-xs text-muted-foreground">{challenge.description}</p>
                           <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
                         </div>
@@ -786,6 +792,7 @@ export default function DailyTasksPage() {
                           size="sm"
                           variant={challenge.active ? "default" : "outline"}
                           onClick={() => alert(`參與挑戰：${challenge.name}`)}
+                          className="w-full sm:w-auto shrink-0"
                         >
                           {challenge.active ? '進行中' : '開始挑戰'}
                         </Button>
@@ -794,19 +801,19 @@ export default function DailyTasksPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">暫無每日挑戰</p>
+                <p className="text-muted-foreground text-center py-4 text-sm">暫無每日挑戰</p>
               )}
             </TabsContent>
 
             {/* 每週挑戰 */}
             <TabsContent value="weekly">
               {challengesData.weekly.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {challengesData.weekly.map(challenge => (
-                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                    <Card key={challenge.id} className={`bg-card/60 p-3 sm:p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white text-sm sm:text-base">{challenge.name}</h4>
                           <p className="text-xs text-muted-foreground">{challenge.description}</p>
                           <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
                         </div>
@@ -814,6 +821,7 @@ export default function DailyTasksPage() {
                           size="sm"
                           variant={challenge.active ? "default" : "outline"}
                           onClick={() => alert(`參與挑戰：${challenge.name}`)}
+                          className="w-full sm:w-auto shrink-0"
                         >
                           {challenge.active ? '進行中' : '開始挑戰'}
                         </Button>
@@ -822,19 +830,19 @@ export default function DailyTasksPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">暫無每週挑戰</p>
+                <p className="text-muted-foreground text-center py-4 text-sm">暫無每週挑戰</p>
               )}
             </TabsContent>
 
             {/* 特殊活動 */}
             <TabsContent value="special">
               {challengesData.special.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {challengesData.special.map(challenge => (
-                    <Card key={challenge.id} className={`bg-card/60 p-4 ${challenge.active ? 'border-primary' : ''}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{challenge.name}</h4>
+                    <Card key={challenge.id} className={`bg-card/60 p-3 sm:p-4 ${challenge.active ? 'border-primary' : ''}`}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white text-sm sm:text-base">{challenge.name}</h4>
                           <p className="text-xs text-muted-foreground">{challenge.description}</p>
                           <p className="text-xs text-amber-400 mt-1">獎勵：{challenge.reward}</p>
                         </div>
@@ -842,6 +850,7 @@ export default function DailyTasksPage() {
                           size="sm"
                           variant={challenge.active ? "default" : "outline"}
                           onClick={() => alert(`${challenge.active ? '參與挑戰' : '查看活動'}：${challenge.name}`)}
+                          className="w-full sm:w-auto shrink-0"
                         >
                           {challenge.active ? '進行中' : '查看活動'}
                         </Button>
@@ -850,7 +859,7 @@ export default function DailyTasksPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">暫無特殊活動</p>
+                <p className="text-muted-foreground text-center py-4 text-sm">暫無特殊活動</p>
               )}
             </TabsContent>
           </Tabs>

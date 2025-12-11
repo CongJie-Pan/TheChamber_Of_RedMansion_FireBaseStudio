@@ -51,6 +51,8 @@ import {
   RefreshCw,
   Edit3,
   Flame,
+  Menu,
+  X,
 } from 'lucide-react';
 
 // Language and context
@@ -83,6 +85,9 @@ export default function HomePage() {
 
   // Use useState with true to avoid setting state in useEffect
   const [isLoaded, setIsLoaded] = useState(true);
+
+  // Mobile menu state for responsive navigation
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Task 2.2: Dynamic learning stats state for authenticated users
   const [learningStats, setLearningStats] = useState<LearningStatsData | null>(null);
@@ -241,8 +246,8 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Navigation Actions */}
-          <div className="flex items-center space-x-4">
+          {/* Desktop Navigation Actions - Hidden on mobile */}
+          <div className="hidden md:flex items-center space-x-4">
             {/* Language Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -302,7 +307,77 @@ export default function HomePage() {
               </>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t bg-background/95 backdrop-blur">
+            <div className="container mx-auto px-4 py-4 space-y-4">
+              {/* Language Selector for Mobile */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">語言</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      {LANGUAGES.find(lang => lang.code === language)?.name || language}
+                      <ChevronDown className="ml-1 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {LANGUAGES.map((langOption) => (
+                      <DropdownMenuItem
+                        key={langOption.code}
+                        onSelect={() => {
+                          setLanguage(langOption.code);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        disabled={language === langOption.code}
+                      >
+                        {langOption.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* User Info for Mobile (if authenticated) */}
+              {user && !isAuthLoading && (
+                <div className="flex items-center justify-center space-x-2 text-sm text-foreground/70 bg-muted/50 px-3 py-2 rounded-md">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Lv.{userProfile?.currentLevel || 1}</span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>{userProfile?.currentXP || 0} XP</span>
+                </div>
+              )}
+
+              {/* Action Buttons for Mobile */}
+              <div className="flex flex-col gap-2">
+                {!user && !isAuthLoading && (
+                  <Button variant="outline" className="w-full" asChild onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href="/login">{t('page.navLogin')}</Link>
+                  </Button>
+                )}
+                <Button className="w-full" asChild onClick={() => setIsMobileMenuOpen(false)}>
+                  <Link href="/dashboard">
+                    <Compass className="w-4 h-4 mr-2" />
+                    {t('page.navStartExplore')}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section with Local Header Image */}
@@ -321,28 +396,28 @@ export default function HomePage() {
         </div>
 
         {/* Hero Content */}
-        <div className={`relative z-10 text-center max-w-4xl mx-auto px-6 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="space-y-6">
-            <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+        <div className={`relative z-10 text-center max-w-4xl mx-auto px-4 sm:px-6 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <div className="space-y-4 sm:space-y-6">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-white leading-tight">
               <span className="block">{t('page.heroTitlePart1')}</span>
-              <span className="block text-red-400 mt-2">{t('page.heroTitleHighlight')}{t('page.heroTitlePart2')}</span>
+              <span className="block text-red-400 mt-1 sm:mt-2">{t('page.heroTitleHighlight')}{t('page.heroTitlePart2')}</span>
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-xl md:text-2xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
               {t('page.heroSubtitle')}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg" asChild>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4 sm:pt-8">
+              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto" asChild>
                 <Link href="/dashboard">
-                  <BookOpen className="mr-2 h-5 w-5" />
+                  <BookOpen className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   {t('page.btnStartLearning')}
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </Button>
 
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-black px-8 py-4 text-lg">
-                <Eye className="mr-2 h-5 w-5" />
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto">
+                <Eye className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                 {t('page.btnLearnMore')}
               </Button>
             </div>

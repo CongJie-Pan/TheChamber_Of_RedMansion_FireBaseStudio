@@ -68,13 +68,13 @@
 
 export default function WritePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 text-center">
-      <h1 className="text-2xl font-semibold text-muted-foreground">AI Writing Coach</h1>
-      <p className="text-muted-foreground max-w-md">
-        AI-powered writing assistance features have been removed. This page was designed for 
+    <div className="flex flex-col items-center justify-center min-h-[300px] sm:min-h-[400px] space-y-3 sm:space-y-4 text-center px-4 sm:px-6">
+      <h1 className="text-xl sm:text-2xl font-semibold text-muted-foreground">AI Writing Coach</h1>
+      <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+        AI-powered writing assistance features have been removed. This page was designed for
         literary analysis writing support, essay structuring, and creative writing tools.
       </p>
-      <p className="text-sm text-muted-foreground/70">
+      <p className="text-xs sm:text-sm text-muted-foreground/70">
         Writing assistance may be integrated into other features or restored based on user feedback.
       </p>
     </div>

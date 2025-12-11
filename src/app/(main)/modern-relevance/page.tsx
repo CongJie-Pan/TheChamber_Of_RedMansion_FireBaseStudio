@@ -86,13 +86,13 @@
 
 export default function ModernRelevancePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 text-center">
-      <h1 className="text-2xl font-semibold text-muted-foreground">Modern Relevance</h1>
-      <p className="text-muted-foreground max-w-md">
-        Contemporary connection features have been removed. This page was designed to link 
+    <div className="flex flex-col items-center justify-center min-h-[300px] sm:min-h-[400px] space-y-3 sm:space-y-4 text-center px-4 sm:px-6">
+      <h1 className="text-xl sm:text-2xl font-semibold text-muted-foreground">Modern Relevance</h1>
+      <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+        Contemporary connection features have been removed. This page was designed to link
         classical themes with modern life, showing timeless relevance of the literature.
       </p>
-      <p className="text-sm text-muted-foreground/70">
+      <p className="text-xs sm:text-sm text-muted-foreground/70">
         Modern context is now provided through AI explanations when users ask specific questions.
       </p>
     </div>

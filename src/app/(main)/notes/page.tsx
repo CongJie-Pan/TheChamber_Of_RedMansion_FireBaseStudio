@@ -293,26 +293,26 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-artistic font-bold text-primary mb-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-4xl font-artistic font-bold text-primary mb-2">
           {t('notes.dashboard')}
         </h1>
-        <p className="text-muted-foreground">{t('notes.dashboardDesc')}</p>
+        <p className="text-sm sm:text-base text-muted-foreground">{t('notes.dashboardDesc')}</p>
       </div>
 
       {/* Loading State */}
       {loading && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
+              <Skeleton key={i} className="h-24 sm:h-32" />
             ))}
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-48" />
+              <Skeleton key={i} className="h-36 sm:h-48" />
             ))}
           </div>
         </div>

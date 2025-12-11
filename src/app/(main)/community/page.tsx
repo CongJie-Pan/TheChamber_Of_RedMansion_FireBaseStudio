@@ -234,32 +234,32 @@ function NewPostForm({ onPostSubmit, t, isLoading }: {
   };
 
   return (
-    <Card className="mb-6 shadow-lg bg-card/70">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+    <Card className="mb-4 sm:mb-6 shadow-lg bg-card/70">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start gap-2 sm:gap-3">
           <i
-            className="fa fa-user-circle text-primary mt-1"
+            className="fa fa-user-circle text-primary mt-1 hidden sm:block"
             aria-hidden="true"
             style={{ fontSize: '32px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           ></i>
           <div className="flex-grow">
-            <p className="font-semibold text-white mb-1">{userProfile?.displayName || user?.name || t('community.anonymousUser')}</p>
+            <p className="font-semibold text-white mb-1 text-sm sm:text-base">{userProfile?.displayName || user?.name || t('community.anonymousUser')}</p>
             <Textarea
               placeholder={t('placeholders.postContent')}
               value={postContent}
               onChange={handleContentChange}
-              className="w-full min-h-[80px] bg-background/50 text-base mb-2"
+              className="w-full min-h-[70px] sm:min-h-[80px] bg-background/50 text-sm sm:text-base mb-2"
               rows={3}
               disabled={isLoading || isSubmitting}
             />
-            <div className="flex justify-end items-center gap-4">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 sm:gap-4">
+              <span className="text-xs text-muted-foreground text-right">
                 {characterCount} / {MAX_POST_LENGTH} {t('community.characterCount')}
               </span>
-              <Button 
-                onClick={handleSubmit} 
+              <Button
+                onClick={handleSubmit}
                 disabled={!postContent.trim() || isLoading || isSubmitting}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto"
               >
                 {isSubmitting ? (
                   <>
@@ -1228,23 +1228,23 @@ export default function CommunityPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-0">
       <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
-              <CardTitle className="font-artistic text-2xl text-primary flex items-center gap-2">
-                <Users className="h-7 w-7" />
+              <CardTitle className="font-artistic text-xl sm:text-2xl text-primary flex items-center gap-2">
+                <Users className="h-6 w-6 sm:h-7 sm:w-7" />
                 {t('community.title')}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 {t('community.description')}
               </CardDescription>
             </div>
             {user && (
               <Button
                 onClick={() => document.getElementById('new-post-form')?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto"
                 disabled={isLoading}
               >
                 <Pencil className="mr-2 h-4 w-4" /> {t('community.writeNewPost')}
@@ -1252,14 +1252,14 @@ export default function CommunityPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-          <div className="mb-6">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-4 sm:space-y-6">
+          <div className="mb-4 sm:mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+              <Input
                 placeholder={t('placeholders.searchPosts')}
-                className="pl-10 bg-background/50 text-base"
+                className="pl-9 sm:pl-10 bg-background/50 text-sm sm:text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={isLoading}

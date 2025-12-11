@@ -245,11 +245,11 @@ export default function AccountSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-8 py-8">
+    <div className="container mx-auto max-w-4xl space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-0 py-4 sm:py-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('accountSettings.pageTitle')}</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('accountSettings.pageTitle')}</h1>
+        <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">
           {userProfile?.isGuest
             ? t('accountSettings.guestUserDescription')
             : t('accountSettings.regularUserDescription')}

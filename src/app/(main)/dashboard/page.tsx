@@ -104,9 +104,9 @@ interface StatCardProps {
  * @returns Styled card component with statistic information
  */
 const StatCard: React.FC<StatCardProps> = ({ value, label, icon: Icon }) => (
-  <Card className="w-[120px] h-[80px] bg-card flex flex-col items-center justify-center p-2 transition-transform hover:scale-105 focus:scale-105 cursor-pointer shadow-md">
-    {Icon && <Icon className="h-5 w-5 mb-1 text-primary" />}
-    <h2 className="text-xl font-semibold text-primary">{value}</h2>
+  <Card className="w-full sm:w-[140px] md:w-[120px] h-auto min-h-[70px] sm:min-h-[80px] bg-card flex flex-col items-center justify-center p-3 sm:p-2 transition-transform hover:scale-105 focus:scale-105 cursor-pointer shadow-md">
+    {Icon && <Icon className="h-4 w-4 sm:h-5 sm:w-5 mb-1 text-primary" />}
+    <h2 className="text-lg sm:text-xl font-semibold text-primary">{value}</h2>
     <p className="text-xs text-muted-foreground text-center">{label}</p>
   </Card>
 );
@@ -262,7 +262,7 @@ export default function DashboardPage() {
   const circumference = 2 * Math.PI * radius; // Total circle circumference
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-8 py-6">
+    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-0 py-4 sm:py-6">
       {/*
         User Level Display Card
         Shows current level, XP progress, permissions, and virtual residence
@@ -272,9 +272,9 @@ export default function DashboardPage() {
 
       {/* Phase 4-T1: Guest Account Indicator Badge */}
       {isGuestAccount(user?.id) && (
-        <Card className="p-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700">
+        <Card className="p-3 sm:p-4 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+            <Badge variant="outline" className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700 shrink-0">
               🧪 測試帳號
             </Badge>
             <div className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -297,11 +297,11 @@ export default function DashboardPage() {
           Features animated circular progress indicator and statistics grid
           Uses split layout: progress circle on left, stats grid on right
         */}
-        <Card className="h-[300px] p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
-        <div className="flex h-full items-center">
+        <Card className="min-h-[280px] md:h-[300px] p-4 sm:p-6 shadow-xl hover:shadow-primary/20 transition-shadow">
+        <div className="flex flex-col md:flex-row h-full items-center gap-4 md:gap-0">
           {/* Left Section: Animated Progress Circle */}
-          <div className="w-1/2 flex flex-col items-center justify-center pr-6 border-r border-border/50">
-            <div className="relative w-[180px] h-[180px]">
+          <div className="w-full md:w-1/2 flex flex-col items-center justify-center md:pr-6 pb-4 md:pb-0 border-b md:border-b-0 md:border-r border-border/50">
+            <div className="relative w-[140px] h-[140px] sm:w-[160px] sm:h-[160px] md:w-[180px] md:h-[180px]">
               {/* SVG Progress Circle with Gradient */}
               <svg className="w-full h-full" viewBox="0 0 36 36" transform="rotate(-90)">
                 <defs>
@@ -334,27 +334,27 @@ export default function DashboardPage() {
               </svg>
               {/* Central progress text overlay */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-foreground">{completedChapters}</span>
-                <span className="text-sm text-muted-foreground">/ {totalChapters} {t('dashboard.chaptersCompleted')}</span>
+                <span className="text-2xl sm:text-3xl font-bold text-foreground">{completedChapters}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">/ {totalChapters} {t('dashboard.chaptersCompleted')}</span>
               </div>
             </div>
-            <p className="mt-3 text-lg font-semibold text-foreground">{t('dashboard.learningOverview')}</p>
+            <p className="mt-2 sm:mt-3 text-base sm:text-lg font-semibold text-foreground">{t('dashboard.learningOverview')}</p>
           </div>
 
           {/* Right Section: Statistics Grid - Task 2.2: Dynamic data with loading/error states */}
-          <div className="w-1/2 flex flex-col justify-center gap-4 pl-6">
+          <div className="w-full md:w-1/2 flex flex-row md:flex-col justify-center items-center md:items-start gap-3 sm:gap-4 pt-2 md:pt-0 md:pl-6">
             {statsLoading ? (
-              // Loading skeleton for stats (matches StatCard dimensions: w-[120px] h-[80px])
+              // Loading skeleton for stats - responsive sizing
               <>
-                <Card className="w-[120px] h-[80px] bg-card flex flex-col items-center justify-center p-2 shadow-md">
-                  <div className="h-5 w-5 mb-1 bg-muted rounded animate-pulse" />
-                  <div className="h-6 w-16 bg-muted rounded animate-pulse mb-1" />
-                  <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                <Card className="w-full sm:w-[140px] md:w-[120px] min-h-[70px] sm:min-h-[80px] bg-card flex flex-col items-center justify-center p-3 sm:p-2 shadow-md">
+                  <div className="h-4 w-4 sm:h-5 sm:w-5 mb-1 bg-muted rounded animate-pulse" />
+                  <div className="h-5 sm:h-6 w-14 sm:w-16 bg-muted rounded animate-pulse mb-1" />
+                  <div className="h-3 w-16 sm:w-20 bg-muted rounded animate-pulse" />
                 </Card>
-                <Card className="w-[120px] h-[80px] bg-card flex flex-col items-center justify-center p-2 shadow-md">
-                  <div className="h-5 w-5 mb-1 bg-muted rounded animate-pulse" />
-                  <div className="h-6 w-16 bg-muted rounded animate-pulse mb-1" />
-                  <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                <Card className="w-full sm:w-[140px] md:w-[120px] min-h-[70px] sm:min-h-[80px] bg-card flex flex-col items-center justify-center p-3 sm:p-2 shadow-md">
+                  <div className="h-4 w-4 sm:h-5 sm:w-5 mb-1 bg-muted rounded animate-pulse" />
+                  <div className="h-5 sm:h-6 w-14 sm:w-16 bg-muted rounded animate-pulse mb-1" />
+                  <div className="h-3 w-16 sm:w-20 bg-muted rounded animate-pulse" />
                 </Card>
               </>
             ) : statsError ? (

@@ -171,14 +171,14 @@ export default function AchievementsPage() {
   }, [fetchLearningStats]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-0">
       <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Trophy className="h-8 w-8 text-primary" />
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
             <div>
-              <CardTitle className="text-3xl font-artistic text-primary">{t('achievements.title')}</CardTitle>
-              <CardDescription>{t('achievements.description')}</CardDescription>
+              <CardTitle className="text-2xl sm:text-3xl font-artistic text-primary">{t('achievements.title')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{t('achievements.description')}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -188,14 +188,14 @@ export default function AchievementsPage() {
       <LevelDisplay variant="detailed" showNextLevel />
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-artistic text-white flex items-center gap-2"><Star className="text-yellow-400" /> {t('achievements.myAchievements')}</CardTitle>
-          <CardDescription>{t('achievements.myAchievementsDesc')}</CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl font-artistic text-white flex items-center gap-2"><Star className="text-yellow-400 h-5 w-5 sm:h-6 sm:w-6" /> {t('achievements.myAchievements')}</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">{t('achievements.myAchievementsDesc')}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {userAchievements.length > 0 ? (
-            <ScrollArea className="h-[300px] w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+            <ScrollArea className="h-[250px] sm:h-[300px] w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-1">
                 {userAchievements.map((ach) => (
                   <Card key={ach.id} className="bg-card/60 hover:shadow-md transition-shadow">
                     <CardHeader>
@@ -223,18 +223,18 @@ export default function AchievementsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-artistic text-white flex items-center gap-2"><BarChart3 className="text-blue-400" /> {t('achievements.learningStats')}</CardTitle>
-          <CardDescription>{t('achievements.learningStatsDesc')}</CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl font-artistic text-white flex items-center gap-2"><BarChart3 className="text-blue-400 h-5 w-5 sm:h-6 sm:w-6" /> {t('achievements.learningStats')}</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">{t('achievements.learningStatsDesc')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0 sm:pt-0">
           {/* Task 2.2: Loading state */}
           {statsLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-card/50 p-4 rounded-lg animate-pulse">
-                  <div className="h-8 bg-muted rounded w-16 mx-auto mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-24 mx-auto"></div>
+                <div key={i} className="bg-card/50 p-3 sm:p-4 rounded-lg animate-pulse">
+                  <div className="h-6 sm:h-8 bg-muted rounded w-12 sm:w-16 mx-auto mb-2"></div>
+                  <div className="h-3 sm:h-4 bg-muted rounded w-20 sm:w-24 mx-auto"></div>
                 </div>
               ))}
             </div>
@@ -253,22 +253,22 @@ export default function AchievementsPage() {
           ) : (
             /* Task 2.2: Data display */
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div className="bg-card/50 p-4 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{formatReadingTime(learningStatsData.totalReadingTimeMinutes, t)}</p>
-                  <p className="text-sm text-muted-foreground">{t('achievements.totalReadingTime')}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-center">
+                <div className="bg-card/50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-primary">{formatReadingTime(learningStatsData.totalReadingTimeMinutes, t)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('achievements.totalReadingTime')}</p>
                 </div>
-                <div className="bg-card/50 p-4 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{learningStatsData.chaptersCompleted} <span className="text-base text-muted-foreground">/ {learningStatsData.totalChapters}</span></p>
-                  <p className="text-sm text-muted-foreground">{t('achievements.chaptersCompletedFull')}</p>
+                <div className="bg-card/50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-primary">{learningStatsData.chaptersCompleted} <span className="text-sm sm:text-base text-muted-foreground">/ {learningStatsData.totalChapters}</span></p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('achievements.chaptersCompletedFull')}</p>
                 </div>
-                <div className="bg-card/50 p-4 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{learningStatsData.notesTaken}</p>
-                  <p className="text-sm text-muted-foreground">{t('achievements.notesTaken')}</p>
+                <div className="bg-card/50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-primary">{learningStatsData.notesTaken}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('achievements.notesTaken')}</p>
                 </div>
-                <div className="bg-card/50 p-4 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{learningStatsData.currentStreak} {t('achievements.currentStreak').includes('Days') ? 'Days' : '天'}</p>
-                  <p className="text-sm text-muted-foreground">{t('achievements.currentStreak')}</p>
+                <div className="bg-card/50 p-3 sm:p-4 rounded-lg">
+                  <p className="text-lg sm:text-2xl font-bold text-primary">{learningStatsData.currentStreak} {t('achievements.currentStreak').includes('Days') ? 'Days' : '天'}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('achievements.currentStreak')}</p>
                 </div>
               </div>
               <div>

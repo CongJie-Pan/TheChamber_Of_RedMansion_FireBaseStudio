@@ -75,13 +75,13 @@
 
 export default function GoalsPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 text-center">
-      <h1 className="text-2xl font-semibold text-muted-foreground">Learning Goals</h1>
-      <p className="text-muted-foreground max-w-md">
-        Dedicated goal management features have been consolidated into the achievements page. 
+    <div className="flex flex-col items-center justify-center min-h-[300px] sm:min-h-[400px] space-y-3 sm:space-y-4 text-center px-4 sm:px-6">
+      <h1 className="text-xl sm:text-2xl font-semibold text-muted-foreground">Learning Goals</h1>
+      <p className="text-sm sm:text-base text-muted-foreground max-w-md">
+        Dedicated goal management features have been consolidated into the achievements page.
         This page was designed for personalized learning objective setting and progress tracking.
       </p>
-      <p className="text-sm text-muted-foreground/70">
+      <p className="text-xs sm:text-sm text-muted-foreground/70">
         Goal-setting functionality is now available in the achievements section for simplified user experience.
       </p>
     </div>
