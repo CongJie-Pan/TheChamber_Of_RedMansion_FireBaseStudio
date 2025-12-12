@@ -434,27 +434,8 @@ export async function updateUser(
   const db = getDatabase();
   const now = Date.now();
 
-  // Guest account protection: prevent XP/Level modifications
-  if (isGuestAccount(userId)) {
-    // Filter out XP and level updates for guest accounts
-    const { currentXP, totalXP, currentLevel, ...allowedUpdates } = updates;
-
-    if (currentXP !== undefined || totalXP !== undefined || currentLevel !== undefined) {
-      console.log(`🧪 [UserRepository] Guest account protection: blocked XP/Level updates`);
-    }
-
-    // Continue with only allowed updates (non-XP/Level fields)
-    updates = allowedUpdates;
-
-    // If no updates remain after filtering, return current user
-    if (Object.keys(updates).length === 0) {
-      const currentUser = await getUserById(userId);
-      if (!currentUser) {
-        throw new Error(`User not found: ${userId}`);
-      }
-      return currentUser;
-    }
-  }
+  // Note: Guest account XP protection removed - guests can now accumulate XP during session
+  // XP will be reset to GUEST_FIXED_XP (70) on re-login via createGuestUser()
 
   // Build dynamic update query
   const updateFields: string[] = [];
@@ -583,8 +564,8 @@ export async function updateUserPasswordHash(
 /**
  * Award XP to user
  *
- * Phase 4-T1: Guest account protection added
- * Guest accounts maintain fixed 70 XP regardless of task completion
+ * Note: Guest accounts can now accumulate XP during session.
+ * XP resets to GUEST_FIXED_XP (70) on re-login via createGuestUser()
  *
  * @param userId - User ID
  * @param xpAmount - Amount of XP to award
@@ -594,12 +575,6 @@ export async function awardXP(userId: string, xpAmount: number): Promise<UserPro
   const user = await getUserById(userId);
   if (!user) {
     throw new Error(`User not found: ${userId}`);
-  }
-
-  // Guest account protection: maintain fixed 70 XP
-  if (isGuestAccount(userId)) {
-    console.log(`🧪 [UserRepository] Guest account XP is fixed at 70, skipping award of ${xpAmount} XP`);
-    return user;
   }
 
   const newCurrentXP = user.currentXP + xpAmount;

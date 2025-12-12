@@ -23,7 +23,7 @@ export const GUEST_USERNAME = '訪客測試帳號';
 
 /**
  * Fixed XP for guest account
- * Always resets to this value on server restart
+ * Resets to this value when guest re-logs in via createGuestUser()
  */
 export const GUEST_FIXED_XP = 70;
 

@@ -2,7 +2,7 @@
  * @fileOverview Daily Task Service for Gamification System (SQLite-only)
  *
  * SQLITE-025: Migrated from Firebase to SQLite-only implementation
- * Phase 4-T1: Added guest account protection for XP awards
+ * Phase 4-T1: Guest accounts accumulate XP during session (reset on re-login)
  *
  * This service manages the Daily Task System (每日修身) operations:
  * - Task generation and assignment
@@ -634,78 +634,55 @@ export class DailyTaskService {
         unlockedPermissions?: string[];
       };
 
-      // Guest account special handling: record AI evaluation but maintain fixed 70 XP
-      if (isGuestAccount(userId)) {
-        logGuestAction('Task submission evaluated', {
-          taskId,
-          score,
-          feedback: feedback.substring(0, 50) + '...',
-          message: 'XP award skipped (guest account maintains fixed 70 XP)',
-        });
+      // Award XP using centralized level service (applies to all users including guests)
+      // Guest accounts will accumulate XP normally during session, reset on re-login
+      try {
+        // Ensure user profile exists before awarding XP
+        let user = await userRepository.getUserById(userId);
+        if (!user) {
+          user = await userRepository.createUser(userId, userId, undefined);
+        }
+
+        const beforeLevel = user.currentLevel;
+        const xpReasonBase = `Daily task completion: ${task.title || taskId}`;
+        const xpReason = xpReasonBase.slice(0, 200);
+
+        const levelResult = await userLevelService.awardXP(
+          userId,
+          finalXP,
+          xpReason,
+          'daily_task',
+          xpSourceId
+        );
+
+        if (levelResult.isDuplicate) {
+          console.log(`⚠️  [DailyTaskService] Duplicate XP detected for ${userId}:${xpSourceId}`);
+        }
 
         xpResult = {
-          success: true,
-          newTotalXP: 70, // Guest account fixed XP
-          newLevel: 1,    // Guest account fixed level
-          fromLevel: 1,
-          leveledUp: false,
+          success: levelResult.success,
+          newTotalXP: levelResult.newTotalXP,
+          newLevel: levelResult.newLevel,
+          leveledUp: levelResult.leveledUp,
+          fromLevel: levelResult.fromLevel ?? beforeLevel,
+          isDuplicate: levelResult.isDuplicate,
+          unlockedContent: levelResult.unlockedContent,
+          unlockedPermissions: levelResult.unlockedPermissions,
         };
 
-        console.log(`🧪 [Guest Account] Task evaluated successfully:`);
-        console.log(`   📝 Task: ${task.title}`);
-        console.log(`   ⭐ Score: ${score}/100`);
-        console.log(`   💬 Feedback: ${feedback.substring(0, 80)}...`);
-        console.log(`   💎 XP remains at 70 (guest account protection active)`);
-      } else {
-        // Regular user: award XP using centralized level service
-        try {
-          // Ensure user profile exists before awarding XP
-          let user = await userRepository.getUserById(userId);
-          if (!user) {
-            user = await userRepository.createUser(userId, userId, undefined);
-          }
-
-          const beforeLevel = user.currentLevel;
-          const xpReasonBase = `Daily task completion: ${task.title || taskId}`;
-          const xpReason = xpReasonBase.slice(0, 200);
-
-          const levelResult = await userLevelService.awardXP(
-            userId,
-            finalXP,
-            xpReason,
-            'daily_task',
-            xpSourceId
-          );
-
-          if (levelResult.isDuplicate) {
-            console.log(`⚠️  [DailyTaskService] Duplicate XP detected for ${userId}:${xpSourceId}`);
-          }
-
-          xpResult = {
-            success: levelResult.success,
-            newTotalXP: levelResult.newTotalXP,
-            newLevel: levelResult.newLevel,
-            leveledUp: levelResult.leveledUp,
-            fromLevel: levelResult.fromLevel ?? beforeLevel,
-            isDuplicate: levelResult.isDuplicate,
-            unlockedContent: levelResult.unlockedContent,
-            unlockedPermissions: levelResult.unlockedPermissions,
-          };
-
-          console.log(
-            `✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${xpResult.fromLevel} -> ${xpResult.newLevel})`
-          );
-        } catch (e: any) {
-          console.warn('SQLite Award XP failed, continuing:', e?.message || e);
-          const fallbackProfile = await userRepository.getUserById(userId);
-          xpResult = {
-            success: true,
-            newTotalXP: fallbackProfile?.totalXP || 0,
-            newLevel: fallbackProfile?.currentLevel || 0,
-            leveledUp: false,
-            fromLevel: fallbackProfile?.currentLevel || 0,
-          };
-        }
+        console.log(
+          `✅ [SQLite] Awarded ${finalXP} XP to user ${userId} (Level ${xpResult.fromLevel} -> ${xpResult.newLevel})`
+        );
+      } catch (e: any) {
+        console.warn('SQLite Award XP failed, continuing:', e?.message || e);
+        const fallbackProfile = await userRepository.getUserById(userId);
+        xpResult = {
+          success: true,
+          newTotalXP: fallbackProfile?.totalXP || 0,
+          newLevel: fallbackProfile?.currentLevel || 0,
+          leveledUp: false,
+          fromLevel: fallbackProfile?.currentLevel || 0,
+        };
       }
 
       // 10. Award attribute points

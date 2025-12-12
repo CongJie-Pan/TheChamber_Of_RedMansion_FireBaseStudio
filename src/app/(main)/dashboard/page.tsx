@@ -280,7 +280,7 @@ export default function DashboardPage() {
             <div className="text-sm text-yellow-800 dark:text-yellow-200">
               <p className="font-medium">您正在使用訪客測試帳號</p>
               <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                固定 70 XP • 每次伺服器重啟時重設 • 固定 2 個每日任務
+                重新登入時重設為 70 XP • 固定 2 個每日任務
               </p>
             </div>
           </div>

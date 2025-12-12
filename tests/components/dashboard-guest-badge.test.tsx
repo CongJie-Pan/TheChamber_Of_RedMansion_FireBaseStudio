@@ -72,7 +72,7 @@ describe('Dashboard Guest Badge UI', () => {
       // Should show guest account info
       expect(screen.getByText('您正在使用訪客測試帳號')).toBeInTheDocument();
       expect(
-        screen.getByText(/固定 70 XP • 每次伺服器重啟時重設 • 固定 2 個每日任務/)
+        screen.getByText(/重新登入時重設為 70 XP • 固定 2 個每日任務/)
       ).toBeInTheDocument();
     });
 

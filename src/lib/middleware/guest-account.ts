@@ -4,7 +4,7 @@
  * Provides utility functions for detecting and handling guest account behavior.
  * Guest accounts have special rules:
  * - Always return fixed tasks (no dynamic generation)
- * - Reset to 70 XP on server restart
+ * - Reset to 70 XP on re-login (via createGuestUser())
  * - Enable AI grading for all tasks
  */
 
