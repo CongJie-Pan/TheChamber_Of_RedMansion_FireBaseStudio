@@ -143,7 +143,8 @@
       "Bash(src/app/\\(main\\)/modern-relevance/page.tsx )",
       "Bash(src/app/\\(main\\)/notes/page.tsx )",
       "Bash(src/app/\\(main\\)/write/page.tsx )",
-      "Bash(src/app/page.tsx)"
+      "Bash(src/app/page.tsx)",
+      "Bash(git show de06799 --no-stat)"
     ]
   },
   "outputStyle": "default"
