@@ -241,33 +241,37 @@ export class DailyTaskService {
       return [];
     }
 
-    // Convert to DailyTask format
+    // Convert to DailyTask format (must match DailyTask interface)
+    // DailyTask uses 'type' not 'taskType', 'xpReward' not 'baseXP'
+    const now = fromUnixTimestamp(Date.now());
     const tasks: DailyTask[] = [
       {
         id: GUEST_TASK_IDS.READING_COMPREHENSION,
-        taskType: DailyTaskType.MORNING_READING,
+        type: DailyTaskType.MORNING_READING,
         difficulty: TaskDifficulty.EASY,
         title: '晨讀時光：寶玉摔玉',
         description: '閱讀第三回賈寶玉「摔玉」的經典情節，分析他的性格特徵與價值觀',
-        baseXP: 30,
-        content: readingQuestion,
-        sourceChapter: readingQuestion.chapter,
-        sourceVerseStart: readingQuestion.startLine,
-        sourceVerseEnd: readingQuestion.endLine,
-        createdAt: fromUnixTimestamp(Date.now()),
+        xpReward: 30,
+        attributeRewards: { literaryAppreciation: 2, analyticalThinking: 1 },
+        timeEstimate: 10,
+        sourceId: 'reading_001',
+        content: { textPassage: readingQuestion as any },
+        createdAt: now,
+        updatedAt: now,
       },
       {
         id: GUEST_TASK_IDS.CULTURAL_EXPLORATION,
-        taskType: DailyTaskType.CULTURAL_EXPLORATION,
+        type: DailyTaskType.CULTURAL_EXPLORATION,
         difficulty: TaskDifficulty.HARD,
         title: '文化探秘：牡丹亭與心靈覺醒',
         description: '探索《牡丹亭》戲曲如何觸動林黛玉的內心世界，理解戲曲在《紅樓夢》中的文化意涵',
-        baseXP: 50,
-        content: cultureQuestion,
-        sourceChapter: cultureQuestion.relatedChapters?.[0] || 23,
-        sourceVerseStart: undefined,
-        sourceVerseEnd: undefined,
-        createdAt: fromUnixTimestamp(Date.now()),
+        xpReward: 50,
+        attributeRewards: { culturalUnderstanding: 3, literaryAppreciation: 2 },
+        timeEstimate: 15,
+        sourceId: 'culture_008',
+        content: { culturalElement: cultureQuestion as any },
+        createdAt: now,
+        updatedAt: now,
       },
     ];
 
