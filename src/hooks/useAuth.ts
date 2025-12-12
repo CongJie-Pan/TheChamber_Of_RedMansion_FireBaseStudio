@@ -31,6 +31,8 @@ import type { Session } from 'next-auth';
 import { AuthContext } from '@/context/AuthContext';
 // Import language hook for error messages
 import { useLanguage } from '@/hooks/useLanguage';
+// Import guest account detection utility
+import { isGuestAccount } from '@/lib/middleware/guest-account';
 
 /**
  * Enhanced Authentication Hook
@@ -73,6 +75,18 @@ export function useAuth() {
   const logout = async (): Promise<void> => {
     try {
       console.log('🚪 [useAuth] Logging out user...');
+
+      // Clear AI Q&A records for guest accounts on logout
+      // This ensures guest users start fresh each session
+      if (context.userProfile?.isGuest || isGuestAccount(context.user?.id)) {
+        console.log('🧹 [useAuth] Guest user detected, clearing AI Q&A records...');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('redmansion_qa_sessions_v1');
+          localStorage.removeItem('redmansion_qa_conversations');
+          console.log('✅ [useAuth] AI Q&A records cleared for guest user');
+        }
+      }
+
       await signOut({ callbackUrl: '/' });
     } catch (error) {
       console.error('❌ [useAuth] Logout error:', error);
