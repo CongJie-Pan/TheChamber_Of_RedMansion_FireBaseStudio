@@ -1129,6 +1129,7 @@ export class DailyTaskService {
   /**
    * Generate personalized feedback using GPT-5-Mini
    * Phase 2.8: Enhanced with AI-powered feedback generation
+   * Phase 2.12: Skip AI for irrelevant content (score ≤ 20)
    *
    * @param task - Complete task object with content
    * @param userResponse - User's answer/submission
@@ -1140,6 +1141,13 @@ export class DailyTaskService {
     userResponse: string,
     score: number
   ): Promise<string> {
+    // 🚨 For irrelevant content (score ≤ 20), return fixed message immediately
+    // No need to waste AI resources on analyzing irrelevant content
+    if (score <= 20) {
+      console.log(`⚠️ [Feedback] Skipping AI feedback for irrelevant content (score: ${score})`);
+      return '您的回答未符合題意。請仔細閱讀題目要求，提供與《紅樓夢》相關的回答。本次作答不獲得經驗值獎勵。';
+    }
+
     try {
       // Try to generate personalized feedback using GPT-5-Mini
       const personalizedFeedback = await generatePersonalizedFeedback({
