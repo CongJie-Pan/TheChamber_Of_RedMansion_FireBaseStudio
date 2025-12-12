@@ -950,6 +950,25 @@ export class DailyTaskService {
         return 20;
       }
 
+      // 5. Pre-AI relevance check: Quick keyword scan for Red Mansion content
+      // This catches obviously irrelevant content before calling AI (saves API costs and time)
+      const quickRelevanceKeywords = [
+        // Core identifiers that should appear in almost any Red Mansion related answer
+        '賈', '林', '薛', '王', '史', // Family names
+        '寶玉', '黛玉', '寶釵', '熙鳳', // Main characters
+        '大觀園', '榮國府', '寧國府', '賈府', // Places
+        '紅樓', '石頭記', '曹雪芹', '脂硯齋', // Novel terms
+      ];
+      const hasAnyRelevantKeyword = quickRelevanceKeywords.some(kw => trimmedResponse.includes(kw));
+
+      if (!hasAnyRelevantKeyword && responseLength > 50) {
+        // Long response with no Red Mansion keywords - very likely irrelevant
+        console.log(`\n⚠️  評分結果: 20/100 (快速檢查：內容與《紅樓夢》無關)`);
+        console.log('   💡 提示: 答案中未發現任何《紅樓夢》相關關鍵詞');
+        console.log('📊'.repeat(40) + '\n');
+        return 20;
+      }
+
       // For valid-looking responses, use AI evaluation
       console.log('\n🤖 調用 GPT-5-mini 進行智能評分...');
 
@@ -1041,14 +1060,50 @@ export class DailyTaskService {
    * Fallback length-based scoring when AI is unavailable
    * Used when AI evaluation times out or fails
    *
+   * Phase 2.12: Added relevance keyword check to prevent irrelevant content from getting high scores
+   *
    * @param response - Trimmed user response
    * @param length - Response length
-   * @returns Fallback score based on length
+   * @returns Fallback score based on length and relevance
    */
   private fallbackLengthBasedScore(response: string, length: number): number {
     let score: number;
     let reason: string;
 
+    // 🚨 First check: Content relevance to 紅樓夢
+    // If response doesn't contain any Red Mansion related keywords, it's likely irrelevant
+    const redMansionKeywords = [
+      // Main characters
+      '賈寶玉', '林黛玉', '薛寶釵', '王熙鳳', '賈母', '劉姥姥',
+      '襲人', '晴雯', '紫鵑', '平兒', '鴛鴦', '妙玉',
+      '賈政', '賈璉', '賈赦', '賈珍', '賈蓉', '賈蘭',
+      '元春', '迎春', '探春', '惜春', '史湘雲', '秦可卿',
+      // Places and families
+      '大觀園', '榮國府', '寧國府', '賈府', '賈家', '薛家', '史家', '王家',
+      '怡紅院', '瀟湘館', '蘅蕪苑', '稻香村', '秋爽齋',
+      // Novel-related terms
+      '紅樓夢', '紅樓', '石頭記', '金陵十二釵', '曹雪芹',
+      '脂硯齋', '脂批', '甲戌本', '庚辰本',
+      // Common themes
+      '寶黛', '木石前盟', '金玉良緣', '太虛幻境', '警幻仙姑',
+      '通靈寶玉', '絳珠仙草', '神瑛侍者',
+      // Cultural elements
+      '詩詞', '對聯', '燈謎', '酒令', '海棠社', '菊花詩',
+    ];
+
+    const hasRedMansionContent = redMansionKeywords.some(keyword => response.includes(keyword));
+
+    if (!hasRedMansionContent) {
+      // Response doesn't mention anything related to Red Mansion - likely irrelevant
+      score = 20;
+      reason = '內容與《紅樓夢》無關';
+      console.log(`\n⚠️  備用評分結果: ${score}/100 (${reason})`);
+      console.log('   💡 提示: 答案中未發現《紅樓夢》相關關鍵詞');
+      console.log('📊'.repeat(40) + '\n');
+      return score;
+    }
+
+    // Content is relevant, now check length
     if (length < 30) {
       score = 20;
       reason = '答案太短';
