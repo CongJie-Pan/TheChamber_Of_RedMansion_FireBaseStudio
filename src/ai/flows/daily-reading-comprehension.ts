@@ -69,7 +69,24 @@ export type ReadingComprehensionOutput = z.infer<typeof ReadingComprehensionOutp
 function buildAssessmentPrompt(input: ReadingComprehensionInput): string {
   const keywordsList = input.expectedKeywords.map(k => `- ${k}`).join('\n');
 
-  return `你是一位專業且嚴格的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
+  return `## 🚨🚨🚨 第一步：相關性判斷（必須最先執行）🚨🚨🚨
+
+**立即檢查以下條件，如果符合任一項，直接返回 score: 20, isRelevant: false：**
+
+1. 學生回答是否提到《紅樓夢》中的任何人物、地點、情節？
+2. 學生回答是否嘗試回應本題的問題？
+
+**絕對不相關的內容範例（直接給 20 分）：**
+- ❌ 商業新聞：「張忠謀退休了」「台積電股價」「企業管理」
+- ❌ 科技文章：「AI 人工智能」「手機開發」「程式設計」
+- ❌ 政治新聞：「總統大選」「政府政策」「國際關係」
+- ❌ 其他無關內容：任何與《紅樓夢》毫無關聯的文字
+
+如果學生回答完全不相關，**不要試圖分析其中任何可能的關聯**，直接判定為無關並返回低分。
+
+---
+
+你是一位專業且嚴格的《紅樓夢》文學教師，正在評估學生對早晨閱讀段落的理解程度。
 
 **閱讀段落：**
 ${input.passage}
@@ -87,7 +104,7 @@ ${keywordsList}
 
 ---
 
-## 🚨🚨🚨 最重要：相關性檢查（必須最先執行，優先級最高）🚨🚨🚨
+## 相關性檢查詳細說明
 
 **在進行任何評分前，你必須先判斷學生的回答是否與《紅樓夢》和題目相關。這是最重要的評分標準！**
 
@@ -171,16 +188,20 @@ function parseAssessmentResponse(responseText: string, input: ReadingComprehensi
     // Try to parse JSON response
     const parsed = JSON.parse(responseText);
 
-    // Validate and sanitize isRelevant (default to true if not provided)
+    // Validate and sanitize isRelevant
+    // IMPORTANT: Default to FALSE if not provided - this is a safety measure
+    // Pre-AI check in evaluateTaskQuality should have already filtered irrelevant content,
+    // so if we reach here and isRelevant is missing, something unexpected happened
     const isRelevant = typeof parsed.isRelevant === 'boolean'
       ? parsed.isRelevant
-      : true;
+      : false; // Changed from true to false for safety
 
     // Validate and sanitize score
     // If answer is irrelevant, cap score at 20
+    // If isRelevant is missing (defaulted to false), also cap score
     let score = typeof parsed.score === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.score)))
-      : 50;
+      : 20; // Changed from 50 to 20 for safety
 
     // Enforce low score for irrelevant answers
     if (!isRelevant && score > 20) {
@@ -275,10 +296,13 @@ export async function assessReadingComprehension(
       console.error('Error in assessReadingComprehension:', error);
     }
 
-    // Return fallback assessment
+    // Return conservative fallback assessment
+    // Since pre-AI check has already verified content contains Red Mansion keywords,
+    // we can give a moderate score (60) instead of the minimum (20)
+    // But we mark isRelevant as true since it passed keyword pre-check
     return {
-      score: 50,
-      isRelevant: true, // Assume relevant when AI is unavailable
+      score: 60, // Changed from 50 to 60 - reasonable for content that passed pre-check
+      isRelevant: true, // Can assume relevant since it passed keyword pre-check
       feedback: '很抱歉，AI 評分系統暫時無法使用。您的回答已記錄，我們會盡快人工審核。',
       keyPointsCovered: [],
       keyPointsMissed: input.expectedKeywords,

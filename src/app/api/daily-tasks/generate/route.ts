@@ -16,6 +16,7 @@ import { authOptions } from "@/lib/auth-options";
 import { isLlmOnlyMode } from '@/lib/env'
 import { isGuestAccount, logGuestAction } from '@/lib/middleware/guest-account'
 import { GUEST_TASK_IDS } from '@/lib/constants/guest-account'
+import { createProgress } from '@/lib/repositories/progress-repository'
 import questionBank from '../../../../../data/task-questions/question-bank.json'
 
 /**
@@ -155,6 +156,16 @@ export async function POST(request: NextRequest) {
           createdAt: new Date(),
           updatedAt: new Date(),
         };
+
+        // Fix: Persist progress to database so submitTaskCompletion can find it
+        // Without this, ephemeral fallback creates progress with only 1 task
+        try {
+          await createProgress(progress as any);
+          logGuestAction('Persisted fresh progress to database', { progressId: progress.id });
+        } catch (persistErr) {
+          console.error('⚠️ [GuestAccount] Failed to persist progress:', persistErr);
+          // Continue - at least return in-memory progress for initial display
+        }
       }
 
       logGuestAction(`Returning ${tasks.length} fixed tasks from JSON`, {

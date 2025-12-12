@@ -950,9 +950,43 @@ export class DailyTaskService {
         return 20;
       }
 
-      // For valid-looking responses, use AI evaluation
-      // AI will determine relevance to 紅樓夢 and score accordingly
-      console.log('\n🤖 調用 GPT-5-mini 進行智能評分...');
+      // 5. 🚨 PRE-AI RELEVANCE CHECK: Safety net before calling AI
+      // Check if response contains ANY Red Mansion related keywords
+      // This prevents irrelevant content from getting high scores even if AI fails to detect
+      const redMansionKeywords = [
+        // Main characters
+        '賈寶玉', '林黛玉', '薛寶釵', '王熙鳳', '賈母', '劉姥姥',
+        '襲人', '晴雯', '紫鵑', '平兒', '鴛鴦', '妙玉',
+        '賈政', '賈璉', '賈赦', '賈珍', '賈蓉', '賈蘭',
+        '元春', '迎春', '探春', '惜春', '史湘雲', '秦可卿',
+        // Places and families
+        '大觀園', '榮國府', '寧國府', '賈府', '賈家', '薛家', '史家', '王家',
+        '怡紅院', '瀟湘館', '蘅蕪苑', '稻香村', '秋爽齋',
+        // Novel-related terms
+        '紅樓夢', '紅樓', '石頭記', '金陵十二釵', '曹雪芹',
+        '脂硯齋', '脂批', '甲戌本', '庚辰本',
+        // Common themes
+        '寶黛', '木石前盟', '金玉良緣', '太虛幻境', '警幻仙姑',
+        '通靈寶玉', '絳珠仙草', '神瑛侍者',
+        // Cultural elements
+        '詩詞', '對聯', '燈謎', '酒令', '海棠社', '菊花詩',
+      ];
+
+      const hasRedMansionContent = redMansionKeywords.some(keyword => trimmedResponse.includes(keyword));
+
+      if (!hasRedMansionContent) {
+        // Response doesn't mention anything related to Red Mansion - definitely irrelevant
+        // This is a safety net - AI should also catch this, but we add defense in depth
+        console.log(`\n🚨 預檢發現：答案未包含任何《紅樓夢》相關關鍵詞`);
+        console.log(`⚠️  評分結果: 20/100 (內容與《紅樓夢》無關)`);
+        console.log('📊'.repeat(40) + '\n');
+        return 20;
+      }
+
+      // For valid-looking responses with Red Mansion keywords, use AI evaluation
+      // AI will provide detailed assessment and feedback
+      console.log(`\n✅ 預檢通過：答案包含《紅樓夢》相關內容`);
+      console.log('🤖 調用 GPT-5-mini 進行智能評分...');
 
       // Extract content from task based on task type
       // DailyTask.content structure varies by type:
