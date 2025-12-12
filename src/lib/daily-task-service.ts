@@ -950,26 +950,8 @@ export class DailyTaskService {
         return 20;
       }
 
-      // 5. Pre-AI relevance check: Quick keyword scan for Red Mansion content
-      // This catches obviously irrelevant content before calling AI (saves API costs and time)
-      const quickRelevanceKeywords = [
-        // Core identifiers that should appear in almost any Red Mansion related answer
-        '賈', '林', '薛', '王', '史', // Family names
-        '寶玉', '黛玉', '寶釵', '熙鳳', // Main characters
-        '大觀園', '榮國府', '寧國府', '賈府', // Places
-        '紅樓', '石頭記', '曹雪芹', '脂硯齋', // Novel terms
-      ];
-      const hasAnyRelevantKeyword = quickRelevanceKeywords.some(kw => trimmedResponse.includes(kw));
-
-      if (!hasAnyRelevantKeyword && responseLength > 50) {
-        // Long response with no Red Mansion keywords - very likely irrelevant
-        console.log(`\n⚠️  評分結果: 20/100 (快速檢查：內容與《紅樓夢》無關)`);
-        console.log('   💡 提示: 答案中未發現任何《紅樓夢》相關關鍵詞');
-        console.log('📊'.repeat(40) + '\n');
-        return 20;
-      }
-
       // For valid-looking responses, use AI evaluation
+      // AI will determine relevance to 紅樓夢 and score accordingly
       console.log('\n🤖 調用 GPT-5-mini 進行智能評分...');
 
       // Extract content from task based on task type
