@@ -302,16 +302,12 @@ export async function createGuestUser(): Promise<UserProfile> {
       args: [GUEST_FIXED_XP, GUEST_FIXED_XP, GUEST_LEVEL, JSON.stringify([]), now, GUEST_USER_ID]
     });
 
-    // Reset daily progress (clear completed tasks)
+    // Delete daily progress entirely so it gets regenerated fresh
+    // This ensures guest users always start with clean tasks from JSON
     const todayString = new Date().toISOString().split('T')[0];
     await db.execute({
-      sql: `UPDATE daily_progress SET
-        completedTaskIds = ?,
-        skippedTaskIds = ?,
-        totalXPEarned = ?,
-        updatedAt = ?
-      WHERE userId = ? AND date = ?`,
-      args: [JSON.stringify([]), JSON.stringify([]), 0, now, GUEST_USER_ID, todayString]
+      sql: `DELETE FROM daily_progress WHERE userId = ? AND date = ?`,
+      args: [GUEST_USER_ID, todayString]
     });
 
     console.log(`✅ [UserRepository] Guest state reset: XP=${GUEST_FIXED_XP}, Level=${GUEST_LEVEL}`);

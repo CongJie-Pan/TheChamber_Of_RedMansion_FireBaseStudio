@@ -33,8 +33,14 @@ function getGuestTasksFromJSON() {
     (q: { id: string }) => q.id === 'culture_008'
   );
 
+  // Debug logging
+  console.log('🔍 [GuestTasks] readingQuestion found:', !!readingQuestion);
+  console.log('🔍 [GuestTasks] cultureQuestion found:', !!cultureQuestion);
+
   if (!readingQuestion || !cultureQuestion) {
     console.error('❌ Guest tasks not found in question-bank.json');
+    console.error('   readingQuestion:', readingQuestion);
+    console.error('   cultureQuestion:', cultureQuestion);
     return [];
   }
 
@@ -71,6 +77,7 @@ function getGuestTasksFromJSON() {
     },
   ];
 
+  console.log(`✅ [GuestTasks] Returning ${tasks.length} tasks:`, tasks.map(t => t.id));
   return tasks;
 }
 
