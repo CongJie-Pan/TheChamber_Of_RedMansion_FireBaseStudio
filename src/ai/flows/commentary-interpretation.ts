@@ -50,13 +50,14 @@ export type CommentaryInterpretationInput = z.infer<typeof CommentaryInterpretat
  * 脂批解讀評分結果的輸出結構
  */
 const CommentaryInterpretationOutputSchema = z.object({
-  score: z.number().min(0).max(100).describe('Overall interpretation quality score (0-100). Based on insight, accuracy, and literary sensitivity.'),
+  score: z.number().min(0).max(100).describe('Overall interpretation quality score (0-100). Based on insight, accuracy, and literary sensitivity. Irrelevant answers should score 0-20.'),
+  isRelevant: z.boolean().describe('Whether the answer is relevant to the commentary and question. False if the answer is completely unrelated content (e.g., news articles, advertisements, other novels).'),
   insightLevel: z.enum(['surface', 'moderate', 'deep', 'profound']).describe('Depth of interpretation insight: surface (表面), moderate (中等), deep (深入), or profound (透徹).'),
   literarySensitivity: z.number().min(0).max(100).describe('Literary sensitivity score (0-100). Measures understanding of symbolic language, metaphor, and hidden meanings.'),
   keyInsightsCaptured: z.array(z.string()).describe('List of key interpretations or symbolic meanings that the user successfully identified.'),
   keyInsightsMissed: z.array(z.string()).describe('Important insights or symbolic meanings that the user did not mention.'),
-  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Praise insightful observations and guide toward deeper understanding.'),
-  detailedAnalysis: z.string().describe('Detailed evaluation of the interpretation in Markdown format. Explain the commentary\'s true meaning, symbolism, and literary significance. Use Traditional Chinese (繁體中文).'),
+  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Praise insightful observations and guide toward deeper understanding. For irrelevant answers, clearly indicate the issue and encourage genuine effort.'),
+  detailedAnalysis: z.string().describe('Detailed evaluation of the interpretation in Markdown format. For irrelevant answers, explain why it was deemed irrelevant. Explain the commentary\'s true meaning, symbolism, and literary significance. Use Traditional Chinese (繁體中文).'),
   commentaryExplanation: z.string().describe('Authoritative explanation of what the Zhiyanzhai commentary actually reveals. Helps users understand the correct interpretation. Use Traditional Chinese (繁體中文).'),
 });
 
@@ -91,6 +92,29 @@ ${hintsList}
 
 **任務難度：** ${input.difficulty}
 
+---
+
+## 🚨 最重要：相關性檢查（必須最先執行）
+
+在進行任何評分前，你必須先判斷學生的回答是否與題目相關：
+
+**直接給 0-20 分的情況（無論答案多長）：**
+- 回答內容與《紅樓夢》完全無關（如：新聞報導、科技文章、其他小說內容、廣告文案）
+- 回答內容與本題的脂批解讀毫無關聯
+- 明顯是複製貼上的無關文字
+- 胡言亂語或無意義的文字組合
+
+**判斷方法：**
+1. 回答是否嘗試解讀脂硯齋批語？
+2. 回答是否與《紅樓夢》的文本相關？
+3. 回答是否展現對批語的理解嘗試？
+
+如果以上三點都是「否」，請將 isRelevant 設為 false，並給予 0-20 分，不需要進行後續評分。
+
+---
+
+## 正常評分標準（僅當回答與題目相關時使用）
+
 脂硯齋批語是《紅樓夢》研究的重要材料，往往揭示了：
 - 人物命運的伏筆和暗示
 - 象徵意義和隱喻手法
@@ -115,15 +139,18 @@ ${hintsList}
 - **中等難度 (medium)**: 需要理解多層含義和象徵意義 60-80 分區間
 - **困難難度 (hard)**: 需要透徹理解隱喻、伏筆和深層意涵才能獲得高分
 
+---
+
 請以 JSON 格式回應，包含以下欄位：
 {
   "score": 0-100的綜合評分,
+  "isRelevant": true或false（回答是否與題目相關）,
   "insightLevel": "surface/moderate/deep/profound",
   "literarySensitivity": 0-100的文學敏感度,
   "keyInsightsCaptured": ["學生成功理解的關鍵含義1", "含義2"],
   "keyInsightsMissed": ["學生未理解的重要含義1", "含義2"],
-  "feedback": "100-150字的鼓勵性反饋，肯定洞察力並指出深化方向",
-  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式，包含：學生解讀的優點（用 **粗體** 標註精彩觀察）、可以深化的角度（用列表格式）、脂批研究的方法指導",
+  "feedback": "100-150字的鼓勵性反饋，肯定洞察力並指出深化方向。如果回答無關，請明確指出並鼓勵學生認真作答",
+  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式。如果回答無關，請說明為何判定為無關內容",
   "commentaryExplanation": "200-300字的權威解釋，闡明此批語的真正含義、象徵意義和文學價值"
 }
 
@@ -139,14 +166,31 @@ function parseCommentaryInterpretationResponse(responseText: string, input: Comm
     // Try to parse JSON response
     const parsed = JSON.parse(responseText);
 
+    // Validate and sanitize isRelevant (default to true if not provided)
+    const isRelevant = typeof parsed.isRelevant === 'boolean'
+      ? parsed.isRelevant
+      : true;
+
     // Validate and sanitize scores
-    const score = typeof parsed.score === 'number'
+    // If answer is irrelevant, cap score at 20
+    let score = typeof parsed.score === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.score)))
       : 50;
 
-    const literarySensitivity = typeof parsed.literarySensitivity === 'number'
+    // Enforce low score for irrelevant answers
+    if (!isRelevant && score > 20) {
+      console.log(`⚠️ [AI Assessment] Capping score from ${score} to 20 due to irrelevant content`);
+      score = 20;
+    }
+
+    let literarySensitivity = typeof parsed.literarySensitivity === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.literarySensitivity)))
       : 50;
+
+    // Also cap literarySensitivity score for irrelevant answers
+    if (!isRelevant && literarySensitivity > 20) {
+      literarySensitivity = 20;
+    }
 
     // Validate insightLevel enum
     const insightLevel = ['surface', 'moderate', 'deep', 'profound'].includes(parsed.insightLevel)
@@ -165,11 +209,15 @@ function parseCommentaryInterpretationResponse(responseText: string, input: Comm
     // Validate text fields
     const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
       ? parsed.feedback
-      : '感謝您的脂批解讀，請繼續深入研究！';
+      : isRelevant
+        ? '感謝您的脂批解讀，請繼續深入研究！'
+        : '您的回答似乎與題目無關，請仔細閱讀脂批內容後重新作答。';
 
     const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
       ? parsed.detailedAnalysis
-      : '# 脂批解讀評價\n\n您的解讀已收到。';
+      : isRelevant
+        ? '# 脂批解讀評價\n\n您的解讀已收到。'
+        : '# 評估分析\n\n您的回答內容與題目無關。請仔細閱讀脂硯齋批語和相關原文，然後提供與《紅樓夢》相關的解讀。';
 
     const commentaryExplanation = typeof parsed.commentaryExplanation === 'string' && parsed.commentaryExplanation.length > 0
       ? parsed.commentaryExplanation
@@ -177,6 +225,7 @@ function parseCommentaryInterpretationResponse(responseText: string, input: Comm
 
     return {
       score,
+      isRelevant,
       insightLevel,
       literarySensitivity,
       keyInsightsCaptured,
@@ -211,7 +260,7 @@ export async function scoreCommentaryInterpretation(
 
     // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'GPT-5-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -246,6 +295,7 @@ export async function scoreCommentaryInterpretation(
     // Return fallback assessment
     return {
       score: 50,
+      isRelevant: true, // Assume relevant when AI is unavailable
       insightLevel: 'moderate' as const,
       literarySensitivity: 50,
       keyInsightsCaptured: [],

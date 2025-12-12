@@ -70,12 +70,13 @@ const QuestionResultSchema = z.object({
  * 文化知識測驗評分結果的輸出結構
  */
 const CulturalQuizGradingOutputSchema = z.object({
-  score: z.number().min(0).max(100).describe('Overall quiz score (0-100). Average of all question scores.'),
+  score: z.number().min(0).max(100).describe('Overall quiz score (0-100). Average of all question scores. Irrelevant answers should score 0-20.'),
+  isRelevant: z.boolean().describe('Whether the answers are relevant to the quiz questions. False if the answers are completely unrelated content (e.g., news articles, advertisements, other topics).'),
   correctCount: z.number().min(0).describe('Number of questions answered correctly.'),
   totalQuestions: z.number().min(1).describe('Total number of questions in the quiz.'),
   questionResults: z.array(QuestionResultSchema).describe('Detailed results for each question.'),
-  feedback: z.string().describe('Overall feedback in Traditional Chinese (繁體中文). Summarize performance and encourage further learning.'),
-  culturalInsights: z.string().describe('Cultural learning insights in Markdown format. Explain interesting cultural facts, historical context, and deepen understanding. Use Traditional Chinese (繁體中文).'),
+  feedback: z.string().describe('Overall feedback in Traditional Chinese (繁體中文). Summarize performance and encourage further learning. For irrelevant answers, clearly indicate the issue and encourage genuine effort.'),
+  culturalInsights: z.string().describe('Cultural learning insights in Markdown format. For irrelevant answers, explain why it was deemed irrelevant. Explain interesting cultural facts, historical context, and deepen understanding. Use Traditional Chinese (繁體中文).'),
 });
 
 /**
@@ -113,6 +114,29 @@ ${optionsSection}
 **測驗題目與回答：**
 ${questionsSection}
 
+---
+
+## 🚨 最重要：相關性檢查（必須最先執行）
+
+在進行任何評分前，你必須先判斷學生的回答是否與題目相關：
+
+**直接給 0-20 分的情況（無論答案多長）：**
+- 回答內容與《紅樓夢》或中國古典文化完全無關（如：新聞報導、科技文章、其他主題、廣告文案）
+- 回答內容與測驗題目毫無關聯
+- 明顯是複製貼上的無關文字
+- 胡言亂語或無意義的文字組合
+
+**判斷方法：**
+1. 回答是否嘗試回應測驗問題？
+2. 回答是否與《紅樓夢》的文化背景相關？
+3. 回答是否展現對中國古典文化的理解？
+
+如果以上三點都是「否」，請將 isRelevant 設為 false，並給予 0-20 分，不需要進行後續評分。
+
+---
+
+## 正常評分標準（僅當回答與題目相關時使用）
+
 請根據以下標準評估每道題目：
 
 **評分標準：**
@@ -122,9 +146,12 @@ ${questionsSection}
   - **中等難度**: 需要準確且較完整的回答 60-85 分區間
   - **困難難度**: 需要深入理解和詳細說明 50-90 分區間
 
+---
+
 請以 JSON 格式回應，包含以下欄位：
 {
   "score": 所有題目平均分(0-100),
+  "isRelevant": true或false（回答是否與題目相關）,
   "correctCount": 完全正確的題目數量,
   "totalQuestions": ${input.quizQuestions.length},
   "questionResults": [
@@ -135,8 +162,8 @@ ${questionsSection}
       "explanation": "正確：簡短讚揚並補充文化知識 (50-80字) 或 錯誤：說明正確答案並解釋文化背景 (80-120字)"
     }
   ],
-  "feedback": "100-150字的鼓勵性總評，指出優點和學習方向",
-  "culturalInsights": "250-350字的文化知識深化，使用 Markdown 格式，包含：相關文化背景的延伸介紹（用 **粗體** 強調重點）、《紅樓夢》中的具體體現（用列表格式）、推薦的延伸閱讀主題"
+  "feedback": "100-150字的鼓勵性總評，指出優點和學習方向。如果回答無關，請明確指出並鼓勵學生認真作答",
+  "culturalInsights": "250-350字的文化知識深化，使用 Markdown 格式。如果回答無關，請說明為何判定為無關內容"
 }
 
 請以繁體中文回應，語氣友善且富有啟發性。確保回覆格式為有效的 JSON。`;
@@ -153,45 +180,72 @@ function parseCulturalQuizResponse(responseText: string, input: CulturalQuizGrad
 
     const totalQuestions = input.quizQuestions.length;
 
+    // Validate and sanitize isRelevant (default to true if not provided)
+    const isRelevant = typeof parsed.isRelevant === 'boolean'
+      ? parsed.isRelevant
+      : true;
+
     // Validate and sanitize score
-    const score = typeof parsed.score === 'number'
+    // If answer is irrelevant, cap score at 20
+    let score = typeof parsed.score === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.score)))
       : 50;
+
+    // Enforce low score for irrelevant answers
+    if (!isRelevant && score > 20) {
+      console.log(`⚠️ [AI Assessment] Capping score from ${score} to 20 due to irrelevant content`);
+      score = 20;
+    }
 
     const correctCount = typeof parsed.correctCount === 'number'
       ? Math.max(0, Math.min(totalQuestions, parsed.correctCount))
       : 0;
 
     // Validate question results array
+    // Also cap individual question scores for irrelevant answers
     const questionResults = Array.isArray(parsed.questionResults)
-      ? parsed.questionResults.map((result: any, index: number) => ({
-          questionNumber: index + 1,
-          isCorrect: typeof result.isCorrect === 'boolean' ? result.isCorrect : false,
-          score: typeof result.score === 'number'
+      ? parsed.questionResults.map((result: any, index: number) => {
+          let questionScore = typeof result.score === 'number'
             ? Math.max(0, Math.min(100, Math.round(result.score)))
-            : 50,
-          explanation: typeof result.explanation === 'string' && result.explanation.length > 0
-            ? result.explanation
-            : '評分完成。',
-        }))
+            : 50;
+
+          // Cap individual question scores for irrelevant content
+          if (!isRelevant && questionScore > 20) {
+            questionScore = 20;
+          }
+
+          return {
+            questionNumber: index + 1,
+            isCorrect: typeof result.isCorrect === 'boolean' ? result.isCorrect : false,
+            score: questionScore,
+            explanation: typeof result.explanation === 'string' && result.explanation.length > 0
+              ? result.explanation
+              : isRelevant ? '評分完成。' : '回答內容與題目無關。',
+          };
+        })
       : input.quizQuestions.map((_, index) => ({
           questionNumber: index + 1,
           isCorrect: false,
-          score: 50,
-          explanation: '評分完成。',
+          score: isRelevant ? 50 : 20,
+          explanation: isRelevant ? '評分完成。' : '回答內容與題目無關。',
         }));
 
     // Validate text fields
     const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
       ? parsed.feedback
-      : '感謝您完成文化知識測驗！';
+      : isRelevant
+        ? '感謝您完成文化知識測驗！'
+        : '您的回答似乎與題目無關，請仔細閱讀題目後重新作答。';
 
     const culturalInsights = typeof parsed.culturalInsights === 'string' && parsed.culturalInsights.length > 0
       ? parsed.culturalInsights
-      : '# 文化知識\n\n繼續探索《紅樓夢》的文化世界。';
+      : isRelevant
+        ? '# 文化知識\n\n繼續探索《紅樓夢》的文化世界。'
+        : '# 評估分析\n\n您的回答內容與題目無關。請仔細閱讀文化測驗題目，然後提供與《紅樓夢》文化背景相關的答案。';
 
     return {
       score,
+      isRelevant,
       correctCount,
       totalQuestions,
       questionResults,
@@ -224,7 +278,7 @@ export async function gradeCulturalQuiz(
 
     // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'GPT-5-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -261,6 +315,7 @@ export async function gradeCulturalQuiz(
     // Return fallback assessment
     return {
       score: 50,
+      isRelevant: true, // Assume relevant when AI is unavailable
       correctCount: 0,
       totalQuestions: totalQuestions,
       questionResults: input.quizQuestions.map((_, index) => ({

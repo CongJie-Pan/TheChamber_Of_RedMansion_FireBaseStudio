@@ -50,13 +50,14 @@ export type CharacterAnalysisScoringInput = z.infer<typeof CharacterAnalysisScor
  * 人物分析評分結果的輸出結構
  */
 const CharacterAnalysisScoringOutputSchema = z.object({
-  qualityScore: z.number().min(0).max(100).describe('Overall quality score from 0-100. Based on depth, insight, accuracy, and literary awareness.'),
+  qualityScore: z.number().min(0).max(100).describe('Overall quality score from 0-100. Based on depth, insight, accuracy, and literary awareness. Irrelevant answers should score 0-20.'),
+  isRelevant: z.boolean().describe('Whether the answer is relevant to the character and question. False if the answer is completely unrelated content (e.g., news articles, advertisements, other novels).'),
   depth: z.enum(['superficial', 'moderate', 'profound']).describe('Assessment of analysis depth: superficial (表面), moderate (中等), or profound (深刻).'),
   insight: z.number().min(0).max(100).describe('Insight score (0-100). Measures psychological understanding and character motivation interpretation.'),
   themesCovered: z.array(z.string()).describe('List of expected themes that the user successfully addressed in their analysis.'),
   themesMissed: z.array(z.string()).describe('List of important themes or aspects that the user did not explore.'),
-  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Highlights strengths and suggests deeper exploration areas.'),
-  detailedAnalysis: z.string().describe('Detailed evaluation of the analysis quality in Markdown format. Include specific examples, character insights, and improvement suggestions. Use Traditional Chinese (繁體中文).'),
+  feedback: z.string().describe('Constructive feedback in Traditional Chinese (繁體中文). Highlights strengths and suggests deeper exploration areas. For irrelevant answers, clearly indicate the issue and encourage genuine effort.'),
+  detailedAnalysis: z.string().describe('Detailed evaluation of the analysis quality in Markdown format. For irrelevant answers, explain why it was deemed irrelevant. Include specific examples, character insights, and improvement suggestions. Use Traditional Chinese (繁體中文).'),
 });
 
 /**
@@ -90,6 +91,29 @@ ${themesList}
 
 **任務難度：** ${input.difficulty}
 
+---
+
+## 🚨 最重要：相關性檢查（必須最先執行）
+
+在進行任何評分前，你必須先判斷學生的回答是否與題目相關：
+
+**直接給 0-20 分的情況（無論答案多長）：**
+- 回答內容與《紅樓夢》完全無關（如：新聞報導、科技文章、其他小說內容、廣告文案）
+- 回答內容與本題的人物分析毫無關聯
+- 明顯是複製貼上的無關文字
+- 胡言亂語或無意義的文字組合
+
+**判斷方法：**
+1. 回答是否提及被分析的人物 ${input.characterName}？
+2. 回答是否嘗試回應分析題目？
+3. 回答是否與《紅樓夢》的世界觀相關？
+
+如果以上三點都是「否」，請將 isRelevant 設為 false，並給予 0-20 分，不需要進行後續評分。
+
+---
+
+## 正常評分標準（僅當回答與題目相關時使用）
+
 請根據以下標準評估學生的人物分析：
 
 1. **深度 (depth)**: 分析是否深入人物內心世界，還是僅停留在表面描述
@@ -109,15 +133,18 @@ ${themesList}
 - **中等難度 (medium)**: 需要涵蓋多個主題，展現一定洞察力，70-85 分區間
 - **困難難度 (hard)**: 需要深刻洞察、全面主題覆蓋、文學分析，才能獲得高分
 
+---
+
 請以 JSON 格式回應，包含以下欄位：
 {
   "qualityScore": 0-100的綜合質量分,
+  "isRelevant": true或false（回答是否與題目相關）,
   "depth": "superficial/moderate/profound",
   "insight": 0-100的洞察力分數,
   "themesCovered": ["學生成功探討的主題1", "主題2"],
   "themesMissed": ["學生未探討但應該包含的主題1", "主題2"],
-  "feedback": "80-120字的鼓勵性反饋，讚揚亮點並指出深化方向",
-  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式，包含：分析的優點（用 **粗體** 標註精彩洞察）、可以深化的角度（用列表格式）、推薦的閱讀章節或參考資料、人物研究的延伸思考方向"
+  "feedback": "80-120字的鼓勵性反饋，讚揚亮點並指出深化方向。如果回答無關，請明確指出並鼓勵學生認真作答",
+  "detailedAnalysis": "250-350字的深入評析，使用 Markdown 格式。如果回答無關，請說明為何判定為無關內容"
 }
 
 請以繁體中文回應，語氣專業且具有啟發性。確保回覆格式為有效的 JSON。`;
@@ -132,14 +159,31 @@ function parseCharacterAnalysisResponse(responseText: string, input: CharacterAn
     // Try to parse JSON response
     const parsed = JSON.parse(responseText);
 
+    // Validate and sanitize isRelevant (default to true if not provided)
+    const isRelevant = typeof parsed.isRelevant === 'boolean'
+      ? parsed.isRelevant
+      : true;
+
     // Validate and sanitize scores
-    const qualityScore = typeof parsed.qualityScore === 'number'
+    // If answer is irrelevant, cap score at 20
+    let qualityScore = typeof parsed.qualityScore === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.qualityScore)))
       : 50;
 
-    const insight = typeof parsed.insight === 'number'
+    // Enforce low score for irrelevant answers
+    if (!isRelevant && qualityScore > 20) {
+      console.log(`⚠️ [AI Assessment] Capping score from ${qualityScore} to 20 due to irrelevant content`);
+      qualityScore = 20;
+    }
+
+    let insight = typeof parsed.insight === 'number'
       ? Math.max(0, Math.min(100, Math.round(parsed.insight)))
       : 50;
+
+    // Also cap insight score for irrelevant answers
+    if (!isRelevant && insight > 20) {
+      insight = 20;
+    }
 
     // Validate depth enum
     const depth = ['superficial', 'moderate', 'profound'].includes(parsed.depth)
@@ -158,14 +202,19 @@ function parseCharacterAnalysisResponse(responseText: string, input: CharacterAn
     // Validate text fields
     const feedback = typeof parsed.feedback === 'string' && parsed.feedback.length > 0
       ? parsed.feedback
-      : '感謝您的人物分析，請繼續深入探索！';
+      : isRelevant
+        ? '感謝您的人物分析，請繼續深入探索！'
+        : '您的回答似乎與題目無關，請仔細閱讀題目後重新作答。';
 
     const detailedAnalysis = typeof parsed.detailedAnalysis === 'string' && parsed.detailedAnalysis.length > 0
       ? parsed.detailedAnalysis
-      : '# 人物分析評價\n\n您的分析已收到。';
+      : isRelevant
+        ? '# 人物分析評價\n\n您的分析已收到。'
+        : '# 評估分析\n\n您的回答內容與題目無關。請仔細閱讀人物背景和分析題目，然後提供與《紅樓夢》人物相關的答案。';
 
     return {
       qualityScore,
+      isRelevant,
       depth,
       insight,
       themesCovered,
@@ -199,7 +248,7 @@ export async function scoreCharacterAnalysis(
 
     // Call OpenAI API with GPT-5-mini
     const completion = await openai.chat.completions.create({
-      model: 'GPT-5-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -234,6 +283,7 @@ export async function scoreCharacterAnalysis(
     // Return fallback assessment
     return {
       qualityScore: 50,
+      isRelevant: true, // Assume relevant when AI is unavailable
       depth: 'moderate' as const,
       insight: 50,
       themesCovered: [],
