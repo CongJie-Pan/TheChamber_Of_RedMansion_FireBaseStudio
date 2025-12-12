@@ -281,19 +281,51 @@ export async function createUser(
  * @returns Created guest user profile
  */
 export async function createGuestUser(): Promise<UserProfile> {
-  // Return existing fixed guest account if present
-  const existingGuest = await getUserById(GUEST_USER_ID);
-  if (existingGuest) {
-    // Bug Fix (2025-12-11): Enhanced logging for debugging guest account persistence
-    console.log(`✅ [UserRepository] Reusing existing guest user: ${GUEST_USER_ID}`);
-    console.log(`   📊 Guest XP: ${existingGuest.currentXP}, Level: ${existingGuest.currentLevel}`);
-    console.log(`   📋 CompletedTasks: ${existingGuest.completedTasks?.length || 0} tasks`);
-    console.log(`   📅 LastActivity: ${existingGuest.lastActivityAt?.toISOString() || 'N/A'}`);
-    return existingGuest;
-  }
-
   const db = getDatabase();
   const now = Date.now();
+
+  // Check if guest account exists
+  const existingGuest = await getUserById(GUEST_USER_ID);
+  if (existingGuest) {
+    // Reset guest account state on every login (XP, level, daily progress)
+    console.log(`🔄 [UserRepository] Resetting guest user state: ${GUEST_USER_ID}`);
+
+    // Reset user XP and level
+    await db.execute({
+      sql: `UPDATE users SET
+        currentXP = ?,
+        totalXP = ?,
+        currentLevel = ?,
+        completedTasks = ?,
+        updatedAt = ?
+      WHERE id = ?`,
+      args: [GUEST_FIXED_XP, GUEST_FIXED_XP, GUEST_LEVEL, JSON.stringify([]), now, GUEST_USER_ID]
+    });
+
+    // Reset daily progress (clear completed tasks)
+    const todayString = new Date().toISOString().split('T')[0];
+    await db.execute({
+      sql: `UPDATE daily_progress SET
+        completedTaskIds = ?,
+        skippedTaskIds = ?,
+        totalXPEarned = ?,
+        updatedAt = ?
+      WHERE userId = ? AND date = ?`,
+      args: [JSON.stringify([]), JSON.stringify([]), 0, now, GUEST_USER_ID, todayString]
+    });
+
+    console.log(`✅ [UserRepository] Guest state reset: XP=${GUEST_FIXED_XP}, Level=${GUEST_LEVEL}`);
+
+    // Return fresh guest profile
+    return {
+      ...existingGuest,
+      currentXP: GUEST_FIXED_XP,
+      totalXP: GUEST_FIXED_XP,
+      currentLevel: GUEST_LEVEL,
+      completedTasks: [],
+      updatedAt: fromUnixTimestamp(now),
+    };
+  }
 
   // Generate a secure random password (guest won't need it, but required for DB)
   const crypto = require('crypto');

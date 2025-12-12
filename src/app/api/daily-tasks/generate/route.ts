@@ -14,8 +14,62 @@ import { taskGenerator } from '@/lib/task-generator'
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { isLlmOnlyMode } from '@/lib/env'
-import { isGuestAccount, getGuestTaskIds, logGuestAction } from '@/lib/middleware/guest-account'
-import { getTasksByIds } from '@/lib/repositories/task-repository'
+import { isGuestAccount, logGuestAction } from '@/lib/middleware/guest-account'
+import { GUEST_TASK_IDS } from '@/lib/constants/guest-account'
+import questionBank from '../../../../../data/task-questions/question-bank.json'
+
+/**
+ * Build guest tasks directly from question-bank.json
+ * No database seeding required - reads from static JSON file
+ */
+function getGuestTasksFromJSON() {
+  // Find reading_001 from morning_reading.easy
+  const readingQuestion = questionBank.morning_reading.easy.find(
+    (q: { id: string }) => q.id === 'reading_001'
+  );
+
+  // Find culture_008 from cultural_exploration.hard
+  const cultureQuestion = questionBank.cultural_exploration.hard.find(
+    (q: { id: string }) => q.id === 'culture_008'
+  );
+
+  if (!readingQuestion || !cultureQuestion) {
+    console.error('❌ Guest tasks not found in question-bank.json');
+    return [];
+  }
+
+  // Convert to DailyTask format
+  const tasks = [
+    {
+      id: GUEST_TASK_IDS.READING_COMPREHENSION,
+      taskType: 'morning_reading',
+      difficulty: 'easy',
+      title: '晨讀時光：寶玉摔玉',
+      description: '閱讀第三回賈寶玉「摔玉」的經典情節，分析他的性格特徵與價值觀',
+      baseXP: 30,
+      content: JSON.stringify(readingQuestion),
+      sourceChapter: readingQuestion.chapter,
+      sourceVerseStart: readingQuestion.startLine,
+      sourceVerseEnd: readingQuestion.endLine,
+      createdAt: Date.now(),
+    },
+    {
+      id: GUEST_TASK_IDS.CULTURAL_EXPLORATION,
+      taskType: 'cultural_exploration',
+      difficulty: 'hard',
+      title: '文化探秘：牡丹亭與心靈覺醒',
+      description: '探索《牡丹亭》戲曲如何觸動林黛玉的內心世界，理解戲曲在《紅樓夢》中的文化意涵',
+      baseXP: 50,
+      content: JSON.stringify(cultureQuestion),
+      sourceChapter: cultureQuestion.relatedChapters?.[0] || 23,
+      sourceVerseStart: null,
+      sourceVerseEnd: null,
+      createdAt: Date.now(),
+    },
+  ];
+
+  return tasks;
+}
 
 export async function POST(request: NextRequest) {
   // Parse body ONCE and keep values for both main path and fallback
@@ -48,29 +102,30 @@ export async function POST(request: NextRequest) {
 
     const effectiveUserId = verifiedUid || (userId as string)
 
-    // Phase 4-T1: Guest account always returns fixed tasks (no generation)
-    // Bug Fix (2025-12-11): Include progress data to preserve completion status across logins
+    // Phase 4-T1: Guest account always returns fixed tasks from JSON (no database required)
+    // Fix (2025-12-12): Read directly from question-bank.json instead of database
     if (isGuestAccount(effectiveUserId)) {
-      logGuestAction('Task generation requested - returning fixed tasks with progress');
-      const guestTaskIds = getGuestTaskIds();
-      const tasks = await getTasksByIds(guestTaskIds);
+      logGuestAction('Task generation requested - returning fixed tasks from JSON');
+
+      // Get tasks directly from JSON file - no database seeding needed
+      const tasks = getGuestTasksFromJSON();
 
       if (tasks.length === 0) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Guest account tasks not found. Run: tsx scripts/seed-guest-account.ts --reset'
+            error: 'Guest tasks not found in question-bank.json (reading_001, culture_008)'
           },
-          { status: 404 }
+          { status: 500 }
         );
       }
 
-      // Bug Fix: Fetch today's progress to include completedTaskIds
+      // Fetch today's progress to include completedTaskIds
       // This ensures guest users see their completed tasks after re-login
       const progress = await dailyTaskService.getUserDailyProgress(effectiveUserId);
 
-      logGuestAction(`Returning ${tasks.length} fixed tasks`, {
-        taskIds: guestTaskIds,
+      logGuestAction(`Returning ${tasks.length} fixed tasks from JSON`, {
+        taskIds: tasks.map(t => t.id),
         hasProgress: !!progress,
         completedTaskIds: progress?.completedTaskIds || [],
       });

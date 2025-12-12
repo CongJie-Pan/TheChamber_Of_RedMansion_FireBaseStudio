@@ -35,7 +35,8 @@
 import { userLevelService } from './user-level-service';
 import { taskGenerator } from './task-generator';
 import { isGuestAccount, logGuestAction } from './middleware/guest-account';
-import { getGuestTaskIdsArray } from './constants/guest-account';
+import { GUEST_TASK_IDS } from './constants/guest-account';
+import questionBank from '../../data/task-questions/question-bank.json';
 import {
   DailyTask,
   DailyTaskProgress,
@@ -220,6 +221,60 @@ export class DailyTaskService {
   private taskCache: Map<string, { task: DailyTask; timestamp: number }> = new Map();
 
   /**
+   * Build guest tasks directly from question-bank.json
+   * No database seeding required - reads from static JSON file
+   * Shared logic with API route for consistency
+   */
+  private getGuestTasksFromJSON(): DailyTask[] {
+    // Find reading_001 from morning_reading.easy
+    const readingQuestion = questionBank.morning_reading.easy.find(
+      (q: { id: string }) => q.id === 'reading_001'
+    );
+
+    // Find culture_008 from cultural_exploration.hard
+    const cultureQuestion = questionBank.cultural_exploration.hard.find(
+      (q: { id: string }) => q.id === 'culture_008'
+    );
+
+    if (!readingQuestion || !cultureQuestion) {
+      console.error('❌ Guest tasks not found in question-bank.json');
+      return [];
+    }
+
+    // Convert to DailyTask format
+    const tasks: DailyTask[] = [
+      {
+        id: GUEST_TASK_IDS.READING_COMPREHENSION,
+        taskType: DailyTaskType.MORNING_READING,
+        difficulty: TaskDifficulty.EASY,
+        title: '晨讀時光：寶玉摔玉',
+        description: '閱讀第三回賈寶玉「摔玉」的經典情節，分析他的性格特徵與價值觀',
+        baseXP: 30,
+        content: readingQuestion,
+        sourceChapter: readingQuestion.chapter,
+        sourceVerseStart: readingQuestion.startLine,
+        sourceVerseEnd: readingQuestion.endLine,
+        createdAt: fromUnixTimestamp(Date.now()),
+      },
+      {
+        id: GUEST_TASK_IDS.CULTURAL_EXPLORATION,
+        taskType: DailyTaskType.CULTURAL_EXPLORATION,
+        difficulty: TaskDifficulty.HARD,
+        title: '文化探秘：牡丹亭與心靈覺醒',
+        description: '探索《牡丹亭》戲曲如何觸動林黛玉的內心世界，理解戲曲在《紅樓夢》中的文化意涵',
+        baseXP: 50,
+        content: cultureQuestion,
+        sourceChapter: cultureQuestion.relatedChapters?.[0] || 23,
+        sourceVerseStart: undefined,
+        sourceVerseEnd: undefined,
+        createdAt: fromUnixTimestamp(Date.now()),
+      },
+    ];
+
+    return tasks;
+  }
+
+  /**
    * Generate daily tasks for a user on a specific date
    * This method should be called once per day per user
    *
@@ -243,27 +298,16 @@ export class DailyTaskService {
         return this.getTasksFromAssignments(existingProgress.tasks);
       }
 
-      // 🔧 GUEST ACCOUNT FIX: Use fixed tasks instead of AI generation
-      // Guest accounts always get the same 2 predefined tasks
+      // 🔧 GUEST ACCOUNT FIX: Use fixed tasks from JSON instead of database
+      // Guest accounts always get the same 2 predefined tasks from question-bank.json
       if (isGuestAccount(userId)) {
-        logGuestAction('Fetching fixed guest tasks', { date: targetDate });
+        logGuestAction('Fetching fixed guest tasks from JSON', { date: targetDate });
 
-        // Fetch the fixed guest tasks from database
-        // Bug Fix (2025-12-02): getTaskById is async, must await it
-        const guestTaskIds = getGuestTaskIdsArray();
-        const fixedTasks: DailyTask[] = [];
-
-        for (const taskId of guestTaskIds) {
-          const task = await taskRepository.getTaskById(taskId);
-          if (task) {
-            fixedTasks.push(task);
-          } else {
-            console.warn(`⚠️ [GuestAccount] Fixed task not found: ${taskId}`);
-          }
-        }
+        // Get tasks directly from JSON file - no database required
+        const fixedTasks = this.getGuestTasksFromJSON();
 
         if (fixedTasks.length === 0) {
-          throw new Error('Guest account fixed tasks not found. Please run seed script.');
+          throw new Error('Guest tasks not found in question-bank.json (reading_001, culture_008)');
         }
 
         // Create task assignments for guest account
