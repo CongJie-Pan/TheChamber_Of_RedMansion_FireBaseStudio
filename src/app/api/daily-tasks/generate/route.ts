@@ -130,9 +130,32 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Fetch today's progress to include completedTaskIds
-      // This ensures guest users see their completed tasks after re-login
-      const progress = await dailyTaskService.getUserDailyProgress(effectiveUserId);
+      // Fetch today's progress or create a fresh one for guest
+      let progress = await dailyTaskService.getUserDailyProgress(effectiveUserId);
+
+      // If no progress exists (first login or after reset), create a fresh progress object
+      // This ensures stats display correctly (e.g., "0/2" instead of "0/0")
+      if (!progress) {
+        const today = new Date().toISOString().split('T')[0];
+        progress = {
+          id: `${effectiveUserId}_${today}`,
+          userId: effectiveUserId,
+          date: today,
+          tasks: tasks.map(t => ({
+            taskId: t.id,
+            assignedAt: new Date(),
+            status: 'not_started' as const,
+          })),
+          completedTaskIds: [],
+          skippedTaskIds: [],
+          totalXPEarned: 0,
+          totalAttributeGains: {},
+          usedSourceIds: [],
+          streak: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
 
       logGuestAction(`Returning ${tasks.length} fixed tasks from JSON`, {
         taskIds: tasks.map(t => t.id),
@@ -143,7 +166,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         tasks,
-        progress,  // Include progress with completedTaskIds
+        progress,  // Include progress with task assignments for stats
         isGuest: true
       }, { status: 200 });
     }
