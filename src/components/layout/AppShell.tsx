@@ -62,7 +62,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/useLanguage";
 import { LANGUAGES } from "@/lib/translations";
@@ -81,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter(); // Router instance for programmatic navigation
   
   // Custom hooks for authentication and language management
-  const { user } = useAuth(); // Current authenticated user state
+  const { user, logout } = useAuth(); // Current authenticated user state and logout function
   const { language, setLanguage, t } = useLanguage(); // Language state and translation function
 
   // State for tracking incomplete daily tasks (for red dot notification)
@@ -166,13 +165,13 @@ export function AppShell({ children }: { children: ReactNode }) {
    * User Logout Handler
    *
    * Handles the user logout process by:
-   * 1. Calling NextAuth signOut function
-   * 2. Redirecting to login page via callbackUrl
+   * 1. Calling useAuth logout function (which clears guest data if applicable)
+   * 2. Redirecting to home page via callbackUrl
    * 3. Logging errors for debugging
    */
   const handleLogout = async () => {
     try {
-      await signOut({ callbackUrl: '/login' });
+      await logout();
     } catch (error) {
       console.error("Logout error:", error);
     }
